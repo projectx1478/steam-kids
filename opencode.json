@@ -1,0 +1,31 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": ["CLAUDE.md", "PROJECT.md"],
+  "permission": {
+    "read": "allow",
+    "webfetch": "allow",
+    "edit": "allow",
+    "bash": {
+      "*": "allow",
+      "git push *:main*": "ask",
+      "git reset *": "deny",
+      "git clean *": "deny",
+      "git push --force*": "deny",
+      "git push -f *": "deny",
+      "rm -rf *": "deny",
+      "gh pr merge*": "deny",
+      "gh api *merge*": "deny"
+    },
+    "*_merge_pull_request": "deny"
+  },
+  "agent": {
+    "plan": {
+      "tools": { "write": false, "edit": false, "patch": false }
+    },
+    "review": {
+      "mode": "subagent",
+      "description": "実装後に git diff を読み、要求範囲外の変更・検証未実行・プロジェクトルール逸脱を指摘する",
+      "tools": { "write": false, "edit": false, "patch": false }
+    }
+  }
+}

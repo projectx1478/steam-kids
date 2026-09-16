@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>verify example</title>
+</head>
+<body>
+<h1>Verify Example</h1>
+<p id="label">初期状態</p>
+<button id="toggle">切り替え</button>
+<script>
+document.getElementById('toggle').addEventListener('click', () => {
+  document.getElementById('label').textContent = '変更後';
+});
+</script>
+</body>
+</html>

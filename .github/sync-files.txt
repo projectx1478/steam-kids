@@ -1,0 +1,12 @@
+CLAUDE.md
+AGENTS.md
+opencode.json
+.claude/verify/run.mjs
+.claude/verify/README.md
+.claude/scripts/rebuild-branch.sh
+.claude/scripts/README.md
+.claude/hooks/check-file-size.sh
+.claude/settings.json
+.devcontainer/devcontainer.json
+.devcontainer/post-create.sh
+.devcontainer/README.md

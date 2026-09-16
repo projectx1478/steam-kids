@@ -1,0 +1,59 @@
+name: Template broadcast sync
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: '単発で再同期する配布先（owner/repo）。空なら全配布先'
+        required: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      targets: ${{ steps.set.outputs.targets }}
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: check
+        if: github.event_name == 'push'
+        run: |
+          set -euo pipefail
+          CHANGED=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}")
+          SHOULD_RUN=false
+          while IFS= read -r entry || [ -n "$entry" ]; do
+            [ -z "$entry" ] && continue
+            case "$entry" in \#*) continue ;; esac
+            if grep -qxF "$entry" <<< "$CHANGED" || grep -q "^${entry}/" <<< "$CHANGED"; then
+              SHOULD_RUN=true
+              break
+            fi
+          done < .github/sync-files.txt
+          echo "should_run=$SHOULD_RUN" >> "$GITHUB_OUTPUT"
+      - id: set
+        run: |
+          set -euo pipefail
+          if [ -n "${{ github.event.inputs.target }}" ]; then
+            echo 'targets=["${{ github.event.inputs.target }}"]' >> "$GITHUB_OUTPUT"
+          else
+            echo "targets=$(jq -c . .github/sync-targets.json)" >> "$GITHUB_OUTPUT"
+          fi
+
+  broadcast:
+    needs: prepare
+    if: github.event_name == 'workflow_dispatch' || needs.prepare.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.prepare.outputs.targets) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sync to ${{ matrix.target }}
+        env:
+          GH_TOKEN: ${{ secrets.CLAUDE_MD_SYNC_TOKEN }}
+        run: bash .claude/scripts/broadcast-sync.sh "${{ matrix.target }}"
