@@ -7,6 +7,16 @@ import { renderCommandPalette, renderCommandQueue, COMMAND_LABELS } from './ui-c
 
 const STEP_DELAY_MS = 600;
 
+// clear到達後は離脱してもabandonを記録しない。1セッションにつき1回だけ記録する。
+let lessonCleared = false;
+let abandonLogged = false;
+
+function logAbandonOnce() {
+  if (abandonLogged || lessonCleared) return;
+  abandonLogged = true;
+  logEvent('abandon', {});
+}
+
 function stage() {
   return document.getElementById('stage');
 }
@@ -17,6 +27,11 @@ export function initSteps() {
     S.furigana = !S.furigana;
     toggle.setAttribute('aria-pressed', String(S.furigana));
   });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) logAbandonOnce();
+  });
+  window.addEventListener('pagehide', logAbandonOnce);
 
   logEvent('step_enter', {});
   renderStep();
@@ -308,6 +323,7 @@ function renderPlay(root, step) {
         updateControls();
         if (result.reachedGoal) {
           logEvent('clear', {});
+          lessonCleared = true;
           resultEl.dataset.result = 'clear';
           resultEl.appendChild(createClearReaction());
           resultEl.appendChild(createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'));

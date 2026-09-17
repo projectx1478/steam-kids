@@ -1,7 +1,17 @@
+import { loadProfile, saveProfile } from './storage.js';
+
+function loadOrCreateProfile() {
+  const existing = loadProfile();
+  if (existing) return existing;
+  const profile = { learnerId: crypto.randomUUID(), label: null, createdAt: Date.now() };
+  saveProfile(profile);
+  return profile;
+}
+
 export const S = {
   lesson: null,
   stepIndex: 0,
-  learnerId: crypto.randomUUID(),
+  learnerId: loadOrCreateProfile().learnerId,
   furigana: false,
 };
 
