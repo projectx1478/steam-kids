@@ -21,6 +21,12 @@ async function noLongLine(page) {
 export default async function run({ page, check }) {
   await page.goto('/index.html');
 
+  await check(
+    'ダブルタップズーム抑止(touch-action: manipulation)が適用される',
+    async () => page.evaluate(() => getComputedStyle(document.body).touchAction),
+    'manipulation'
+  );
+
   await check('ふりがなトグルが存在する', async () => (await page.$('#furigana-toggle')) !== null);
   await check('imgが0個', async () => (await page.$$('img')).length, 0);
   await check('外部リンクが0個', async () => (await page.$$('a[href^="http"]')).length, 0);
