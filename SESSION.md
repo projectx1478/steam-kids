@@ -20,9 +20,9 @@
 
 ## 次にやること
 
-Issue #1（P0: grid-runtime でレッスン1「すすむ」を動かす）をSonnetの新規セッションで実装する。
+Issue #2（P0: grid-runtime でレッスン1「すすむ」を動かす）をSonnetの新規セッションで実装する。
 レッスン1の確定値・受け入れ条件はIssue本文と `docs/learning-spec.md` に記載済み。
-着手前に PROJECT.md →  `docs/learning-spec.md` → Issue #1 の順に読む。
+着手前に PROJECT.md → `docs/learning-spec.md` → Issue #2 の順に読む。
 
 **P0を実機で試すまでP1以降を作り込まない**（PROJECT.md「6. ロードマップ」）。
 実機で子どもの反応が想定と違えば設計から見直す。
@@ -44,8 +44,8 @@ Issue #1（P0: grid-runtime でレッスン1「すすむ」を動かす）をSon
 
 ## 未着手Issue
 
-- #1 P0: grid-runtime でレッスン1「すすむ」を動かす
-- #2 P1〜P5 と未決事項のトラッキング（P0の実機結果を見てから詳細化する）
+- #2 P0: grid-runtime でレッスン1「すすむ」を動かす
+- #3 P1〜P5 と未決事項のトラッキング（P0の実機結果を見てから詳細化する）
 
 # 未コミットの変更
 
@@ -53,4 +53,4 @@ Issue #1（P0: grid-runtime でレッスン1「すすむ」を動かす）をSon
 
 # 次回最初に行うこと
 
-Issue #1 のP0実装。`origin/main` 起点でブランチを切る
+Issue #2 のP0実装。`origin/main` 起点でブランチを切る
