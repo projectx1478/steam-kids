@@ -1,0 +1,11 @@
+{
+  "name": "steam-kids",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "build:css": "tailwindcss -i tailwind.src.css -o style.css --minify"
+  },
+  "devDependencies": {
+    "tailwindcss": "3.4.17"
+  }
+}
