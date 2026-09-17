@@ -1,6 +1,6 @@
 # SESSION.md
 
-最終更新：2026-09-17（P1完了。Issue #8・#9 ともmainへマージ済み。次はIssue #10かP2詳細化）
+最終更新：2026-09-17（Issue #10 実装済み・PR作成待ち。次はP2の個別Issue起票）
 
 引き継ぎ専用。進捗・仕様はここに書かない（仕様→PROJECT.md、進捗→git/PR履歴、個別タスク→GitHub Issue）。
 
@@ -8,7 +8,7 @@
 
 # 現在作業中のタスク
 
-なし（P1完了。P2詳細化とIssue #10は未着手）
+Issue #10 実装済み（ブランチ `claude/issue-10-style-css-drift`）。PR作成待ち
 
 # 完了したタスク（直近のみ・詳細はgit/PR履歴参照）
 
@@ -22,17 +22,18 @@
 - P1完了。Issue #3 から#8（レッスンJSON外出し）・#9（スキーマ検証スクリプト`tools/validate-lessons.mjs`）
   に分割して実装し、PR #11・#12 をmainへマージ済み。ステップ数規則を4〜7へ緩和、漢字チェックは
   「漢字ゼロ」機械判定とする判断はIssue #3本文に、実装詳細はPR #11・#12本文に記録済み
-- 検証中に発見した2件をIssue化（対応中タスクの軽微な修正の範囲外のため別Issue）:
-  `.claude/verify`ハーネスは実HTTP 4xx・console.errorを無条件で自動失敗にする制約（#8で対処済み）と
-  style.cssのビルド差分（#10・未着手）
+- 検証中に発見した2件をIssue化: `.claude/verify`ハーネスは実HTTP 4xx・console.errorを無条件で
+  自動失敗にする制約（#8で対処済み）と style.cssのビルド差分（#10）
+- Issue #10 を実装。ユーザー判断で「バナーコメントを削除し再ビルド結果を正とする」方針に決定。
+  style.cssを再ビルドしてコミット。以後 `npx tailwindcss@3.4.17 ... --minify` を実行しても
+  `git diff style.css` が空になることを確認
 
 # 引き継ぎ事項
 
 ## 次にやること
 
-P1完了。次はIssue #3からP2（イベントログ+localStorage+ダッシュボード）の個別Issue起票、
-またはIssue #10（style.cssビルド差分）のどちらを先にやるかユーザーに確認する。
-いずれも設計判断を伴うためOpus想定（CLAUDE.md「モデル選択ルール」）。
+Issue #10 のPRを作成し、人のMergeを待つ。マージ後はIssue #3 からP2（イベントログ+localStorage+
+ダッシュボード）の個別Issue起票に進む（設計判断を伴うためOpus想定。着手前にユーザーへ確認）。
 
 ## 恒久的な制約
 
@@ -52,7 +53,6 @@ P1完了。次はIssue #3からP2（イベントログ+localStorage+ダッシュ
 ## 未着手Issue
 
 - #3 P1〜P5 と未決事項のトラッキング（P1完了。P2以降は着手時に分割する）
-- #10 style.css のビルド差分（バナーコメントがビルドで再現されない）
 
 # 未コミットの変更
 
@@ -60,4 +60,4 @@ P1完了。次はIssue #3からP2（イベントログ+localStorage+ダッシュ
 
 # 次回最初に行うこと
 
-P2の詳細化とIssue #10、どちらを先にやるかユーザーに確認する。
+Issue #10 のPR（ブランチ `claude/issue-10-style-css-drift`）を作成する。
