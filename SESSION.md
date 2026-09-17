@@ -1,6 +1,6 @@
 # SESSION.md
 
-最終更新：2026-09-17（Issue #8 実装済み・PR作成待ち。次は #9 の実装をSonnetで）
+最終更新：2026-09-17（Issue #8 マージ済み。Issue #9 実装済み・PR作成待ち）
 
 引き継ぎ専用。進捗・仕様はここに書かない（仕様→PROJECT.md、進捗→git/PR履歴、個別タスク→GitHub Issue）。
 
@@ -8,7 +8,7 @@
 
 # 現在作業中のタスク
 
-Issue #8 実装済み（ブランチ `claude/issue-8-lesson-json`）。PR作成待ち
+Issue #9 実装済み（ブランチ `claude/issue-9-validate-lessons`）。PR作成待ち
 
 # 完了したタスク（直近のみ・詳細はgit/PR履歴参照）
 
@@ -22,27 +22,26 @@ Issue #8 実装済み（ブランチ `claude/issue-8-lesson-json`）。PR作成�
 - Issue #3 からP1を2本に分割して起票（#8 レッスンJSON外出し／#9 スキーマ検証スクリプト）。
   ステップ数規則を4〜7へ緩める判断と、漢字チェックを「漢字ゼロ」機械判定とする判断を
   Issue #3 本文に記録済み
-- Issue #8 を実装。`js/lesson-cmd-01.js` を `lessons/cmd-01-susumu.json` へ移し、
-  `js/lesson-loader.js` の `loadLesson()` で fetch する構成に変更。取得・パース失敗時は
-  20字以内のフォールバック文言を表示。検証シナリオ `cmd01-lesson-json` を追加し、
-  既存7本を含め全PASS（`run.mjs` / `--mobile`）を確認
-- 実装中に「.claude/verify のハーネスは実HTTP 4xxとその際にChromiumが自動で出す
-  console.errorを自動失敗条件にしており、実際に404を返すシナリオは書けない」ことを発見。
-  Issue #8 の完了条件にあった「page.routeで404を模す」は「200応答＋不正bodyでパース失敗を
-  模す」に読み替えて実装・検証した（同じcatch分岐を通るため代替として妥当と判断）。
-  app.js側もconsole.errorは呼ばず、DOM表示のみで失敗を伝える設計にした
-- style.css のビルド差分（バナーコメントがビルドで再現されない）を発見。Issue #8のスコープ外
-  のためIssue #10として起票し、style.cssの変更は今回のコミットに含めていない
+- Issue #8 を実装しPR #11 をmainへマージ済み。`lessons/cmd-01-susumu.json` + `js/lesson-loader.js`
+  の fetch 構成に変更。実装判断・検証結果の詳細はPR #11本文に記録
+  （`.claude/verify` ハーネスは実HTTP 4xx・console.errorを無条件で自動失敗にするため、
+  404テストは「200応答＋不正bodyでパース失敗」で代替）
+- 検証中に style.css のビルド差分（バナーコメントがビルドで再現されない）を発見。
+  Issue #8のスコープ外のためIssue #10として起票（未着手）
+- Issue #9 を実装。`tools/validate-lessons.mjs` で `lessons/*.json` を15ルール検証（必須キー・
+  ステップ数4〜7・文字数20字・漢字ゼロ・到達可能性BFS等）。到達可能性・予想整合の判定は
+  `js/engine-grid.js` の `simulate` を再利用。15ルール全てを単独違反させて検出を確認済み
+  （手順はスクラッチに記録、コミットには含めない）。`docs/lesson-schema.md`・`PROJECT.md` を
+  実装に合わせて更新。`package.json` に `type: module` を追加（Node警告解消）
 
 # 引き継ぎ事項
 
 ## 次にやること
 
-PR作成→人がMerge確認後、Issue #9 を**Sonnetで**実装する（`lessons/*.json` が前提のため
-#8マージ後に着手）。Issueに変更内容・検証ルール・完了条件まで記載済みのため追加の設計判断は不要。
+Issue #9 のPRを作成し、人のMergeを待つ。P1（#8・#9）完了後は Issue #3 のP2詳細化に進む
+（着手前にユーザーへ担当モデル確認。CLAUDE.md「モデル選択ルール」で設計・Issue起票はOpus想定）。
 
-#9 の検証スクリプトでも、実HTTP 4xxをverifyハーネスで模すとauto-fail条件に引っかかる制約は
-関係しない（`tools/validate-lessons.mjs` はNode単体実行でブラウザを介さないため）。
+Issue #10（style.cssビルド差分）は未着手。設計判断のためOpus想定だが影響軽微。
 
 ## 恒久的な制約
 
@@ -61,8 +60,7 @@ PR作成→人がMerge確認後、Issue #9 を**Sonnetで**実装する（`lesso
 
 ## 未着手Issue
 
-- #3 P1〜P5 と未決事項のトラッキング（P1は詳細化済み。P2以降は着手時に分割する）
-- #9 P1-2 レッスンJSONのスキーマ検証スクリプトを追加し、スキーマを確定する（#8マージ後に着手）
+- #3 P1〜P5 と未決事項のトラッキング（P1は完了見込み。P2以降は着手時に分割する）
 - #10 style.css のビルド差分（バナーコメントがビルドで再現されない）
 
 # 未コミットの変更
@@ -71,5 +69,4 @@ PR作成→人がMerge確認後、Issue #9 を**Sonnetで**実装する（`lesso
 
 # 次回最初に行うこと
 
-Issue #8 のPRがマージされているか確認する。マージ済みなら `origin/main` を取り込み、
-Issue #9 の実装に着手する。
+Issue #9 のPR（ブランチ `claude/issue-9-validate-lessons`）を作成する。

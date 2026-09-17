@@ -40,7 +40,7 @@
 
 UI規則（受け入れ条件。すべて判定可能な数値条件とする）:
 
-- 1レッスン = 5〜7ステップ、所要5分
+- 1レッスン = 4〜7ステップ、所要5分
 - 1画面の文章は20字以内
 - アニメーションは1手あたり0.6秒。実行中は該当箇所をハイライト
 - 失敗表示を出さない。未達成時は「もういちど」のみ
@@ -131,6 +131,7 @@ js/
   ui-step.js         # ステップ切替、ふりがなトグル
   events.js          # logEvent()。P0はメモリ配列のみ（永続化はP2）
 lessons/             # レッスンJSON（P1〜）
+tools/               # 開発時ツール（レッスンJSON検証）
 docs/                # 詳細ドキュメント（7章の索引を参照）
 .claude/             # Claude Codeのフック・検証ハーネス・スクリプト
 .devcontainer/       # Codespaces/OpenCode Web用コンテナ設定
@@ -162,8 +163,7 @@ ES Modules（`<script type="module">` / `import`/`export`）でファイル間�
 | 型チェック | なし |
 | ビルド | `npx tailwindcss@3.4.17 -i tailwind.src.css -o style.css --minify` |
 | E2E/実機確認 | `node .claude/verify/run.mjs` |
-
-レッスンJSONのスキーマ検証コマンドはP1で追加する。
+| レッスンJSON検証 | `npm run validate:lessons` |
 
 ### コーディング規則
 
@@ -236,4 +236,5 @@ Issueには理由ではなく**判定可能な数値条件**を書く（0.6秒�
 - 同期バックエンドを Firebase とするか、GitHub Contents API + Cloudflare Workers 構成に揃えるか。
   **P3着手時までに決定**（`docs/design-sync.md`）
 - ダッシュボードの認証方法（家庭では不要。校内配布時の教師向け保護をどうするか）
-- 学年別許可漢字リストの出典。確定まで `docs/authoring-rules.md` の暫定規則で運用する
+- 学年別許可漢字リストの出典。確定まで漢字ゼロの暫定規則で運用する
+  （`docs/authoring-rules.md`・`tools/validate-lessons.mjs`）

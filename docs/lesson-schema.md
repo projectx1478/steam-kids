@@ -17,6 +17,12 @@
       "stepId": "s2",
       "kind": "predict",
       "text": "どのマスに つく？",
+      "commands": ["up", "up", "right"],
+      "optionCells": [
+        { "id": "A", "x": 1, "y": 2 },
+        { "id": "B", "x": 1, "y": 1 },
+        { "id": "C", "x": 2, "y": 1 }
+      ],
       "options": ["A", "B", "C"],
       "answer": "B"
     },
@@ -37,17 +43,30 @@
 
 `kind` は `intro` / `predict` / `play` / `summary`。座標は y が下向きに増加する。
 
+`predict` ステップは自前の盤面を持たず、同じレッスン内の `play` ステップの
+`grid` / `start` / `goal` / `walls` を参照する。`commands` はその盤面上で予想させる命令列、
+`optionCells` は `options` の各選択肢が指すマス座標（`id` が `options` の値と対応）。
+
 ## 検証ルール（生成後に自動チェック）
 
-- `text` は20字以内
-- `steps` は5〜7個
-- `predict` ステップが最低1つ含まれること
-- `answer` が `options` に存在すること
-- ゴールが到達可能であること（探索で確認）
-- 使用漢字が学年別許可リスト内であること（`docs/authoring-rules.md`）
-- **検証NGの場合は再生成する。手で通さない**
+`npm run validate:lessons`（`tools/validate-lessons.mjs`）が `lessons/*.json` を全件チェックする。
 
-検証スクリプトはP1で追加する（`lessons/*.json` を全件チェックし、NGがあれば exit 1）。
+- 必須キー（`lessonId` `unitId` `title` `type` `estimatedMinutes` `steps`）が揃っている
+- `lessonId` がファイル名と一致する
+- `text` は20字以内
+- `steps` は4〜7個
+- `predict` ステップが最低1つ含まれること
+- `grid-runtime` では `play` ステップがちょうど1つであること
+- `estimatedMinutes` が5であること
+- `answer` が `options` に存在し、`optionCells` の `id` 集合が `options` と一致すること
+- `predict.commands` を `play` の盤面で実行した終点が `answer` の `optionCells` 座標と一致すること
+- `commands` / `allowedCommands` が `up` `down` `left` `right` のみであること
+- `start` `goal` `walls` `optionCells` の座標が盤内であること
+- `start` と `goal` が重ならず、`walls` が `start` `goal` を含まないこと
+- ゴールが到達可能であること（`maxCommands` 以内の最短手数をBFSで確認）
+- `text` に漢字（CJK統合漢字）が含まれないこと（学年別許可リストの出典確定までの暫定規則。
+  `docs/authoring-rules.md`）
+- **検証NGの場合は再生成する。手で通さない**
 
 ## 学習イベント
 
