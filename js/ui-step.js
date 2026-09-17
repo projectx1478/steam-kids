@@ -53,6 +53,16 @@ function createPrimaryButton(label, onClick, action) {
   return btn;
 }
 
+function createClearReaction() {
+  const wrap = document.createElement('div');
+  wrap.className = 'clear-reaction flex flex-col items-center gap-1';
+  wrap.innerHTML = `<svg viewBox="0 0 64 64" class="w-12 h-12" aria-hidden="true">
+    <polygon points="32,4 39,24 60,24 43,37 49,58 32,46 15,58 21,37 4,24 25,24"
+      fill="#fbbf24" stroke="#f59e0b" stroke-width="2" />
+  </svg><p class="text-lg font-bold text-amber-600">やったね</p>`;
+  return wrap;
+}
+
 // 命令列を1手600msで再生する。engine-gridの純粋計算結果(simulate)を時間軸に沿って見せるだけ。
 function playAnimation(commands, spec, { onTick, onDone }) {
   const result = simulate(commands, spec);
@@ -279,6 +289,7 @@ function renderPlay(root, step) {
     local.running = true;
     local.playerPos = { ...spec.start };
     resultEl.innerHTML = '';
+    delete resultEl.dataset.result;
     logEvent('run', { commandCount: local.commands.length });
     updateControls();
     drawBoard();
@@ -297,6 +308,8 @@ function renderPlay(root, step) {
         updateControls();
         if (result.reachedGoal) {
           logEvent('clear', {});
+          resultEl.dataset.result = 'clear';
+          resultEl.appendChild(createClearReaction());
           resultEl.appendChild(createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'));
         } else {
           resultEl.appendChild(
