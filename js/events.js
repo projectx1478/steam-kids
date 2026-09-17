@@ -1,11 +1,9 @@
 import { S, currentStep } from './state.js';
-
-// P0はメモリ配列に積むのみ。永続化はP2。
-const events = [];
+import { appendEvent, loadEvents } from './storage.js';
 
 export function logEvent(type, payload = {}) {
   const step = currentStep();
-  events.push({
+  appendEvent({
     eventId: crypto.randomUUID(),
     learnerId: S.learnerId,
     lessonId: S.lesson.lessonId,
@@ -17,5 +15,5 @@ export function logEvent(type, payload = {}) {
 }
 
 export function getEvents() {
-  return events;
+  return loadEvents();
 }
