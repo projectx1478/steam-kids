@@ -1,6 +1,6 @@
 # SESSION.md
 
-最終更新：2026-09-18（#20実装しPR #23作成。ユーザーの`wrangler deploy`待ち）
+最終更新：2026-09-18（#20デプロイ・完了条件確認済み。PR #23レビュー待ち）
 
 引き継ぎ専用。進捗・仕様はここに書かない（仕様→PROJECT.md、進捗→git/PR履歴、個別タスク→GitHub Issue）。
 
@@ -8,9 +8,8 @@
 
 # 現在作業中のタスク
 
-PR #23（#20 同期API実装）がユーザーの `wrangler deploy` 実行待ち。デプロイ後、
-AIが完了条件のcurl確認（register→push→pull→issue→redeem）と
-`docs/design-sync.md` へのエンドポイントURL反映を行いマージ可能にする
+なし。PR #23（#20 同期API実装）はデプロイ済み・完了条件9項目のcurl確認済みで、
+ユーザーのレビュー・マージ待ち。次は #21 の実装
 
 # 完了したタスク（直近のみ・詳細はgit/PR履歴参照）
 
@@ -26,19 +25,22 @@ AIが完了条件のcurl確認（register→push→pull→issue→redeem）と
   確定した仕様判断（上限5000件で古い順に破棄、導線はURL直打ちのみ、呼び名入力はダッシュボード側、
   アラート判定の細部）と実装中の副産物2件（Tailwindのcontentスキャンが`hidden`等の識別子を
   拾う件、モバイル幅での横スクロール修正）はIssue #3のコメントに記録済み
+- **#20完了**（2026-09-18）。同期API（Cloudflare Workers + D1）を実装しデプロイ済み。
+  エンドポイント `https://steam-kids-sync.projectx1478.workers.dev`。完了条件のcurl 9項目
+  （register/push/重複排除/pull順序/リンクコード発行・引き換え・単回性/別端末統合pull/
+  誤認証拒否）をすべて確認、テストデータはD1から削除済み。PR #23
 
 # 引き継ぎ事項
 
 ## 次にやること
 
-PR #23 で `workers/steam-kids-sync/` の `wrangler deploy` をユーザーに実行してもらう。
-D1（`steam-kids-sync`, database_id: `6efb84b6-8aff-42cf-b4c5-07c8a1a978b7`）は作成・
-スキーマ適用済み。デプロイ後のURLをもらったら、AIが#20の完了条件（curl 9項目）を確認し、
-`docs/design-sync.md` の「エンドポイントURL」記載とPR #23を更新してマージ依頼する。
+PR #23 はユーザーのレビュー・マージ待ち。マージ済みを確認したら #21（P3-2 クライアント
+同期層）を実装する。#21→#22 の順で依存があるため並行しない。設計はOpusセッションで
+確定済み、**実装はSonnetで行う**。Issue本文に完了条件が数値で書いてあるため、
+新規セッションはSESSION.mdと該当Issueのみ読めばよい。
 
-その後 #21→#22 の順で実装する（依存があるため並行しない）。設計はOpusセッションで確定済み、
-**実装はSonnetで行う**。Issue本文に完了条件が数値で書いてあるため、新規セッションは
-SESSION.mdと該当Issueのみ読めばよい。
+`js/config.js` の `SYNC_ENDPOINT` には `https://steam-kids-sync.projectx1478.workers.dev`
+を設定する（#21）。
 
 ## 恒久的な制約
 
@@ -57,11 +59,17 @@ SESSION.mdと該当Issueのみ読めばよい。
 
 - GitHub Pages は Settings → Pages で `main` / root を配信
 - AIはリポジトリ作成・削除ができない（GitHub App に Administration 権限なし）。ユーザーがWeb UIで行う
+- AIのサンドボックスからは `*.workers.dev` 等の任意外部ドメインへcurl等で直接到達できない
+  （プロキシがpolicy denialで403を返す）。D1へはCloudflare MCP経由でアクセス可能。
+  デプロイ済みWorkerへのAPI疎通確認が必要な場合はCodespaces等ユーザー側の実ネットワーク環境で
+  実行してもらい、出力を貼ってもらう
+- Cloudflareの `account_id` は `e869e1d895a7144f62de9105d5374a4a`
+  （`workers/steam-kids-sync/wrangler.toml` に記載済み）
 
 ## 未着手Issue
 
 - #3 P1〜P5 と未決事項のトラッキング（P2まで完了。未決事項1＝同期バックエンドは決定済み）
-- #20 P3-1 サーバー（実装済み・PR #23。`wrangler deploy`待ち）
+- #20 P3-1 サーバー（実装・デプロイ・確認済み。PR #23マージ待ち）
 - #21 P3-2 クライアント同期層（オプトイン・push/pull・マージ）
 - #22 P3-3 リンクコードUIと履歴統合表示
 
@@ -71,4 +79,4 @@ SESSION.mdと該当Issueのみ読めばよい。
 
 # 次回最初に行うこと
 
-PR #23 の状態（`wrangler deploy` 実行済みか）を確認する。実行済みならcurlで完了条件を確認する。
+PR #23 がマージされたか確認する。マージ済みならmainを取り込み #21 に着手する。
