@@ -1,6 +1,6 @@
 # SESSION.md
 
-最終更新：2026-09-18（Issue #16 マージ済み。P2完了。アーカイブ準備）
+最終更新：2026-09-18（P3設計確定・Issue #20〜#22起票。実装未着手。アーカイブ準備）
 
 引き継ぎ専用。進捗・仕様はここに書かない（仕様→PROJECT.md、進捗→git/PR履歴、個別タスク→GitHub Issue）。
 
@@ -8,7 +8,7 @@
 
 # 現在作業中のタスク
 
-なし。P2（#14〜#16）完了。次はP3着手の進め方をユーザーに確認する段階
+なし。P3の設計が確定しIssue #20〜#22へ分割済み。次は #20 の実装（Sonnetセッション）
 
 # 完了したタスク（直近のみ・詳細はgit/PR履歴参照）
 
@@ -29,10 +29,12 @@
 
 ## 次にやること
 
-P3（同期バックエンド決定・匿名認証・同期・リンクコード）着手をどう進めるかユーザーに確認する。
-P3は`docs/design-sync.md`の未決事項（Firebase or GitHub Contents API+Cloudflare Workers）の
-決定が前提（Issue #3「未決事項1」）。設計判断を伴うためOpus想定（CLAUDE.md「モデル選択ルール」）。
-着手が決まったらIssue #3から個別Issueへ分割する。
+#20（P3-1 サーバー）から順に実装する。#20→#21→#22の順で依存があるため並行しない。
+設計はOpusセッションで確定済み。**実装はSonnetで行う**。Issue本文に完了条件が数値で書いてあるため、
+新規セッションはSESSION.mdと該当Issueのみ読めばよい（設計の再検討は不要）。
+
+#20 でユーザー実行が必要な作業が1つある：`wrangler deploy`。
+D1の作成とスキーマ適用はAIがCloudflare MCPで行う。
 
 ## 恒久的な制約
 
@@ -54,7 +56,10 @@ P3は`docs/design-sync.md`の未決事項（Firebase or GitHub Contents API+Clou
 
 ## 未着手Issue
 
-- #3 P1〜P5 と未決事項のトラッキング（P2まで完了。P3以降は着手時に分割する）
+- #3 P1〜P5 と未決事項のトラッキング（P2まで完了。未決事項1＝同期バックエンドは決定済み）
+- #20 P3-1 サーバー（D1 + Worker + `docs/design-sync.md` 確定）
+- #21 P3-2 クライアント同期層（オプトイン・push/pull・マージ）
+- #22 P3-3 リンクコードUIと履歴統合表示
 
 # 未コミットの変更
 
@@ -62,5 +67,4 @@ P3は`docs/design-sync.md`の未決事項（Firebase or GitHub Contents API+Clou
 
 # 次回最初に行うこと
 
-P3着手の進め方（Firebase or GitHub Contents API+Cloudflare Workersの決定を含め）を
-ユーザーに確認する。
+Issue #20 を読んで実装に着手する（Sonnet）。
