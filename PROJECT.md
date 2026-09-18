@@ -135,6 +135,7 @@ js/
 lessons/ # レッスンJSON（P1〜）
 tools/ # 開発時ツール（レッスンJSON検証）
 docs/ # 詳細ドキュメント（7章の索引を参照）
+workers/steam-kids-sync/ # 同期API（Cloudflare Workers + D1、P3〜）
 .claude/ # Claude Codeのフック・検証ハーネス・スクリプト
 .devcontainer/ # Codespaces/OpenCode Web用コンテナ設定
 ```
@@ -235,8 +236,6 @@ Issueには理由ではなく**判定可能な数値条件**を書く（0.6秒�
 
 ## 8. 未決事項
 
-- 同期バックエンドを Firebase とするか、GitHub Contents API + Cloudflare Workers 構成に揃えるか。
-  **P3着手時までに決定**（`docs/design-sync.md`）
 - ダッシュボードの認証方法（家庭では不要。校内配布時の教師向け保護をどうするか）
 - 学年別許可漢字リストの出典。確定まで漢字ゼロの暫定規則で運用する
   （`docs/authoring-rules.md`・`tools/validate-lessons.mjs`）
