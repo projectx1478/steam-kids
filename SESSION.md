@@ -1,6 +1,6 @@
 # SESSION.md
 
-最終更新：2026-09-18（PR #27がマージ待ち。実機確認で見つかった同期の不備の修正）
+最終更新：2026-09-18（PR #27がマージ待ち。Service Worker導入はOpusでIssue起票待ち。アーカイブ準備）
 
 引き継ぎ専用。進捗・仕様はここに書かない（仕様→PROJECT.md、進捗→git/PR履歴、個別タスク→GitHub Issue）。
 
@@ -12,26 +12,33 @@
 導線がない②2端末間が実際には同期されない③同期解除ボタンがない④同期先の端末が分からない、
 の4点が見つかり対応済み。マージ後、再度実機確認が必要（Issue #22コメント参照）。
 
-# 完了したタスク（直近のみ・詳細はgit/PR履歴参照）
+**Service Worker導入がIssue起票待ち（次はOpusセッションで設計・起票）。** ユーザーがマージ後に
+「新しいバージョンに変わらない」と報告。調査の結果、steam-kidsには現状Service Workerが無く、
+素のブラウザ/GitHub PagesのHTTPキャッシュが原因と推定。`projectx1478/kids-player`
+（同種の問題をIssue #70・#109・#110で段階的に修正済み）の実装パターンを調査し、ユーザーに
+「本格導入（推奨）」の承認を得た。詳細は下記「引き継ぎ事項」参照。
 
-- P0〜P2完了（詳細はPR #4・#7・#11・#12・#13・#17・#18・#19、判断根拠はIssue #3参照）
-- **P3完了**（2026-09-18）。#20（同期API：Cloudflare Workers + D1、デプロイ済み、PR #23・#24）
-  →#21（クライアント同期層、PR #25）→#22（リンクコードUIと複数端末の履歴統合表示、PR #26）を実装。
-  すべてmainへマージ済み。Issue #3へ完了経緯・副産物を記録済み
-- **#22フォローアップ実装完了**（2026-09-18）。実機確認で見つかった同期不備4点を修正
-  （詳細はIssue #22コメント・PR #27本文参照）。全17シナリオ121チェックPASS。PR #27（マージ待ち）
+# 完了したタスク（詳細はgit/PR履歴参照）
+
+- P0〜P3完了。判断根拠・経緯はIssue #3参照
+- #22フォローアップ（同期不備4点修正）完了。詳細はIssue #22コメント・PR #27本文参照
 
 # 引き継ぎ事項
 
-**まずPR #27をマージする**（`git diff --name-only origin/main...HEAD` は`SESSION.md`単独では
-ないため通常のPRレビュー・マージが必要）。
+**まずPR #27をマージし**、ユーザーに実機2台で再確認を依頼する（①〜④解消・入力しやすさ・
+読みやすさ）。問題なければIssue #22をクローズ。
 
-マージ後、**再度ユーザーに実機2台で確認を依頼する**（①〜④が解消されているか、加えて
-リンクコード入力しやすさ・ダッシュボードの読みやすさ）。問題なければIssue #22をクローズしてよい。
+**Service Worker導入はOpusセッションで設計・Issue起票する**（本セッションでは未起票・未実装）。
+参照元：`projectx1478/kids-player`の`service-worker.js`・`app.js`のSW登録部分・
+`docs/feature-data-sync.md`「Service Worker」節（Issue #70・#109・#110の経緯を含む）。
+要点はkids-player型のnetwork-first・`skipWaiting`+`clients.claim`・`controllerchange`で
+1回`reload`・`reg.update()`強制チェック（詳細は上記「現在作業中のタスク」参照）。
+設計時の論点：(1) 初回も無条件reloadが走るため`.claude/verify`17シナリオへの影響確認、
+(2) SW自身のfetchはPlaywright `page.route()`で捕捉不可のため
+`service-worker-post-passthrough.mjs`同様の疑似self/fetch/caches検証が必要。
 
-その後、次のPhase（P4：教材生成フロー整備 / P5：レッスン2・3追加）はどちらも個別Issue未起票。
-着手前にユーザーへ優先度を確認する。個別Issue起票は着手時に行う（Issue #3方針どおり）。
-P4着手時は`docs/authoring-rules.md`、P5着手時は`docs/learning-spec.md`を読む。
+その後のPhase（P4：教材生成フロー整備 / P5：レッスン2・3追加）は個別Issue未起票。着手前に
+ユーザーへ優先度を確認する。P4は`docs/authoring-rules.md`、P5は`docs/learning-spec.md`を読む。
 
 ## 恒久的な制約
 
