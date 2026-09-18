@@ -1,6 +1,6 @@
 # SESSION.md
 
-最終更新：2026-09-18（#20実装しPR #23作成。ユーザーの`wrangler deploy`待ち）
+最終更新：2026-09-18（PR #23マージ済み。フォローアップPR #24がマージ待ち。アーカイブ準備）
 
 引き継ぎ専用。進捗・仕様はここに書かない（仕様→PROJECT.md、進捗→git/PR履歴、個別タスク→GitHub Issue）。
 
@@ -8,37 +8,35 @@
 
 # 現在作業中のタスク
 
-PR #23（#20 同期API実装）がユーザーの `wrangler deploy` 実行待ち。デプロイ後、
-AIが完了条件のcurl確認（register→push→pull→issue→redeem）と
-`docs/design-sync.md` へのエンドポイントURL反映を行いマージ可能にする
+**PR #24 がマージ待ち。** PR #23（#20本体）はデプロイ前にマージ済みだったため、その後の
+3コミット（`wrangler.toml`の`account_id`修正、デプロイ済みエンドポイントURLの
+`docs/design-sync.md`反映、確認用一時スクリプトの追加・削除）が未反映のまま残っていた。
+これをPR #24として起票済み。**マージするまで#21に着手しない**
+（mainの`docs/design-sync.md`・`wrangler.toml`がまだ実際のデプロイ内容と食い違っているため）
 
 # 完了したタスク（直近のみ・詳細はgit/PR履歴参照）
 
-- P0・P1完了（詳細はPR #4・#7・#11・#12本文参照）。P1でステップ数規則を4〜7へ緩和、
-  漢字チェックは「漢字ゼロ」機械判定とする判断はIssue #3本文に記録済み
-- 検証中に発見したstyle.cssのビルド差分をIssue #10として起票し実装・PR #13 をmainへマージ済み。
-  「バナーコメントを削除し再ビルド結果を正とする」方針。以後 `npx tailwindcss@3.4.17 ...
-  --minify` 実行後 `git diff style.css` が空になることを確認
-- **P2完了**（2026-09-18）。Issue #3 から#14（イベント永続化・学習者プロファイル、PR #17）／
-  #15（集計と詰まりアラート判定の純粋関数`summarize()`、PR #18）／#16（ダッシュボード画面
-  `/dashboard.html`、PR #19）に分割して実装し、すべてmainへマージ済み。`/dashboard.html`で
-  詰まりアラート該当ステップが理由付きで強調表示され、PROJECT.md 6章のP2完了条件を満たす。
-  確定した仕様判断（上限5000件で古い順に破棄、導線はURL直打ちのみ、呼び名入力はダッシュボード側、
-  アラート判定の細部）と実装中の副産物2件（Tailwindのcontentスキャンが`hidden`等の識別子を
-  拾う件、モバイル幅での横スクロール修正）はIssue #3のコメントに記録済み
+- P0〜P2完了（詳細はPR #4・#7・#11・#12・#13・#17・#18・#19、判断根拠はIssue #3参照）
+- **#20完了**（2026-09-18）。同期API（Cloudflare Workers + D1）を実装しデプロイ済み。
+  エンドポイント `https://steam-kids-sync.projectx1478.workers.dev`。完了条件のcurl 9項目
+  すべて確認、テストデータはD1から削除済み。実装はPR #23（マージ済み）、デプロイ後の
+  反映漏れ（account_id・エンドポイントURL）はPR #24（マージ待ち）
 
 # 引き継ぎ事項
 
-## 次にやること
+**まずPR #24をマージする**（`git diff --name-only origin/main...HEAD` は
+`SESSION.md`単独ではないため通常のPRレビュー・マージが必要）。
 
-PR #23 で `workers/steam-kids-sync/` の `wrangler deploy` をユーザーに実行してもらう。
-D1（`steam-kids-sync`, database_id: `6efb84b6-8aff-42cf-b4c5-07c8a1a978b7`）は作成・
-スキーマ適用済み。デプロイ後のURLをもらったら、AIが#20の完了条件（curl 9項目）を確認し、
-`docs/design-sync.md` の「エンドポイントURL」記載とPR #23を更新してマージ依頼する。
+マージ確認後、mainを取り込んでから #21（P3-2 クライアント同期層）を実装する。#21→#22 の順で
+依存があるため並行しない。設計はOpusセッションで確定済み、**実装はSonnetで行う**。
+Issue本文に完了条件が数値で書いてあるため、新規セッションはSESSION.mdと該当Issueのみ読めばよい。
 
-その後 #21→#22 の順で実装する（依存があるため並行しない）。設計はOpusセッションで確定済み、
-**実装はSonnetで行う**。Issue本文に完了条件が数値で書いてあるため、新規セッションは
-SESSION.mdと該当Issueのみ読めばよい。
+`js/config.js` の `SYNC_ENDPOINT` には `https://steam-kids-sync.projectx1478.workers.dev`
+を設定する（#21）。
+
+**教訓**：PRが実装のマージ直後（デプロイ・検証の完了前）にマージされたため、後続の修正が
+別PRに分かれた。今後、外部リソースのデプロイが絡むPRは「デプロイ・検証まで完了してから
+マージする」旨をPR本文で明示する。
 
 ## 恒久的な制約
 
@@ -57,11 +55,16 @@ SESSION.mdと該当Issueのみ読めばよい。
 
 - GitHub Pages は Settings → Pages で `main` / root を配信
 - AIはリポジトリ作成・削除ができない（GitHub App に Administration 権限なし）。ユーザーがWeb UIで行う
+- AIのサンドボックスからは `*.workers.dev` 等の任意外部ドメインへcurl等で直接到達できない
+  （プロキシがpolicy denialで403を返す）。D1へはCloudflare MCP経由でアクセス可能。
+  デプロイ済みWorkerへのAPI疎通確認が必要な場合はCodespaces等ユーザー側の実ネットワーク環境で
+  実行してもらい、出力を貼ってもらう
+- Cloudflareの `account_id` は `e869e1d895a7144f62de9105d5374a4a`
+  （`workers/steam-kids-sync/wrangler.toml` に記載済み）
 
 ## 未着手Issue
 
 - #3 P1〜P5 と未決事項のトラッキング（P2まで完了。未決事項1＝同期バックエンドは決定済み）
-- #20 P3-1 サーバー（実装済み・PR #23。`wrangler deploy`待ち）
 - #21 P3-2 クライアント同期層（オプトイン・push/pull・マージ）
 - #22 P3-3 リンクコードUIと履歴統合表示
 
@@ -71,4 +74,4 @@ SESSION.mdと該当Issueのみ読めばよい。
 
 # 次回最初に行うこと
 
-PR #23 の状態（`wrangler deploy` 実行済みか）を確認する。実行済みならcurlで完了条件を確認する。
+PR #24 がマージされたか確認する。マージ済みならmainを取り込み #21 に着手する。

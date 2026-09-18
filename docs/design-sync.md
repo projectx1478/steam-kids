@@ -21,8 +21,9 @@ P3着手時に読む。バックエンドは決定済み（下記）。
 
 - Worker名: `steam-kids-sync`（コードは本リポジトリ `workers/steam-kids-sync/`）
 - D1データベース名: `steam-kids-sync`（database_id: `6efb84b6-8aff-42cf-b4c5-07c8a1a978b7`）
-- エンドポイントURL: `wrangler deploy` 実行後に確定。確定後、本節と `js/config.js` の
-  `SYNC_ENDPOINT` に反映する
+- エンドポイントURL: `https://steam-kids-sync.projectx1478.workers.dev`
+  （デプロイ済み・Issue #20の完了条件9項目をcurlで確認済み）。P3-2で `js/config.js` の
+  `SYNC_ENDPOINT` に設定する
 
 ### 匿名認証（端末シークレット方式）
 
