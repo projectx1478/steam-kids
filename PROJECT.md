@@ -74,9 +74,9 @@ MVP実装対象は `grid-runtime` と、全型共通の予想ステップのみ�
 - **フレームワーク**: バニラ JavaScript（ES Modules）。JSのビルドステップは導入しない
 - **UI状態管理**: S オブジェクトパターン（単一オブジェクト、直接変更）
 - **スタイリング**: Tailwind CSS。**開発時のみCLIでビルドし、生成物 `style.css` をコミットする**
-  - 実行時にCDNから取得しない（オフライン継続と「外部APIを呼ばない」制約のため）
+  - 実行時にCDNから取得しない（オフライン要件）
   - `style.css` は自動生成物。直接編集せず `tailwind.src.css` を編集して再ビルドする
-  - `package-lock.json` はGit除外のため、Tailwindはバージョンを固定指定して再現性を担保する
+  - Tailwindはバージョンを固定指定する（`package-lock.json` はGit除外のため）
 - **ホスティング**: GitHub Pages（public リポジトリ・無料枠）
 - 画像素材を使わず、すべて自作SVGで描画する（権利・容量・配布の自由度）
 
@@ -101,8 +101,7 @@ P2までは外部通信を行わないため秘密情報を扱わない。P3着�
 - 呼び名（`label`）は **localStorage のみ**。同期先へ送信しない
 - 子ども画面から外部へのリンクを置かない
 - 広告・解析タグを入れない
-- 外部共有は**単元単位の匿名集計のみ**（例:「レッスン2ステップ4の平均やり直し3.2回」）。
-  個人単位のデータを出さない
+- 外部共有は**単元単位の匿名集計のみ**。個人単位のデータを出さない
 
 ### 授業展開に向けた制約
 
@@ -110,31 +109,34 @@ P2までは外部通信を行わないため秘密情報を扱わない。P3着�
 - URLで単元へ直接入れること（ログイン機構を作らない。共用端末を想定）
 - 実行時に外部APIを呼ばない
 - 教科書の図版・記述に寄せない
-- 将来 `classId` をイベントに1フィールド追加するだけでクラス集計へ拡張できるよう、
-  イベントはフラットなオブジェクトで定義する
+- イベントの拡張性（`classId`追加のみで対応）は `docs/lesson-schema.md` 参照
 
 ### ファイル構成
 
 ```
 index.html
-style.css            # Tailwind生成物（コミット対象・直接編集禁止）
-tailwind.src.css     # Tailwindソース
+dashboard.html # 保護者・教師向けダッシュボード（読み取り専用・認証なし）
+style.css # Tailwind生成物（コミット対象・直接編集禁止）
+tailwind.src.css # Tailwindソース
 tailwind.config.js
-package.json         # devDependency: tailwindcss / scripts.build:css
-app.js               # エントリーポイント（初期化のみ）
+package.json # devDependency: tailwindcss / scripts.build:css
+app.js # エントリーポイント（初期化のみ）
 js/
-  state.js           # 状態管理（Sオブジェクト）
-  lesson-cmd-01.js   # P0のレッスンデータ（レッスンJSONと同形状）
-  engine-grid.js     # grid-runtimeの純粋関数（命令列→経路・到達判定）
-  ui-grid.js         # SVGグリッド描画とハイライト
-  ui-commands.js     # 命令パレット・命令列・個別削除・全消し
-  ui-step.js         # ステップ切替、ふりがなトグル
-  events.js          # logEvent()。P0はメモリ配列のみ（永続化はP2）
-lessons/             # レッスンJSON（P1〜）
-tools/               # 開発時ツール（レッスンJSON検証）
-docs/                # 詳細ドキュメント（7章の索引を参照）
-.claude/             # Claude Codeのフック・検証ハーネス・スクリプト
-.devcontainer/       # Codespaces/OpenCode Web用コンテナ設定
+  state.js # 状態管理（Sオブジェクト）
+  lesson-cmd-01.js # P0のレッスンデータ（レッスンJSONと同形状）
+  engine-grid.js # grid-runtimeの純粋関数（命令列→経路・到達判定）
+  ui-grid.js # SVGグリッド描画とハイライト
+  ui-commands.js # 命令パレット・命令列・個別削除・全消し
+  ui-step.js # ステップ切替、ふりがなトグル
+  events.js # logEvent() / getEvents()（storage.js経由で永続化）
+  storage.js # localStorage読み書き（イベント・学習者プロファイル）
+  analytics.js # 学習ログ集計・詰まりアラート判定（純粋関数）
+  ui-dashboard.js # dashboard.htmlの描画（summarize結果の描画のみ）
+lessons/ # レッスンJSON（P1〜）
+tools/ # 開発時ツール（レッスンJSON検証）
+docs/ # 詳細ドキュメント（7章の索引を参照）
+.claude/ # Claude Codeのフック・検証ハーネス・スクリプト
+.devcontainer/ # Codespaces/OpenCode Web用コンテナ設定
 ```
 
 ES Modules（`<script type="module">` / `import`/`export`）でファイル間を接続する。
