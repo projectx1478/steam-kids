@@ -1,8 +1,9 @@
 // ダッシュボード（/dashboard.html）の描画。summarize()の結果を描画するだけで、集計はしない。
-import { loadEvents, loadProfile, saveProfile } from './storage.js';
+import { loadEvents, loadProfile, saveProfile, loadSyncState } from './storage.js';
 import { summarize } from './analytics.js';
 import { loadLesson } from './lesson-loader.js';
 import { renderSyncSection } from './ui-sync.js';
+import { push, pull } from './sync.js';
 
 const STATUS_LABELS = { not_started: '未着手', in_progress: '途中', cleared: 'クリア' };
 const ALERT_LABELS = {
@@ -129,6 +130,11 @@ async function renderLessonsSection(root, lessons) {
 }
 
 async function renderDashboard() {
+  if (loadSyncState().enabled) {
+    await push();
+    await pull();
+  }
+
   const events = loadEvents();
   const result = summarize(events, Date.now());
 
