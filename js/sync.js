@@ -1,4 +1,4 @@
-// 同期APIのクライアント層。仕様は docs/design-sync.md、Issue #21。
+// 同期APIのクライアント層。仕様は docs/design-sync.md、Issue #21・#22。
 // 同期はオプトイン。loadSyncState().enabled が false の端末は一切fetchしない。
 import { SYNC_ENDPOINT } from './config.js';
 import { S } from './state.js';
@@ -17,6 +17,18 @@ function authHeader(state) {
   return `Bearer ${S.learnerId}.${state.syncSecret}`;
 }
 
+// サーバーのエラー応答（{ error: 'code_expired' }等）をUI表示用のコードとして取り出す。
+// パース不能な場合はHTTPステータスへフォールバックする。
+async function errorTag(res) {
+  try {
+    const data = await res.json();
+    if (data && typeof data.error === 'string') return data.error;
+  } catch {
+    // ボディがJSONでない場合はステータスのみ使う
+  }
+  return `http_${res.status}`;
+}
+
 export async function register() {
   const state = loadSyncState();
   const syncSecret = state.syncSecret || generateSecret();
@@ -27,10 +39,10 @@ export async function register() {
       body: JSON.stringify({ learnerId: S.learnerId, syncSecret }),
     });
     if (!res.ok) {
-      saveSyncState({ ...state, syncSecret, lastError: `register_failed_${res.status}` });
+      saveSyncState({ ...state, syncSecret, lastError: await errorTag(res) });
       return false;
     }
-    saveSyncState({ ...state, syncSecret, enabled: true, lastError: null });
+    saveSyncState({ ...state, syncSecret, enabled: true, lastError: null, lastSyncedAt: Date.now() });
     return true;
   } catch {
     saveSyncState({ ...state, syncSecret, lastError: 'network_error' });
@@ -55,7 +67,7 @@ export async function push() {
         body: JSON.stringify({ events: batch }),
       });
       if (!res.ok) {
-        saveSyncState({ ...state, lastPushedTs, lastError: `push_failed_${res.status}` });
+        saveSyncState({ ...state, lastPushedTs, lastError: await errorTag(res) });
         return;
       }
       lastPushedTs = Math.max(lastPushedTs, ...batch.map((e) => e.ts));
@@ -64,7 +76,7 @@ export async function push() {
       return;
     }
   }
-  saveSyncState({ ...state, lastPushedTs, lastError: null });
+  saveSyncState({ ...state, lastPushedTs, lastError: null, lastSyncedAt: Date.now() });
 }
 
 export async function pull() {
@@ -76,7 +88,7 @@ export async function pull() {
       headers: { Authorization: authHeader(state) },
     });
     if (!res.ok) {
-      saveSyncState({ ...state, lastError: `pull_failed_${res.status}` });
+      saveSyncState({ ...state, lastError: await errorTag(res) });
       return;
     }
     const data = await res.json();
@@ -84,9 +96,9 @@ export async function pull() {
     if (events.length > 0) {
       mergeAndSaveEvents(events);
       const maxTs = Math.max(...events.map((e) => e.ts));
-      saveSyncState({ ...state, lastPulledTs: maxTs, lastError: null });
+      saveSyncState({ ...state, lastPulledTs: maxTs, lastError: null, lastSyncedAt: Date.now() });
     } else {
-      saveSyncState({ ...state, lastError: null });
+      saveSyncState({ ...state, lastError: null, lastSyncedAt: Date.now() });
     }
   } catch {
     saveSyncState({ ...state, lastError: 'network_error' });
@@ -103,11 +115,11 @@ export async function issueLinkCode() {
       headers: { Authorization: authHeader(state) },
     });
     if (!res.ok) {
-      saveSyncState({ ...state, lastError: `link_issue_failed_${res.status}` });
+      saveSyncState({ ...state, lastError: await errorTag(res) });
       return null;
     }
     const data = await res.json();
-    saveSyncState({ ...state, lastError: null });
+    saveSyncState({ ...state, lastError: null, lastSyncedAt: Date.now() });
     return data;
   } catch {
     saveSyncState({ ...state, lastError: 'network_error' });
@@ -126,12 +138,12 @@ export async function redeemLinkCode(code) {
       body: JSON.stringify({ code, syncSecret }),
     });
     if (!res.ok) {
-      saveSyncState({ ...state, syncSecret, lastError: `redeem_failed_${res.status}` });
+      saveSyncState({ ...state, syncSecret, lastError: await errorTag(res) });
       return false;
     }
     const data = await res.json();
     saveProfile({ ...loadProfile(), learnerId: data.learnerId });
-    saveSyncState({ ...state, syncSecret, enabled: true, lastError: null });
+    saveSyncState({ ...state, syncSecret, enabled: true, lastError: null, lastSyncedAt: Date.now() });
     return true;
   } catch {
     saveSyncState({ ...state, syncSecret, lastError: 'network_error' });
