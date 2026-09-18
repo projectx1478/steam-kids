@@ -1,0 +1,8 @@
+name = "steam-kids-sync"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "steam-kids-sync"
+database_id = "6efb84b6-8aff-42cf-b4c5-07c8a1a978b7"
