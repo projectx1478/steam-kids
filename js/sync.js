@@ -29,6 +29,11 @@ async function errorTag(res) {
   return `http_${res.status}`;
 }
 
+export function disable() {
+  const state = loadSyncState();
+  saveSyncState({ ...state, enabled: false });
+}
+
 export async function register() {
   const state = loadSyncState();
   const syncSecret = state.syncSecret || generateSecret();

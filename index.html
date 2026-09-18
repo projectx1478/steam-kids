@@ -8,7 +8,14 @@
 </head>
 <body class="min-h-screen bg-sky-50 flex items-center justify-center p-4 touch-manipulation">
 <div id="app" class="w-full max-w-3xl">
-  <header class="flex justify-end mb-2">
+  <header class="flex justify-end items-center gap-2 mb-2">
+    <a href="dashboard.html" aria-label="保護者のかたへ"
+      class="dashboard-link min-w-[48px] min-h-[48px] flex items-center justify-center rounded-lg text-slate-300 opacity-60">
+      <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.6 1H21a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.6 1z" />
+      </svg>
+    </a>
     <button id="furigana-toggle" type="button" aria-pressed="false"
       class="min-w-[48px] min-h-[48px] px-3 rounded-lg bg-white shadow text-sm">ふりがな</button>
   </header>
