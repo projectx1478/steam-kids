@@ -79,6 +79,7 @@ MVP実装対象は `grid-runtime` と、全型共通の予想ステップのみ�
   - Tailwindはバージョンを固定指定する（`package-lock.json` はGit除外のため）
 - **ホスティング**: GitHub Pages（public リポジトリ・無料枠）
 - 画像素材を使わず、すべて自作SVGで描画する（権利・容量・配布の自由度）
+- **Service Worker**でオフライン対応・更新反映を行う（方式は `docs/caching.md`）
 
 ### 教材データ
 
@@ -116,6 +117,7 @@ P2までは外部通信を行わないため秘密情報を扱わない。P3着�
 ```
 index.html
 dashboard.html # 保護者・教師向けダッシュボード（読み取り専用・認証なし）
+service-worker.js # オフライン対応・更新反映（docs/caching.md）
 style.css # Tailwind生成物（コミット対象・直接編集禁止）
 tailwind.src.css # Tailwindソース
 tailwind.config.js
@@ -132,6 +134,7 @@ js/
   storage.js # localStorage読み書き（イベント・学習者プロファイル）
   analytics.js # 学習ログ集計・詰まりアラート判定（純粋関数）
   ui-dashboard.js # dashboard.htmlの描画（summarize結果の描画のみ）
+  register-sw.js # SW登録・更新時の自動リロード
 lessons/ # レッスンJSON（P1〜）
 tools/ # 開発時ツール（レッスンJSON検証）
 docs/ # 詳細ドキュメント（7章の索引を参照）
@@ -198,8 +201,7 @@ Issueには理由ではなく**判定可能な数値条件**を書く（0.6秒�
 ## 5. AI 運用ルール（Claude Code）
 
 - **AIの責務**: コード実装・修正、仕様整理時の質問対応、技術判断の提案
-- **人間の責務**: 仕様確定、コードレビュー、Merge判定、
-  実機での子どもの反応確認（AIが代理できない唯一の検証）
+- **人間の責務**: 仕様確定、コードレビュー、Merge判定、実機での子どもの反応確認（AI代理不可）
 
 ### モデル分担
 
@@ -207,8 +209,7 @@ Issueには理由ではなく**判定可能な数値条件**を書く（0.6秒�
 
 ### OpenCode
 
-`opencode.json` に `provider`・`model`・APIキーを書かない（各自のグローバル設定を上書きするため）。
-詳細は project-template の PROJECT.md を参照。
+`opencode.json` に `provider`・`model`・APIキーを書かない。詳細は project-template の PROJECT.md を参照。
 
 ## 6. ロードマップ
 
@@ -225,14 +226,12 @@ Issueには理由ではなく**判定可能な数値条件**を書く（0.6秒�
 
 ## 7. 関連ドキュメント（docs/）
 
-- `docs/learning-spec.md` — 教材型5種の一覧、`grid-runtime` の詳細仕様、初回単元の内容。
-  教材型を実装するとき、レッスンを追加するときに読む
-- `docs/lesson-schema.md` — レッスンJSON・学習イベント・学習者プロファイルのスキーマと検証ルール。
-  教材を追加・生成するとき、イベントを追加するときに読む
-- `docs/authoring-rules.md` — 教材の文言・表現の禁止事項と使用可能な文字。
-  レッスンの文言を書く・生成するときに読む
+- `docs/learning-spec.md` — 教材型5種・`grid-runtime`仕様・初回単元。教材実装・レッスン追加時に読む
+- `docs/lesson-schema.md` — レッスンJSON・イベント・学習者プロファイルのスキーマ。教材・イベント追加時に読む
+- `docs/authoring-rules.md` — 教材の文言・表現の禁止事項と使用可能な文字。レッスン文言を書く・生成する時に読む
 - `docs/dashboard.md` — ダッシュボードの表示内容と詰まりアラートの判定条件。P2着手時に読む
 - `docs/design-sync.md` — 同期方式、バックエンド選定（未決）、秘密情報の扱い。P3着手時に読む
+- `docs/caching.md` — Service Workerの方式・版数管理。Issue #28着手時に読む
 
 ## 8. 未決事項
 

@@ -97,6 +97,10 @@ async function runScenario(scenario, { browser, baseUrl, mobile, verbose, shotEn
   const context = await browser.newContext({
     baseURL: baseUrl,
     viewport: mobile ? { width: 375, height: 667 } : { width: 1280, height: 800 },
+    // Service Worker登録によるcontrollerchange自動リロード(app.js/ui-dashboard.js)が
+    // シナリオ側のpage.reload()と競合しframeをdetachさせるため、検証では登録自体をブロックする
+    // (Issue #28)。sw-routing.mjsは実登録せずソースを疑似環境で読むため影響しない。
+    serviceWorkers: 'block',
   });
   const page = await context.newPage();
   page.on('console', (msg) => { if (msg.type() === 'error') autoFails.push(`console.error: ${msg.text()}`); });
