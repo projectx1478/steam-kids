@@ -4,6 +4,8 @@ import { summarize } from './analytics.js';
 import { loadLesson } from './lesson-loader.js';
 import { renderSyncSection } from './ui-sync.js';
 import { push, pull } from './sync.js';
+import { registerServiceWorker } from './register-sw.js';
+import { APP_VERSION } from './config.js';
 
 const STATUS_LABELS = { not_started: '未着手', in_progress: '途中', cleared: 'クリア' };
 const ALERT_LABELS = {
@@ -142,6 +144,8 @@ async function renderDashboard() {
   renderSyncSection(document.getElementById('sync-section'), { onChange: renderDashboard });
   renderRecentSection(document.getElementById('recent-section'), result.recentDays);
   await renderLessonsSection(document.getElementById('lessons-section'), result.lessons);
+  document.getElementById('version-footer').textContent = APP_VERSION;
 }
 
 renderDashboard();
+registerServiceWorker();
