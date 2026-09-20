@@ -6,6 +6,7 @@ import { renderSyncSection } from './ui-sync.js';
 import { push, pull } from './sync.js';
 import { registerServiceWorker } from './register-sw.js';
 import { APP_VERSION } from './config.js';
+import { initGate } from './ui-gate.js';
 
 const STATUS_LABELS = { not_started: '未着手', in_progress: '途中', cleared: 'クリア' };
 const ALERT_LABELS = {
@@ -147,5 +148,5 @@ async function renderDashboard() {
   document.getElementById('version-footer').textContent = APP_VERSION;
 }
 
-renderDashboard();
+initGate({ onUnlock: renderDashboard });
 registerServiceWorker();

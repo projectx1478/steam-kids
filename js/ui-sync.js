@@ -2,6 +2,7 @@
 // 保護者・教師が読む画面のため、子ども画面と異なりひらがな主体にしない（通常の大人向け表記）。
 import { register, issueLinkCode, redeemLinkCode, pull, disable } from './sync.js';
 import { loadSyncState, loadProfile } from './storage.js';
+import { changePasscode, MIN_LENGTH } from './guardian.js';
 
 const CODE_INVALID_CHARS_RE = /[^ABCDEFGHJKLMNPQRSTUVWXYZ23456789]/g;
 const REMAINING_UPDATE_MS = 30000;
@@ -15,9 +16,20 @@ const ERROR_LABELS = {
   network_error: '通信に失敗しました',
 };
 
+const CHANGE_ERROR_LABELS = {
+  wrong_current: '現在の合言葉が違います',
+  too_short: `新しい合言葉は${MIN_LENGTH}文字以上にしてください`,
+};
+
 function errorMessage(code) {
   if (!code) return '';
   return ERROR_LABELS[code] || '通信に失敗しました';
+}
+
+// issueLinkCode()自体は発行に失敗すればlastErrorへnetwork_errorを記録するだけで済むが、
+// 押す前から通信できないと分かっている場合はボタンを無効化し理由を示す(Issue #37)。
+function isOnline() {
+  return typeof navigator === 'undefined' || navigator.onLine !== false;
 }
 
 function formatRemainingMinutes(expiresAt) {
@@ -52,6 +64,47 @@ function createBtn(label, action, onClick, className) {
   return btn;
 }
 
+function renderPasscodeChangeForm(root) {
+  const wrap = el('div', 'flex flex-col gap-2 mb-4 pb-4 border-b border-slate-100');
+  wrap.appendChild(el('h3', 'text-sm font-bold text-slate-700', '合言葉を変更'));
+
+  const current = document.createElement('input');
+  current.type = 'password';
+  current.id = 'passcode-current-input';
+  current.placeholder = '現在の合言葉';
+  current.className = 'min-h-[48px] w-full px-3 rounded-lg border border-slate-300 text-base';
+
+  const next = document.createElement('input');
+  next.type = 'password';
+  next.id = 'passcode-new-input';
+  next.placeholder = `新しい合言葉(${MIN_LENGTH}文字以上)`;
+  next.className = 'min-h-[48px] w-full px-3 rounded-lg border border-slate-300 text-base';
+
+  const status = el('p', 'text-sm min-h-[1.25rem]');
+  status.id = 'passcode-change-status';
+
+  const btn = createBtn(
+    '変更する',
+    'passcode-change',
+    async () => {
+      const errCode = await changePasscode(current.value, next.value);
+      if (errCode) {
+        status.className = 'text-sm min-h-[1.25rem] text-rose-700';
+        status.textContent = CHANGE_ERROR_LABELS[errCode] || '変更に失敗しました';
+        return;
+      }
+      current.value = '';
+      next.value = '';
+      status.className = 'text-sm min-h-[1.25rem] text-emerald-600';
+      status.textContent = '変更しました';
+    },
+    'min-w-[48px] min-h-[48px] px-4 rounded-lg bg-slate-600 text-white text-sm'
+  );
+
+  wrap.append(current, next, btn, status);
+  root.appendChild(wrap);
+}
+
 export function renderSyncSection(root, { onChange } = {}) {
   let issuedCode = null;
   let remainingIntervalId = null;
@@ -66,6 +119,8 @@ export function renderSyncSection(root, { onChange } = {}) {
     const s = loadSyncState();
     root.innerHTML = '';
     root.dataset.enabled = String(s.enabled);
+
+    renderPasscodeChangeForm(root);
 
     root.appendChild(el('h2', 'text-lg font-bold text-slate-800 mb-2', '端末の同期'));
     root.appendChild(el('p', 'text-xs text-slate-500 mb-2', '呼び名は同期されません'));
@@ -102,12 +157,21 @@ export function renderSyncSection(root, { onChange } = {}) {
       );
     } else {
       const linkWrap = el('div', 'flex flex-wrap gap-2 mb-3');
-      linkWrap.appendChild(
-        createBtn('別のタブレットとつなぐ', 'sync-issue-link', async () => {
-          issuedCode = await issueLinkCode();
-          draw();
-        })
-      );
+      const online = isOnline();
+      const issueBtn = createBtn('別のタブレットとつなぐ', 'sync-issue-link', async () => {
+        issuedCode = await issueLinkCode();
+        draw();
+      });
+      if (!online) {
+        issueBtn.disabled = true;
+        issueBtn.classList.add('opacity-50');
+      }
+      linkWrap.appendChild(issueBtn);
+      if (!online) {
+        linkWrap.appendChild(
+          el('p', 'sync-offline-reason text-xs text-amber-700 w-full', 'オフラインのため発行できません。オンラインになってからお試しください')
+        );
+      }
       linkWrap.appendChild(
         createBtn(
           '同期をやめる',

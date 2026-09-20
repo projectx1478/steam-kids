@@ -8,15 +8,49 @@
 </head>
 <body class="min-h-screen bg-slate-50 p-4">
 <div id="app" class="w-full max-w-3xl mx-auto flex flex-col gap-4">
-  <header>
-    <h1 class="text-2xl font-bold text-slate-800">学習ダッシュボード</h1>
-    <p class="text-sm text-slate-500">保護者・先生向け。認証なし。データはこの端末にのみ保存されます。</p>
-  </header>
-  <section id="profile-section" class="bg-white rounded-2xl shadow p-4"></section>
-  <section id="sync-section" class="bg-white rounded-2xl shadow p-4"></section>
-  <section id="recent-section" class="bg-white rounded-2xl shadow p-4 min-w-0"></section>
-  <section id="lessons-section" class="flex flex-col gap-4"></section>
-  <footer id="version-footer" class="text-xs text-slate-400 text-center py-2"></footer>
+  <div id="auth-gate" class="fixed inset-0 bg-slate-100 flex items-center justify-center z-50 px-4">
+    <div class="bg-white border border-slate-200 rounded-lg shadow-sm p-6 w-full max-w-sm">
+      <div id="gate-setup">
+        <h1 class="text-lg font-bold text-slate-800 mb-1">はじめに合言葉を設定してください</h1>
+        <p class="text-sm text-slate-500 mb-4">4文字以上。次回からこの合言葉でダッシュボードに入れます。</p>
+        <input id="gate-setup-passcode" type="password" placeholder="合言葉(4文字以上)"
+          class="min-h-[48px] w-full px-3 rounded-lg border border-slate-300 text-base mb-2 focus:outline-none focus:ring-2 focus:ring-sky-400" />
+        <input id="gate-setup-confirm" type="password" placeholder="確認のためもう一度"
+          class="min-h-[48px] w-full px-3 rounded-lg border border-slate-300 text-base mb-3 focus:outline-none focus:ring-2 focus:ring-sky-400" />
+        <button id="gate-setup-submit"
+          class="min-h-[48px] w-full bg-sky-600 hover:bg-sky-700 text-white text-sm font-bold rounded-lg">
+          設定する
+        </button>
+        <p id="gate-setup-status" class="text-sm text-center text-red-500 min-h-[1.25rem] mt-2"></p>
+      </div>
+      <div id="gate-login" class="hidden">
+        <h1 class="text-lg font-bold text-slate-800 mb-1">合言葉を入力してください</h1>
+        <p class="text-sm text-slate-500 mb-4">保護者・先生向けの画面です。</p>
+        <input id="gate-login-passcode" type="password" placeholder="合言葉"
+          class="min-h-[48px] w-full px-3 rounded-lg border border-slate-300 text-base mb-3 focus:outline-none focus:ring-2 focus:ring-sky-400" />
+        <button id="gate-login-submit"
+          class="min-h-[48px] w-full bg-sky-600 hover:bg-sky-700 text-white text-sm font-bold rounded-lg">
+          入る
+        </button>
+        <p id="gate-login-status" class="text-sm text-center text-red-500 min-h-[1.25rem] mt-2"></p>
+      </div>
+    </div>
+  </div>
+  <div id="dashboard-app" class="hidden flex flex-col gap-4">
+    <header class="flex items-center justify-between gap-2">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-800">学習ダッシュボード</h1>
+        <p class="text-sm text-slate-500">保護者・先生向け。データはこの端末にのみ保存されます。</p>
+      </div>
+      <button id="gate-lock-btn" type="button" aria-label="ダッシュボードをとじる"
+        class="min-w-[48px] min-h-[48px] px-3 rounded-lg bg-white shadow text-sm text-slate-500 shrink-0">とじる</button>
+    </header>
+    <section id="profile-section" class="bg-white rounded-2xl shadow p-4"></section>
+    <section id="sync-section" class="bg-white rounded-2xl shadow p-4"></section>
+    <section id="recent-section" class="bg-white rounded-2xl shadow p-4 min-w-0"></section>
+    <section id="lessons-section" class="flex flex-col gap-4"></section>
+    <footer id="version-footer" class="text-xs text-slate-400 text-center py-2"></footer>
+  </div>
 </div>
 <script type="module" src="./js/ui-dashboard.js"></script>
 </body>
