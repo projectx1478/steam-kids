@@ -1,16 +1,23 @@
-// 保護者ゲート（dashboard.html）の合言葉管理。Issue #37。
-// 閲覧解錠はオフラインでも行えるよう、端末内のPBKDF2照合のみで判定する
-// （同期系の特権操作へのサーバー発行トークンはIssue #38・未実装）。
+// 保護者ゲート（dashboard.html）の合言葉管理。Issue #37・#38。
+// 閲覧解錠はオフラインでも行えるよう、端末内のPBKDF2照合のみで判定する。
 // 生の合言葉は保存せず、salt付きハッシュのみをlocalStorageへ置く。
+// 同期系の特権操作（リンクコード発行）向けのサーバー発行トークン取得もここで扱う（Issue #38）。
+import { SYNC_ENDPOINT } from './config.js';
+import { loadSyncState } from './storage.js';
+import { S } from './state.js';
+
 const GUARDIAN_KEY = 'steamkids.guardian';
 const PBKDF2_ITERATIONS = 200000;
 const SALT_BYTES = 16;
 export const MIN_LENGTH = 4;
 
-// 解錠状態はモジュールスコープの変数のみで保持する（localStorage/sessionStorageに置かない）。
-// dashboard.htmlの読み込みごとにこのモジュールは再初期化されfalseに戻るため、
-// タブを閉じなくても「子ども画面へ戻ってダッシュボードへ入り直す」だけで再度ロックされる。
+// 解錠状態・直近の合言葉(平文)・サーバートークンはモジュールスコープの変数のみで保持する
+// （localStorage/sessionStorageに置かない）。dashboard.htmlの読み込みごとにこのモジュールは
+// 再初期化されfalseに戻るため、タブを閉じなくても「子ども画面へ戻ってダッシュボードへ入り直す」
+// だけで再度ロックされる。
 let unlocked = false;
+let cachedPasscode = null;
+let serverToken = null; // { token, exp }
 
 function readJSON(key, fallback) {
   try {
@@ -76,7 +83,61 @@ export async function verifyPasscode(passcode) {
   const state = loadGuardianState();
   if (!state || !passcode) return false;
   const hashB64 = await deriveHash(passcode, base64ToBytes(state.saltB64));
-  return hashB64 === state.hashB64;
+  const ok = hashB64 === state.hashB64;
+  // サーバートークン取得(ensureGuardianToken)を後から遅延実行できるよう、成功時のみ平文を
+  // メモリに保持する。ネットワークはここでは呼ばない（オフライン解錠を妨げないため）。
+  if (ok) cachedPasscode = passcode;
+  return ok;
+}
+
+function isOnline() {
+  return typeof navigator === 'undefined' || navigator.onLine !== false;
+}
+
+function deviceAuthHeader(state) {
+  return `Bearer ${S.learnerId}.${state.syncSecret}`;
+}
+
+async function postGuardian(path, body) {
+  const state = loadSyncState();
+  if (!state.enabled || !state.syncSecret || !isOnline()) return null;
+  const res = await fetch(`${SYNC_ENDPOINT}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: deviceAuthHeader(state) },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+// dashboard.htmlの初回設定(gate-setup-submit)からのみ呼ぶ想定。サーバー側は未設定時のみ
+// passHashを保存するため、既に設定済みなら何もしない。失敗してもローカル層は既に有効なため
+// エラーを表に出さず無視する。
+export async function registerServerPasscode(passcode) {
+  try {
+    await postGuardian('/guardian/set', { passcode });
+  } catch {
+    // オフライン・通信失敗。ローカル層は既に成功しているため無視する
+  }
+}
+
+// リンクコード発行など同期系の特権操作の直前に呼ぶ。キャッシュ済みの有効なトークンがあれば
+// 再利用し、無ければ直近ログイン時の合言葉でサーバーへ問い合わせる。取得できなければnullを返し、
+// 呼び出し元（sync.js）はトークン無しでリクエストしサーバー側の401に委ねる。
+export async function ensureGuardianToken() {
+  if (serverToken && serverToken.exp > Date.now()) return serverToken.token;
+  serverToken = null;
+  if (!cachedPasscode) return null;
+  try {
+    const data = await postGuardian('/guardian/auth', { passcode: cachedPasscode });
+    if (data && typeof data.token === 'string' && typeof data.exp === 'number') {
+      serverToken = { token: data.token, exp: data.exp };
+      return serverToken.token;
+    }
+  } catch {
+    // 通信失敗。トークン無しで続行する
+  }
+  return null;
 }
 
 // 現在の合言葉照合に成功した場合のみ変更する。エラーコードを返す（成功時はnull）。
@@ -85,6 +146,14 @@ export async function changePasscode(currentPasscode, newPasscode) {
   if (!ok) return 'wrong_current';
   if (!newPasscode || newPasscode.length < MIN_LENGTH) return 'too_short';
   await setPasscode(newPasscode);
+  try {
+    await postGuardian('/guardian/change', { current: currentPasscode, next: newPasscode });
+  } catch {
+    // オフライン・通信失敗。ローカル層の変更は既に成功しているため無視する
+  }
+  // passHashが変わり旧トークンはサーバー側で自動失効するため、キャッシュも破棄し次回取り直す
+  cachedPasscode = newPasscode;
+  serverToken = null;
   return null;
 }
 
@@ -98,4 +167,6 @@ export function markUnlocked() {
 
 export function lock() {
   unlocked = false;
+  cachedPasscode = null;
+  serverToken = null;
 }
