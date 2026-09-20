@@ -10,7 +10,6 @@ const DEFAULT_SYNC_STATE = {
   enabled: false,
   syncSecret: null,
   lastPushedTs: 0,
-  lastPulledTs: 0,
   lastError: null,
   lastSyncedAt: null,
 };
