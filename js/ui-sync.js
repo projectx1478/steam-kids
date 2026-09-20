@@ -11,7 +11,6 @@ const ERROR_LABELS = {
   code_already_used: 'このコードは既に使用されています',
   code_not_found: 'コードが見つかりません',
   invalid_code: 'コードの桁数が正しくありません',
-  secret_conflict: '別の学習者として登録済みです',
   too_many_requests: 'しばらく時間をおいて再試行してください',
   network_error: '通信に失敗しました',
 };

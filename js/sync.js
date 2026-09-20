@@ -148,7 +148,18 @@ export async function redeemLinkCode(code) {
     }
     const data = await res.json();
     saveProfile({ ...loadProfile(), learnerId: data.learnerId });
-    saveSyncState({ ...state, syncSecret, enabled: true, lastError: null, lastSyncedAt: Date.now() });
+    S.learnerId = data.learnerId;
+    // 乗り換え前のlastPushedTs/lastPulledTsを引き継ぐと、旧learnerIdの間に既に送信済み・
+    // 受信済みだったイベントのts境界がそのまま残り、新learnerId側の履歴を取りこぼす。
+    saveSyncState({
+      ...state,
+      syncSecret,
+      enabled: true,
+      lastPushedTs: 0,
+      lastPulledTs: 0,
+      lastError: null,
+      lastSyncedAt: Date.now(),
+    });
     return true;
   } catch {
     saveSyncState({ ...state, syncSecret, lastError: 'network_error' });
