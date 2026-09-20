@@ -8,7 +8,9 @@ const LEARNER_B = '22222222-2222-2222-2222-222222222222';
 const LEARNER_C = '33333333-3333-3333-3333-333333333333';
 const LEARNER_D = '44444444-4444-4444-4444-444444444444';
 const LEARNER_E = '55555555-5555-5555-5555-555555555555';
+const LEARNER_F = '66666666-6666-6666-6666-666666666666';
 const ISSUED_CODE = 'ABCD23';
+const SWITCH_CODE = 'SWTCHB';
 
 function ev(id, type, ts, stepId, learnerId) {
   return { eventId: id, learnerId, lessonId: LESSON, stepId, type, ts, payload: {} };
@@ -208,6 +210,75 @@ export default async function run({ page, check }) {
     'このコードは既に使用されています'
   );
   await used.context.close();
+
+  // 既に自分の学習者IDで同期済みの端末がコードを入力した場合（Issue #33）:
+  // 乗り換え前にローカル未反映だった履歴（lastPushedTs/lastPulledTsより後のイベントは無い＝
+  // 「以前のセッションで既に送信・取得済み」だった状態）も含めて再送信・再取得され、統合表示される
+  const switchServerEvents = [ev('switch-a-e1', 'step_enter', 1000, 's1', LEARNER_A)];
+  const pushedBodies = [];
+  const getSinceValues = [];
+  const contextF = await browser.newContext();
+  const pageF = await contextF.newPage();
+  await pageF.goto(`${origin}/dashboard.html`);
+  await seed(pageF, {
+    sync: syncState({
+      enabled: true,
+      syncSecret: 'f'.repeat(32),
+      lastPushedTs: 9000,
+      lastPulledTs: 9000,
+    }),
+    profile: { learnerId: LEARNER_F, label: null, createdAt: 0 },
+    events: [ev('device-f-e1', 'step_enter', 3000, 's4', LEARNER_F)],
+  });
+  await pageF.route(`${ENDPOINT}/link/redeem*`, async (route) => {
+    const body = JSON.parse(route.request().postData());
+    if (body.code !== SWITCH_CODE) {
+      await route.fulfill({ status: 404, json: { error: 'code_not_found' } });
+      return;
+    }
+    await route.fulfill({ json: { learnerId: LEARNER_A } });
+  });
+  await pageF.route(`${ENDPOINT}/sync*`, async (route) => {
+    const req = route.request();
+    if (req.method() === 'GET') {
+      const since = Number(new URL(req.url()).searchParams.get('since')) || 0;
+      getSinceValues.push(since);
+      await route.fulfill({ json: { events: switchServerEvents.filter((e) => e.ts >= since) } });
+    } else {
+      const b = JSON.parse(req.postData());
+      pushedBodies.push(b);
+      await route.fulfill({ json: { acceptedCount: b.events.length } });
+    }
+  });
+  await pageF.reload();
+  await pageF.fill('#link-code-input', SWITCH_CODE.toLowerCase());
+  await pageF.click('[data-action="sync-redeem"]');
+
+  await check(
+    '乗り換え後にlearnerIdが発行元へ置き換わる',
+    async () => pageF.evaluate(() => JSON.parse(localStorage.getItem('steamkids.profile')).learnerId),
+    LEARNER_A
+  );
+  await check(
+    '乗り換え後、pullがsince=0からやり直される（相手側の全履歴を取りこぼさない）',
+    async () => getSinceValues.includes(0)
+  );
+  await check(
+    '乗り換え前にlastPushedTsが進んでいても、自分のローカル履歴が再送信される',
+    async () => pushedBodies.some((b) => b.events.some((e) => e.eventId === 'device-f-e1'))
+  );
+  await check('統合後もレッスンカードは1件だけ', async () => pageF.$$eval('.lesson-card', (els) => els.length), 1);
+  await check(
+    '相手側のステップ(s1)も同じレッスンカードに表示される',
+    async () => pageF.getAttribute('.step-row[data-step-id="s1"]', 'data-step-id'),
+    's1'
+  );
+  await check(
+    '自分の乗り換え前のステップ(s4)も同じレッスンカードに表示される',
+    async () => pageF.getAttribute('.step-row[data-step-id="s4"]', 'data-step-id'),
+    's4'
+  );
+  await contextF.close();
 
   // 子ども画面(index.html)からダッシュボードへの目立たないリンク
   const contextChild = await browser.newContext();

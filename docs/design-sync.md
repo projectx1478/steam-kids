@@ -15,6 +15,17 @@ P3着手時に読む。バックエンドは決定済み（下記）。
 - 新端末でコードを入力すると同じ `learnerId` を共有する
 - コードは英数字。紛らわしい文字（0/O、1/I/l）を除外する
 
+### 乗り換え（既に自分の `learnerId` で同期済みの端末がコードを入力した場合）
+
+有効なコードの提示を本人確認とみなし、この端末を発行元の `learnerId` へ**付け替える**
+（学習履歴は統合する。Issue #33）。
+
+- `devices` 行の `learnerId` を発行元のものへ更新する
+- 乗り換え前の `learnerId` に**他の端末が残っていない**場合のみ、そのイベントを発行元の
+  `learnerId` へ移管する（他端末が残る場合は、その端末の履歴を失わせないため移管しない）
+- クライアントは乗り換え成功時に `lastPushedTs`/`lastPulledTs` を0へリセットし、
+  自分の全ローカル履歴を再送信・相手側の全履歴を再取得する
+
 ## バックエンド（決定事項）
 
 **Cloudflare Workers + D1**。検討経緯・却下案は Issue #3 のコメントに記録済み。
@@ -65,7 +76,7 @@ CREATE TABLE rate_limits (key TEXT PRIMARY KEY, windowStart INTEGER NOT NULL, co
 | POST | `/sync` | 有 | `{ events[] }` を`INSERT OR IGNORE`。`{ acceptedCount }`を返す。500件/512KB超は413 |
 | GET | `/sync?since=<ts>` | 有 | `ts >= since`のイベントを`ts`昇順、最大1000件 |
 | POST | `/link/issue` | 有 | `{ code, expiresAt }`。6文字・24h・1回限り |
-| POST | `/link/redeem` | 無 | `{ code, syncSecret }` → `{ learnerId }`。期限切れ・使用済みは410 |
+| POST | `/link/redeem` | 無 | `{ code, syncSecret }` → `{ learnerId }`。期限切れ・使用済みは410。既に別の`learnerId`へ同期済みの端末は発行元へ付け替える（上記「乗り換え」参照） |
 
 - リンクコードの文字集合：英大文字+数字から `0` `O` `1` `I` を除いた32文字（`ABCDEFGHJKLMNPQRSTUVWXYZ23456789`）
 - `/register` と `/link/redeem` は同一IP 10回/10分を超えたら429

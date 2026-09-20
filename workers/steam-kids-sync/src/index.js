@@ -249,9 +249,9 @@ async function handleLinkRedeem(request, env, origin) {
   if (row.usedAt !== null) return errorResponse('code_already_used', 410, origin);
   if (row.expiresAt < Date.now()) return errorResponse('code_expired', 410, origin);
 
-  const claim = await env.DB.prepare(
-    'UPDATE link_codes SET usedAt = ? WHERE code = ? AND usedAt IS NULL'
-  )
+  // まずコード自体を確定して消費する（同時リクエストによる二重使用を防ぐ）。
+  // devices/eventsの変更はこの後に限定し、secret_conflict等の判定失敗ではコードを消費しない。
+  const claim = await env.DB.prepare('UPDATE link_codes SET usedAt = ? WHERE code = ? AND usedAt IS NULL')
     .bind(Date.now(), rawCode)
     .run();
   if (!claim.meta || claim.meta.changes !== 1) {
@@ -262,14 +262,32 @@ async function handleLinkRedeem(request, env, origin) {
   const existingBySecret = await env.DB.prepare('SELECT learnerId FROM devices WHERE secretHash = ?')
     .bind(secretHash)
     .first();
-  if (existingBySecret && existingBySecret.learnerId !== row.learnerId) {
-    return errorResponse('secret_conflict', 409, origin);
-  }
+  const oldLearnerId = existingBySecret && existingBySecret.learnerId !== row.learnerId
+    ? existingBySecret.learnerId
+    : null;
+
   if (!existingBySecret) {
     await env.DB.prepare('INSERT INTO devices (secretHash, learnerId, createdAt) VALUES (?, ?, ?)')
       .bind(secretHash, row.learnerId, Date.now())
       .run();
+  } else if (oldLearnerId) {
+    // 既にこの端末が別のlearnerIdへ同期済みだった場合、コード提示を本人確認として
+    // 発行元のlearnerIdへ端末を付け替える（学習履歴は統合する。Issue #33）。
+    const statements = [
+      env.DB.prepare('UPDATE devices SET learnerId = ? WHERE secretHash = ?').bind(row.learnerId, secretHash),
+    ];
+    // 旧learnerIdに他の端末が残っている場合は、そちらの履歴を失わせないためイベントを移管しない。
+    const otherDevices = await env.DB.prepare('SELECT COUNT(*) AS n FROM devices WHERE learnerId = ?')
+      .bind(oldLearnerId)
+      .first();
+    if (otherDevices && otherDevices.n === 1) {
+      statements.push(
+        env.DB.prepare('UPDATE events SET learnerId = ? WHERE learnerId = ?').bind(row.learnerId, oldLearnerId)
+      );
+    }
+    await env.DB.batch(statements);
   }
+
   return json({ learnerId: row.learnerId }, 200, origin);
 }
 
