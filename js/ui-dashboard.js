@@ -26,6 +26,18 @@ function el(tag, className, text) {
   return node;
 }
 
+function renderWorkerVersionBanner(root, mismatch) {
+  root.innerHTML = '';
+  if (!mismatch) return;
+  const banner = el(
+    'p',
+    'worker-version-warning text-sm font-bold text-amber-800 bg-amber-100 border border-amber-300 rounded-lg px-3 py-2',
+    '同期サーバーが更新待ちです。しばらくしてからページを再読み込みしてください'
+  );
+  banner.id = 'worker-version-warning';
+  root.appendChild(banner);
+}
+
 function renderProfileSection(root) {
   root.innerHTML = '';
   root.appendChild(el('h2', 'text-lg font-bold text-slate-800 mb-2', '呼び名'));
@@ -141,6 +153,7 @@ async function renderDashboard() {
   const events = loadEvents();
   const result = summarize(events, Date.now());
 
+  renderWorkerVersionBanner(document.getElementById('worker-version-banner'), loadSyncState().workerVersionMismatch);
   renderProfileSection(document.getElementById('profile-section'));
   renderSyncSection(document.getElementById('sync-section'), { onChange: renderDashboard });
   renderRecentSection(document.getElementById('recent-section'), result.recentDays);

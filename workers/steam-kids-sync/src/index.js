@@ -15,6 +15,9 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const SECRET_RE = /^[A-Za-z0-9_-]{20,100}$/;
 const GUARDIAN_TOKEN_TTL_MS = 6 * 60 * 60 * 1000;
 const PASSCODE_MIN_LENGTH = 4;
+// クライアント側の期待値は js/sync.js の EXPECTED_WORKER_VERSION。API仕様を変えるPRでは
+// 両方を必ず同時に更新する（Issue #29。運用ルールは docs/design-sync.md 参照）。
+const WORKER_VERSION = 'steam-kids-sync-v1';
 
 function corsHeaders(origin) {
   if (origin !== ALLOWED_ORIGIN) return {};
@@ -22,6 +25,8 @@ function corsHeaders(origin) {
     'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Guardian-Token',
+    'Access-Control-Expose-Headers': 'X-Worker-Version',
+    'X-Worker-Version': WORKER_VERSION,
   };
 }
 

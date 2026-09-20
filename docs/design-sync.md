@@ -100,7 +100,17 @@ CREATE TABLE guardians (learnerId TEXT PRIMARY KEY, passHash TEXT NOT NULL, upda
 
 - リンクコードの文字集合：英大文字+数字から `0` `O` `1` `I` を除いた32文字（`ABCDEFGHJKLMNPQRSTUVWXYZ23456789`）
 - `/register`・`/link/redeem`・`/guardian/auth` は同一IP 10回/10分を超えたら429
-- CORSは `https://projectx1478.github.io` のみ許可（許可ヘッダに`X-Guardian-Token`を含む）
+- CORSは `https://projectx1478.github.io` のみ許可（許可ヘッダに`X-Guardian-Token`を含む、公開ヘッダに`X-Worker-Version`を含む）
+
+### 版数ズレの検知（X-Worker-Version・Issue #29）
+
+クライアントはGitHub Pagesで自動配信、Workerは手動`wrangler deploy`という非対称があり、
+「クライアントだけ新しい」状態が無言で発生しうる。`/sync`のレスポンスヘッダ`X-Worker-Version`
+（`workers/steam-kids-sync/src/index.js`の`WORKER_VERSION`）とクライアント側の期待値
+（`js/sync.js`の`EXPECTED_WORKER_VERSION`）を突き合わせ、不一致（ヘッダ無し＝デプロイ前の
+旧Workerを含む）ならダッシュボードに警告バナーを表示する（子ども画面には出さない）。
+
+**リクエスト／レスポンス仕様を変えるPRでは両定数を必ず同時に更新する。**
 
 ## 保護者ゲート（ダッシュボード保護）
 
