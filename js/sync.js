@@ -6,6 +6,15 @@ import { loadSyncState, saveSyncState, loadProfile, saveProfile, loadEvents, mer
 import { ensureGuardianToken } from './guardian.js';
 
 const PUSH_BATCH_SIZE = 500;
+// Workerの WORKER_VERSION（workers/steam-kids-sync/src/index.js）と同じ値にする。
+// API仕様を変えるPRでは両方を必ず同時に更新する（Issue #29。運用ルールは docs/design-sync.md 参照）。
+export const EXPECTED_WORKER_VERSION = 'steam-kids-sync-v1';
+
+// ヘッダ無し（デプロイ前の旧Worker）も不一致として扱う。クライアント配信(GitHub Pages・自動)と
+// Workerデプロイ(手動wrangler deploy)の非対称により「クライアントだけ新しい」状態を検知する。
+function readWorkerVersionMismatch(res) {
+  return res.headers.get('X-Worker-Version') !== EXPECTED_WORKER_VERSION;
+}
 
 function generateSecret() {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
@@ -64,6 +73,7 @@ export async function push() {
   if (events.length === 0) return;
 
   let lastPushedTs = state.lastPushedTs;
+  let workerVersionMismatch = state.workerVersionMismatch;
   for (let i = 0; i < events.length; i += PUSH_BATCH_SIZE) {
     const batch = events.slice(i, i + PUSH_BATCH_SIZE);
     try {
@@ -72,17 +82,18 @@ export async function push() {
         headers: { 'Content-Type': 'application/json', Authorization: authHeader(state) },
         body: JSON.stringify({ events: batch }),
       });
+      workerVersionMismatch = readWorkerVersionMismatch(res);
       if (!res.ok) {
-        saveSyncState({ ...state, lastPushedTs, lastError: await errorTag(res) });
+        saveSyncState({ ...state, lastPushedTs, workerVersionMismatch, lastError: await errorTag(res) });
         return;
       }
       lastPushedTs = Math.max(lastPushedTs, ...batch.map((e) => e.ts));
     } catch {
-      saveSyncState({ ...state, lastPushedTs, lastError: 'network_error' });
+      saveSyncState({ ...state, lastPushedTs, workerVersionMismatch, lastError: 'network_error' });
       return;
     }
   }
-  saveSyncState({ ...state, lastPushedTs, lastError: null, lastSyncedAt: Date.now() });
+  saveSyncState({ ...state, lastPushedTs, workerVersionMismatch, lastError: null, lastSyncedAt: Date.now() });
 }
 
 export async function pull() {
@@ -96,14 +107,15 @@ export async function pull() {
     const res = await fetch(`${SYNC_ENDPOINT}/sync?since=0`, {
       headers: { Authorization: authHeader(state) },
     });
+    const workerVersionMismatch = readWorkerVersionMismatch(res);
     if (!res.ok) {
-      saveSyncState({ ...state, lastError: await errorTag(res) });
+      saveSyncState({ ...state, workerVersionMismatch, lastError: await errorTag(res) });
       return;
     }
     const data = await res.json();
     const events = Array.isArray(data.events) ? data.events : [];
     if (events.length > 0) mergeAndSaveEvents(events);
-    saveSyncState({ ...state, lastError: null, lastSyncedAt: Date.now() });
+    saveSyncState({ ...state, workerVersionMismatch, lastError: null, lastSyncedAt: Date.now() });
   } catch {
     saveSyncState({ ...state, lastError: 'network_error' });
   }

@@ -12,6 +12,7 @@ const DEFAULT_SYNC_STATE = {
   lastPushedTs: 0,
   lastError: null,
   lastSyncedAt: null,
+  workerVersionMismatch: false,
 };
 
 function readJSON(key, fallback) {
