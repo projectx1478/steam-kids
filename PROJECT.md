@@ -13,7 +13,7 @@
 ### 非目標（やらないこと）
 
 - 実行時のLLM呼び出し（生成は開発時のみ。子どもが使う場面でAPIを呼ばない）
-- ログイン、メールアドレス、パスワード認証
+- 学習者のログイン、メールアドレス、パスワード認証（保護者ゲートの合言葉は対象外）
 - 氏名・学校名・学年の同期データへの保存
 - 正誤採点、点数表示、ランキング
 - ネイティブアプリ化（Webのみ）
@@ -93,6 +93,11 @@ MVP実装対象は `grid-runtime` と、全型共通の予想ステップのみ�
 同期方式、バックエンドの選定（**未決**）、秘密情報の扱いは `docs/design-sync.md`。
 P2までは外部通信を行わないため秘密情報を扱わない。P3着手時に当該ドキュメントを確定させる。
 
+### 保護者ゲート（ダッシュボード保護）
+
+`dashboard.html` は合言葉ゲートで保護する（Issue #37）。解錠は端末内PBKDF2照合のみでオフライン可。
+詳細は `docs/design-sync.md`。
+
 ### プライバシー要件
 
 全フェーズで守る恒久的制約。
@@ -116,7 +121,7 @@ P2までは外部通信を行わないため秘密情報を扱わない。P3着�
 
 ```
 index.html
-dashboard.html # 保護者・教師向けダッシュボード（読み取り専用・認証なし）
+dashboard.html # 保護者・教師向けダッシュボード（合言葉ゲートで保護）
 service-worker.js # オフライン対応・更新反映（docs/caching.md）
 style.css # Tailwind生成物（コミット対象・直接編集禁止）
 tailwind.src.css # Tailwindソース
@@ -133,6 +138,8 @@ js/
   events.js # logEvent() / getEvents()（storage.js経由で永続化）
   storage.js # localStorage読み書き（イベント・学習者プロファイル）
   analytics.js # 学習ログ集計・詰まりアラート判定（純粋関数）
+  guardian.js # 保護者ゲートの合言葉管理（PBKDF2・ローカルのみ）
+  ui-gate.js # dashboard.htmlのゲート描画
   ui-dashboard.js # dashboard.htmlの描画（summarize結果の描画のみ）
   register-sw.js # SW登録・更新時の自動リロード
 lessons/ # レッスンJSON（P1〜）
@@ -235,6 +242,5 @@ Issueには理由ではなく**判定可能な数値条件**を書く（0.6秒�
 
 ## 8. 未決事項
 
-- ダッシュボードの認証方法（家庭では不要。校内配布時の教師向け保護をどうするか）
 - 学年別許可漢字リストの出典。確定まで漢字ゼロの暫定規則で運用する
   （`docs/authoring-rules.md`・`tools/validate-lessons.mjs`）

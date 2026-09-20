@@ -2,6 +2,7 @@ export const name = 'P3: リンクコードで複数端末の履歴が統合表�
 
 const ENDPOINT = 'https://steam-kids-sync.projectx1478.workers.dev';
 const LESSON = 'cmd-01-susumu';
+const PASSCODE = 'testtest';
 
 const LEARNER_A = '11111111-1111-1111-1111-111111111111';
 const LEARNER_B = '22222222-2222-2222-2222-222222222222';
@@ -27,15 +28,24 @@ function syncState(overrides = {}) {
   };
 }
 
+// Issue #37: dashboard.htmlは合言葉ゲートで保護される。各端末（=各ブラウザコンテキスト）に
+// 合言葉を設定しておき、seed()の呼び出し元がreload後にunlock()でローカル照合を行う。
 async function seed(page, { sync, profile, events }) {
   await page.evaluate(
-    ({ sync, profile, events }) => {
+    async ({ sync, profile, events, passcode }) => {
       localStorage.setItem('steamkids.sync', JSON.stringify(sync));
       localStorage.setItem('steamkids.profile', JSON.stringify(profile));
       localStorage.setItem('steamkids.events', JSON.stringify(events));
+      const guardian = await import('/js/guardian.js');
+      await guardian.setPasscode(passcode);
     },
-    { sync, profile, events }
+    { sync, profile, events, passcode: PASSCODE }
   );
+}
+
+async function unlock(page) {
+  await page.fill('#gate-login-passcode', PASSCODE);
+  await page.click('#gate-login-submit');
 }
 
 async function redeemAttempt(browser, origin, { learnerId, code, routeRedeem }) {
@@ -46,6 +56,7 @@ async function redeemAttempt(browser, origin, { learnerId, code, routeRedeem }) 
   await p.route(`${ENDPOINT}/link/redeem*`, routeRedeem);
   await p.route(`${ENDPOINT}/sync*`, (route) => route.fulfill({ json: { events: [] } }));
   await p.reload();
+  await unlock(p);
   await p.fill('#link-code-input', code);
   await p.click('[data-action="sync-redeem"]');
   return { context, page: p };
@@ -70,6 +81,7 @@ export default async function run({ page, check }) {
   );
   await page.route(`${ENDPOINT}/sync*`, (route) => route.fulfill({ json: { events: [] } }));
   await page.reload();
+  await unlock(page);
   await page.click('[data-action="sync-issue-link"]');
   await check(
     '発行したコードが画面に表示される',
@@ -120,6 +132,7 @@ export default async function run({ page, check }) {
     }
   });
   await pageB.reload();
+  await unlock(pageB);
 
   await pageB.fill('#link-code-input', ISSUED_CODE.toLowerCase());
   await pageB.click('[data-action="sync-redeem"]');
@@ -153,8 +166,10 @@ export default async function run({ page, check }) {
 
   // 継続的な同期: デバイスAが後から学習を進めてサーバーへ送信した想定で、
   // デバイスBはダッシュボードを開き直すだけ（再度のコード入力なし）で自動的に最新化される
+  // （合言葉ゲートは開き直すたびにロックされるため、再度ローカル照合が必要）
   serverAllEvents.push(ev('server-e2', 'step_enter', 5000, 's3', LEARNER_A));
   await pageB.reload();
+  await unlock(pageB);
   await check(
     '再訪問だけで新しいステップ(s3)が自動的に反映される',
     async () => pageB.getAttribute('.step-row[data-step-id="s3"]', 'data-step-id'),
@@ -250,6 +265,7 @@ export default async function run({ page, check }) {
     }
   });
   await pageF.reload();
+  await unlock(pageF);
   await pageF.fill('#link-code-input', SWITCH_CODE.toLowerCase());
   await pageF.click('[data-action="sync-redeem"]');
 

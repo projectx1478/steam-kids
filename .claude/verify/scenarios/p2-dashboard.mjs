@@ -1,6 +1,7 @@
 export const name = 'P2: ダッシュボード画面（詰まりアラート表示）';
 
 const LESSON = 'cmd-01-susumu';
+const PASSCODE = 'testtest';
 
 function ev(type, ts, stepId, payload = {}) {
   return { eventId: `e${ts}-${type}-${stepId}`, learnerId: 'l1', lessonId: LESSON, stepId, type, ts, payload };
@@ -31,15 +32,30 @@ async function seed(page, events) {
   await page.evaluate((events) => localStorage.setItem('steamkids.events', JSON.stringify(events)), events);
 }
 
+// Issue #37: dashboard.htmlは合言葉ゲートで保護される。解錠状態はページ読み込みごとに
+// リセットされる（js/guardian.js参照）ため、reload()のたびにローカル照合で解錠し直す。
+async function unlock(page) {
+  await page.fill('#gate-login-passcode', PASSCODE);
+  await page.click('#gate-login-submit');
+}
+
 export default async function run({ page, check, shot }) {
   // 1: イベントが無い状態で開いても落ちない
   await page.goto('/dashboard.html');
+  await page.evaluate(async (passcode) => {
+    const guardian = await import('/js/guardian.js');
+    await guardian.setPasscode(passcode);
+  }, PASSCODE);
+  await page.reload();
+  await unlock(page);
+
   await check('空状態でも見出しが表示される', async () => page.textContent('#lessons-section'), 'まだ記録がありません');
   await check('空状態でも直近7日セクションが7件表示される', async () => (await page.$$('.recent-day')).length, 7);
 
   // 2: 既知のイベントを注入するとアラート該当ステップが強調表示され、理由が併記される
   await seed(page, alertEvents());
   await page.reload();
+  await unlock(page);
   await check(
     's3がアラート対象になる',
     async () => page.getAttribute('.step-row[data-step-id="s3"]', 'data-alert'),
@@ -65,6 +81,7 @@ export default async function run({ page, check, shot }) {
   // 離脱地点の確認（別シードで検証）
   await seed(page, [ev('step_enter', 0, 's1'), ev('abandon', 100, 's1')]);
   await page.reload();
+  await unlock(page);
   await check(
     '離脱地点が表示される',
     async () => page.getAttribute('.lesson-card', 'data-status'),
@@ -78,9 +95,11 @@ export default async function run({ page, check, shot }) {
   // 4: 呼び名を入力してリロードすると保持される。イベントには書かれない
   await seed(page, alertEvents());
   await page.reload();
+  await unlock(page);
   await page.fill('#label-input', 'たろう');
   await page.locator('#label-input').blur();
   await page.reload();
+  await unlock(page);
   await check('呼び名がリロード後も保持される', async () => page.inputValue('#label-input'), 'たろう');
   const eventsAfterLabel = await page.evaluate(() => JSON.parse(localStorage.getItem('steamkids.events')));
   await check('呼び名の保存でイベント件数が変わらない', async () => eventsAfterLabel.length, alertEvents().length);
