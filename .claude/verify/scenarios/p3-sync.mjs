@@ -37,7 +37,6 @@ export default async function run({ page, check }) {
     enabled: true,
     syncSecret: 'a'.repeat(32),
     lastPushedTs: 100,
-    lastPulledTs: 0,
     lastError: null,
   });
   await setEvents(page, [
@@ -56,10 +55,12 @@ export default async function run({ page, check }) {
   await check('push後にlastPushedTsが最大tsまで進む', async () => stateAfterPush.lastPushedTs, 150);
   await check('push成功でlastErrorがnullになる', async () => stateAfterPush.lastError, null);
 
-  // pull: サーバーから返るイベントがlocalStorageへマージされ、lastPulledTsが進む
+  // pull: 常にsince=0で呼び、サーバーから返るイベントがlocalStorageへマージされる(Issue #35)
+  let pulledSince = null;
   await page.route(`${ENDPOINT}/sync*`, async (route) => {
     const req = route.request();
     if (req.method() === 'GET') {
+      pulledSince = new URL(req.url()).searchParams.get('since');
       await route.fulfill({
         json: {
           events: [
@@ -77,12 +78,13 @@ export default async function run({ page, check }) {
     await pull();
   });
 
+  await check('pullは常にsince=0で呼ぶ(差分取得をしない)', async () => pulledSince, '0');
   const eventsAfterPull = await getEvents(page);
   await check('pull結果がlocalStorageへマージされる', async () => eventsAfterPull.some((e) => e.eventId === 'r1'));
   const stateAfterPull = await getSyncState(page);
-  await check('pull後にlastPulledTsが受信イベントの最大tsまで進む', async () => stateAfterPull.lastPulledTs, 300);
+  await check('pull成功でlastErrorがnullになる', async () => stateAfterPull.lastError, null);
 
-  // pullが0件のときはlastPulledTsを更新しない
+  // pullが0件でもエラーにならない
   await page.route(`${ENDPOINT}/sync*`, async (route) => {
     const req = route.request();
     if (req.method() === 'GET') await route.fulfill({ json: { events: [] } });
@@ -93,14 +95,13 @@ export default async function run({ page, check }) {
     await pull();
   });
   const stateAfterEmptyPull = await getSyncState(page);
-  await check('0件pullではlastPulledTsが変わらない', async () => stateAfterEmptyPull.lastPulledTs, 300);
+  await check('0件pullでもlastErrorはnullのまま', async () => stateAfterEmptyPull.lastError, null);
 
   // 同期が無効な端末はfetchしない
   await setSyncState(page, {
     enabled: false,
     syncSecret: null,
     lastPushedTs: 0,
-    lastPulledTs: 0,
     lastError: null,
   });
   let fetchCalled = false;
