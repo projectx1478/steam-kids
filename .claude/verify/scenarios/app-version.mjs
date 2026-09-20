@@ -5,6 +5,15 @@ export const name = 'APP_VERSIONとCACHE_NAMEが一致し、ダッシュボー�
 
 export default async function run({ page, check }) {
   await page.goto('/dashboard.html');
+  // Issue #37: dashboard.htmlは合言葉ゲートで保護される。本シナリオの主眼はゲートではないため、
+  // ローカルPBKDF2照合のみで解錠して素通りする（ネットワーク不使用）。
+  await page.evaluate(async () => {
+    const guardian = await import('/js/guardian.js');
+    await guardian.setPasscode('testtest');
+  });
+  await page.reload();
+  await page.fill('#gate-login-passcode', 'testtest');
+  await page.click('#gate-login-submit');
 
   const appVersion = await page.evaluate(async () => {
     const mod = await import('/js/config.js');
