@@ -18,7 +18,7 @@ export default async function run({ page, check }) {
   await page.evaluate(() => {
     localStorage.setItem(
       'steamkids.sync',
-      JSON.stringify({ enabled: true, syncSecret: 'a'.repeat(32), lastPushedTs: 0, lastPulledTs: 0, lastError: null })
+      JSON.stringify({ enabled: true, syncSecret: 'a'.repeat(32), lastPushedTs: 0, lastError: null })
     );
   });
   await page.reload();

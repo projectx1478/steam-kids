@@ -21,7 +21,6 @@ function syncState(overrides = {}) {
     enabled: false,
     syncSecret: null,
     lastPushedTs: 0,
-    lastPulledTs: 0,
     lastError: null,
     lastSyncedAt: null,
     ...overrides,
@@ -212,8 +211,9 @@ export default async function run({ page, check }) {
   await used.context.close();
 
   // 既に自分の学習者IDで同期済みの端末がコードを入力した場合（Issue #33）:
-  // 乗り換え前にローカル未反映だった履歴（lastPushedTs/lastPulledTsより後のイベントは無い＝
-  // 「以前のセッションで既に送信・取得済み」だった状態）も含めて再送信・再取得され、統合表示される
+  // 乗り換え前にローカル未送信だった履歴（lastPushedTsより後のイベントは無い＝「以前のセッションで
+  // 既に送信済み」だった状態）も含めて再送信され、pull（常に全件取得。Issue #35）で相手側の
+  // 全履歴も取得され、統合表示される
   const switchServerEvents = [ev('switch-a-e1', 'step_enter', 1000, 's1', LEARNER_A)];
   const pushedBodies = [];
   const getSinceValues = [];
@@ -225,7 +225,6 @@ export default async function run({ page, check }) {
       enabled: true,
       syncSecret: 'f'.repeat(32),
       lastPushedTs: 9000,
-      lastPulledTs: 9000,
     }),
     profile: { learnerId: LEARNER_F, label: null, createdAt: 0 },
     events: [ev('device-f-e1', 'step_enter', 3000, 's4', LEARNER_F)],
@@ -260,8 +259,8 @@ export default async function run({ page, check }) {
     LEARNER_A
   );
   await check(
-    '乗り換え後、pullがsince=0からやり直される（相手側の全履歴を取りこぼさない）',
-    async () => getSinceValues.includes(0)
+    'pullは常にsince=0で呼ばれる（相手側の全履歴を取りこぼさない。Issue #35）',
+    async () => getSinceValues.length > 0 && getSinceValues.every((s) => s === 0)
   );
   await check(
     '乗り換え前にlastPushedTsが進んでいても、自分のローカル履歴が再送信される',

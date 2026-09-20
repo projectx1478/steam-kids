@@ -88,8 +88,11 @@ export async function pull() {
   const state = loadSyncState();
   if (!state.enabled || !state.syncSecret) return;
 
+  // 常に全件取得する（差分取得はしない）。他端末からのリンクコード乗り換えでこの学習者IDへ
+  // 事後的に付け替わったイベントはtsが過去のままのため、tsベースの差分取得では以後
+  // 二度と取得できなくなる(Issue #35)。イベント数は少ないため全件取得の負荷は無視できる。
   try {
-    const res = await fetch(`${SYNC_ENDPOINT}/sync?since=${state.lastPulledTs}`, {
+    const res = await fetch(`${SYNC_ENDPOINT}/sync?since=0`, {
       headers: { Authorization: authHeader(state) },
     });
     if (!res.ok) {
@@ -98,13 +101,8 @@ export async function pull() {
     }
     const data = await res.json();
     const events = Array.isArray(data.events) ? data.events : [];
-    if (events.length > 0) {
-      mergeAndSaveEvents(events);
-      const maxTs = Math.max(...events.map((e) => e.ts));
-      saveSyncState({ ...state, lastPulledTs: maxTs, lastError: null, lastSyncedAt: Date.now() });
-    } else {
-      saveSyncState({ ...state, lastError: null, lastSyncedAt: Date.now() });
-    }
+    if (events.length > 0) mergeAndSaveEvents(events);
+    saveSyncState({ ...state, lastError: null, lastSyncedAt: Date.now() });
   } catch {
     saveSyncState({ ...state, lastError: 'network_error' });
   }
@@ -149,14 +147,14 @@ export async function redeemLinkCode(code) {
     const data = await res.json();
     saveProfile({ ...loadProfile(), learnerId: data.learnerId });
     S.learnerId = data.learnerId;
-    // 乗り換え前のlastPushedTs/lastPulledTsを引き継ぐと、旧learnerIdの間に既に送信済み・
-    // 受信済みだったイベントのts境界がそのまま残り、新learnerId側の履歴を取りこぼす。
+    // 乗り換え前のlastPushedTsを引き継ぐと、旧learnerIdの間に既に送信済みだったイベントのts境界が
+    // そのまま残り、新learnerId側へ未送信のローカル履歴を送りそびれる可能性がある。0へリセットする。
+    // pull()は常に全件取得のためlastPulledTsの概念はそもそも無い(Issue #35)。
     saveSyncState({
       ...state,
       syncSecret,
       enabled: true,
       lastPushedTs: 0,
-      lastPulledTs: 0,
       lastError: null,
       lastSyncedAt: Date.now(),
     });
