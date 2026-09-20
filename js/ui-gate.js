@@ -2,7 +2,16 @@
 // 子ども画面(index.html)の歯車リンクから無認証でダッシュボードへ入れ、呼び名編集・同期操作・
 // リンクコード発行/入力まで子どもが実行できてしまう不備への対応。
 // kids-playerの管理画面ゲート（admin-auth.js）のbfcache対策に準拠する。
-import { hasPasscode, setPasscode, verifyPasscode, isUnlocked, markUnlocked, lock, MIN_LENGTH } from './guardian.js';
+import {
+  hasPasscode,
+  setPasscode,
+  verifyPasscode,
+  registerServerPasscode,
+  isUnlocked,
+  markUnlocked,
+  lock,
+  MIN_LENGTH,
+} from './guardian.js';
 
 export function initGate({ onUnlock }) {
   const gate = document.getElementById('auth-gate');
@@ -66,6 +75,7 @@ export function initGate({ onUnlock }) {
     markUnlocked();
     showApp();
     onUnlock();
+    registerServerPasscode(passcode); // オンライン時のみサーバーへ伝播（Issue #38）。表示はブロックしない
   };
 
   document.getElementById('gate-login-submit').onclick = async () => {

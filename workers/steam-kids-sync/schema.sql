@@ -12,3 +12,5 @@ CREATE INDEX idx_events_learner_ts ON events(learnerId, ts);
 
 CREATE TABLE link_codes (code TEXT PRIMARY KEY, learnerId TEXT NOT NULL, expiresAt INTEGER NOT NULL, usedAt INTEGER);
 CREATE TABLE rate_limits (key TEXT PRIMARY KEY, windowStart INTEGER NOT NULL, count INTEGER NOT NULL);
+
+CREATE TABLE guardians (learnerId TEXT PRIMARY KEY, passHash TEXT NOT NULL, updatedAt INTEGER NOT NULL);

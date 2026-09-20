@@ -3,6 +3,7 @@
 import { SYNC_ENDPOINT } from './config.js';
 import { S } from './state.js';
 import { loadSyncState, saveSyncState, loadProfile, saveProfile, loadEvents, mergeAndSaveEvents } from './storage.js';
+import { ensureGuardianToken } from './guardian.js';
 
 const PUSH_BATCH_SIZE = 500;
 
@@ -112,10 +113,14 @@ export async function issueLinkCode() {
   const state = loadSyncState();
   if (!state.enabled || !state.syncSecret) return null;
 
+  const guardianToken = await ensureGuardianToken();
   try {
     const res = await fetch(`${SYNC_ENDPOINT}/link/issue`, {
       method: 'POST',
-      headers: { Authorization: authHeader(state) },
+      headers: {
+        Authorization: authHeader(state),
+        ...(guardianToken ? { 'X-Guardian-Token': guardianToken } : {}),
+      },
     });
     if (!res.ok) {
       saveSyncState({ ...state, lastError: await errorTag(res) });

@@ -79,6 +79,12 @@ export default async function run({ page, check }) {
   await page.route(`${ENDPOINT}/link/issue*`, (route) =>
     route.fulfill({ json: { code: ISSUED_CODE, expiresAt: Date.now() + 24 * 60 * 60 * 1000 } })
   );
+  // Issue #38: issueLinkCode()はリンクコード発行前に保護者トークンを取得する
+  // (js/guardian.js:ensureGuardianToken)。同期有効な端末でunlock()すると合言葉がキャッシュされ
+  // 発行時に/guardian/authへ実際に問い合わせるため、未モックだとrun.mjsのHTTPエラー自動失敗に触れる。
+  await page.route(`${ENDPOINT}/guardian/auth*`, (route) =>
+    route.fulfill({ json: { token: 'test-guardian-token', exp: Date.now() + 6 * 60 * 60 * 1000 } })
+  );
   await page.route(`${ENDPOINT}/sync*`, (route) => route.fulfill({ json: { events: [] } }));
   await page.reload();
   await unlock(page);

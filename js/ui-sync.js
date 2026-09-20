@@ -14,6 +14,7 @@ const ERROR_LABELS = {
   invalid_code: 'コードの桁数が正しくありません',
   too_many_requests: 'しばらく時間をおいて再試行してください',
   network_error: '通信に失敗しました',
+  unauthorized: '保護者の確認が必要です。とじてもう一度合言葉を入力してください',
 };
 
 const CHANGE_ERROR_LABELS = {
