@@ -78,9 +78,12 @@ CREATE INDEX idx_events_learner_ts ON events(learnerId, ts);
 
 CREATE TABLE link_codes (code TEXT PRIMARY KEY, learnerId TEXT NOT NULL, expiresAt INTEGER NOT NULL, usedAt INTEGER);
 CREATE TABLE rate_limits (key TEXT PRIMARY KEY, windowStart INTEGER NOT NULL, count INTEGER NOT NULL);
+
+CREATE TABLE guardians (learnerId TEXT PRIMARY KEY, passHash TEXT NOT NULL, updatedAt INTEGER NOT NULL);
 ```
 
 `events` は学習イベント7フィールドと1対1。氏名・学校名・学年、`label` の列は作らない。
+`guardians.passHash` は保護者ゲートの合言葉のSHA-256ハッシュ（生の合言葉は保存しない）。
 
 ### API
 
@@ -89,26 +92,32 @@ CREATE TABLE rate_limits (key TEXT PRIMARY KEY, windowStart INTEGER NOT NULL, co
 | POST | `/register` | 無 | `{ learnerId, syncSecret }`。既存`learnerId`はハッシュ一致時のみ200、不一致は403 |
 | POST | `/sync` | 有 | `{ events[] }` を`INSERT OR IGNORE`。`{ acceptedCount }`を返す。500件/512KB超は413 |
 | GET | `/sync?since=<ts>` | 有 | `ts >= since`のイベントを`ts`昇順、最大1000件。クライアントは常に`since=0`で呼ぶ（上記「pullが差分取得をしない理由」参照） |
-| POST | `/link/issue` | 有 | `{ code, expiresAt }`。6文字・24h・1回限り |
+| POST | `/link/issue` | 有 + `X-Guardian-Token` | `{ code, expiresAt }`。6文字・24h・1回限り。トークン無し/期限切れは401 |
 | POST | `/link/redeem` | 無 | `{ code, syncSecret }` → `{ learnerId }`。期限切れ・使用済みは410。既に別の`learnerId`へ同期済みの端末は発行元へ付け替える（上記「乗り換え」参照） |
+| POST | `/guardian/set` | 有 | `{ passcode }` → `{ set }`。未設定時のみ`passHash`（SHA-256）を保存。設定済みなら`set: false`で何もしない |
+| POST | `/guardian/auth` | 有 | `{ passcode }` → `{ token, exp }`。HMAC-SHA256・TTL6時間、署名鍵に`passHash`を流用（合言葉変更で既存トークンが自動失効）。誤パスコードは401 |
+| POST | `/guardian/change` | 有 | `{ current, next }` → `{ changed }`。`current`不一致は401、`next`が4文字未満は400 |
 
 - リンクコードの文字集合：英大文字+数字から `0` `O` `1` `I` を除いた32文字（`ABCDEFGHJKLMNPQRSTUVWXYZ23456789`）
-- `/register` と `/link/redeem` は同一IP 10回/10分を超えたら429
-- CORSは `https://projectx1478.github.io` のみ許可
+- `/register`・`/link/redeem`・`/guardian/auth` は同一IP 10回/10分を超えたら429
+- CORSは `https://projectx1478.github.io` のみ許可（許可ヘッダに`X-Guardian-Token`を含む）
 
 ## 保護者ゲート（ダッシュボード保護）
 
-Issue #37（クライアント側・実装済み）・#38（サーバー側、未実装）への対応。`dashboard.html` は
-子ども画面の歯車リンクから無認証で入れ、呼び名編集・同期操作・リンクコード発行/入力まで
-子どもが実行できてしまう不備があった。kids-player の管理画面保護（Issue #66）に準拠する。
+Issue #37・#38対応（いずれも実装済み）。`dashboard.html` は子ども画面の歯車リンクから無認証で
+入れ、呼び名編集・同期操作・リンクコード発行/入力まで子どもが実行できてしまう不備があった。
+kids-player の管理画面保護（Issue #66）に準拠する。
 
 ### 二層構成
 
-- **ローカル層（オフライン可・実装済み）**: 閲覧解錠は端末内のPBKDF2-SHA256照合のみで行う。
+- **ローカル層（オフライン可）**: 閲覧解錠は端末内のPBKDF2-SHA256照合のみで行う。
   `steamkids.guardian` に salt・ハッシュのみを保存し、生の合言葉は保存しない。解錠状態は
   モジュールスコープの変数のみで保持し、ダッシュボードを開き直すたびに再度ロックされる
-- **サーバー層（Issue #38・未実装）**: 同期系の特権操作（リンクコード発行）はWorker発行の
-  HMAC短命トークンを必須にする。実装まではクライアント側の保護のみ
+- **サーバー層（Issue #38）**: 同期系の特権操作（リンクコード発行）はWorker発行のHMAC短命
+  トークン（`X-Guardian-Token`・TTL6時間）を必須にする。ローカル解錠に成功した合言葉を
+  オンライン時のみ`/guardian/auth`へ送りトークンを取得する（送信は平文だがHTTPS経由、サーバーは
+  SHA-256ハッシュのみ保存）。トークンはモジュールスコープのみで保持し、取得に失敗しても
+  ローカル層の解錠自体は妨げない（フォールバックなしでサーバー側が401を返すだけ）
 
 ### 保護対象の切り分け
 
@@ -116,15 +125,16 @@ Issue #37（クライアント側・実装済み）・#38（サーバー側、�
 | --- | --- |
 | ダッシュボード閲覧・呼び名編集・同期停止 | ローカルゲート通過必須 |
 | 同期を始める `/register` | ローカルゲート通過必須（クライアント側のみ） |
-| リンクコード発行 `/link/issue` | ローカルゲート通過 + オフライン時はボタンを無効化。サーバー側トークン必須化は#38 |
+| リンクコード発行 `/link/issue` | ローカルゲート通過 + オフライン時はボタンを無効化 + サーバー側`X-Guardian-Token`必須（#38） |
 | コード入力 `/link/redeem` | ローカルゲート通過必須 |
-| `POST /sync` `GET /sync` | 端末シークレットのまま（変更なし） |
+| `POST /sync` `GET /sync` | 端末シークレットのまま（変更なし。残留リスク参照） |
 
 ### 残留リスク
 
 - ローカル層は devtools・localStorage 編集で迂回可能。年長児には十分だが、校内配布では
-  #38 のサーバー側トークンが保護の実体になる
-- 合言葉の変更はこの端末のローカルハッシュのみを更新する（#38実装まで他端末への伝播手段が無い）
+  #38 のサーバー側トークンが`/link/issue`の保護の実体になる
+- `POST /sync`・`GET /sync`は端末シークレットのみのまま（`X-Guardian-Token`を要求しない）。
+  端末に触れれば学習イベントの閲覧・追記は可能。リンクコード発行のみを#38で保護している
 - 合言葉を忘れた場合の復旧手段は無い（リセットボタンは迂回口になるため作らない）。
   サイトデータを削除すれば再設定できるが学習履歴も消える
 
