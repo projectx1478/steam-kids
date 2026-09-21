@@ -99,6 +99,7 @@ CREATE TABLE guardians (learnerId TEXT PRIMARY KEY, passHash TEXT NOT NULL, upda
 | POST | `/link/issue` | 有 + `X-Guardian-Token` | `{ code, expiresAt }`。6文字・24h・1回限り。トークン無し/期限切れは401 |
 | POST | `/link/redeem` | 無 | `{ code, syncSecret }` → `{ learnerId }`。期限切れ・使用済みは410。既に別の`learnerId`へ同期済みの端末は発行元へ付け替える（上記「乗り換え」参照） |
 | POST | `/guardian/set` | 有 | `{ passcode }` → `{ set }`。未設定時のみ`passHash`（SHA-256）を保存。設定済みなら`set: false`で何もしない |
+| GET | `/guardian/exists` | 有 | `{ exists }`。合言葉そのものは含まない。2台目以降の端末が「設定」と「ログイン」を出し分けるために使う（Issue #45） |
 | POST | `/guardian/auth` | 有 | `{ passcode }` → `{ token, exp }`。HMAC-SHA256・TTL6時間、署名鍵に`passHash`を流用（合言葉変更で既存トークンが自動失効）。誤パスコードは401 |
 | POST | `/guardian/change` | 有 | `{ current, next }` → `{ changed }`。`current`不一致は401、`next`が4文字未満は400 |
 
@@ -132,6 +133,23 @@ kids-player の管理画面保護（Issue #66）に準拠する。
   オンライン時のみ`/guardian/auth`へ送りトークンを取得する（送信は平文だがHTTPS経由、サーバーは
   SHA-256ハッシュのみ保存）。トークンはモジュールスコープのみで保持し、取得に失敗しても
   ローカル層の解錠自体は妨げない（フォールバックなしでサーバー側が401を返すだけ）
+
+### 2台目以降の合言葉引き継ぎ（Issue #45）
+
+ローカル層はsalt付きハッシュを端末内にのみ持つため、合言葉そのものは端末間で共有されない。
+リンクコードで同じ学習者IDへ接続した2台目が、ローカル未設定のまま「初回設定」画面に入って
+別の合言葉を作ってしまうと、サーバー側`passHash`（1台目が設定したもの）と食い違い、
+2台目では`/guardian/auth`が常に失敗し`/link/issue`が使えなくなる。
+
+これを避けるため、ローカルに合言葉未設定の端末は`GET /guardian/exists`でサーバー側の設定有無を
+確認してから画面を出し分ける。
+
+- サーバー側で設定済み（`exists: true`）→「ログイン」画面を出し、入力された合言葉を
+  `/guardian/auth`で照合する。成功したらローカルにもハッシュを保存し、以後はその端末でも
+  オフラインで解錠できるようにする
+- サーバー側で未設定（`exists: false`）、またはオフライン等で確認できない → 従来どおり
+  「初回設定」画面にフォールバックする（既知の制約。完全に解決するには合言葉自体を
+  暗号的に安全な形で端末間同期する設計が要るが、そこまでは行わない）
 
 ### 保護対象の切り分け
 

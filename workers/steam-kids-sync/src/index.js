@@ -17,7 +17,7 @@ const GUARDIAN_TOKEN_TTL_MS = 6 * 60 * 60 * 1000;
 const PASSCODE_MIN_LENGTH = 4;
 // クライアント側の期待値は js/sync.js の EXPECTED_WORKER_VERSION。API仕様を変えるPRでは
 // 両方を必ず同時に更新する（Issue #29。運用ルールは docs/design-sync.md 参照）。
-const WORKER_VERSION = 'steam-kids-sync-v1';
+const WORKER_VERSION = 'steam-kids-sync-v2';
 
 function corsHeaders(origin) {
   if (origin !== ALLOWED_ORIGIN) return {};
@@ -301,6 +301,15 @@ async function handleGuardianSet(request, env, origin, learnerId) {
   return json({ set: true }, 200, origin);
 }
 
+// 2台目以降の端末がローカルに合言葉未設定のまま「初回設定」画面に入らないよう、サーバー側の
+// 設定有無だけを返す(Issue #45)。合言葉そのものは含まない。
+async function handleGuardianExists(request, env, origin, learnerId) {
+  const row = await env.DB.prepare('SELECT learnerId FROM guardians WHERE learnerId = ?')
+    .bind(learnerId)
+    .first();
+  return json({ exists: Boolean(row) }, 200, origin);
+}
+
 async function handleGuardianAuth(request, env, origin, learnerId) {
   const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
   if (!(await checkRateLimit(env, 'guardian_auth', ip))) {
@@ -468,6 +477,12 @@ export default {
       const auth = await authenticate(request, env);
       if (!auth) return errorResponse('unauthorized', 401, origin);
       return handleGuardianSet(request, env, origin, auth.learnerId);
+    }
+
+    if (url.pathname === '/guardian/exists' && request.method === 'GET') {
+      const auth = await authenticate(request, env);
+      if (!auth) return errorResponse('unauthorized', 401, origin);
+      return handleGuardianExists(request, env, origin, auth.learnerId);
     }
 
     if (url.pathname === '/guardian/auth' && request.method === 'POST') {

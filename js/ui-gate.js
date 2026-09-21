@@ -6,6 +6,8 @@ import {
   hasPasscode,
   setPasscode,
   verifyPasscode,
+  verifyPasscodeAgainstServer,
+  checkServerGuardianExists,
   registerServerPasscode,
   isUnlocked,
   markUnlocked,
@@ -18,20 +20,35 @@ export function initGate({ onUnlock }) {
   const app = document.getElementById('dashboard-app');
   const setupForm = document.getElementById('gate-setup');
   const loginForm = document.getElementById('gate-login');
+  const loginHint = document.getElementById('gate-login-hint');
+  let remoteVerify = false;
 
   function showApp() {
     gate.classList.add('hidden');
     app.classList.remove('hidden');
   }
 
-  function showGate() {
+  // ローカルに合言葉未設定の端末は、サーバー側で既に他端末が設定済みか確認してから
+  // 「設定」と「ログイン」のどちらを出すか決める(Issue #45)。オフライン・未確認時は
+  // 従来どおり「設定」にフォールバックする。
+  async function showGate() {
     app.classList.add('hidden');
     gate.classList.remove('hidden');
     if (hasPasscode()) {
+      remoteVerify = false;
       setupForm.classList.add('hidden');
       loginForm.classList.remove('hidden');
+      loginHint.classList.add('hidden');
+      return;
+    }
+    remoteVerify = await checkServerGuardianExists();
+    if (remoteVerify) {
+      setupForm.classList.add('hidden');
+      loginForm.classList.remove('hidden');
+      loginHint.classList.remove('hidden');
     } else {
       loginForm.classList.add('hidden');
+      loginHint.classList.add('hidden');
       setupForm.classList.remove('hidden');
     }
   }
@@ -81,7 +98,7 @@ export function initGate({ onUnlock }) {
   document.getElementById('gate-login-submit').onclick = async () => {
     const status = document.getElementById('gate-login-status');
     const input = document.getElementById('gate-login-passcode');
-    const ok = await verifyPasscode(input.value);
+    const ok = remoteVerify ? await verifyPasscodeAgainstServer(input.value) : await verifyPasscode(input.value);
     if (!ok) {
       status.textContent = '合言葉が違います';
       input.value = '';

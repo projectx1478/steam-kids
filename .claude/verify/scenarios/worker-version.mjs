@@ -6,7 +6,7 @@ export const name = 'X-Worker-Version: 版数ズレ検知でダッシュボー�
 const ENDPOINT = 'https://steam-kids-sync.projectx1478.workers.dev';
 const PASSCODE = 'testtest';
 const LEARNER_ID = '77777777-7777-7777-7777-777777777777';
-const MATCHING_VERSION = 'steam-kids-sync-v1'; // js/sync.js の EXPECTED_WORKER_VERSION と同値
+const MATCHING_VERSION = 'steam-kids-sync-v2'; // js/sync.js の EXPECTED_WORKER_VERSION と同値
 const MISMATCHED_VERSION = 'steam-kids-sync-v0';
 
 function syncState() {
