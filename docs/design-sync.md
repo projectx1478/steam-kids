@@ -49,6 +49,10 @@ P3着手時に読む。バックエンドは決定済み（下記）。
 - エンドポイントURL: `https://steam-kids-sync.projectx1478.workers.dev`
   （デプロイ済み・Issue #20の完了条件9項目をcurlで確認済み）。P3-2で `js/config.js` の
   `SYNC_ENDPOINT` に設定する
+- デプロイは`.github/workflows/deploy-worker.yml`により、`workers/steam-kids-sync/`配下の
+  変更がmainへマージされると自動実行される（`wrangler deploy`。認証はGitHub Actions
+  repository secretの`CLOUDFLARE_API_TOKEN`。Workerスクリプト編集権限のみのスコープ限定
+  トークンを使う）。手動実行は`workflow_dispatch`から可能
 
 ### 匿名認証（端末シークレット方式）
 
