@@ -14,7 +14,7 @@ export default async function run({ page, check }) {
     };
   }, ENDPOINT);
 
-  await page.goto('/index.html');
+  await page.goto('/index.html?lesson=cmd-01-susumu');
   await page.evaluate(() => {
     localStorage.setItem(
       'steamkids.sync',

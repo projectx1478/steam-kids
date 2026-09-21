@@ -1,7 +1,7 @@
 export const name = 'cmd-01-susumu: ゴール到達時のみ肯定的なリアクションが表示される';
 
 async function toPlayStep(page) {
-  await page.goto('/index.html');
+  await page.goto('/index.html?lesson=cmd-01-susumu');
   await page.click('[data-action="start"]');
   await page.click('[data-option="B"]');
   await page.waitForSelector('[data-action="next"]', { timeout: 4000 });

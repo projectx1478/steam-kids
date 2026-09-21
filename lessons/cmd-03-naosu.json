@@ -1,0 +1,35 @@
+{
+  "lessonId": "cmd-03-naosu",
+  "unitId": "commands",
+  "title": "なおす",
+  "type": "grid-runtime",
+  "estimatedMinutes": 5,
+  "steps": [
+    { "stepId": "s1", "kind": "intro", "text": "ずれためいれいをなおそう" },
+    {
+      "stepId": "s2",
+      "kind": "predict",
+      "text": "どこに つくかな？",
+      "commands": ["right", "right", "up", "right"],
+      "optionCells": [
+        { "id": "A", "x": 3, "y": 2 },
+        { "id": "B", "x": 3, "y": 3 },
+        { "id": "C", "x": 2, "y": 2 }
+      ],
+      "options": ["A", "B", "C"],
+      "answer": "A"
+    },
+    {
+      "stepId": "s3",
+      "kind": "play",
+      "grid": { "cols": 4, "rows": 4 },
+      "start": { "x": 0, "y": 3 },
+      "goal": { "x": 3, "y": 3 },
+      "walls": [],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "maxCommands": 4,
+      "initialCommands": ["right", "right", "up", "right"]
+    },
+    { "stepId": "s4", "kind": "summary", "text": "ずれをなおせたね" }
+  ]
+}

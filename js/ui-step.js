@@ -111,6 +111,9 @@ function renderSummary(root, step) {
   p.className = 'text-2xl text-center py-8';
   p.textContent = step.text;
   root.appendChild(p);
+  root.appendChild(
+    createPrimaryButton('ほかのレッスンへ', () => (location.href = './index.html'), 'back-to-picker')
+  );
 }
 
 function getPlaySpec() {
@@ -195,7 +198,8 @@ function renderPredict(root, step) {
 function renderPlay(root, step) {
   const spec = { grid: step.grid, start: step.start, goal: step.goal, walls: step.walls };
   const local = {
-    commands: [],
+    // initialCommandsがあれば「ずれた」命令列を最初から積んでおく（なおす系レッスン用）。
+    commands: (step.initialCommands ?? []).map((dir) => ({ dir, times: 1 })),
     activeIndex: -1,
     playerPos: { ...spec.start },
     running: false,

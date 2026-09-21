@@ -53,6 +53,12 @@
 作れる（Issue #48）。レッスンJSON自体の`commands`/`allowedCommands`は従来通り単発方向の配列で
 書く。まとめは実行時のみの挙動で、レッスンデータの書き方は変わらない。
 
+`play.initialCommands`（任意・方向文字列の配列・既定なし＝空キュー）を指定すると、`play`
+ステップ開始時に子どものキューへ最初からその命令列を積んでおく。「誤った命令列を提示し、
+誤りを見つけて直させる」レッスン（例: なおす）で使う。個別削除（×）で不要な命令を消し、
+必要なら追加してから実行する、という従来通りの操作で直せる（Issue #31）。
+`initialCommands`はそのまま実行してもゴールに到達しない内容にする（直す必要が無いと検証NG）。
+
 ## 検証ルール（生成後に自動チェック）
 
 `npm run validate:lessons`（`tools/validate-lessons.mjs`）が `lessons/*.json` を全件チェックする。
@@ -68,6 +74,8 @@
 - `predict.commands` を `play` の盤面で実行した終点が `answer` の `optionCells` 座標と一致すること
 - `commands` / `allowedCommands` が `up` `down` `left` `right` のみであること
 - `groupRepeats` を持つ場合はboolean型であること
+- `initialCommands` を持つ場合は語彙が正しく、長さが `maxCommands` 以内であり、そのまま実行
+  してもゴールに到達しないこと
 - `start` `goal` `walls` `optionCells` の座標が盤内であること
 - `start` と `goal` が重ならず、`walls` が `start` `goal` を含まないこと
 - ゴールが到達可能であること（`maxCommands` 以内の最短手数をBFSで確認。`groupRepeats: true`

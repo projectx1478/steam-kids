@@ -1,7 +1,7 @@
 export const name = 'cmd-01-susumu: lessons/*.jsonから読み込み、失敗時はフォールバック文言';
 
 export default async function run({ page, check }) {
-  await page.goto('/index.html');
+  await page.goto('/index.html?lesson=cmd-01-susumu');
   await check(
     's1の見出しがlessons/cmd-01-susumu.jsonのsteps[0].textと一致',
     async () => page.textContent('#stage p'),
@@ -15,7 +15,7 @@ export default async function run({ page, check }) {
   await page.route('**/lessons/cmd-01-susumu.json', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: '{broken' })
   );
-  await page.goto('/index.html');
+  await page.goto('/index.html?lesson=cmd-01-susumu');
   await check(
     'フォールバック文言が1行かつ20字以内',
     async () => {

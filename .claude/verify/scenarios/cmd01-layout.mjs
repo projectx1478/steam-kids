@@ -5,7 +5,7 @@ async function noHorizontalScroll(page) {
 }
 
 export default async function run({ page, check }) {
-  await page.goto('/index.html');
+  await page.goto('/index.html?lesson=cmd-01-susumu');
   await check('introで横スクロールが出ない', async () => noHorizontalScroll(page));
 
   await page.click('[data-action="start"]');
