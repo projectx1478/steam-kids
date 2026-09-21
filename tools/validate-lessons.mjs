@@ -15,6 +15,8 @@ const COMMANDS = ['up', 'down', 'left', 'right'];
 const KANJI_RE = /[㐀-䶿一-鿿]/;
 const MIN_STEPS = 4;
 const MAX_STEPS = 7;
+// docs/authoring-rules.md「禁止事項」で確定した否定語リスト。
+const FORBIDDEN_WORDS = ['ちがう', 'まちがい', 'ざんねん'];
 
 // simulateを1手ずつ呼ぶことで、探索の移動ロジックをengine-grid.jsと二重に持たない。
 function stepOnce(pos, cmd, spec) {
@@ -40,6 +42,36 @@ function shortestSteps(spec) {
     }
   }
   return Infinity;
+}
+
+// groupRepeats:true向け。同方向を連続させれば1チップにまとめられる前提で、
+// start→goalに必要な最小チップ数を0-1 BFSで求める（到達不能ならInfinity）。
+// 同方向への移動はコスト0（直前と同じチップに乗る）、方向転換はコスト1（新しいチップ）。
+function shortestChips(spec) {
+  const key = (p, dir) => `${p.x},${p.y}|${dir ?? '-'}`;
+  const dist = new Map([[key(spec.start, null), 0]]);
+  const deque = [{ pos: spec.start, dir: null }];
+  while (deque.length > 0) {
+    const cur = deque.shift();
+    const curDist = dist.get(key(cur.pos, cur.dir));
+    for (const cmd of COMMANDS) {
+      const next = stepOnce(cur.pos, cmd, spec);
+      if (!next) continue;
+      const cost = cmd === cur.dir ? 0 : 1;
+      const nextDist = curDist + cost;
+      const nk = key(next, cmd);
+      if (dist.has(nk) && dist.get(nk) <= nextDist) continue;
+      dist.set(nk, nextDist);
+      if (cost === 0) deque.unshift({ pos: next, dir: cmd });
+      else deque.push({ pos: next, dir: cmd });
+    }
+  }
+  let best = Infinity;
+  for (const [k, v] of dist) {
+    const [x, y] = k.split('|')[0].split(',').map(Number);
+    if (x === spec.goal.x && y === spec.goal.y) best = Math.min(best, v);
+  }
+  return best;
 }
 
 function inGrid(grid, p) {
@@ -76,6 +108,9 @@ function validateLesson(fileName, data) {
     if (typeof step.text === 'string') {
       if ([...step.text].length > 20) add('文字数', `stepId="${step.stepId}" の text が20字超`);
       if (KANJI_RE.test(step.text)) add('漢字ゼロ', `stepId="${step.stepId}" の text に漢字がある`);
+      for (const word of FORBIDDEN_WORDS) {
+        if (step.text.includes(word)) add('否定語', `stepId="${step.stepId}" の text に否定語「${word}」がある`);
+      }
     }
   }
 
@@ -120,11 +155,15 @@ function validateLesson(fileName, data) {
   }
 
   if (play.start && play.goal && grid.cols && grid.rows) {
-    const dist = shortestSteps({ grid, start: play.start, goal: play.goal, walls });
+    const spec = { grid, start: play.start, goal: play.goal, walls };
+    // groupRepeatsありのレッスンは、同方向連続をまとめた最小チップ数で判定する
+    // （まとめないと手数制限に収まらないレッスンを正しく通すため）。
+    const dist = play.groupRepeats ? shortestChips(spec) : shortestSteps(spec);
     if (dist > play.maxCommands) {
       add(
         'ゴール到達可能性',
-        `最短${dist === Infinity ? '到達不能' : dist + '手'}（maxCommands=${play.maxCommands}以内で到達できない）`
+        `最短${dist === Infinity ? '到達不能' : dist + (play.groupRepeats ? 'チップ' : '手')}` +
+          `（maxCommands=${play.maxCommands}以内で到達できない）`
       );
     }
   }

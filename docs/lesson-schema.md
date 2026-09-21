@@ -70,7 +70,9 @@
 - `groupRepeats` を持つ場合はboolean型であること
 - `start` `goal` `walls` `optionCells` の座標が盤内であること
 - `start` と `goal` が重ならず、`walls` が `start` `goal` を含まないこと
-- ゴールが到達可能であること（`maxCommands` 以内の最短手数をBFSで確認）
+- ゴールが到達可能であること（`maxCommands` 以内の最短手数をBFSで確認。`groupRepeats: true`
+  の場合は同方向連続を1チップにまとめた最小チップ数で判定する）
+- `text` に否定語（「ちがう」「まちがい」「ざんねん」）が含まれないこと（`docs/authoring-rules.md`）
 - `text` に漢字（CJK統合漢字）が含まれないこと（学年別許可リストの出典確定までの暫定規則。
   `docs/authoring-rules.md`）
 - **検証NGの場合は再生成する。手で通さない**
