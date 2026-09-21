@@ -1,7 +1,7 @@
 export const name = 'cmd-01-susumu: 実行タイミング（2手目のdata-activeが600ms±100ms）';
 
 export default async function run({ page, check }) {
-  await page.goto('/index.html');
+  await page.goto('/index.html?lesson=cmd-01-susumu');
   await page.click('[data-action="start"]');
   await page.click('[data-option="B"]');
   await page.waitForSelector('[data-action="next"]', { timeout: 4000 });

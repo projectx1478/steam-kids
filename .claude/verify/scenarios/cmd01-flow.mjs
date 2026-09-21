@@ -1,7 +1,7 @@
 export const name = 'cmd-01-susumu: intro→predict→play→summaryの遷移';
 
 export default async function run({ page, check }) {
-  await page.goto('/index.html');
+  await page.goto('/index.html?lesson=cmd-01-susumu');
   await check('初期ステップはintro', async () => page.getAttribute('#stage', 'data-step'), 'intro');
 
   await page.click('[data-action="start"]');

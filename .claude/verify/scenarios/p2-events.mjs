@@ -1,7 +1,7 @@
 export const name = 'P2: イベントのlocalStorage永続化と学習者プロファイル';
 
 async function toPlayStep(page) {
-  await page.goto('/index.html');
+  await page.goto('/index.html?lesson=cmd-01-susumu');
   await page.click('[data-action="start"]');
   await page.click('[data-option="B"]');
   await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
@@ -72,7 +72,7 @@ export default async function run({ page, check }) {
   await check('最古のイベント（0件目）が破棄されている', async () => stored[0].eventId, 'cap-test-1');
 
   // 4a: hidden化でabandonが1件だけ増える（visibilitychangeとpagehideの二重発火を1件に丸める）
-  await page.goto('/index.html');
+  await page.goto('/index.html?lesson=cmd-01-susumu');
   const abandonBeforeHidden = await getAbandonCount(page);
   await page.evaluate(() => {
     Object.defineProperty(document, 'hidden', { value: true, configurable: true });
