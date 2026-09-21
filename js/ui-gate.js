@@ -14,6 +14,9 @@ import {
   lock,
   MIN_LENGTH,
 } from './guardian.js';
+import { redeemLinkCode } from './sync.js';
+
+const CODE_INVALID_CHARS_RE = /[^ABCDEFGHJKLMNPQRSTUVWXYZ23456789]/g;
 
 export function initGate({ onUnlock }) {
   const gate = document.getElementById('auth-gate');
@@ -95,6 +98,31 @@ export function initGate({ onUnlock }) {
     registerServerPasscode(passcode); // オンライン時のみサーバーへ伝播（Issue #38）。表示はブロックしない
   };
 
+  // 2台目以降は、まだ同期未有効(state.enabled=false)のこの時点では#guardian/existsが
+  // 判定できず「初回設定」しか出せない(Issue #45)。合言葉を決める前にリンクコードで
+  // 先に接続できる入口をここに用意し、接続後にshowGate()を再実行して判定し直す。
+  const linkToggleBtn = document.getElementById('gate-setup-link-toggle');
+  const linkForm = document.getElementById('gate-setup-link-form');
+  if (linkToggleBtn) {
+    linkToggleBtn.onclick = () => linkForm.classList.toggle('hidden');
+  }
+  const linkCodeInput = document.getElementById('gate-setup-link-code');
+  if (linkCodeInput) {
+    linkCodeInput.addEventListener('input', () => {
+      linkCodeInput.value = linkCodeInput.value.toUpperCase().replace(CODE_INVALID_CHARS_RE, '').slice(0, 6);
+    });
+  }
+  document.getElementById('gate-setup-link-submit').onclick = async () => {
+    const status = document.getElementById('gate-setup-link-status');
+    const ok = await redeemLinkCode(linkCodeInput.value);
+    if (!ok) {
+      status.textContent = 'コードを確認してください';
+      return;
+    }
+    status.textContent = '';
+    await showGate(); // 接続成功。サーバー側の合言葉確認へ進む
+  };
+
   document.getElementById('gate-login-submit').onclick = async () => {
     const status = document.getElementById('gate-login-status');
     const input = document.getElementById('gate-login-passcode');
@@ -116,6 +144,7 @@ export function initGate({ onUnlock }) {
     });
   };
   submitOnEnter('gate-setup-confirm', 'gate-setup-submit');
+  submitOnEnter('gate-setup-link-code', 'gate-setup-link-submit');
   submitOnEnter('gate-login-passcode', 'gate-login-submit');
 
   const lockBtn = document.getElementById('gate-lock-btn');

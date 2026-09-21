@@ -22,6 +22,21 @@
           設定する
         </button>
         <p id="gate-setup-status" class="text-sm text-center text-red-500 min-h-[1.25rem] mt-2"></p>
+        <div class="mt-4 pt-4 border-t border-slate-100">
+          <button id="gate-setup-link-toggle" type="button"
+            class="min-h-[48px] w-full text-xs text-sky-700 underline">
+            他の端末でお使いですか？リンクコードで接続
+          </button>
+          <div id="gate-setup-link-form" class="hidden flex flex-col gap-2 mt-2">
+            <input id="gate-setup-link-code" type="text" placeholder="コードを入力" maxlength="6"
+              class="min-h-[48px] w-full px-3 rounded-lg border border-slate-300 text-base tracking-widest text-center" />
+            <button id="gate-setup-link-submit" type="button"
+              class="min-h-[48px] w-full bg-slate-600 hover:bg-slate-700 text-white text-sm font-bold rounded-lg">
+              接続する
+            </button>
+            <p id="gate-setup-link-status" class="text-sm text-center text-red-500 min-h-[1.25rem]"></p>
+          </div>
+        </div>
       </div>
       <div id="gate-login" class="hidden">
         <h1 class="text-lg font-bold text-slate-800 mb-1">合言葉を入力してください</h1>
