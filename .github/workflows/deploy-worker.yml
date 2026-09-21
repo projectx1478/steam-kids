@@ -1,0 +1,23 @@
+name: Deploy sync worker
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'workers/steam-kids-sync/**'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/steam-kids-sync
+    steps:
+      - uses: actions/checkout@v4
+      - run: npx wrangler@4.135.0 deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
