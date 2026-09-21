@@ -47,6 +47,12 @@
 `grid` / `start` / `goal` / `walls` を参照する。`commands` はその盤面上で予想させる命令列、
 `optionCells` は `options` の各選択肢が指すマス座標（`id` が `options` の値と対応）。
 
+`play.groupRepeats`（任意・boolean・既定false）を`true`にすると、実行時に子どもが同じ方向を
+続けてタップした際、新しいチップを追加せず直前のチップへ回数をまとめる（「した ×5」表示）。
+`maxCommands`はまとめ後のチップ数で判定されるため、まとめないと手数制限に収まらないレッスンを
+作れる（Issue #48）。レッスンJSON自体の`commands`/`allowedCommands`は従来通り単発方向の配列で
+書く。まとめは実行時のみの挙動で、レッスンデータの書き方は変わらない。
+
 ## 検証ルール（生成後に自動チェック）
 
 `npm run validate:lessons`（`tools/validate-lessons.mjs`）が `lessons/*.json` を全件チェックする。
@@ -61,6 +67,7 @@
 - `answer` が `options` に存在し、`optionCells` の `id` 集合が `options` と一致すること
 - `predict.commands` を `play` の盤面で実行した終点が `answer` の `optionCells` 座標と一致すること
 - `commands` / `allowedCommands` が `up` `down` `left` `right` のみであること
+- `groupRepeats` を持つ場合はboolean型であること
 - `start` `goal` `walls` `optionCells` の座標が盤内であること
 - `start` と `goal` が重ならず、`walls` が `start` `goal` を含まないこと
 - ゴールが到達可能であること（`maxCommands` 以内の最短手数をBFSで確認）

@@ -31,9 +31,10 @@ export function renderCommandPalette(container, { onAdd }) {
 }
 
 // renderCommandQueue(container, { commands, activeIndex, onRemove })
+// commandsの各要素は{dir, times}。times>=2は「した ×5」のようにまとめて表示する。
 export function renderCommandQueue(container, { commands, activeIndex, onRemove }) {
   container.innerHTML = '';
-  commands.forEach((cmd, i) => {
+  commands.forEach(({ dir, times }, i) => {
     const chip = document.createElement('li');
     chip.className = 'command-chip flex items-center gap-1 min-h-[48px] px-2 rounded-lg bg-sky-100';
     chip.dataset.index = String(i);
@@ -41,7 +42,7 @@ export function renderCommandQueue(container, { commands, activeIndex, onRemove 
 
     const label = document.createElement('span');
     label.className = 'text-sm flex-1';
-    label.textContent = COMMAND_LABELS[cmd];
+    label.textContent = times >= 2 ? `${COMMAND_LABELS[dir]} ×${times}` : COMMAND_LABELS[dir];
     chip.appendChild(label);
 
     const removeBtn = document.createElement('button');

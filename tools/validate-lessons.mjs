@@ -98,6 +98,10 @@ function validateLesson(fileName, data) {
     add('命令語彙', `play.allowedCommands=${JSON.stringify(play.allowedCommands)} が不正`);
   }
 
+  if ('groupRepeats' in play && typeof play.groupRepeats !== 'boolean') {
+    add('groupRepeatsの型', `play.groupRepeats=${JSON.stringify(play.groupRepeats)} はboolean以外`);
+  }
+
   const coordChecks = [
     ['start', play.start],
     ['goal', play.goal],
