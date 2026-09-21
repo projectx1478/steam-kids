@@ -79,12 +79,14 @@ function createClearReaction() {
 }
 
 // 命令列を1手600msで再生する。engine-gridの純粋計算結果(simulate)を時間軸に沿って見せるだけ。
+// まとめ命令（times>=2）は複数コマ分の時間をかけて再生し、その間onTickには元の命令
+// （チップ）のインデックスをstepOwner経由で渡し続ける。
 function playAnimation(commands, spec, { onTick, onDone }) {
   const result = simulate(commands, spec);
   let i = 0;
   const step = () => {
-    onTick(i, result.path[i + 1]);
-    if (i === commands.length - 1) {
+    onTick(result.stepOwner[i], result.path[i + 1]);
+    if (i === result.path.length - 2) {
       setTimeout(() => onDone(result), STEP_DELAY_MS);
       return;
     }
@@ -283,9 +285,15 @@ function renderPlay(root, step) {
   }
 
   renderCommandPalette(paletteEl, {
-    onAdd: (cmd) => {
-      if (local.commands.length >= step.maxCommands || local.running) return;
-      local.commands.push(cmd);
+    onAdd: (dir) => {
+      if (local.running) return;
+      const last = local.commands.at(-1);
+      if (step.groupRepeats && last && last.dir === dir) {
+        last.times += 1;
+      } else {
+        if (local.commands.length >= step.maxCommands) return;
+        local.commands.push({ dir, times: 1 });
+      }
       drawQueue();
       updateControls();
     },
