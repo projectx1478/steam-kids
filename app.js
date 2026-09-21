@@ -4,8 +4,11 @@ import { initSteps } from './js/ui-step.js';
 import { push } from './js/sync.js';
 import { registerServiceWorker } from './js/register-sw.js';
 
+// ?lesson=<id> で任意のレッスンを読み込める。未指定時は既定のレッスン1。
+const lessonId = new URLSearchParams(location.search).get('lesson') || 'cmd-01-susumu';
+
 try {
-  const lesson = await loadLesson('cmd-01-susumu');
+  const lesson = await loadLesson(lessonId);
   initState(lesson);
   initSteps();
   push();

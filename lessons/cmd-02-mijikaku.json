@@ -1,0 +1,35 @@
+{
+  "lessonId": "cmd-02-mijikaku",
+  "unitId": "commands",
+  "title": "みじかくする",
+  "type": "grid-runtime",
+  "estimatedMinutes": 5,
+  "steps": [
+    { "stepId": "s1", "kind": "intro", "text": "おなじみちをみじかくしよう" },
+    {
+      "stepId": "s2",
+      "kind": "predict",
+      "text": "どこに つくかな？",
+      "commands": ["down", "down", "down"],
+      "optionCells": [
+        { "id": "A", "x": 0, "y": 3 },
+        { "id": "B", "x": 0, "y": 2 },
+        { "id": "C", "x": 1, "y": 3 }
+      ],
+      "options": ["A", "B", "C"],
+      "answer": "A"
+    },
+    {
+      "stepId": "s3",
+      "kind": "play",
+      "grid": { "cols": 3, "rows": 6 },
+      "start": { "x": 0, "y": 0 },
+      "goal": { "x": 2, "y": 5 },
+      "walls": [],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "maxCommands": 3,
+      "groupRepeats": true
+    },
+    { "stepId": "s4", "kind": "summary", "text": "おなじむきは まとめよう" }
+  ]
+}
