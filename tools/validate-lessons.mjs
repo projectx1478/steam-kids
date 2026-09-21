@@ -137,6 +137,15 @@ function validateLesson(fileName, data) {
     add('groupRepeatsの型', `play.groupRepeats=${JSON.stringify(play.groupRepeats)} はboolean以外`);
   }
 
+  if ('initialCommands' in play) {
+    const initial = play.initialCommands;
+    if (!Array.isArray(initial) || initial.some((c) => !COMMANDS.includes(c))) {
+      add('命令語彙', `play.initialCommands=${JSON.stringify(initial)} が不正`);
+    } else if (typeof play.maxCommands === 'number' && initial.length > play.maxCommands) {
+      add('なおすの初期状態', `initialCommands.length=${initial.length} がmaxCommands=${play.maxCommands}を超える`);
+    }
+  }
+
   const coordChecks = [
     ['start', play.start],
     ['goal', play.goal],
@@ -165,6 +174,18 @@ function validateLesson(fileName, data) {
         `最短${dist === Infinity ? '到達不能' : dist + (play.groupRepeats ? 'チップ' : '手')}` +
           `（maxCommands=${play.maxCommands}以内で到達できない）`
       );
+    }
+  }
+
+  if (
+    Array.isArray(play.initialCommands) &&
+    play.initialCommands.every((c) => COMMANDS.includes(c)) &&
+    play.start &&
+    play.goal
+  ) {
+    const result = simulate(play.initialCommands, { grid, start: play.start, goal: play.goal, walls });
+    if (result.reachedGoal) {
+      add('なおすの初期状態', 'initialCommandsがそのまま実行してもゴールに到達してしまう（直す必要が無い）');
     }
   }
 
@@ -204,7 +225,8 @@ function validateLesson(fileName, data) {
 }
 
 async function main() {
-  const files = (await readdir(LESSONS_DIR)).filter((f) => f.endsWith('.json'));
+  // index.jsonはレッスン選択導線用の一覧ファイルであり、レッスン本体ではない。
+  const files = (await readdir(LESSONS_DIR)).filter((f) => f.endsWith('.json') && f !== 'index.json');
   const allErrors = [];
   for (const file of files) {
     const raw = await readFile(path.join(LESSONS_DIR, file), 'utf-8');
