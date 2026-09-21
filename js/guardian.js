@@ -98,16 +98,54 @@ function deviceAuthHeader(state) {
   return `Bearer ${S.learnerId}.${state.syncSecret}`;
 }
 
-async function postGuardian(path, body) {
+async function guardianRequest(method, path, body) {
   const state = loadSyncState();
   if (!state.enabled || !state.syncSecret || !isOnline()) return null;
   const res = await fetch(`${SYNC_ENDPOINT}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: deviceAuthHeader(state) },
-    body: JSON.stringify(body),
+    method,
+    headers: {
+      ...(body ? { 'Content-Type': 'application/json' } : {}),
+      Authorization: deviceAuthHeader(state),
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
   });
   if (!res.ok) return null;
   return res.json();
+}
+
+async function postGuardian(path, body) {
+  return guardianRequest('POST', path, body);
+}
+
+// ローカルに合言葉未設定の端末が「初回設定」画面に入る前に、サーバー側で既に他端末が
+// 設定済みかどうかを確認する(Issue #45)。オフライン・通信失敗時はfalseを返し、
+// 呼び出し元(ui-gate.js)は従来どおり初回設定画面にフォールバックする。
+export async function checkServerGuardianExists() {
+  try {
+    const data = await guardianRequest('GET', '/guardian/exists');
+    return Boolean(data && data.exists);
+  } catch {
+    return false;
+  }
+}
+
+// ローカルに合言葉未設定の端末で、他端末が既に設定した合言葉をサーバー側(/guardian/auth)で
+// 照合する(Issue #45)。成功したらローカルにもハッシュを保存し、以後この端末でもオフラインで
+// 解錠できるようにする。
+export async function verifyPasscodeAgainstServer(passcode) {
+  if (!passcode) return false;
+  try {
+    const data = await guardianRequest('POST', '/guardian/auth', { passcode });
+    if (data && typeof data.token === 'string' && typeof data.exp === 'number') {
+      serverToken = { token: data.token, exp: data.exp };
+      cachedPasscode = passcode;
+      await setPasscode(passcode);
+      return true;
+    }
+  } catch {
+    // 通信失敗。解錠しない
+  }
+  return false;
 }
 
 // dashboard.htmlの初回設定(gate-setup-submit)からのみ呼ぶ想定。サーバー側は未設定時のみ

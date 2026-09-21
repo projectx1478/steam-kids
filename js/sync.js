@@ -8,7 +8,7 @@ import { ensureGuardianToken } from './guardian.js';
 const PUSH_BATCH_SIZE = 500;
 // Workerの WORKER_VERSION（workers/steam-kids-sync/src/index.js）と同じ値にする。
 // API仕様を変えるPRでは両方を必ず同時に更新する（Issue #29。運用ルールは docs/design-sync.md 参照）。
-export const EXPECTED_WORKER_VERSION = 'steam-kids-sync-v1';
+export const EXPECTED_WORKER_VERSION = 'steam-kids-sync-v2';
 
 // ヘッダ無し（デプロイ前の旧Worker）も不一致として扱う。クライアント配信(GitHub Pages・自動)と
 // Workerデプロイ(手動wrangler deploy)の非対称により「クライアントだけ新しい」状態を検知する。
