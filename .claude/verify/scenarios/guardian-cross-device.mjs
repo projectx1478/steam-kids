@@ -34,11 +34,12 @@ function routeSync(page) {
   return page.route(`${ENDPOINT}/sync*`, (route) => route.fulfill({ json: { events: [] } }));
 }
 
-export default async function run({ page, check }) {
-  // /guardian/authは正解時のみ200を返す実サーバーの挙動を模す。誤り時にroute.fulfillで
-  // 401を返すとハーネスの自動失敗条件(HTTP 4xx・console.error)に触れるため、fetch自体を
-  // 差し替えて判定する（guardian-offline.mjsと同方式）。
-  await page.addInitScript(
+// /guardian/authは正解時のみ200を返す実サーバーの挙動を模す。誤り時にroute.fulfillで401を返すと
+// ハーネスの自動失敗条件(HTTP 4xx・console.error)に触れるため、fetch自体を差し替えて判定する
+// （guardian-offline.mjsと同方式）。addInitScriptはコンテキスト単位のため、新しいブラウザ
+// コンテキストを作るたびに個別に呼ぶ必要がある。
+function installGuardianAuthMock(target) {
+  return target.addInitScript(
     ({ endpoint, passcode }) => {
       const realFetch = window.fetch.bind(window);
       window.fetch = (input, init) => {
@@ -65,6 +66,10 @@ export default async function run({ page, check }) {
     },
     { endpoint: ENDPOINT, passcode: PASSCODE }
   );
+}
+
+export default async function run({ page, check }) {
+  await installGuardianAuthMock(page);
 
   // 1: サーバー側に既に設定済み(exists:true)の場合、ローカル未設定でも「ログイン」が出る
   await page.goto('/dashboard.html');
@@ -142,4 +147,38 @@ export default async function run({ page, check }) {
   await pageOffline.reload();
   await check('サーバー未到達時は#gate-setupにフォールバックする', async () => pageOffline.isVisible('#gate-setup'));
   await contextOffline.close();
+
+  // 7: 実際の2台目の操作順序を再現する。ブラウザ初回起動(sync未有効・合言葉未設定)では
+  // #gate-setupしか出せないため、合言葉を決める前にリンクコードで接続できる入口
+  // (#gate-setup-link-*)から接続し、以後は#guardian/existsの判定でログイン画面に切り替わる
+  // ことを確認する（今回の実機不具合の実際の再現経路）。
+  const ISSUE_CODE = 'ABCD23';
+  const contextNew = await page.context().browser().newContext();
+  const pageNew = await contextNew.newPage();
+  await installGuardianAuthMock(pageNew);
+  await pageNew.goto(new URL('/dashboard.html', page.url()).toString());
+  await pageNew.route(`${ENDPOINT}/link/redeem*`, (route) => route.fulfill({ json: { learnerId: LEARNER_ID } }));
+  await pageNew.route(`${ENDPOINT}/guardian/exists*`, (route) => route.fulfill({ json: { exists: true } }));
+  await routeSync(pageNew);
+  // 新規コンテキストの初回goto直後はpageshow(bfcache)絡みの予期しないリロードが発生することが
+  // ある環境がある(Issue #43で確認済み・本シナリオとは無関係)。先に明示的にreloadして
+  // 以後のクリック操作中に割り込まれないようにする。
+  await pageNew.reload();
+
+  await check('真っ新な端末は#gate-setupが出る', async () => pageNew.isVisible('#gate-setup'));
+  await check('リンクコード接続フォームは既定で非表示', async () => pageNew.isVisible('#gate-setup-link-form'), false);
+  await pageNew.click('#gate-setup-link-toggle');
+  await check('トグルでリンクコード接続フォームが開く', async () => pageNew.isVisible('#gate-setup-link-form'));
+
+  await pageNew.fill('#gate-setup-link-code', ISSUE_CODE);
+  await pageNew.click('#gate-setup-link-submit');
+
+  await check('接続成功で合言葉「設定」ではなく「ログイン」に切り替わる', async () => pageNew.isVisible('#gate-login'));
+  await check('接続成功後は#gate-setupが表示されない', async () => pageNew.isVisible('#gate-setup'), false);
+  await check('接続直後も他端末の合言葉を入力する案内が出る', async () => pageNew.isVisible('#gate-login-hint'));
+
+  await pageNew.fill('#gate-login-passcode', PASSCODE);
+  await pageNew.click('#gate-login-submit');
+  await check('1台目と同じ合言葉でダッシュボードが開く', async () => pageNew.isVisible('#dashboard-app'));
+  await contextNew.close();
 }
