@@ -31,16 +31,27 @@ function syncState(overrides = {}) {
 // Issue #37: dashboard.htmlは合言葉ゲートで保護される。各端末（=各ブラウザコンテキスト）に
 // 合言葉を設定しておき、seed()の呼び出し元がreload後にunlock()でローカル照合を行う。
 async function seed(page, { sync, profile, events }) {
-  await page.evaluate(
-    async ({ sync, profile, events, passcode }) => {
-      localStorage.setItem('steamkids.sync', JSON.stringify(sync));
-      localStorage.setItem('steamkids.profile', JSON.stringify(profile));
-      localStorage.setItem('steamkids.events', JSON.stringify(events));
-      const guardian = await import('/js/guardian.js');
-      await guardian.setPasscode(passcode);
-    },
-    { sync, profile, events, passcode: PASSCODE }
-  );
+  const run = () =>
+    page.evaluate(
+      async ({ sync, profile, events, passcode }) => {
+        localStorage.setItem('steamkids.sync', JSON.stringify(sync));
+        localStorage.setItem('steamkids.profile', JSON.stringify(profile));
+        localStorage.setItem('steamkids.events', JSON.stringify(events));
+        const guardian = await import('/js/guardian.js');
+        await guardian.setPasscode(passcode);
+      },
+      { sync, profile, events, passcode: PASSCODE }
+    );
+  try {
+    await run();
+  } catch (e) {
+    // Issue #43: 実行環境によっては初回ロード直後にナビゲーションが割り込み、
+    // evaluate中に実行コンテキストが破棄されることがある（原因未確定）。
+    // 新しいロードの完了を待って一度だけ再試行し、run.mjsごとクラッシュするのを防ぐ。
+    if (!/Execution context was destroyed/.test(e.message)) throw e;
+    await page.waitForLoadState('load');
+    await run();
+  }
 }
 
 async function unlock(page) {
