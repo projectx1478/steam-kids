@@ -1,6 +1,6 @@
 # SESSION.md
 
-最終更新：2026-09-25（#54マージ・クローズ）
+最終更新：2026-09-25（#55マージ・クローズ、アーカイブ準備）
 
 引き継ぎ専用。進捗・仕様はここに書かない（仕様→PROJECT.md、進捗→git/PR履歴、個別タスク→GitHub Issue）。
 
@@ -8,8 +8,8 @@
 
 # 現在作業中のタスク
 
-**A2（#55）実装完了、PR #72作成済み・マージ待ち。** A3（#56）はA2に依存するためマージ後に着手。
-拡張プランv2のIssueは起票済み。親トラッキング #53、子Issue #54〜#70。EN・C〜Eは未起票。
+**なし。** 拡張プランv2のIssueは起票済み。親トラッキング #53、子Issue #54〜#70
+（A1・A2完了、次はA3 #56）。EN・C〜Eは未起票。
 
 # 完了したタスク（直近のみ・正本はgit/PR履歴とIssue #3）
 
@@ -19,8 +19,8 @@
 - **#54マージ・クローズ**（2026-09-25）。PR #71。`js/sfx.js`（Web Audio合成・単一API
   `play(name)`）を追加し、tap/stack/remove/run/step/bump/reveal/clear/whooshを配線
   （pickupは定義のみ）。`CACHE_NAME`/`APP_VERSION`をv2へ
-- **A2実装・PR #72作成**（2026-09-25）。`js/ui-grid.js`の`renderGrid`が`{el,view}`を返す
-  よう変更、`view.moveTo`（450ms）・`view.bounce`（250ms）・`view.footprint`を追加。
+- **#55マージ・クローズ**（2026-09-25）。PR #72。`js/ui-grid.js`の`renderGrid`が`{el,view}`
+  を返すよう変更、`view.moveTo`（450ms）・`view.bounce`（250ms）・`view.footprint`を追加。
   `.claude/verify/config.mjs`（新規）でreduced-motionを検証既定に
 
 # 引き継ぎ事項
@@ -78,5 +78,4 @@ K1（#59）のPRでPROJECT.md「8. 未決事項」の漢字出典を更新する
 
 # 次回最初に行うこと
 
-PR #72（A2）のマージを確認する。マージ済みならA3（#56、A2依存）に着手（実装はSonnet）。
-#53と#56を読み、実装方針（検証計画を含む）を提示して承認を得る。
+A3（#56）から着手する（実装はSonnet）。#53と#56を読み、実装方針（検証計画を含む）を提示して承認を得る。
