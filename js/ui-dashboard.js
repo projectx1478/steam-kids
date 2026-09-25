@@ -7,6 +7,7 @@ import { push, pull } from './sync.js';
 import { registerServiceWorker } from './register-sw.js';
 import { APP_VERSION } from './config.js';
 import { initGate } from './ui-gate.js';
+import { READING_LEVELS } from './kanji-grades.js';
 
 const STATUS_LABELS = { not_started: '未着手', in_progress: '途中', cleared: 'クリア' };
 const ALERT_LABELS = {
@@ -38,6 +39,10 @@ function renderWorkerVersionBanner(root, mismatch) {
   root.appendChild(banner);
 }
 
+function newProfile() {
+  return { learnerId: crypto.randomUUID(), label: null, readingLevel: 0, createdAt: Date.now() };
+}
+
 function renderProfileSection(root) {
   root.innerHTML = '';
   root.appendChild(el('h2', 'text-lg font-bold text-slate-800 mb-2', '呼び名'));
@@ -49,11 +54,31 @@ function renderProfileSection(root) {
   input.value = loadProfile()?.label ?? '';
   input.className = 'min-h-[48px] w-full px-3 rounded-lg border border-slate-300 text-base';
   input.addEventListener('change', () => {
-    const profile = loadProfile() ?? { learnerId: crypto.randomUUID(), label: null, createdAt: Date.now() };
+    const profile = loadProfile() ?? newProfile();
     profile.label = input.value.trim() === '' ? null : input.value.trim();
     saveProfile(profile);
   });
   root.appendChild(input);
+
+  // よみレベル（端末内のみ・同期しない）。子どもが誤って変えないよう保護者ゲート内に置く（Issue #59）。
+  root.appendChild(el('h2', 'text-lg font-bold text-slate-800 mt-4 mb-2', 'よみレベル'));
+  const select = document.createElement('select');
+  select.id = 'reading-level-select';
+  select.className = 'min-h-[48px] w-full px-3 rounded-lg border border-slate-300 text-base';
+  const currentLevel = loadProfile()?.readingLevel ?? 0;
+  for (const { value, label } of READING_LEVELS) {
+    const option = document.createElement('option');
+    option.value = String(value);
+    option.textContent = label;
+    option.selected = value === currentLevel;
+    select.appendChild(option);
+  }
+  select.addEventListener('change', () => {
+    const profile = loadProfile() ?? newProfile();
+    profile.readingLevel = Number(select.value);
+    saveProfile(profile);
+  });
+  root.appendChild(select);
 }
 
 function renderRecentSection(root, recentDays) {
