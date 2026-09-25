@@ -5,7 +5,7 @@
   "type": "grid-runtime",
   "estimatedMinutes": 5,
   "steps": [
-    { "stepId": "s1", "kind": "intro", "text": "おなじみちをみじかくしよう" },
+    { "stepId": "s1", "kind": "intro", "text": "おなじ{道|みち}をみじかくしよう" },
     {
       "stepId": "s2",
       "kind": "predict",

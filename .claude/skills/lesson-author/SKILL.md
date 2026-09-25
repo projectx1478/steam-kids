@@ -17,7 +17,9 @@ description: 単元名からgrid-runtimeレッスンJSONを生成し、npm run v
    それに従う。無ければ以下を満たすように設計する。
    - 3段構え（予想→実行→ズレを見る）を全ステップで維持する
    - `steps` は4〜7個、`estimatedMinutes` は5
-   - 1画面の文章は20字以内。ひらがな主体・漢字ゼロ（暫定規則）
+   - 1画面の文章はひらがな展開後20字以内。ひらがな主体。漢字を使う場合は`{漢字|よみ}`
+     のルビ記法で書き、`js/kanji-grades.js`（学年別漢字配当表）内の漢字に限る
+     （`docs/authoring-rules.md`「使用できる文字」）
    - 否定語（「ちがう」「まちがい」「ざんねん」）を使わない
    - `predict` を最低1つ、`grid-runtime` では `play` をちょうど1つ含める
    - `predict.commands` の終点が `answer` の `optionCells` 座標と一致すること
