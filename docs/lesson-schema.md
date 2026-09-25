@@ -59,6 +59,12 @@
 必要なら追加してから実行する、という従来通りの操作で直せる（Issue #31）。
 `initialCommands`はそのまま実行してもゴールに到達しない内容にする（直す必要が無いと検証NG）。
 
+`play.items`（任意・マス座標`{x, y}`の配列・既定`[]`）を指定すると、盤面に回収対象（どんぐり）
+を置く。クリア条件は「ゴール到達」から「ゴール到達 **かつ** 全item回収」に変わる（items未指定時
+は従来通りゴール到達のみ）。item同士・item-壁の座標重複は不可（`validate-lessons.mjs`が検証）。
+`maxCommands`はゴール到達と全item回収の両方を満たす最短経路の手数（`groupRepeats`時はチップ数）
+で判定される（Issue #60）。
+
 ### ルビ記法（`text`内の漢字表記）
 
 `text` 内で漢字を使う場合は `{漢字|よみ}` の形式で書く（例: `"{右|みぎ}へ すすもう"`）。
@@ -109,11 +115,13 @@
 - `commands` / `allowedCommands` が `up` `down` `left` `right` のみであること
 - `groupRepeats` を持つ場合はboolean型であること
 - `initialCommands` を持つ場合は語彙が正しく、長さが `maxCommands` 以内であり、そのまま実行
-  してもゴールに到達しないこと
-- `start` `goal` `walls` `optionCells` の座標が盤内であること
+  してもゴールに到達しないこと（`items` がある場合は全回収も満たしていないこと）
+- `start` `goal` `walls` `optionCells` `items` の座標が盤内であること
 - `start` と `goal` が重ならず、`walls` が `start` `goal` を含まないこと
-- ゴールが到達可能であること（`maxCommands` 以内の最短手数をBFSで確認。`groupRepeats: true`
-  の場合は同方向連続を1チップにまとめた最小チップ数で判定する）
+- `items` が `walls` と重ならず、`items` 同士も座標重複しないこと
+- ゴールが到達可能であること（`items` がある場合は全回収した上でのゴール到達）を `maxCommands`
+  以内の最短手数でBFS確認する（`groupRepeats: true` の場合は同方向連続を1チップにまとめた
+  最小チップ数で判定する）
 - `text` に否定語（「ちがう」「まちがい」「ざんねん」）が含まれないこと（ひらがな展開後の
   文字列で判定。`docs/authoring-rules.md`）
 - `text` のルビ記法 `{漢字|よみ}` 外に生の漢字が無いこと、ルビ内の漢字が
