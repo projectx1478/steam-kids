@@ -4,6 +4,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { simulate } from '../js/engine-grid.js';
+import { plainSegmentsText, plainReading, parseSegments, rubyGrade, textKanjiMaxGrade, KANJI_RE } from '../js/text-render.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -12,7 +13,6 @@ const LESSONS_DIR = path.join(ROOT, 'lessons');
 const REQUIRED_KEYS = ['lessonId', 'unitId', 'title', 'type', 'estimatedMinutes', 'steps'];
 const KINDS = ['intro', 'predict', 'play', 'summary'];
 const COMMANDS = ['up', 'down', 'left', 'right'];
-const KANJI_RE = /[㐀-䶿一-鿿]/;
 const MIN_STEPS = 4;
 const MAX_STEPS = 7;
 // docs/authoring-rules.md「禁止事項」で確定した否定語リスト。
@@ -106,10 +106,28 @@ function validateLesson(fileName, data) {
       add('kind', `stepId="${step.stepId}" の kind="${step.kind}" が不正`);
     }
     if (typeof step.text === 'string') {
-      if ([...step.text].length > 20) add('文字数', `stepId="${step.stepId}" の text が20字超`);
-      if (KANJI_RE.test(step.text)) add('漢字ゼロ', `stepId="${step.stepId}" の text に漢字がある`);
+      // ルビ記法 {漢字|よみ} 外に生の漢字・崩れた中括弧が残っていないか（地の文部分のみで判定）。
+      const outside = plainSegmentsText(step.text);
+      if (KANJI_RE.test(outside)) add('ルビ外の漢字', `stepId="${step.stepId}" の text にルビ記法外の漢字がある`);
+      if (outside.includes('{') || outside.includes('}')) {
+        add('ルビ記法', `stepId="${step.stepId}" の text の中括弧が壊れている（{漢字|よみ}の形式で書く）`);
+      }
+      // ルビ内の漢字が学年別漢字配当表（js/kanji-grades.js）に無ければNG。よみ側に漢字が
+      // 混じっている（読み仮名になっていない）場合もNG。
+      for (const seg of parseSegments(step.text)) {
+        if (typeof seg === 'string') continue;
+        if (rubyGrade(seg.kanji) === null) {
+          add('配当表外の漢字', `stepId="${step.stepId}" の {${seg.kanji}|${seg.kana}} に配当表に無い漢字がある`);
+        }
+        if (KANJI_RE.test(seg.kana)) {
+          add('ルビ記法', `stepId="${step.stepId}" の {${seg.kanji}|${seg.kana}} のよみに漢字が混じっている`);
+        }
+      }
+      // 20字制限は全てひらがなに展開した表示（よみレベル0）で判定する（最長になる表示のため）。
+      const reading = plainReading(step.text);
+      if ([...reading].length > 20) add('文字数', `stepId="${step.stepId}" の text が展開後20字超`);
       for (const word of FORBIDDEN_WORDS) {
-        if (step.text.includes(word)) add('否定語', `stepId="${step.stepId}" の text に否定語「${word}」がある`);
+        if (reading.includes(word)) add('否定語', `stepId="${step.stepId}" の text に否定語「${word}」がある`);
       }
     }
   }
@@ -263,9 +281,22 @@ function validateIndex(data, lessonById) {
   return errors;
 }
 
+// レッスン中で使われている漢字の最大配当学年（無ければnull）。失敗にはしない情報表示用（Issue #59）。
+function lessonKanjiMaxGrade(data) {
+  const steps = Array.isArray(data.steps) ? data.steps : [];
+  let max = null;
+  for (const step of steps) {
+    if (typeof step.text !== 'string') continue;
+    const g = textKanjiMaxGrade(step.text);
+    if (g !== null) max = max === null ? g : Math.max(max, g);
+  }
+  return max;
+}
+
 async function main() {
   const files = (await readdir(LESSONS_DIR)).filter((f) => f.endsWith('.json') && f !== 'index.json');
   const allErrors = [];
+  const infoLines = [];
   const lessonById = new Map();
   for (const file of files) {
     const raw = await readFile(path.join(LESSONS_DIR, file), 'utf-8');
@@ -278,6 +309,8 @@ async function main() {
     }
     if (typeof data.lessonId === 'string') lessonById.set(data.lessonId, data);
     allErrors.push(...validateLesson(file, data));
+    const maxGrade = lessonKanjiMaxGrade(data);
+    if (maxGrade !== null) infoLines.push(`INFO ${file}: kanjiMaxGrade=${maxGrade}`);
   }
 
   const indexRaw = await readFile(path.join(LESSONS_DIR, 'index.json'), 'utf-8');
@@ -291,6 +324,7 @@ async function main() {
     for (const e of allErrors) console.log(e);
     process.exit(1);
   }
+  for (const line of infoLines) console.log(line);
   console.log(`OK: ${files.length}件`);
 }
 

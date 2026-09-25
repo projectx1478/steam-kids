@@ -5,6 +5,7 @@ import { simulate } from './engine-grid.js';
 import { renderGrid, prefersReducedMotion } from './ui-grid.js';
 import { renderCommandPalette, renderCommandQueue, COMMAND_LABELS, vibrate } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
+import { renderInto, refreshRubyText } from './text-render.js';
 
 const STEP_DELAY_MS = 600;
 const STEP_TRANSITION_MS = 220;
@@ -29,6 +30,7 @@ export function initSteps() {
   toggle.addEventListener('click', () => {
     S.furigana = !S.furigana;
     toggle.setAttribute('aria-pressed', String(S.furigana));
+    refreshRubyText(S.readingLevel, S.furigana);
   });
 
   document.addEventListener('visibilitychange', () => {
@@ -156,7 +158,7 @@ function playAnimation(commands, spec, view, { onTick, onDone }) {
 function renderIntro(root, step) {
   const p = document.createElement('p');
   p.className = 'text-2xl text-center py-8';
-  p.textContent = step.text;
+  renderInto(p, step.text, S.readingLevel, S.furigana);
   root.appendChild(p);
   root.appendChild(createPrimaryButton('はじめる', () => goToStep(S.stepIndex + 1), 'start'));
 }
@@ -164,7 +166,7 @@ function renderIntro(root, step) {
 function renderSummary(root, step) {
   const p = document.createElement('p');
   p.className = 'text-2xl text-center py-8';
-  p.textContent = step.text;
+  renderInto(p, step.text, S.readingLevel, S.furigana);
   root.appendChild(p);
   root.appendChild(
     createPrimaryButton('ほかのレッスンへ', () => (location.href = './index.html'), 'back-to-picker')
@@ -181,7 +183,7 @@ function renderPredict(root, step) {
 
   const prompt = document.createElement('p');
   prompt.className = 'text-xl text-center mb-2';
-  prompt.textContent = step.text;
+  renderInto(prompt, step.text, S.readingLevel, S.furigana);
   root.appendChild(prompt);
 
   const commandRow = document.createElement('div');

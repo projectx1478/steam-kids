@@ -30,6 +30,6 @@
       "maxCommands": 4,
       "initialCommands": ["right", "right", "up", "right"]
     },
-    { "stepId": "s4", "kind": "summary", "text": "ずれをなおせたね" }
+    { "stepId": "s4", "kind": "summary", "text": "ずれを{直|なお}せたね" }
   ]
 }
