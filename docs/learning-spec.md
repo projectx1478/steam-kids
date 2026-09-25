@@ -35,6 +35,10 @@ MVP実装対象は `grid-runtime` と、全型共通の予想ステップのみ�
 - プレイヤー駒は1マス450msでなめらかに移動し、通過マスに足あとを残す。壁停止時は250msの
   バウンス演出（進行方向へ軽く跳ねて戻る）。`prefers-reduced-motion`時はアニメーション無し
   （即時移動、足あとは表示される）。実装は`js/ui-grid.js`の`view`API（Issue #55）
+- `play.items`（どんぐり等）がある盤面では、駒が乗ったマスのitemを回収して消す
+  （拡大→フェードの演出、`pickup`効果音）。クリア条件は「ゴール到達 かつ 全item回収」。
+  実装は`js/ui-grid.js`の`view.collectItem()`と`js/engine-grid.js`の`simulate()`が返す
+  `pickups`/`remainingItems`（Issue #60。詳細は`docs/lesson-schema.md`）
 
 ### 予想ステップの位置づけ（確定事項）
 
@@ -91,7 +95,7 @@ Web Audio APIで合成する効果音のみ（音声ファイル・BGMなし）�
 | `run` | 実行開始（`playAnimation`の先頭で1回） | 300ms |
 | `step` | 1マス移動（`opts.index`で音階が進む） | 150ms |
 | `bump` | 壁で停止（ブザー禁止・柔らかいsine） | 250ms |
-| `pickup` | アイテム取得（B1で使用予定。本PRは定義のみ） | 200ms |
+| `pickup` | アイテム取得（Issue #60） | 200ms |
 | `reveal` | 予想の答え合わせ（一致・不一致で同じ音） | 200ms |
 | `clear` | ゴール到達（ド・ミ・ソ・ド） | 1200ms |
 | `whoosh` | ステップ遷移（`goToStep`） | 200ms |

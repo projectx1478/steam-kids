@@ -1,4 +1,4 @@
-export const name = 'レッスン選択画面: ?lesson無しで3本から選べる(Issue #31)';
+export const name = 'レッスン選択画面: ?lesson無しで5本から選べる(Issue #31, #60)';
 
 async function boxesOk(page) {
   const boxes = [];
@@ -25,7 +25,7 @@ async function noHorizontalScroll(page) {
 export default async function run({ page, check }) {
   await page.goto('/index.html');
 
-  await check('3本のレッスンボタンが表示される', async () => (await page.$$('.lesson-pick-btn')).length, 3);
+  await check('5本のレッスンボタンが表示される', async () => (await page.$$('.lesson-pick-btn')).length, 5);
   await check(
     'レッスン1のタイトルが表示される',
     async () => page.textContent('[data-lesson-id="cmd-01-susumu"]'),
@@ -40,6 +40,16 @@ export default async function run({ page, check }) {
     'レッスン3のタイトルが表示される',
     async () => page.textContent('[data-lesson-id="cmd-03-naosu"]'),
     'なおす'
+  );
+  await check(
+    'donguri-01のタイトルが表示される',
+    async () => page.textContent('[data-lesson-id="donguri-01-hirou"]'),
+    'ひろう'
+  );
+  await check(
+    'donguri-02のタイトルが表示される',
+    async () => page.textContent('[data-lesson-id="donguri-02-mawarimichi"]'),
+    'まわりみち'
   );
   await check('選択画面のボタンが48px以上', async () => boxesOk(page));
   await check('選択画面の表示文言が20字以内', async () => noLongLine(page));

@@ -9,6 +9,7 @@ const NUDGE_BY_DIR = { up: [0, -BOUNCE_NUDGE_PX], down: [0, BOUNCE_NUDGE_PX], le
 const CONFETTI_COUNT = 24;
 const CONFETTI_MS = 1500;
 const CONFETTI_COLORS = ['#f87171', '#fbbf24', '#34d399', '#38bdf8', '#a78bfa'];
+const COLLECT_MS = 220;
 
 function shapeSvg(kind) {
   if (kind === 'wall') {
@@ -20,6 +21,13 @@ function shapeSvg(kind) {
     return `<svg viewBox="0 0 64 64" class="w-full h-full" aria-hidden="true">
       <polygon points="32,6 40,24 60,24 44,36 50,56 32,44 14,56 20,36 4,24 24,24"
         fill="#facc15" stroke="#eab308" stroke-width="2" />
+    </svg>`;
+  }
+  if (kind === 'item') {
+    return `<svg viewBox="0 0 64 64" class="w-full h-full" aria-hidden="true">
+      <ellipse cx="32" cy="40" rx="14" ry="16" fill="#b45309" />
+      <path d="M18 30 Q32 14 46 30 Q32 24 18 30Z" fill="#78350f" />
+      <rect x="29" y="10" width="6" height="8" rx="2" fill="#78350f" />
     </svg>`;
   }
   if (kind === 'player') {
@@ -60,7 +68,9 @@ function pixelFor(pos) {
 
 window.__gridAnimLog = window.__gridAnimLog || [];
 
-// renderGrid({grid, walls, goal, playerPos, labels, markers}) -> { el, view }
+// renderGrid({grid, walls, goal, items, playerPos, labels, markers}) -> { el, view }
+// items: [{x, y}] どんぐり等の回収対象（Issue #60）。壁・ゴールと違い回収で個別に消えるため、
+// board全再構築とは別にitemEls（座標キー）で個体管理する
 // labels: [{id, x, y}] 予想ステップの選択肢ボタン
 // markers: [{x, y, kind: 'predicted' | 'result'}] 予想と結果を並べて表示するマーカー
 // view: プレイヤー駒・足あとの差分更新API（アニメーション中はこちらのみ使う。draw全再構築はしない）
@@ -68,7 +78,8 @@ window.__gridAnimLog = window.__gridAnimLog || [];
 //   view.bounce(dir): 壁停止の演出（250ms、reduced-motion時は何もしない）
 //   view.footprint(pos): 通過マスに足あとを追加
 //   view.confetti(): ゴール紙ふぶき（粒子24個・1.5秒で除去、reduced-motion時は何もしない）
-export function renderGrid({ grid, walls, goal, playerPos, labels = [], markers = [] }) {
+//   view.collectItem(pos): 該当マスのitemを回収演出付きで消す（reduced-motion時は即時に消す）
+export function renderGrid({ grid, walls, goal, items = [], playerPos, labels = [], markers = [] }) {
   const wallSet = new Set(walls.map((w) => `${w.x},${w.y}`));
   const board = document.createElement('div');
   board.className = 'grid-board relative inline-grid gap-1 bg-sky-100 p-1 rounded-xl';
@@ -117,6 +128,22 @@ export function renderGrid({ grid, walls, goal, playerPos, labels = [], markers 
       board.appendChild(cell);
     }
   }
+
+  // itemsはセルのinnerHTMLに焼き込まず、footprint同様に個別要素で持つ（回収時に個体を消すため）。
+  const itemEls = new Map();
+  items.forEach((it) => {
+    const px = pixelFor(it);
+    const el = document.createElement('div');
+    el.className = 'grid-item absolute pointer-events-none';
+    el.style.top = '0';
+    el.style.left = '0';
+    el.style.width = `${CELL}px`;
+    el.style.height = `${CELL}px`;
+    el.style.transform = `translate(${px.x}px, ${px.y}px)`;
+    el.innerHTML = shapeSvg('item');
+    board.appendChild(el);
+    itemEls.set(`${it.x},${it.y}`, el);
+  });
 
   // プレイヤー駒はCSS Gridのセルに属さず、boardに対する絶対座標(transform)で位置を持つ。
   // セル間の移動をtransformのtransitionでなめらかにするため(Issue #55)。
@@ -197,6 +224,21 @@ export function renderGrid({ grid, walls, goal, playerPos, labels = [], markers 
         <circle cx="32" cy="32" r="8" fill="#0284c7" fill-opacity="0.35" />
       </svg>`;
       board.insertBefore(dot, token);
+    },
+    collectItem(itemPos) {
+      const key = `${itemPos.x},${itemPos.y}`;
+      const el = itemEls.get(key);
+      if (!el) return;
+      itemEls.delete(key);
+      if (prefersReducedMotion()) {
+        el.remove();
+        return;
+      }
+      const px = pixelFor(itemPos);
+      el.style.transition = `transform ${COLLECT_MS}ms ease, opacity ${COLLECT_MS}ms ease`;
+      el.style.transform = `translate(${px.x}px, ${px.y}px) scale(1.4)`;
+      el.style.opacity = '0';
+      setTimeout(() => el.remove(), COLLECT_MS);
     },
     confetti() {
       if (prefersReducedMotion()) return;

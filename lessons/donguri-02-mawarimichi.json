@@ -1,0 +1,35 @@
+{
+  "lessonId": "donguri-02-mawarimichi",
+  "unitId": "donguri",
+  "title": "まわりみち",
+  "type": "grid-runtime",
+  "estimatedMinutes": 5,
+  "steps": [
+    { "stepId": "s1", "kind": "intro", "text": "どんぐりを さがしに いこう" },
+    {
+      "stepId": "s2",
+      "kind": "predict",
+      "text": "どのマスに つく？",
+      "commands": ["down", "down", "down"],
+      "optionCells": [
+        { "id": "A", "x": 0, "y": 3 },
+        { "id": "B", "x": 0, "y": 2 },
+        { "id": "C", "x": 2, "y": 3 }
+      ],
+      "options": ["A", "B", "C"],
+      "answer": "A"
+    },
+    {
+      "stepId": "s3",
+      "kind": "play",
+      "grid": { "cols": 3, "rows": 4 },
+      "start": { "x": 0, "y": 0 },
+      "goal": { "x": 2, "y": 0 },
+      "walls": [],
+      "items": [{ "x": 1, "y": 3 }],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "maxCommands": 9
+    },
+    { "stepId": "s4", "kind": "summary", "text": "とおまわりでも ぜんぶ ひろおう" }
+  ]
+}
