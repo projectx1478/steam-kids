@@ -8,11 +8,15 @@ function loadOrCreateProfile() {
   return profile;
 }
 
+const profile = loadOrCreateProfile();
+
 export const S = {
   lesson: null,
   stepIndex: 0,
-  learnerId: loadOrCreateProfile().learnerId,
-  furigana: false,
+  learnerId: profile.learnerId,
+  // よみレベル（0=ねんちょう〜6）。端末内(profile)のみで保持し同期しない（Issue #59）。
+  readingLevel: profile.readingLevel ?? 0,
+  furigana: true,
 };
 
 export function initState(lesson) {
