@@ -48,7 +48,6 @@ UI規則（受け入れ条件。すべて判定可能な数値条件とする）
 - タップ領域は48px四方以上
 - 文字はひらがな主体。漢字にはふりがなトグル
 - 音声読み上げはMVP対象外。文言はレッスンデータ側の文字列として持ち、DOMに直書きしない
-  （将来 Web Speech API から同じ文字列を読める構造にする）
 
 教材型5種の一覧と `grid-runtime` の詳細仕様、初回単元の内容は `docs/learning-spec.md`。
 MVP実装対象は `grid-runtime` と、全型共通の予想ステップのみ。
@@ -90,8 +89,7 @@ MVP実装対象は `grid-runtime` と、全型共通の予想ステップのみ�
 
 ### 同期・バックエンド・機密情報管理
 
-同期方式、バックエンドの選定（**未決**）、秘密情報の扱いは `docs/design-sync.md`。
-P2までは外部通信を行わないため秘密情報を扱わない。P3着手時に当該ドキュメントを確定させる。
+同期方式・バックエンド（Cloudflare Workers + D1）・秘密情報の扱いは `docs/design-sync.md`。
 
 ### 保護者ゲート（ダッシュボード保護）
 
@@ -115,13 +113,13 @@ P2までは外部通信を行わないため秘密情報を扱わない。P3着�
 - URLで単元へ直接入れること（ログイン機構を作らない。共用端末を想定）
 - 実行時に外部APIを呼ばない
 - 教科書の図版・記述に寄せない
-- イベントの拡張性（`classId`追加のみで対応）は `docs/lesson-schema.md` 参照
+- イベント拡張は `classId` 追加のみで対応（`docs/lesson-schema.md`）
 
 ### ファイル構成
 
 ```
 index.html
-dashboard.html # 保護者・教師向けダッシュボード（合言葉ゲートで保護）
+dashboard.html # 保護者・教師向けダッシュボード
 service-worker.js # オフライン対応・更新反映（docs/caching.md）
 style.css # Tailwind生成物（コミット対象・直接編集禁止）
 tailwind.src.css # Tailwindソース
@@ -135,15 +133,16 @@ js/
   ui-grid.js # SVGグリッド描画とハイライト
   ui-commands.js # 命令パレット・命令列・個別削除・全消し
   ui-step.js # ステップ切替、ふりがなトグル
+  sfx.js # 効果音（Web Audio API合成・単一API play(name)、BGMなし）
   events.js # logEvent() / getEvents()（storage.js経由で永続化）
   storage.js # localStorage読み書き（イベント・学習者プロファイル）
   analytics.js # 学習ログ集計・詰まりアラート判定（純粋関数）
-  guardian.js # 保護者ゲートの合言葉管理（PBKDF2・ローカルのみ）
+  guardian.js # 保護者ゲートの合言葉管理
   ui-gate.js # dashboard.htmlのゲート描画
   ui-dashboard.js # dashboard.htmlの描画（summarize結果の描画のみ）
   register-sw.js # SW登録・更新時の自動リロード
 lessons/ # レッスンJSON（P1〜）
-tools/ # 開発時ツール（レッスンJSON検証）
+tools/ # レッスンJSON検証ツール
 docs/ # 詳細ドキュメント（7章の索引を参照）
 workers/steam-kids-sync/ # 同期API（Cloudflare Workers + D1、P3〜）
 .claude/ # Claude Codeのフック・検証ハーネス・スクリプト
@@ -190,8 +189,8 @@ ES Modules（`<script type="module">` / `import`/`export`）でファイル間�
 
 ### 他プロジェクトからのコード再利用
 
-project-template の PROJECT.md に定めた4条件を全て満たす場合のみコピーしてよい。
-コピー時は冒頭に出典コメント（コミットハッシュまで）を必ず書き、以後は独立資産として扱う。
+project-template の PROJECT.md の4条件を満たす場合のみコピー可。出典コメント
+（コミットハッシュ）を冒頭に必須記載し、以後は独立資産として扱う。
 
 ## 4. Issue 管理
 
@@ -216,7 +215,7 @@ Issueには理由ではなく**判定可能な数値条件**を書く（0.6秒�
 
 ### OpenCode
 
-`opencode.json` に `provider`・`model`・APIキーを書かない。詳細は project-template の PROJECT.md を参照。
+`opencode.json` に `provider`・`model`・APIキーを書かない（詳細: project-template PROJECT.md）。
 
 ## 6. ロードマップ
 

@@ -3,6 +3,7 @@ import { loadLesson } from './js/lesson-loader.js';
 import { initSteps } from './js/ui-step.js';
 import { push } from './js/sync.js';
 import { registerServiceWorker } from './js/register-sw.js';
+import { initSoundToggle } from './js/sfx.js';
 
 function showError() {
   const p = document.createElement('p');
@@ -60,6 +61,8 @@ async function renderPicker() {
     list.appendChild(btn);
   }
 }
+
+initSoundToggle(document.getElementById('sound-toggle'));
 
 const lessonId = new URLSearchParams(location.search).get('lesson');
 if (lessonId) {

@@ -75,3 +75,23 @@ MVP実装対象は `grid-runtime` と、全型共通の予想ステップのみ�
 `lessons/cmd-03-naosu.json`。4×4、start `(0,3)`、goal `(3,3)`、壁なし。
 `initialCommands: [right,right,up,right]`（3手目の`up`が誤り。到達点は`(3,2)`でゴール未達）。
 `up`を削除した`[right,right,right]`でゴール `(3,3)` に到達する。`maxCommands: 4`。
+
+## 効果音（`js/sfx.js`、Issue #54）
+
+Web Audio APIで合成する効果音のみ（音声ファイル・BGMなし）。単一API `play(name, opts)`。
+
+| 名前 | 場面 | 長さ上限 |
+| --- | --- | --- |
+| `tap` | 命令追加 | 80ms |
+| `stack` | まとめ×2以上（`opts.count`で音程上昇） | 120ms |
+| `remove` | 削除（個別・全消し） | 120ms |
+| `run` | 実行開始（`playAnimation`の先頭で1回） | 300ms |
+| `step` | 1マス移動（`opts.index`で音階が進む） | 150ms |
+| `bump` | 壁で停止（ブザー禁止・柔らかいsine） | 250ms |
+| `pickup` | アイテム取得（B1で使用予定。本PRは定義のみ） | 200ms |
+| `reveal` | 予想の答え合わせ（一致・不一致で同じ音） | 200ms |
+| `clear` | ゴール到達（ド・ミ・ソ・ド） | 1200ms |
+| `whoosh` | ステップ遷移（`goToStep`） | 200ms |
+
+ミュート状態は`localStorage['steamkids.sound']`。`?sound=off`で未設定時のみ既定ミュート。
+検証用に`window.__sfxLog`へ再生した音名を記録する（ミュート時は記録しない）。
