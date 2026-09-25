@@ -4,6 +4,7 @@ import { logEvent } from './events.js';
 import { simulate } from './engine-grid.js';
 import { renderGrid } from './ui-grid.js';
 import { renderCommandPalette, renderCommandQueue, COMMAND_LABELS } from './ui-commands.js';
+import { play as playSfx } from './sfx.js';
 
 const STEP_DELAY_MS = 600;
 
@@ -41,6 +42,7 @@ function goToStep(nextIndex) {
   logEvent('step_leave', {});
   S.stepIndex = nextIndex;
   logEvent('step_enter', {});
+  playSfx('whoosh');
   renderStep();
 }
 
@@ -83,9 +85,14 @@ function createClearReaction() {
 // （チップ）のインデックスをstepOwner経由で渡し続ける。
 function playAnimation(commands, spec, { onTick, onDone }) {
   const result = simulate(commands, spec);
+  playSfx('run');
   let i = 0;
   const step = () => {
-    onTick(result.stepOwner[i], result.path[i + 1]);
+    const from = result.path[i];
+    const to = result.path[i + 1];
+    const bumped = from.x === to.x && from.y === to.y;
+    playSfx(bumped ? 'bump' : 'step', { index: i });
+    onTick(result.stepOwner[i], to);
     if (i === result.path.length - 2) {
       setTimeout(() => onDone(result), STEP_DELAY_MS);
       return;
@@ -182,6 +189,7 @@ function renderPredict(root, step) {
       },
       onDone: (result) => {
         commandRow.querySelectorAll('[data-index]').forEach((el) => delete el.dataset.active);
+        playSfx('reveal');
         const chosen = step.optionCells.find((o) => o.id === local.selected);
         const finalPos = result.path[result.path.length - 1];
         local.markers = [
@@ -273,6 +281,7 @@ function renderPlay(root, step) {
         if (local.running) return;
         local.commands.splice(i, 1);
         logEvent('undo', { index: i });
+        playSfx('remove');
         drawQueue();
         updateControls();
       },
@@ -294,9 +303,11 @@ function renderPlay(root, step) {
       const last = local.commands.at(-1);
       if (step.groupRepeats && last && last.dir === dir) {
         last.times += 1;
+        playSfx('stack', { count: last.times });
       } else {
         if (local.commands.length >= step.maxCommands) return;
         local.commands.push({ dir, times: 1 });
+        playSfx('tap');
       }
       drawQueue();
       updateControls();
@@ -307,6 +318,7 @@ function renderPlay(root, step) {
     if (local.running || local.commands.length === 0) return;
     logEvent('undo', { all: true, commandCount: local.commands.length });
     local.commands = [];
+    playSfx('remove');
     drawQueue();
     updateControls();
   });
@@ -335,6 +347,7 @@ function renderPlay(root, step) {
         updateControls();
         if (result.reachedGoal) {
           logEvent('clear', {});
+          playSfx('clear');
           lessonCleared = true;
           resultEl.dataset.result = 'clear';
           resultEl.appendChild(createClearReaction());
