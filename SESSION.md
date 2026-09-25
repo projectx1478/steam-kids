@@ -1,6 +1,6 @@
 # SESSION.md
 
-最終更新：2026-09-25（A1実装・PR #71作成）
+最終更新：2026-09-25（#54マージ・クローズ）
 
 引き継ぎ専用。進捗・仕様はここに書かない（仕様→PROJECT.md、進捗→git/PR履歴、個別タスク→GitHub Issue）。
 
@@ -8,19 +8,17 @@
 
 # 現在作業中のタスク
 
-**A1（#54）実装完了、PR #71作成済み・マージ待ち。** 拡張プランv2（フェーズA・K・B・R）の
-Issueを起票済み。親トラッキング #53、子Issue #54〜#70（A1〜A5、K1、B1〜B8、R1〜R3）。
-EN・C〜Eは未起票。
+**なし。** 拡張プランv2（フェーズA・K・B・R）のIssueを起票済み。親トラッキング #53、
+子Issue #54〜#70（A1〜A5、K1、B1〜B8、R1〜R3）。EN・C〜Eは未起票。
 
 # 完了したタスク（直近のみ・正本はgit/PR履歴とIssue #3）
 
 - P0〜P3、#22・#29・#37・#38・#45・#48・#30・#31完了（詳細はgit/PR履歴とIssue #3）
 - **#43マージ・クローズ**（2026-09-25）。PR #52。`p3-link.mjs`の`seed()`に再試行を追加
   （`Execution context was destroyed`対策、真因は未確定のまま。本番コードは未変更）
-- **A1実装・PR #71作成**（2026-09-25）。`js/sfx.js`（Web Audio合成・単一API`play(name)`）を
-  追加し、tap/stack/remove/run/step/bump/reveal/clear/whooshを配線（pickupは定義のみ）。
-  `CACHE_NAME`/`APP_VERSION`をv2へ。検証シナリオ4件追加、既存含め35シナリオ/285チェック
-  全通過（`p3-link.mjs`のみ既知不具合で対象外、本PRと無関係と確認済み）
+- **#54マージ・クローズ**（2026-09-25）。PR #71。`js/sfx.js`（Web Audio合成・単一API
+  `play(name)`）を追加し、tap/stack/remove/run/step/bump/reveal/clear/whooshを配線
+  （pickupは定義のみ）。`CACHE_NAME`/`APP_VERSION`をv2へ
 
 # 引き継ぎ事項
 
@@ -77,5 +75,4 @@ K1（#59）のPRでPROJECT.md「8. 未決事項」の漢字出典を更新する
 
 # 次回最初に行うこと
 
-PR #71（A1）のマージを確認する。マージ済みならA2（#55）に着手（実装はSonnet）。
-#53と#55を読み、実装方針（検証計画を含む）を提示して承認を得る。
+A2（#55）から着手する（実装はSonnet）。#53と#55を読み、実装方針（検証計画を含む）を提示して承認を得る。
