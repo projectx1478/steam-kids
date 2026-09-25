@@ -2,11 +2,13 @@
 import { S, currentStep } from './state.js';
 import { logEvent } from './events.js';
 import { simulate } from './engine-grid.js';
-import { renderGrid } from './ui-grid.js';
-import { renderCommandPalette, renderCommandQueue, COMMAND_LABELS } from './ui-commands.js';
+import { renderGrid, prefersReducedMotion } from './ui-grid.js';
+import { renderCommandPalette, renderCommandQueue, COMMAND_LABELS, vibrate } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
 
 const STEP_DELAY_MS = 600;
+const STEP_TRANSITION_MS = 220;
+const STEP_SLIDE_PX = 24;
 
 // clear到達後は離脱してもabandonを記録しない。1セッションにつき1回だけ記録する。
 let lessonCleared = false;
@@ -46,6 +48,35 @@ function goToStep(nextIndex) {
   renderStep();
 }
 
+// ステップ進行ドット。数＝S.lesson.steps.length、現在位置のみdata-current。
+function renderStepDots(root) {
+  const dots = document.createElement('div');
+  dots.className = 'step-dots flex justify-center gap-1 mb-2';
+  S.lesson.steps.forEach((_, i) => {
+    const dot = document.createElement('span');
+    dot.className = 'step-dot w-2 h-2 rounded-full bg-slate-200';
+    if (i === S.stepIndex) {
+      dot.dataset.current = 'true';
+      dot.classList.add('bg-sky-500');
+    }
+    dots.appendChild(dot);
+  });
+  root.appendChild(dots);
+}
+
+// ステップ遷移の横スライド。reduced-motion時は即表示（Issue #57）。
+function applyStepTransition(root) {
+  if (prefersReducedMotion()) return;
+  root.style.transition = 'none';
+  root.style.transform = `translateX(${STEP_SLIDE_PX}px)`;
+  root.style.opacity = '0';
+  requestAnimationFrame(() => {
+    root.style.transition = `transform ${STEP_TRANSITION_MS}ms ease, opacity ${STEP_TRANSITION_MS}ms ease`;
+    root.style.transform = 'translateX(0)';
+    root.style.opacity = '1';
+  });
+}
+
 function renderStep() {
   const step = currentStep();
   const root = stage();
@@ -53,20 +84,25 @@ function renderStep() {
   root.dataset.step = step.kind;
   root.dataset.stepId = step.stepId;
 
+  renderStepDots(root);
   if (step.kind === 'intro') renderIntro(root, step);
   else if (step.kind === 'predict') renderPredict(root, step);
   else if (step.kind === 'play') renderPlay(root, step);
   else if (step.kind === 'summary') renderSummary(root, step);
+  applyStepTransition(root);
 }
 
 function createPrimaryButton(label, onClick, action) {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className =
-    'primary-btn block mx-auto min-w-[48px] min-h-[48px] px-6 py-3 mt-4 rounded-xl bg-sky-500 text-white text-lg';
+    'primary-btn block mx-auto min-w-[48px] min-h-[48px] px-6 py-3 mt-4 rounded-xl bg-sky-500 text-white text-lg transition-transform duration-100 active:scale-95';
   if (action) btn.dataset.action = action;
   btn.textContent = label;
-  btn.addEventListener('click', onClick);
+  btn.addEventListener('click', () => {
+    vibrate();
+    onClick();
+  });
   return btn;
 }
 
@@ -247,14 +283,16 @@ function renderPlay(root, step) {
   clearBtn.type = 'button';
   clearBtn.dataset.action = 'clear-all';
   clearBtn.textContent = 'ぜんぶけす';
-  clearBtn.className = 'min-w-[48px] min-h-[48px] px-3 rounded-lg bg-slate-200 disabled:opacity-40';
+  clearBtn.className =
+    'min-w-[48px] min-h-[48px] px-3 rounded-lg bg-slate-200 transition-transform duration-100 active:scale-95 disabled:opacity-40';
   actionsEl.appendChild(clearBtn);
 
   const runBtn = document.createElement('button');
   runBtn.type = 'button';
   runBtn.dataset.action = 'run';
   runBtn.textContent = 'じっこう';
-  runBtn.className = 'min-w-[48px] min-h-[48px] px-4 rounded-lg bg-emerald-500 text-white disabled:opacity-40';
+  runBtn.className =
+    'min-w-[48px] min-h-[48px] px-4 rounded-lg bg-emerald-500 text-white transition-transform duration-100 active:scale-95 disabled:opacity-40';
   actionsEl.appendChild(runBtn);
 
   const resultEl = document.createElement('div');
@@ -312,6 +350,7 @@ function renderPlay(root, step) {
 
   clearBtn.addEventListener('click', () => {
     if (local.running || local.commands.length === 0) return;
+    vibrate();
     logEvent('undo', { all: true, commandCount: local.commands.length });
     local.commands = [];
     playSfx('remove');
@@ -321,6 +360,7 @@ function renderPlay(root, step) {
 
   runBtn.addEventListener('click', () => {
     if (local.running || local.commands.length === 0) return;
+    vibrate();
     local.running = true;
     resultEl.innerHTML = '';
     delete resultEl.dataset.result;

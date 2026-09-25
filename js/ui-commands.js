@@ -1,4 +1,12 @@
 // 命令パレット・命令列（キュー）の描画。操作はタップのみ。
+
+// 対応端末のみ短く振動する（未対応環境では何もしない。例外を投げない）。
+export function vibrate(ms = 15) {
+  if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+    navigator.vibrate(ms);
+  }
+}
+
 export const COMMAND_LABELS = {
   up: 'うえ',
   down: 'した',
@@ -23,9 +31,12 @@ export function renderCommandPalette(container, { onAdd }) {
     btn.type = 'button';
     btn.dataset.command = dir;
     btn.className =
-      'command-btn flex flex-col items-center justify-center gap-1 min-w-[48px] min-h-[48px] px-3 py-2 rounded-xl bg-sky-500 text-white disabled:opacity-40';
+      'command-btn flex flex-col items-center justify-center gap-1 min-w-[48px] min-h-[48px] px-3 py-2 rounded-xl bg-sky-500 text-white transition-transform duration-100 active:scale-95 disabled:opacity-40';
     btn.innerHTML = `${arrowSvg(dir)}<span class="text-sm">${COMMAND_LABELS[dir]}</span>`;
-    btn.addEventListener('click', () => onAdd(dir));
+    btn.addEventListener('click', () => {
+      vibrate();
+      onAdd(dir);
+    });
     container.appendChild(btn);
   });
 }
@@ -49,9 +60,12 @@ export function renderCommandQueue(container, { commands, activeIndex, onRemove 
     removeBtn.type = 'button';
     removeBtn.dataset.removeIndex = String(i);
     removeBtn.className =
-      'command-remove min-w-[48px] min-h-[48px] flex items-center justify-center text-lg text-slate-500';
+      'command-remove min-w-[48px] min-h-[48px] flex items-center justify-center text-lg text-slate-500 transition-transform duration-100 active:scale-95';
     removeBtn.textContent = '×';
-    removeBtn.addEventListener('click', () => onRemove(i));
+    removeBtn.addEventListener('click', () => {
+      vibrate();
+      onRemove(i);
+    });
     chip.appendChild(removeBtn);
 
     container.appendChild(chip);
