@@ -20,7 +20,7 @@ import { readFile, readdir, mkdir } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -32,7 +32,7 @@ const CONFIG_PATH = path.join(__dirname, 'config.mjs');
 // config.mjs（任意・非配布）: distDir・beforeAll・setupRoutesを上書きできる。無ければ既定のまま動く。
 async function loadConfig() {
   try {
-    const mod = await import(CONFIG_PATH);
+    const mod = await import(pathToFileURL(CONFIG_PATH).href);
     return mod.default || {};
   } catch (e) {
     if (e.code === 'ERR_MODULE_NOT_FOUND') return {};
@@ -86,7 +86,7 @@ async function loadScenarios(names) {
     : (await readdir(SCENARIOS_DIR)).filter((f) => f.endsWith('.mjs'));
   const scenarios = [];
   for (const file of files) {
-    const mod = await import(path.join(SCENARIOS_DIR, file));
+    const mod = await import(pathToFileURL(path.join(SCENARIOS_DIR, file)).href);
     scenarios.push({ id: path.basename(file, '.mjs'), name: mod.name || file, run: mod.default });
   }
   return scenarios;
