@@ -341,6 +341,7 @@ function renderPlay(root, step) {
         if (result.reachedGoal) {
           logEvent('clear', {});
           playSfx('clear');
+          local.view.confetti();
           lessonCleared = true;
           resultEl.dataset.result = 'clear';
           resultEl.appendChild(createClearReaction());
