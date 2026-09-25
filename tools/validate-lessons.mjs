@@ -24,52 +24,71 @@ function stepOnce(pos, cmd, spec) {
   return result.blockedAt.length > 0 ? null : result.path[result.path.length - 1];
 }
 
-// BFSでstart→goalの最短手数を求める（到達不能ならInfinity）。
+// itemsのうちposで回収できるものをビットマスクにして返す（Issue #60）。
+function itemMaskAt(pos, items) {
+  let mask = 0;
+  items.forEach((it, idx) => {
+    if (it.x === pos.x && it.y === pos.y) mask |= 1 << idx;
+  });
+  return mask;
+}
+
+// BFSでstart→goal（かつitems全回収）の最短手数を求める（到達不能ならInfinity）。
+// items未指定時はfullMask=0・startMask=0となり従来通りの挙動になる。
 function shortestSteps(spec) {
-  const key = (p) => `${p.x},${p.y}`;
-  const queue = [{ pos: spec.start, dist: 0 }];
-  const seen = new Set([key(spec.start)]);
+  const items = spec.items ?? [];
+  const fullMask = (1 << items.length) - 1;
+  const key = (p, mask) => `${p.x},${p.y}|${mask}`;
+  const startMask = itemMaskAt(spec.start, items);
+  const queue = [{ pos: spec.start, mask: startMask, dist: 0 }];
+  const seen = new Set([key(spec.start, startMask)]);
   while (queue.length > 0) {
     const cur = queue.shift();
-    if (cur.pos.x === spec.goal.x && cur.pos.y === spec.goal.y) return cur.dist;
+    if (cur.pos.x === spec.goal.x && cur.pos.y === spec.goal.y && cur.mask === fullMask) return cur.dist;
     for (const cmd of COMMANDS) {
       const next = stepOnce(cur.pos, cmd, spec);
       if (!next) continue;
-      const k = key(next);
+      const nextMask = cur.mask | itemMaskAt(next, items);
+      const k = key(next, nextMask);
       if (seen.has(k)) continue;
       seen.add(k);
-      queue.push({ pos: next, dist: cur.dist + 1 });
+      queue.push({ pos: next, mask: nextMask, dist: cur.dist + 1 });
     }
   }
   return Infinity;
 }
 
 // groupRepeats:true向け。同方向を連続させれば1チップにまとめられる前提で、
-// start→goalに必要な最小チップ数を0-1 BFSで求める（到達不能ならInfinity）。
+// start→goal（かつitems全回収）に必要な最小チップ数を0-1 BFSで求める（到達不能ならInfinity）。
 // 同方向への移動はコスト0（直前と同じチップに乗る）、方向転換はコスト1（新しいチップ）。
 function shortestChips(spec) {
-  const key = (p, dir) => `${p.x},${p.y}|${dir ?? '-'}`;
-  const dist = new Map([[key(spec.start, null), 0]]);
-  const deque = [{ pos: spec.start, dir: null }];
+  const items = spec.items ?? [];
+  const fullMask = (1 << items.length) - 1;
+  const key = (p, dir, mask) => `${p.x},${p.y}|${dir ?? '-'}|${mask}`;
+  const startMask = itemMaskAt(spec.start, items);
+  const dist = new Map([[key(spec.start, null, startMask), 0]]);
+  const deque = [{ pos: spec.start, dir: null, mask: startMask }];
   while (deque.length > 0) {
     const cur = deque.shift();
-    const curDist = dist.get(key(cur.pos, cur.dir));
+    const curDist = dist.get(key(cur.pos, cur.dir, cur.mask));
     for (const cmd of COMMANDS) {
       const next = stepOnce(cur.pos, cmd, spec);
       if (!next) continue;
+      const nextMask = cur.mask | itemMaskAt(next, items);
       const cost = cmd === cur.dir ? 0 : 1;
       const nextDist = curDist + cost;
-      const nk = key(next, cmd);
+      const nk = key(next, cmd, nextMask);
       if (dist.has(nk) && dist.get(nk) <= nextDist) continue;
       dist.set(nk, nextDist);
-      if (cost === 0) deque.unshift({ pos: next, dir: cmd });
-      else deque.push({ pos: next, dir: cmd });
+      if (cost === 0) deque.unshift({ pos: next, dir: cmd, mask: nextMask });
+      else deque.push({ pos: next, dir: cmd, mask: nextMask });
     }
   }
   let best = Infinity;
   for (const [k, v] of dist) {
-    const [x, y] = k.split('|')[0].split(',').map(Number);
-    if (x === spec.goal.x && y === spec.goal.y) best = Math.min(best, v);
+    const [xy, , mask] = k.split('|');
+    const [x, y] = xy.split(',').map(Number);
+    if (x === spec.goal.x && y === spec.goal.y && Number(mask) === fullMask) best = Math.min(best, v);
   }
   return best;
 }
@@ -146,6 +165,7 @@ function validateLesson(fileName, data) {
   const grid = play.grid || {};
   const walls = Array.isArray(play.walls) ? play.walls : [];
   const wallKeySet = new Set(walls.map((w) => `${w.x},${w.y}`));
+  const items = Array.isArray(play.items) ? play.items : [];
 
   if (!Array.isArray(play.allowedCommands) || play.allowedCommands.some((c) => !COMMANDS.includes(c))) {
     add('命令語彙', `play.allowedCommands=${JSON.stringify(play.allowedCommands)} が不正`);
@@ -168,6 +188,7 @@ function validateLesson(fileName, data) {
     ['start', play.start],
     ['goal', play.goal],
     ...walls.map((w, i) => [`walls[${i}]`, w]),
+    ...items.map((it, i) => [`items[${i}]`, it]),
   ];
   for (const [label, p] of coordChecks) {
     if (!p || !inGrid(grid, p)) add('座標範囲', `${label}=${JSON.stringify(p)} が盤外`);
@@ -181,8 +202,18 @@ function validateLesson(fileName, data) {
     if (wallKeySet.has(`${play.goal.x},${play.goal.y}`)) add('盤面の妥当性', 'goal が壁と重なる');
   }
 
+  items.forEach((it, i) => {
+    if (wallKeySet.has(`${it.x},${it.y}`)) add('盤面の妥当性', `items[${i}] が壁と重なる`);
+  });
+  const itemKeySet = new Set();
+  items.forEach((it, i) => {
+    const k = `${it.x},${it.y}`;
+    if (itemKeySet.has(k)) add('盤面の妥当性', `items[${i}] が他のitemsと座標重複`);
+    itemKeySet.add(k);
+  });
+
   if (play.start && play.goal && grid.cols && grid.rows) {
-    const spec = { grid, start: play.start, goal: play.goal, walls };
+    const spec = { grid, start: play.start, goal: play.goal, walls, items };
     // groupRepeatsありのレッスンは、同方向連続をまとめた最小チップ数で判定する
     // （まとめないと手数制限に収まらないレッスンを正しく通すため）。
     const dist = play.groupRepeats ? shortestChips(spec) : shortestSteps(spec);
@@ -201,8 +232,8 @@ function validateLesson(fileName, data) {
     play.start &&
     play.goal
   ) {
-    const result = simulate(play.initialCommands, { grid, start: play.start, goal: play.goal, walls });
-    if (result.reachedGoal) {
+    const result = simulate(play.initialCommands, { grid, start: play.start, goal: play.goal, walls, items });
+    if (result.reachedGoal && result.remainingItems.length === 0) {
       add('なおすの初期状態', 'initialCommandsがそのまま実行してもゴールに到達してしまう（直す必要が無い）');
     }
   }
