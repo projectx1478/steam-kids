@@ -59,6 +59,28 @@
 必要なら追加してから実行する、という従来通りの操作で直せる（Issue #31）。
 `initialCommands`はそのまま実行してもゴールに到達しない内容にする（直す必要が無いと検証NG）。
 
+## `lessons/index.json`（単元マップ）
+
+レッスン選択画面（単元マップ＝「しま」）の一覧ファイル。レッスン本体ではない（Issue #58）。
+
+```json
+{
+  "units": [
+    {
+      "unitId": "commands",
+      "title": "めいれいでうごかす",
+      "lessonIds": ["cmd-01-susumu", "cmd-02-mijikaku", "cmd-03-naosu"]
+    }
+  ]
+}
+```
+
+- `unitId` は各レッスンJSONの `unitId` と一致させる
+- `lessonIds` は同じ `unitId` を持つレッスンのファイル名（拡張子無し）の配列。1つの `lessonId` を
+  複数の `unit` から参照しない
+- 単元内の全レッスンで `clear` イベントが記録されると、単元マップにスタンプ・旗が表示される
+  （端末内判定・同期しない。`js/ui-picker.js`）
+
 ## 検証ルール（生成後に自動チェック）
 
 `npm run validate:lessons`（`tools/validate-lessons.mjs`）が `lessons/*.json` を全件チェックする。
@@ -84,6 +106,8 @@
 - `text` に漢字（CJK統合漢字）が含まれないこと（学年別許可リストの出典確定までの暫定規則。
   `docs/authoring-rules.md`）
 - **検証NGの場合は再生成する。手で通さない**
+- `lessons/index.json`: 参照する `lessonId` が実在すること、レッスン本体の `unitId` と一致すること、
+  同一 `lessonId` を複数の `unit` から参照しないこと
 
 ## 学習イベント
 

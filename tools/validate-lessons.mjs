@@ -224,10 +224,49 @@ function validateLesson(fileName, data) {
   return errors;
 }
 
+// index.jsonはレッスン選択画面（単元マップ）用の一覧ファイル。参照するlessonIdが実在し、
+// unitIdがレッスン本体のunitIdと一致していることを確認する（Issue #58）。
+function validateIndex(data, lessonById) {
+  const errors = [];
+  const add = (rule, detail) => errors.push(`index.json: ${rule}: ${detail}`);
+
+  if (!Array.isArray(data.units)) {
+    add('必須キー', 'units が配列でない');
+    return errors;
+  }
+
+  const seenLessonIds = new Set();
+  for (const unit of data.units) {
+    for (const key of ['unitId', 'title', 'lessonIds']) {
+      if (!(key in unit)) add('必須キー', `unitId="${unit.unitId}" に ${key} がない`);
+    }
+    if (!Array.isArray(unit.lessonIds)) continue;
+
+    for (const lessonId of unit.lessonIds) {
+      if (seenLessonIds.has(lessonId)) {
+        add('重複', `lessonId="${lessonId}" が複数のunitから参照されている`);
+      }
+      seenLessonIds.add(lessonId);
+
+      const lesson = lessonById.get(lessonId);
+      if (!lesson) {
+        add('参照先の不在', `unitId="${unit.unitId}" が参照する lessonId="${lessonId}" のレッスンJSONが無い`);
+      } else if (lesson.unitId !== unit.unitId) {
+        add(
+          'unitIdの不一致',
+          `lessonId="${lessonId}" のunitId="${lesson.unitId}" がindex.json側のunitId="${unit.unitId}"と不一致`
+        );
+      }
+    }
+  }
+
+  return errors;
+}
+
 async function main() {
-  // index.jsonはレッスン選択導線用の一覧ファイルであり、レッスン本体ではない。
   const files = (await readdir(LESSONS_DIR)).filter((f) => f.endsWith('.json') && f !== 'index.json');
   const allErrors = [];
+  const lessonById = new Map();
   for (const file of files) {
     const raw = await readFile(path.join(LESSONS_DIR, file), 'utf-8');
     let data;
@@ -237,7 +276,15 @@ async function main() {
       allErrors.push(`${file}: JSONパース: ${e.message}`);
       continue;
     }
+    if (typeof data.lessonId === 'string') lessonById.set(data.lessonId, data);
     allErrors.push(...validateLesson(file, data));
+  }
+
+  const indexRaw = await readFile(path.join(LESSONS_DIR, 'index.json'), 'utf-8');
+  try {
+    allErrors.push(...validateIndex(JSON.parse(indexRaw), lessonById));
+  } catch (e) {
+    allErrors.push(`index.json: JSONパース: ${e.message}`);
   }
 
   if (allErrors.length > 0) {
