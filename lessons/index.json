@@ -4,6 +4,11 @@
       "unitId": "commands",
       "title": "めいれいでうごかす",
       "lessonIds": ["cmd-01-susumu", "cmd-02-mijikaku", "cmd-03-naosu"]
+    },
+    {
+      "unitId": "donguri",
+      "title": "どんぐりひろい",
+      "lessonIds": ["donguri-01-hirou", "donguri-02-mawarimichi"]
     }
   ]
 }
