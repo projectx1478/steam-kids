@@ -25,11 +25,14 @@ description: 単元名からgrid-runtimeレッスンJSONを生成し、npm run v
      `maxCommands` 以内であること（`tools/validate-lessons.mjs` が自動判定する。
      Issue #48）
 3. `lessons/<lessonId>.json` を書き出す（`lessonId` はファイル名と一致させる）
-4. `npm run validate:lessons` を実行する。**検証NGの場合は再生成する。手で通さない**
-5. `.claude/verify` にそのレッスン用のシナリオを作成する（`cmd01-ui-rules.mjs`
+4. `lessons/index.json` を更新する（`docs/lesson-schema.md`「`lessons/index.json`」参照）。
+   既存 `unitId` への追加なら該当 `unit.lessonIds` に追記、新しい単元なら `units` に
+   `{unitId, title, lessonIds}` を追加する
+5. `npm run validate:lessons` を実行する。**検証NGの場合は再生成する。手で通さない**
+6. `.claude/verify` にそのレッスン用のシナリオを作成する（`cmd01-ui-rules.mjs`
    `cmd02-ui-rules.mjs` を参考に、48px・20字・横スクロール無しを確認する内容）。
    `node .claude/verify/run.mjs <シナリオ名>` と `--mobile` 付きの両方で実行する
-6. 既存シナリオを全再実行し、後方互換を確認する（`p3-link.mjs` の実行環境依存クラッシュは
+7. 既存シナリオを全再実行し、後方互換を確認する（`p3-link.mjs` の実行環境依存クラッシュは
    本スキルと無関係な既知の問題。Issue #43）
 
 ## 完了条件

@@ -1,3 +1,9 @@
 {
-  "lessonIds": ["cmd-01-susumu", "cmd-02-mijikaku", "cmd-03-naosu"]
+  "units": [
+    {
+      "unitId": "commands",
+      "title": "めいれいでうごかす",
+      "lessonIds": ["cmd-01-susumu", "cmd-02-mijikaku", "cmd-03-naosu"]
+    }
+  ]
 }
