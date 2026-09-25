@@ -142,6 +142,10 @@ function playAnimation(commands, spec, view, { onTick, onDone }) {
       view.footprint(from);
       view.moveTo(to);
     }
+    result.pickups[i].forEach((idx) => {
+      view.collectItem(spec.items[idx]);
+      playSfx('pickup');
+    });
     onTick(result.stepOwner[i], to);
     if (i === result.path.length - 2) {
       setTimeout(() => onDone(result), STEP_DELAY_MS);
@@ -175,7 +179,13 @@ function renderSummary(root, step) {
 
 function getPlaySpec() {
   const playStep = S.lesson.steps.find((s) => s.kind === 'play');
-  return { grid: playStep.grid, start: playStep.start, goal: playStep.goal, walls: playStep.walls };
+  return {
+    grid: playStep.grid,
+    start: playStep.start,
+    goal: playStep.goal,
+    walls: playStep.walls,
+    items: playStep.items ?? [],
+  };
 }
 
 function renderPredict(root, step) {
@@ -207,7 +217,15 @@ function renderPredict(root, step) {
   // 静的な盤面の再構築。アニメーション中には呼ばない（プレイヤー駒はview経由で差分更新する）。
   function drawStatic(playerPos, labels, markers) {
     boardWrap.innerHTML = '';
-    const { el, view } = renderGrid({ grid: spec.grid, walls: spec.walls, goal: spec.goal, playerPos, labels, markers });
+    const { el, view } = renderGrid({
+      grid: spec.grid,
+      walls: spec.walls,
+      goal: spec.goal,
+      items: spec.items,
+      playerPos,
+      labels,
+      markers,
+    });
     boardWrap.appendChild(el);
     local.view = view;
   }
@@ -244,7 +262,7 @@ function renderPredict(root, step) {
 }
 
 function renderPlay(root, step) {
-  const spec = { grid: step.grid, start: step.start, goal: step.goal, walls: step.walls };
+  const spec = { grid: step.grid, start: step.start, goal: step.goal, walls: step.walls, items: step.items ?? [] };
   const local = {
     // initialCommandsがあれば「ずれた」命令列を最初から積んでおく（なおす系レッスン用）。
     commands: (step.initialCommands ?? []).map((dir) => ({ dir, times: 1 })),
@@ -304,7 +322,15 @@ function renderPlay(root, step) {
   // 静的な盤面の再構築。アニメーション中には呼ばない（プレイヤー駒はview経由で差分更新する）。
   function drawBoard(playerPos) {
     boardWrap.innerHTML = '';
-    const { el, view } = renderGrid({ grid: spec.grid, walls: spec.walls, goal: spec.goal, playerPos, labels: [], markers: [] });
+    const { el, view } = renderGrid({
+      grid: spec.grid,
+      walls: spec.walls,
+      goal: spec.goal,
+      items: spec.items,
+      playerPos,
+      labels: [],
+      markers: [],
+    });
     boardWrap.appendChild(el);
     local.view = view;
   }
@@ -380,7 +406,7 @@ function renderPlay(root, step) {
         local.activeIndex = -1;
         drawQueue();
         updateControls();
-        if (result.reachedGoal) {
+        if (result.reachedGoal && result.remainingItems.length === 0) {
           logEvent('clear', {});
           playSfx('clear');
           local.view.confetti();
