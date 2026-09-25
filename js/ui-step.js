@@ -80,10 +80,16 @@ function createClearReaction() {
   return wrap;
 }
 
+function dirAt(commands, idx) {
+  const entry = commands[idx];
+  return typeof entry === 'string' ? entry : entry.dir;
+}
+
 // 命令列を1手600msで再生する。engine-gridの純粋計算結果(simulate)を時間軸に沿って見せるだけ。
 // まとめ命令（times>=2）は複数コマ分の時間をかけて再生し、その間onTickには元の命令
 // （チップ）のインデックスをstepOwner経由で渡し続ける。
-function playAnimation(commands, spec, { onTick, onDone }) {
+// viewはui-grid.jsのrenderGridが返す差分更新API（プレイヤー駒の移動・バウンス・足あと）。
+function playAnimation(commands, spec, view, { onTick, onDone }) {
   const result = simulate(commands, spec);
   playSfx('run');
   let i = 0;
@@ -92,6 +98,12 @@ function playAnimation(commands, spec, { onTick, onDone }) {
     const to = result.path[i + 1];
     const bumped = from.x === to.x && from.y === to.y;
     playSfx(bumped ? 'bump' : 'step', { index: i });
+    if (bumped) {
+      view.bounce(dirAt(commands, result.stepOwner[i]));
+    } else {
+      view.footprint(from);
+      view.moveTo(to);
+    }
     onTick(result.stepOwner[i], to);
     if (i === result.path.length - 2) {
       setTimeout(() => onDone(result), STEP_DELAY_MS);
@@ -152,23 +164,16 @@ function renderPredict(root, step) {
   boardWrap.className = 'flex justify-center';
   root.appendChild(boardWrap);
 
-  const local = { selected: null, playerPos: null, markers: [] };
+  const local = { selected: null, view: null };
 
-  function draw() {
+  // 静的な盤面の再構築。アニメーション中には呼ばない（プレイヤー駒はview経由で差分更新する）。
+  function drawStatic(playerPos, labels, markers) {
     boardWrap.innerHTML = '';
-    const labels = local.selected ? [] : step.optionCells.map((o) => ({ id: o.id, x: o.x, y: o.y }));
-    boardWrap.appendChild(
-      renderGrid({
-        grid: spec.grid,
-        walls: spec.walls,
-        goal: spec.goal,
-        playerPos: local.playerPos ?? spec.start,
-        labels,
-        markers: local.markers,
-      })
-    );
+    const { el, view } = renderGrid({ grid: spec.grid, walls: spec.walls, goal: spec.goal, playerPos, labels, markers });
+    boardWrap.appendChild(el);
+    local.view = view;
   }
-  draw();
+  drawStatic(spec.start, step.optionCells.map((o) => ({ id: o.id, x: o.x, y: o.y })), []);
 
   boardWrap.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-option]');
@@ -176,27 +181,24 @@ function renderPredict(root, step) {
     local.selected = btn.dataset.option;
     const correct = local.selected === step.answer;
     logEvent('predict', { selected: local.selected, correct });
-    draw();
+    drawStatic(spec.start, [], []);
 
-    playAnimation(step.commands, spec, {
-      onTick: (i, pos) => {
-        local.playerPos = pos;
+    playAnimation(step.commands, spec, local.view, {
+      onTick: (i) => {
         commandRow.querySelectorAll('[data-index]').forEach((el) => {
           if (Number(el.dataset.index) === i) el.dataset.active = 'true';
           else delete el.dataset.active;
         });
-        draw();
       },
       onDone: (result) => {
         commandRow.querySelectorAll('[data-index]').forEach((el) => delete el.dataset.active);
         playSfx('reveal');
         const chosen = step.optionCells.find((o) => o.id === local.selected);
         const finalPos = result.path[result.path.length - 1];
-        local.markers = [
+        drawStatic(finalPos, [], [
           { x: chosen.x, y: chosen.y, kind: 'predicted' },
           { x: finalPos.x, y: finalPos.y, kind: 'result' },
-        ];
-        draw();
+        ]);
         root.appendChild(createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'));
       },
     });
@@ -209,8 +211,8 @@ function renderPlay(root, step) {
     // initialCommandsがあれば「ずれた」命令列を最初から積んでおく（なおす系レッスン用）。
     commands: (step.initialCommands ?? []).map((dir) => ({ dir, times: 1 })),
     activeIndex: -1,
-    playerPos: { ...spec.start },
     running: false,
+    view: null,
   };
 
   const prompt = document.createElement('p');
@@ -259,18 +261,12 @@ function renderPlay(root, step) {
   resultEl.className = 'text-center mt-2';
   controls.appendChild(resultEl);
 
-  function drawBoard() {
+  // 静的な盤面の再構築。アニメーション中には呼ばない（プレイヤー駒はview経由で差分更新する）。
+  function drawBoard(playerPos) {
     boardWrap.innerHTML = '';
-    boardWrap.appendChild(
-      renderGrid({
-        grid: spec.grid,
-        walls: spec.walls,
-        goal: spec.goal,
-        playerPos: local.playerPos,
-        labels: [],
-        markers: [],
-      })
-    );
+    const { el, view } = renderGrid({ grid: spec.grid, walls: spec.walls, goal: spec.goal, playerPos, labels: [], markers: [] });
+    boardWrap.appendChild(el);
+    local.view = view;
   }
 
   function drawQueue() {
@@ -326,19 +322,16 @@ function renderPlay(root, step) {
   runBtn.addEventListener('click', () => {
     if (local.running || local.commands.length === 0) return;
     local.running = true;
-    local.playerPos = { ...spec.start };
     resultEl.innerHTML = '';
     delete resultEl.dataset.result;
     logEvent('run', { commandCount: local.commands.length });
     updateControls();
-    drawBoard();
+    drawBoard(spec.start);
 
-    playAnimation(local.commands, spec, {
-      onTick: (i, pos) => {
+    playAnimation(local.commands, spec, local.view, {
+      onTick: (i) => {
         local.activeIndex = i;
-        local.playerPos = pos;
         drawQueue();
-        drawBoard();
       },
       onDone: (result) => {
         local.running = false;
@@ -358,9 +351,8 @@ function renderPlay(root, step) {
               'もういちど',
               () => {
                 logEvent('retry', {});
-                local.playerPos = { ...spec.start };
                 resultEl.innerHTML = '';
-                drawBoard();
+                drawBoard(spec.start);
               },
               'retry'
             )
@@ -370,7 +362,7 @@ function renderPlay(root, step) {
     });
   });
 
-  drawBoard();
+  drawBoard(spec.start);
   drawQueue();
   updateControls();
 }
