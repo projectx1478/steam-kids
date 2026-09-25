@@ -4,6 +4,7 @@ import { initSteps } from './js/ui-step.js';
 import { push } from './js/sync.js';
 import { registerServiceWorker } from './js/register-sw.js';
 import { initSoundToggle } from './js/sfx.js';
+import { renderUnitMap } from './js/ui-picker.js';
 
 function showError() {
   const p = document.createElement('p');
@@ -23,43 +24,22 @@ async function startLesson(lessonId) {
   }
 }
 
-// ?lesson=<id>が無い場合の入口。3本から選んで始める画面（Issue #31）。
+// ?lesson=<id>が無い場合の入口。単元マップ（しま）から選んで始める画面（Issue #31, #58）。
 async function renderPicker() {
   const stage = document.getElementById('stage');
-  stage.innerHTML = '';
 
-  let lessonIds;
+  let units;
   try {
     const res = await fetch('./lessons/index.json');
     if (!res.ok) throw new Error(`index fetch failed: ${res.status}`);
-    ({ lessonIds } = await res.json());
+    ({ units } = await res.json());
   } catch {
+    stage.innerHTML = '';
     showError();
     return;
   }
 
-  const heading = document.createElement('p');
-  heading.className = 'text-2xl text-center py-4';
-  heading.textContent = 'れっすんをえらぼう';
-  stage.appendChild(heading);
-
-  const list = document.createElement('div');
-  list.className = 'flex flex-col gap-3';
-  stage.appendChild(list);
-
-  for (const lessonId of lessonIds) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.dataset.lessonId = lessonId;
-    btn.className = 'lesson-pick-btn min-h-[48px] px-4 rounded-xl bg-sky-500 text-white text-lg';
-    try {
-      btn.textContent = (await loadLesson(lessonId)).title;
-    } catch {
-      btn.textContent = lessonId;
-    }
-    btn.addEventListener('click', () => startLesson(lessonId));
-    list.appendChild(btn);
-  }
+  await renderUnitMap(stage, units, startLesson);
 }
 
 initSoundToggle(document.getElementById('sound-toggle'));
