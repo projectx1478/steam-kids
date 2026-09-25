@@ -50,7 +50,7 @@ function dirFromDelta(dx, dy) {
   return null;
 }
 
-function prefersReducedMotion() {
+export function prefersReducedMotion() {
   return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
