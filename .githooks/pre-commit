@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# project-template:no-commit-on-main
+# .githooks/pre-commit: mainブランチへの直接commitを拒否する（AGENTS.md「GitHub運用」の機構的補強）
+# 有効化: git config core.hooksPath .githooks（Codespacesでは.devcontainer/post-create.shが自動設定）
+set -euo pipefail
+
+branch="$(git symbolic-ref --short -q HEAD || true)"
+if [ "$branch" = "main" ]; then
+  echo "commit blocked: mainブランチへの直接commitは禁止（AGENTS.md「GitHub運用」）" >&2
+  echo "作業ブランチを作成してください: git fetch origin main && git checkout -b <branch-name> origin/main" >&2
+  echo "意図的に回避する場合は git commit --no-verify" >&2
+  exit 1
+fi

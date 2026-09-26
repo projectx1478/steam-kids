@@ -61,34 +61,16 @@ echo "==> Playwright + Chromiumをグローバル導入"
 npm install -g playwright
 npx --yes playwright install --with-deps chromium
 
-echo "==> main直接commit防止フックを導入"
-# core.hooksPath未設定なら$GIT_DIR/hooksへ。husky等がcore.hooksPathを設定済みの
-# 配布先で、書いたフックが黙って無視されるのを防ぐ。
-HOOKS_PATH="$(git config --get core.hooksPath || true)"
-if [ -n "$HOOKS_PATH" ]; then
-  HOOK_DIR="$HOOKS_PATH"
-else
-  HOOK_DIR="$(git rev-parse --git-dir)/hooks"
-fi
-mkdir -p "$HOOK_DIR"
-HOOK_FILE="$HOOK_DIR/pre-commit"
-if [ -f "$HOOK_FILE" ] && ! grep -q "project-template:no-commit-on-main" "$HOOK_FILE"; then
-  echo "警告: 既存の $HOOK_FILE にproject-templateのマーカーが無いためスキップ（上書きしません）"
-else
-  cat <<'EOF' > "$HOOK_FILE"
-#!/usr/bin/env bash
-# project-template:no-commit-on-main
-set -euo pipefail
-
-branch="$(git symbolic-ref --short -q HEAD || true)"
-if [ "$branch" = "main" ]; then
-  echo "commit blocked: mainブランチへの直接commitは禁止（CLAUDE.md「GitHub運用」）" >&2
-  echo "作業ブランチを作成してください: git fetch origin main && git checkout -b <branch-name> origin/main" >&2
-  echo "意図的に回避する場合は git commit --no-verify" >&2
-  exit 1
-fi
-EOF
-  chmod +x "$HOOK_FILE"
+echo "==> Git hooks (.githooks) を有効化"
+# main直接commit防止・main直接push/force push防止（AGENTS.md「GitHub運用」の機構的補強）。
+# core.hooksPathが未設定の配布先にのみ設定する。husky等で既に設定済みの配布先を
+# 上書きすると、その配布先のフックが無効になるため踏み込まない。
+EXISTING_HOOKS_PATH="$(git config --get core.hooksPath || true)"
+if [ -z "$EXISTING_HOOKS_PATH" ]; then
+  git config core.hooksPath .githooks
+elif [ "$EXISTING_HOOKS_PATH" != ".githooks" ]; then
+  echo "警告: core.hooksPathが既に${EXISTING_HOOKS_PATH}に設定されているためスキップ（上書きしません）"
+  echo "  .githooks/pre-push・pre-commitの内容を${EXISTING_HOOKS_PATH}側へ手動で組み込んでください"
 fi
 
 if [ -f "$(dirname "${BASH_SOURCE[0]}")/setup-project.sh" ]; then

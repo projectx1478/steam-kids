@@ -28,54 +28,9 @@ Codespaces Secrets（リポジトリまたはアカウント単位）に、標�
 （例: DeepInfraなら`DEEPINFRA_API_KEY`）。`devcontainer.json`・`post-create.sh`に
 APIキーを直書きしない。
 
-## OpenCode 利用時のプロバイダー設定
+## OpenCode 利用時のプロバイダー設定・設計と実装のモデル分離
 
-リポジトリ直下の`opencode.json`にはpermission・agent定義・instructionsのみを置き、
-`provider`・`model`・APIキーは書かない。プロバイダーとモデルの選択は実行環境ごとの
-事情（契約しているサービス・コスト・利用可能なモデル）で変わるため、各自のグローバル
-設定`~/.config/opencode/opencode.json`に置く。OpenCodeの設定はグローバル→プロジェクトの
-順にマージされプロジェクト側が優先されるため、プロジェクト側に`model`を書くとグローバル
-の指定を上書きしてしまう。
-
-手順：
-
-1. APIキーを**標準の環境変数名**で設定する（DeepInfraなら`DEEPINFRA_API_KEY`、Anthropic
-   なら`ANTHROPIC_API_KEY`）。OpenCodeはmodels.devのプロバイダー定義に沿った名前を自動
-   検出するため、`DEEPINFRA_TOKEN`のような独自の名前では認識されない
-2. `opencode`を起動し、**実際にチャットを1回送信して応答が返ることを確認する**。
-   `/models`にモデルが表示されても認証の成否は判定できない（未認証でもモデル一覧は
-   表示される）
-3. 既定モデルを固定したい場合は、グローバル設定に`model`を書く
-
-   ```json
-   {
-     "$schema": "https://opencode.ai/config.json",
-     "model": "deepinfra/deepseek-ai/DeepSeek-V3"
-   }
-   ```
-
-4. 手順2で`missing API key`になる場合のみ、`provider`ブロックでAPIキーを明示する
-
-   ```json
-   {
-     "provider": {
-       "deepinfra": { "options": { "apiKey": "{env:DEEPINFRA_API_KEY}" } }
-     }
-   }
-   ```
-
-`provider`ブロックの明示指定は環境変数の自動検出より優先される。参照先の環境変数が
-未設定だと空のAPIキーで上書きされ、`/models`にはモデルが表示されるのにチャット送信時
-のみ`missing API key`となるため原因が分かりにくい。環境変数名を変更したときは、古い
-名前を参照する`provider`ブロックがグローバル設定に残っていないか確認する。
-
-APIキーの値そのものは設定ファイルに書かず、必ず`{env:...}`参照にする。
-
-## 設計と実装でモデルを分ける
-
-`opencode.json`の`agent.plan`は既に編集不可（`tools:{write:false, edit:false, patch:false}`）に設定されているため、planのままでは実装に進めず、実装するには必ずTabでbuildへ切り替える操作が必要になる。この切り替えのタイミングで、OpenCodeのモデルピッカーから実装用モデルを都度選び直す。
-
-モデル名は更新頻度が高いため、`opencode.json`・グローバル設定のいずれにも特定のモデル名を書かない（ハードコードしない）。設計時に高単価モデルを使っていた場合でも、実装に進む際は必ずこの選び直しのタイミングでユーザー自身が確認・選択する。
+`docs/agents/opencode.md`参照。
 
 ## 初回起動が遅い場合
 
@@ -96,16 +51,18 @@ base imageは`javascript-node:20`固定（配布先が複数あり、各々のNo
 `.nvmrc`はこのファイル自体は配布対象外（各リポジトリが持つ）。project-template自身には
 `.nvmrc`を置かない。
 
-## main直接commit防止フック
+## main直接commit・直接push防止フック（.githooks）
 
-`post-create.sh`が`pre-commit`フックを導入し、`main`ブランチ上での`git commit`を拒否する
-（CLAUDE.md「GitHub運用」のmain直接push禁止を機構的に補強するもの）。エラー時のメッセージに
-従って`git fetch origin main && git checkout -b <branch-name> origin/main`で作業ブランチを
-作ってからcommitし直す。意図的に回避する場合は`git commit --no-verify`。
+`post-create.sh`が`git config core.hooksPath .githooks`を実行し、リポジトリ直下の
+`.githooks/pre-commit`（mainブランチ上での`git commit`を拒否）と`.githooks/pre-push`
+（mainへの直接push・force pushを拒否）を有効化する（AGENTS.md「GitHub運用」を機構的に
+補強するもの）。エラー時のメッセージに従って`git fetch origin main && git checkout -b
+<branch-name> origin/main`で作業ブランチを作ってからcommit/pushし直す。意図的に回避する
+場合は`--no-verify`。
 
-このフックはCodespaces起動時（`post-create.sh`実行時）のみ導入される。Claude Code webセッション
-では効かない。また配布先に`project-template:no-commit-on-main`マーカーを含まない既存の
-pre-commitフックがある場合は上書きせずスキップする。
+このフックの有効化はCodespaces起動時（`post-create.sh`実行時）のみ自動で行われる。ローカル
+環境では`git config core.hooksPath .githooks`を手動で実行すれば同様に効く。配布先で
+`core.hooksPath`が既に設定済み（husky等）の場合は上書きせずスキップする。
 
 ## プロジェクト固有の依存を追加する場合
 
