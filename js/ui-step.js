@@ -3,13 +3,15 @@ import { S, currentStep } from './state.js';
 import { logEvent } from './events.js';
 import { simulate } from './engine-grid.js';
 import { renderGrid, prefersReducedMotion, shapeSvg } from './ui-grid.js';
-import { renderCommandPalette, renderCommandQueue, COMMAND_LABELS, vibrate } from './ui-commands.js';
+import { renderCommandPalette, renderCommandQueue, COMMAND_LABELS, vibrate, arrowSvg } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
 import { renderInto, refreshRubyText } from './text-render.js';
 
 const STEP_DELAY_MS = 600;
 const STEP_TRANSITION_MS = 220;
 const STEP_SLIDE_PX = 24;
+// チュートリアル（tutorial）のお手本列・現在操作対象を光らせる共通クラス（Issue #81）。
+const GUIDE_GLOW_CLASSES = ['ring-4', 'ring-amber-400', 'ring-offset-2', 'motion-safe:animate-pulse'];
 
 // clear到達後は離脱してもabandonを記録しない。1セッションにつき1回だけ記録する。
 let lessonCleared = false;
@@ -90,6 +92,7 @@ function renderStep() {
   if (step.kind === 'intro') renderIntro(root, step);
   else if (step.kind === 'predict') renderPredict(root, step);
   else if (step.kind === 'play') renderPlay(root, step);
+  else if (step.kind === 'tutorial') renderPlay(root, step, { guide: step.script });
   else if (step.kind === 'summary') renderSummary(root, step);
   applyStepTransition(root);
 }
@@ -263,7 +266,11 @@ function renderPredict(root, step) {
   });
 }
 
-function renderPlay(root, step) {
+// guide（tutorial用・任意）: [{tap: 'up'|'down'|'left'|'right'|'run'}]。指定時は現在の
+// tap対象だけ操作可・光らせ、他は無効化する（なぞり操作型チュートリアル。Issue #81）。
+// 文字を読ませない方針のため指示文はstep.textがある時のみ表示（既定文言へのフォールバックはしない）。
+// run/undo/retry/clearのlogEventは行わない（チュートリアル完走で単元スタンプが付くのを防ぐ）。
+function renderPlay(root, step, { guide = null } = {}) {
   const spec = { grid: step.grid, start: step.start, goal: step.goal, walls: step.walls, items: step.items ?? [] };
   const local = {
     // initialCommandsがあれば「ずれた」命令列を最初から積んでおく（なおす系レッスン用）。
@@ -271,14 +278,22 @@ function renderPlay(root, step) {
     activeIndex: -1,
     running: false,
     view: null,
+    guideIndex: 0,
   };
 
-  const prompt = document.createElement('p');
-  prompt.className = 'text-xl text-center mb-2';
-  const defaultText =
-    spec.items.length > 0 ? 'どんぐりを ぜんぶ とって ゴール' : 'ロボットを ゴールへ うごかそう';
-  renderInto(prompt, step.text ?? defaultText, S.readingLevel, S.furigana);
-  root.appendChild(prompt);
+  if (!guide) {
+    const prompt = document.createElement('p');
+    prompt.className = 'text-xl text-center mb-2';
+    const defaultText =
+      spec.items.length > 0 ? 'どんぐりを ぜんぶ とって ゴール' : 'ロボットを ゴールへ うごかそう';
+    renderInto(prompt, step.text ?? defaultText, S.readingLevel, S.furigana);
+    root.appendChild(prompt);
+  } else if (step.text) {
+    const prompt = document.createElement('p');
+    prompt.className = 'text-xl text-center mb-2';
+    renderInto(prompt, step.text, S.readingLevel, S.furigana);
+    root.appendChild(prompt);
+  }
 
   // もくひょう行：ゴール（旗）とitems有時の残数（Issue #80）。
   const objectiveRow = document.createElement('div');
@@ -295,6 +310,34 @@ function renderPlay(root, step) {
     objectiveRow.appendChild(itemBadge);
   }
   root.appendChild(objectiveRow);
+
+  // お手本列（guide時のみ）。実物ボタンと同じ見た目（色・矢印SVG）で手順を示し、
+  // 文言は使わない（Issue #81）。タップ不可（pointer-events-none）。
+  let guideRowEl = null;
+  if (guide) {
+    guideRowEl = document.createElement('div');
+    guideRowEl.className = 'guide-row flex justify-center gap-2 mb-2';
+    guideRowEl.setAttribute('aria-hidden', 'true');
+    guide.forEach((entry, i) => {
+      const el = document.createElement('span');
+      el.dataset.guideIndex = String(i);
+      el.dataset.state = 'todo';
+      const isRun = entry.tap === 'run';
+      el.className = `guide-step relative inline-flex items-center justify-center h-10 rounded-lg pointer-events-none ${
+        isRun ? 'px-3 bg-emerald-500 text-white text-sm font-bold' : 'w-10 bg-sky-500 text-white'
+      }`;
+      if (isRun) el.textContent = 'じっこう';
+      else el.innerHTML = arrowSvg(entry.tap);
+      const check = document.createElement('span');
+      check.className =
+        'guide-check hidden absolute -top-1 -right-1 w-4 h-4 rounded-full bg-white text-emerald-600 text-xs flex items-center justify-center';
+      check.textContent = '✓';
+      check.setAttribute('aria-hidden', 'true');
+      el.appendChild(check);
+      guideRowEl.appendChild(el);
+    });
+    root.appendChild(guideRowEl);
+  }
 
   const layout = document.createElement('div');
   layout.className = 'flex flex-col md:flex-row gap-4 items-center md:items-start justify-center';
@@ -319,13 +362,17 @@ function renderPlay(root, step) {
   actionsEl.className = 'flex gap-2 justify-center';
   controls.appendChild(actionsEl);
 
-  const clearBtn = document.createElement('button');
-  clearBtn.type = 'button';
-  clearBtn.dataset.action = 'clear-all';
-  clearBtn.textContent = 'ぜんぶけす';
-  clearBtn.className =
-    'min-w-[48px] min-h-[48px] px-3 rounded-lg bg-slate-200 transition-transform duration-100 active:scale-95 disabled:opacity-40';
-  actionsEl.appendChild(clearBtn);
+  // guide時は「ぜんぶけす」を出さない（お手本通りに進めるだけで、消す操作は不要。Issue #81）。
+  let clearBtn = null;
+  if (!guide) {
+    clearBtn = document.createElement('button');
+    clearBtn.type = 'button';
+    clearBtn.dataset.action = 'clear-all';
+    clearBtn.textContent = 'ぜんぶけす';
+    clearBtn.className =
+      'min-w-[48px] min-h-[48px] px-3 rounded-lg bg-slate-200 transition-transform duration-100 active:scale-95 disabled:opacity-40';
+    actionsEl.appendChild(clearBtn);
+  }
 
   const runBtn = document.createElement('button');
   runBtn.type = 'button';
@@ -362,6 +409,7 @@ function renderPlay(root, step) {
     renderCommandQueue(queueEl, {
       commands: local.commands,
       activeIndex: local.activeIndex,
+      removable: !guide,
       onRemove: (i) => {
         if (local.running) return;
         local.commands.splice(i, 1);
@@ -373,7 +421,52 @@ function renderPlay(root, step) {
     });
   }
 
+  function guideTarget() {
+    return guide?.[local.guideIndex]?.tap ?? null;
+  }
+
+  // guide時のパレット・じっこう・お手本列の状態更新。現在のtap対象だけ有効化して光らせ、
+  // 他は無効化する。お手本列は済み(done)/現在(current)/未(todo)を色・チェックで示す（Issue #81）。
+  function applyGuide() {
+    const target = guideTarget();
+    paletteEl.querySelectorAll('button').forEach((b) => {
+      const isTarget = b.dataset.command === target;
+      b.disabled = local.running || !isTarget;
+      if (isTarget) {
+        b.dataset.guide = 'true';
+        b.classList.add(...GUIDE_GLOW_CLASSES);
+      } else {
+        delete b.dataset.guide;
+        b.classList.remove(...GUIDE_GLOW_CLASSES);
+      }
+    });
+    const runIsTarget = target === 'run';
+    runBtn.disabled = local.running || !runIsTarget;
+    if (runIsTarget) {
+      runBtn.dataset.guide = 'true';
+      runBtn.classList.add(...GUIDE_GLOW_CLASSES);
+    } else {
+      delete runBtn.dataset.guide;
+      runBtn.classList.remove(...GUIDE_GLOW_CLASSES);
+    }
+    if (guideRowEl) {
+      guideRowEl.querySelectorAll('[data-guide-index]').forEach((el) => {
+        const i = Number(el.dataset.guideIndex);
+        const state = i < local.guideIndex ? 'done' : i === local.guideIndex ? 'current' : 'todo';
+        el.dataset.state = state;
+        el.classList.remove(...GUIDE_GLOW_CLASSES, 'opacity-40');
+        el.querySelector('.guide-check').classList.toggle('hidden', state !== 'done');
+        if (state === 'current') el.classList.add(...GUIDE_GLOW_CLASSES);
+        if (state === 'done') el.classList.add('opacity-40');
+      });
+    }
+  }
+
   function updateControls() {
+    if (guide) {
+      applyGuide();
+      return;
+    }
     const atMax = local.commands.length >= step.maxCommands;
     paletteEl.querySelectorAll('button').forEach((b) => {
       b.disabled = atMax || local.running;
@@ -385,6 +478,15 @@ function renderPlay(root, step) {
   renderCommandPalette(paletteEl, {
     onAdd: (dir) => {
       if (local.running) return;
+      if (guide) {
+        if (dir !== guideTarget()) return;
+        local.commands.push({ dir, times: 1 });
+        playSfx('tap');
+        local.guideIndex += 1;
+        drawQueue();
+        updateControls();
+        return;
+      }
       const last = local.commands.at(-1);
       if (step.groupRepeats && last && last.dir === dir) {
         last.times += 1;
@@ -399,23 +501,27 @@ function renderPlay(root, step) {
     },
   });
 
-  clearBtn.addEventListener('click', () => {
-    if (local.running || local.commands.length === 0) return;
-    vibrate();
-    logEvent('undo', { all: true, commandCount: local.commands.length });
-    local.commands = [];
-    playSfx('remove');
-    drawQueue();
-    updateControls();
-  });
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      if (local.running || local.commands.length === 0) return;
+      vibrate();
+      logEvent('undo', { all: true, commandCount: local.commands.length });
+      local.commands = [];
+      playSfx('remove');
+      drawQueue();
+      updateControls();
+    });
+  }
 
   runBtn.addEventListener('click', () => {
     if (local.running || local.commands.length === 0) return;
+    if (guide && guideTarget() !== 'run') return;
     vibrate();
+    if (guide) local.guideIndex += 1;
     local.running = true;
     resultEl.innerHTML = '';
     delete resultEl.dataset.result;
-    logEvent('run', { commandCount: local.commands.length });
+    if (!guide) logEvent('run', { commandCount: local.commands.length });
     updateControls();
     drawBoard(spec.start);
 
@@ -434,10 +540,10 @@ function renderPlay(root, step) {
         drawQueue();
         updateControls();
         if (result.reachedGoal && result.remainingItems.length === 0) {
-          logEvent('clear', {});
+          if (!guide) logEvent('clear', {});
           playSfx('clear');
           local.view.confetti();
-          lessonCleared = true;
+          if (!guide) lessonCleared = true;
           resultEl.dataset.result = 'clear';
           resultEl.appendChild(createClearReaction());
           resultEl.appendChild(createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'));
@@ -446,7 +552,7 @@ function renderPlay(root, step) {
             createPrimaryButton(
               'もういちど',
               () => {
-                logEvent('retry', {});
+                if (!guide) logEvent('retry', {});
                 resultEl.innerHTML = '';
                 drawBoard(spec.start);
               },

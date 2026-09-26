@@ -28,6 +28,8 @@ description: 単元名からgrid-runtimeレッスンJSONを生成し、npm run v
    - `play.groupRepeats: true` を使う場合、同方向連続をまとめた最小チップ数が
      `maxCommands` 以内であること（`tools/validate-lessons.mjs` が自動判定する。
      Issue #48）
+   - 新しい単元の1本目には、`intro`直後・`predict`より前に`kind: "tutorial"`を置く
+     （`docs/lesson-schema.md`「`tutorial`」参照。既存単元の2本目以降には置かない。Issue #81）
 3. `lessons/<lessonId>.json` を書き出す（`lessonId` はファイル名と一致させる）
 4. `lessons/index.json` を更新する（`docs/lesson-schema.md`「`lessons/index.json`」参照）。
    既存 `unitId` への追加なら該当 `unit.lessonIds` に追記、新しい単元なら `units` に

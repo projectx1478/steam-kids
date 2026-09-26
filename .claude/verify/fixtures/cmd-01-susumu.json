@@ -7,22 +7,6 @@
   "steps": [
     { "stepId": "s1", "kind": "intro", "text": "ゴールまで すすもう" },
     {
-      "stepId": "t1",
-      "kind": "tutorial",
-      "grid": { "cols": 3, "rows": 3 },
-      "start": { "x": 0, "y": 2 },
-      "goal": { "x": 2, "y": 0 },
-      "walls": [],
-      "allowedCommands": ["up", "down", "left", "right"],
-      "script": [
-        { "tap": "up" },
-        { "tap": "up" },
-        { "tap": "right" },
-        { "tap": "right" },
-        { "tap": "run" }
-      ]
-    },
-    {
       "stepId": "s2",
       "kind": "predict",
       "text": "ロボットは どこで とまる？",

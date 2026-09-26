@@ -42,7 +42,7 @@
 }
 ```
 
-`kind` は `intro` / `predict` / `play` / `summary`。座標は y が下向きに増加する。
+`kind` は `intro` / `predict` / `play` / `tutorial` / `summary`。座標は y が下向きに増加する。
 
 `predict` ステップは自前の盤面を持たず、同じレッスン内の `play` ステップの
 `grid` / `start` / `goal` / `walls` を参照する。`commands` はその盤面上で予想させる命令列、
@@ -70,6 +70,37 @@
 playステップの指示文になる。未指定時の既定文言は`items`の有無で決まる（`js/ui-step.js`）：
 `items`が1つ以上あれば「どんぐりを ぜんぶ とって ゴール」、無ければ
 「ロボットを ゴールへ うごかそう」（Issue #80）。
+
+### `tutorial`（なぞり操作型チュートリアル）
+
+各単元1本目のみ・`intro`直後かつ`predict`より前に0〜1個置く（新ルール初登場時のガイド）。
+`grid`/`start`/`goal`/`walls`/`items`（任意）/`allowedCommands`は`play`と同じ形状の自前の盤面を持つ。
+`maxCommands`は持たない（`script`の手数がそのまま操作対象になるため）。
+
+```json
+{
+  "stepId": "t1",
+  "kind": "tutorial",
+  "grid": { "cols": 3, "rows": 3 },
+  "start": { "x": 0, "y": 2 },
+  "goal": { "x": 2, "y": 0 },
+  "walls": [],
+  "allowedCommands": ["up", "down", "left", "right"],
+  "script": [{ "tap": "up" }, { "tap": "up" }, { "tap": "right" }, { "tap": "right" }, { "tap": "run" }]
+}
+```
+
+`script`は`{ tap }`の配列（`tap`は`up`/`down`/`left`/`right`/`run`）。**`script[]`要素に`text`は
+持たない**（文字を読ませない方針。Issue #81）。最後の要素は必ず`run`で、それより前は方向のみ。
+盤面上部の「お手本列」（実物ボタンと同じ見た目のミニボタン列）とパレット・じっこうボタンが、
+現在の`tap`対象だけ有効化・点灯し、他は無効化される。子どもは光っている箇所を順にタップするだけで
+進む。`tutorial`自体の`text`（任意）は視覚だけでは伝えられないルールがある時だけ書く
+（例: どんぐり単元1本目は「どんぐりを とって ゴール」。方向操作のみのcmd単元1本目は`text`無し）。
+
+チュートリアル中は`run`/`undo`/`retry`/`clear`の学習イベントを記録しない（`step_enter`/
+`step_leave`は通常どおり記録する）。これらを記録すると、チュートリアル完走だけでレッスンが
+`cleared`と判定され単元スタンプが誤って付与されるため（`js/analytics.js`のクリア判定は
+`clear`イベントの有無で決まる）。
 
 ### ルビ記法（`text`内の漢字表記）
 
@@ -135,6 +166,11 @@ playステップの指示文になる。未指定時の既定文言は`items`の
   （`docs/authoring-rules.md`「使用できる文字」）
 - 各レッスンで使われている漢字の最大配当学年（`kanjiMaxGrade`）を算出し、使用があれば
   `INFO`行で表示する（失敗にはしない情報表示）
+- `tutorial`は0〜1個であること。ある場合は直前が`intro`かつ`predict`より前の位置にあること
+- `tutorial.script`が非空配列であること、各`tap`が`allowedCommands`∪`run`のいずれかであること、
+  `script`要素に`text`キーを持たないこと、`run`は最後の要素のみであること
+- `tutorial.script`から`run`を除いた方向列を実行すると、壁にぶつからずゴール到達＋全item回収に
+  なること（Issue #81）
 - **検証NGの場合は再生成する。手で通さない**
 - `lessons/index.json`: 参照する `lessonId` が実在すること、レッスン本体の `unitId` と一致すること、
   同一 `lessonId` を複数の `unit` から参照しないこと
