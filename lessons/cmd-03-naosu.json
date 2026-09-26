@@ -9,7 +9,7 @@
     {
       "stepId": "s2",
       "kind": "predict",
-      "text": "どこに つくかな？",
+      "text": "ロボットは どこで とまる？",
       "commands": ["right", "right", "up", "right"],
       "optionCells": [
         { "id": "A", "x": 3, "y": 2 },
@@ -22,6 +22,7 @@
     {
       "stepId": "s3",
       "kind": "play",
+      "text": "めいれいを なおして ゴールへ",
       "grid": { "cols": 4, "rows": 4 },
       "start": { "x": 0, "y": 3 },
       "goal": { "x": 3, "y": 3 },

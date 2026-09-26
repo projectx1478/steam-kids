@@ -16,7 +16,7 @@
     {
       "stepId": "s2",
       "kind": "predict",
-      "text": "どのマスに つく？",
+      "text": "ロボットは どこで とまる？",
       "commands": ["up", "up", "right"],
       "optionCells": [
         { "id": "A", "x": 1, "y": 2 },
@@ -29,6 +29,7 @@
     {
       "stepId": "s3",
       "kind": "play",
+      "text": "ロボットを ゴールへ うごかそう",
       "grid": { "cols": 4, "rows": 4 },
       "start": { "x": 0, "y": 3 },
       "goal": { "x": 3, "y": 0 },
@@ -64,6 +65,11 @@
 は従来通りゴール到達のみ）。item同士・item-壁の座標重複は不可（`validate-lessons.mjs`が検証）。
 `maxCommands`はゴール到達と全item回収の両方を満たす最短経路の手数（`groupRepeats`時はチップ数）
 で判定される（Issue #60）。
+
+`play.text`（任意・文字列。他stepの`text`と同じくルビ記法・20字制限の検証対象）を指定すると、
+playステップの指示文になる。未指定時の既定文言は`items`の有無で決まる（`js/ui-step.js`）：
+`items`が1つ以上あれば「どんぐりを ぜんぶ とって ゴール」、無ければ
+「ロボットを ゴールへ うごかそう」（Issue #80）。
 
 ### ルビ記法（`text`内の漢字表記）
 

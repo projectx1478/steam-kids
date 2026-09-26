@@ -9,7 +9,7 @@
     {
       "stepId": "s2",
       "kind": "predict",
-      "text": "さいごは どこかな？",
+      "text": "ロボットは どこで とまる？",
       "commands": ["right", "right", "right"],
       "optionCells": [
         { "id": "A", "x": 3, "y": 3 },
@@ -22,6 +22,7 @@
     {
       "stepId": "s3",
       "kind": "play",
+      "text": "どんぐりを ぜんぶ とって ゴール",
       "grid": { "cols": 4, "rows": 4 },
       "start": { "x": 0, "y": 3 },
       "goal": { "x": 3, "y": 0 },
