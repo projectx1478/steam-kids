@@ -11,7 +11,7 @@ const ROOT = path.resolve(__dirname, '..');
 const LESSONS_DIR = path.join(ROOT, 'lessons');
 
 const REQUIRED_KEYS = ['lessonId', 'unitId', 'title', 'type', 'estimatedMinutes', 'steps'];
-const KINDS = ['intro', 'predict', 'play', 'summary'];
+const KINDS = ['intro', 'predict', 'play', 'tutorial', 'summary'];
 const COMMANDS = ['up', 'down', 'left', 'right'];
 const MIN_STEPS = 4;
 const MAX_STEPS = 7;
@@ -97,6 +97,47 @@ function inGrid(grid, p) {
   return p.x >= 0 && p.x < grid.cols && p.y >= 0 && p.y < grid.rows;
 }
 
+// play/tutorialに共通の盤面検証（allowedCommands・座標範囲・start/goal・壁重なり・item重複）。
+// labelはエラー文言の頭に付ける識別子（play=''、tutorialは`stepId="…" の`）（Issue #81）。
+function checkBoard(board, add, label) {
+  const grid = board.grid || {};
+  const walls = Array.isArray(board.walls) ? board.walls : [];
+  const wallKeySet = new Set(walls.map((w) => `${w.x},${w.y}`));
+  const items = Array.isArray(board.items) ? board.items : [];
+
+  if (!Array.isArray(board.allowedCommands) || board.allowedCommands.some((c) => !COMMANDS.includes(c))) {
+    add('命令語彙', `${label}allowedCommands=${JSON.stringify(board.allowedCommands)} が不正`);
+  }
+
+  const coordChecks = [
+    ['start', board.start],
+    ['goal', board.goal],
+    ...walls.map((w, i) => [`walls[${i}]`, w]),
+    ...items.map((it, i) => [`items[${i}]`, it]),
+  ];
+  for (const [coordLabel, p] of coordChecks) {
+    if (!p || !inGrid(grid, p)) add('座標範囲', `${label}${coordLabel}=${JSON.stringify(p)} が盤外`);
+  }
+
+  if (board.start && board.goal) {
+    if (board.start.x === board.goal.x && board.start.y === board.goal.y) {
+      add('盤面の妥当性', `${label}start と goal が同一`);
+    }
+    if (wallKeySet.has(`${board.start.x},${board.start.y}`)) add('盤面の妥当性', `${label}start が壁と重なる`);
+    if (wallKeySet.has(`${board.goal.x},${board.goal.y}`)) add('盤面の妥当性', `${label}goal が壁と重なる`);
+  }
+
+  items.forEach((it, i) => {
+    if (wallKeySet.has(`${it.x},${it.y}`)) add('盤面の妥当性', `${label}items[${i}] が壁と重なる`);
+  });
+  const itemKeySet = new Set();
+  items.forEach((it, i) => {
+    const k = `${it.x},${it.y}`;
+    if (itemKeySet.has(k)) add('盤面の妥当性', `${label}items[${i}] が他のitemsと座標重複`);
+    itemKeySet.add(k);
+  });
+}
+
 function validateLesson(fileName, data) {
   const errors = [];
   const add = (rule, detail) => errors.push(`${fileName}: ${rule}: ${detail}`);
@@ -159,6 +200,12 @@ function validateLesson(fileName, data) {
     add('盤面の必須', `kind="play" が${playSteps.length}個（ちょうど1個である必要がある）`);
   }
 
+  // チュートリアル（tutorial）は各単元1本目のみ・0〜1個（Issue #81）。
+  const tutorialSteps = steps.filter((s) => s.kind === 'tutorial');
+  if (tutorialSteps.length > 1) {
+    add('チュートリアルの個数', `kind="tutorial" が${tutorialSteps.length}個（0〜1個である必要がある）`);
+  }
+
   if (data.type !== 'grid-runtime' || playSteps.length !== 1) return errors;
 
   const play = playSteps[0];
@@ -167,9 +214,7 @@ function validateLesson(fileName, data) {
   const wallKeySet = new Set(walls.map((w) => `${w.x},${w.y}`));
   const items = Array.isArray(play.items) ? play.items : [];
 
-  if (!Array.isArray(play.allowedCommands) || play.allowedCommands.some((c) => !COMMANDS.includes(c))) {
-    add('命令語彙', `play.allowedCommands=${JSON.stringify(play.allowedCommands)} が不正`);
-  }
+  checkBoard(play, add, '');
 
   if ('groupRepeats' in play && typeof play.groupRepeats !== 'boolean') {
     add('groupRepeatsの型', `play.groupRepeats=${JSON.stringify(play.groupRepeats)} はboolean以外`);
@@ -183,34 +228,6 @@ function validateLesson(fileName, data) {
       add('なおすの初期状態', `initialCommands.length=${initial.length} がmaxCommands=${play.maxCommands}を超える`);
     }
   }
-
-  const coordChecks = [
-    ['start', play.start],
-    ['goal', play.goal],
-    ...walls.map((w, i) => [`walls[${i}]`, w]),
-    ...items.map((it, i) => [`items[${i}]`, it]),
-  ];
-  for (const [label, p] of coordChecks) {
-    if (!p || !inGrid(grid, p)) add('座標範囲', `${label}=${JSON.stringify(p)} が盤外`);
-  }
-
-  if (play.start && play.goal) {
-    if (play.start.x === play.goal.x && play.start.y === play.goal.y) {
-      add('盤面の妥当性', 'start と goal が同一');
-    }
-    if (wallKeySet.has(`${play.start.x},${play.start.y}`)) add('盤面の妥当性', 'start が壁と重なる');
-    if (wallKeySet.has(`${play.goal.x},${play.goal.y}`)) add('盤面の妥当性', 'goal が壁と重なる');
-  }
-
-  items.forEach((it, i) => {
-    if (wallKeySet.has(`${it.x},${it.y}`)) add('盤面の妥当性', `items[${i}] が壁と重なる`);
-  });
-  const itemKeySet = new Set();
-  items.forEach((it, i) => {
-    const k = `${it.x},${it.y}`;
-    if (itemKeySet.has(k)) add('盤面の妥当性', `items[${i}] が他のitemsと座標重複`);
-    itemKeySet.add(k);
-  });
 
   if (play.start && play.goal && grid.cols && grid.rows) {
     const spec = { grid, start: play.start, goal: play.goal, walls, items };
@@ -235,6 +252,61 @@ function validateLesson(fileName, data) {
     const result = simulate(play.initialCommands, { grid, start: play.start, goal: play.goal, walls, items });
     if (result.reachedGoal && result.remainingItems.length === 0) {
       add('なおすの初期状態', 'initialCommandsがそのまま実行してもゴールに到達してしまう（直す必要が無い）');
+    }
+  }
+
+  if (tutorialSteps.length === 1) {
+    const tutorial = tutorialSteps[0];
+    const tutorialIdx = steps.indexOf(tutorial);
+    const prevStep = steps[tutorialIdx - 1];
+    if (!prevStep || prevStep.kind !== 'intro') {
+      add('チュートリアルの位置', `stepId="${tutorial.stepId}" の直前がintroでない`);
+    }
+    const firstPredictIdx = steps.findIndex((s) => s.kind === 'predict');
+    if (firstPredictIdx !== -1 && tutorialIdx > firstPredictIdx) {
+      add('チュートリアルの位置', `stepId="${tutorial.stepId}" がpredictより後にある`);
+    }
+
+    checkBoard(tutorial, add, `stepId="${tutorial.stepId}" の`);
+
+    if (!Array.isArray(tutorial.script) || tutorial.script.length === 0) {
+      add('チュートリアルのscript', `stepId="${tutorial.stepId}" のscriptが空`);
+    } else {
+      const tapVocab = [...(Array.isArray(tutorial.allowedCommands) ? tutorial.allowedCommands : []), 'run'];
+      tutorial.script.forEach((entry, i) => {
+        if (entry && 'text' in entry) {
+          add(
+            'チュートリアルのscript',
+            `stepId="${tutorial.stepId}" のscript[${i}]にtextがある（文字を読ませない方針のため持たない）`
+          );
+        }
+        if (!entry || !tapVocab.includes(entry.tap)) {
+          add('チュートリアルのscript', `stepId="${tutorial.stepId}" のscript[${i}].tap=${JSON.stringify(entry?.tap)} が不正`);
+        }
+        if (entry?.tap === 'run' && i !== tutorial.script.length - 1) {
+          add('チュートリアルのscript', `stepId="${tutorial.stepId}" のscript[${i}]がrunだが最後ではない`);
+        }
+      });
+      if (tutorial.script.at(-1)?.tap !== 'run') {
+        add('チュートリアルのscript', `stepId="${tutorial.stepId}" のscriptの最後がrunでない`);
+      }
+
+      const dirs = tutorial.script.filter((e) => e?.tap !== 'run').map((e) => e.tap);
+      if (dirs.every((d) => COMMANDS.includes(d)) && tutorial.start && tutorial.goal) {
+        const result = simulate(dirs, {
+          grid: tutorial.grid,
+          start: tutorial.start,
+          goal: tutorial.goal,
+          walls: Array.isArray(tutorial.walls) ? tutorial.walls : [],
+          items: Array.isArray(tutorial.items) ? tutorial.items : [],
+        });
+        if (!result.reachedGoal || result.remainingItems.length > 0 || result.blockedAt.length > 0) {
+          add(
+            'チュートリアルの到達可能性',
+            `stepId="${tutorial.stepId}" のscriptを実行してもゴール到達＋全item回収にならない、または壁にぶつかる`
+          );
+        }
+      }
     }
   }
 
