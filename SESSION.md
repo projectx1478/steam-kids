@@ -1,6 +1,6 @@
 # SESSION.md
 
-最終更新：2026-09-26（#80マージ・クローズ）
+最終更新：2026-09-26（テンプレート同期PR #85取り込み）
 
 引き継ぎ専用。進捗・仕様はここに書かない（仕様→PROJECT.md、進捗→git/PR履歴、個別タスク→GitHub Issue）。
 
@@ -75,10 +75,9 @@
   `units: [{unitId, title, lessonIds}]`構造（#58）。`validate-lessons.mjs`が参照整合性を検証する。
   レッスン追加時はレッスンJSON本体＋該当`unit.lessonIds`（または新規unit）を更新する
   （`.claude/skills/lesson-author/SKILL.md`手順4）
-- `.claude/verify/run.mjs`のWindows ESM修正（#76）はテンプレート同期PR #79で巻き戻り済み
-  （`.claude/`は配布先で編集しない運用のため）。配布元project-templateにIssue起票済み
-  （projectx1478/project-template#93）。修正されるまで、検証時はローカルでのみ一時的に
-  `pathToFileURL`化を当てて実行し、コミットには含めない
+- `.claude/verify/run.mjs`のWindows ESM修正は配布元project-template側に正式反映され、
+  テンプレート同期PR #85で取り込み済み（2026-09-26。project-template#93対応）。以後は
+  ローカルでの一時当ては不要
 
 ## 環境
 
