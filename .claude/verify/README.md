@@ -50,6 +50,8 @@ export default async function run({ page, check, shot, fixture }) {
 `console.error`・未捕捉例外（`pageerror`）・HTTP 4xx/5xxレスポンスを1件でも検知すると、
 そのシナリオの`check`が全てPASSでも自動的に失敗になる。
 
+Service Workerの登録は既定でブロックされる（`page.route`はSWが処理した通信を捕捉できないため）。
+
 ## フィクスチャ
 
 `.claude/verify/fixtures/*.json` にテストデータを置き、`fixture(name)`で読む。
@@ -103,3 +105,8 @@ export default {
 ```
 
 ビルドステップを持たないバニラJS構成では`config.mjs`は不要（作らない）。
+
+## run.mjs変更時の確認
+
+`run.mjs`はネイティブWindows Node（PowerShell/cmd経由）でも動的importが解決できる必要がある。
+変更したら同環境で一度実行して確認する（WSL/Linux CIだけでは検知できない）。
