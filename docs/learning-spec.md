@@ -39,6 +39,13 @@ MVP実装対象は `grid-runtime` と、全型共通の予想ステップのみ�
   （拡大→フェードの演出、`pickup`効果音）。クリア条件は「ゴール到達 かつ 全item回収」。
   実装は`js/ui-grid.js`の`view.collectItem()`と`js/engine-grid.js`の`simulate()`が返す
   `pickups`/`remainingItems`（Issue #60。詳細は`docs/lesson-schema.md`）
+- `predict`ステップの盤面はゴールを描かない（`goal: null`。itemsは経路に関わるため描く）。
+  ゴール自体の見た目は星ではなく旗＋「ゴール」の文字（`shapeSvg('goal')`）。星はクリア演出・
+  単元スタンプ専用で、ゴールと紛らわしくしない（Issue #80。予想ステップで星をゴール/答えと
+  誤解された反応への対応）
+- `play`ステップは盤面上部に「もくひょう行」（旗アイコン＋「ゴール」、items有時は
+  どんぐりアイコン＋「のこり N」）を表示する。`N`は実行開始・もういちど時に`items.length`へ
+  戻り、回収ごとに1減る（Issue #80）
 
 ### 予想ステップの位置づけ（確定事項）
 
@@ -64,8 +71,8 @@ MVP実装対象は `grid-runtime` と、全型共通の予想ステップのみ�
 | step | kind | 内容 |
 | --- | --- | --- |
 | s1 | intro | 「ゴールまで すすもう」 |
-| s2 | predict | 「どのマスに つく？」固定命令列 `[up, up, right]` を提示。start `(0,3)` から到達するのは `(1,1)`。選択肢 A=`(1,2)` / B=`(1,1)` / C=`(2,1)`、`answer` は `"B"`。選択後に自動実行し、予想マスと結果マスを並べて表示する |
-| s3 | play | 4×4、start `(0,3)`、goal `(3,0)`、walls `[(2,2)]`、`allowedCommands: [up,down,left,right]`、`maxCommands: 8` |
+| s2 | predict | 「ロボットは どこで とまる？」固定命令列 `[up, up, right]` を提示。start `(0,3)` から到達するのは `(1,1)`。選択肢 A=`(1,2)` / B=`(1,1)` / C=`(2,1)`、`answer` は `"B"`。選択後に自動実行し、予想マスと結果マスを並べて表示する |
+| s3 | play | 「ロボットを ゴールへ うごかそう」4×4、start `(0,3)`、goal `(3,0)`、walls `[(2,2)]`、`allowedCommands: [up,down,left,right]`、`maxCommands: 8` |
 | s4 | summary | 「めいれいの じゅんばんが だいじ」 |
 
 `play` の最短解は6手（up,up,up,right,right,right）で、経路

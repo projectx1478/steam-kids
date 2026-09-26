@@ -11,16 +11,23 @@ const CONFETTI_MS = 1500;
 const CONFETTI_COLORS = ['#f87171', '#fbbf24', '#34d399', '#38bdf8', '#a78bfa'];
 const COLLECT_MS = 220;
 
+// 旗（ゴール共通パーツ）。星形はクリア演出・単元スタンプ専用にし、ゴール自体とは
+// 見た目を分ける（Issue #80。予想では紛らわしいと誤解された）。
+const FLAG_MARKUP = `<rect x="18" y="8" width="4" height="42" rx="2" fill="#475569" />
+      <path d="M22 10 L46 18 L22 26 Z" fill="#f87171" stroke="#dc2626" stroke-width="1.5" stroke-linejoin="round" />`;
+
 function shapeSvg(kind) {
   if (kind === 'wall') {
     return `<svg viewBox="0 0 64 64" class="w-full h-full" aria-hidden="true">
       <rect x="4" y="4" width="56" height="56" rx="8" fill="#94a3b8" />
     </svg>`;
   }
+  if (kind === 'flag') {
+    return `<svg viewBox="0 0 64 64" class="w-full h-full" aria-hidden="true">${FLAG_MARKUP}</svg>`;
+  }
   if (kind === 'goal') {
-    return `<svg viewBox="0 0 64 64" class="w-full h-full" aria-hidden="true">
-      <polygon points="32,6 40,24 60,24 44,36 50,56 32,44 14,56 20,36 4,24 24,24"
-        fill="#facc15" stroke="#eab308" stroke-width="2" />
+    return `<svg viewBox="0 0 64 64" class="w-full h-full" aria-hidden="true">${FLAG_MARKUP}
+      <text x="32" y="59" text-anchor="middle" font-size="12" font-weight="bold" fill="#0f172a">ゴール</text>
     </svg>`;
   }
   if (kind === 'item') {
@@ -57,6 +64,8 @@ function dirFromDelta(dx, dy) {
   if (dy < 0) return 'up';
   return null;
 }
+
+export { shapeSvg };
 
 export function prefersReducedMotion() {
   return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -99,6 +108,7 @@ export function renderGrid({ grid, walls, goal, items = [], playerPos, labels = 
         cell.innerHTML = shapeSvg('wall');
       } else if (goal && goal.x === x && goal.y === y) {
         cell.innerHTML = shapeSvg('goal');
+        cell.dataset.goal = 'true';
       }
 
       const label = labels.find((l) => l.x === x && l.y === y);

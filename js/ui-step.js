@@ -2,7 +2,7 @@
 import { S, currentStep } from './state.js';
 import { logEvent } from './events.js';
 import { simulate } from './engine-grid.js';
-import { renderGrid, prefersReducedMotion } from './ui-grid.js';
+import { renderGrid, prefersReducedMotion, shapeSvg } from './ui-grid.js';
 import { renderCommandPalette, renderCommandQueue, COMMAND_LABELS, vibrate } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
 import { renderInto, refreshRubyText } from './text-render.js';
@@ -127,7 +127,7 @@ function dirAt(commands, idx) {
 // まとめ命令（times>=2）は複数コマ分の時間をかけて再生し、その間onTickには元の命令
 // （チップ）のインデックスをstepOwner経由で渡し続ける。
 // viewはui-grid.jsのrenderGridが返す差分更新API（プレイヤー駒の移動・バウンス・足あと）。
-function playAnimation(commands, spec, view, { onTick, onDone }) {
+function playAnimation(commands, spec, view, { onTick, onDone, onPickup }) {
   const result = simulate(commands, spec);
   playSfx('run');
   let i = 0;
@@ -145,6 +145,7 @@ function playAnimation(commands, spec, view, { onTick, onDone }) {
     result.pickups[i].forEach((idx) => {
       view.collectItem(spec.items[idx]);
       playSfx('pickup');
+      onPickup?.(idx);
     });
     onTick(result.stepOwner[i], to);
     if (i === result.path.length - 2) {
@@ -215,12 +216,13 @@ function renderPredict(root, step) {
   const local = { selected: null, view: null };
 
   // 静的な盤面の再構築。アニメーション中には呼ばない（プレイヤー駒はview経由で差分更新する）。
+  // goalは描かない（Issue #80。星がゴール/答えだと誤解された。itemsは経路に関わるため残す）。
   function drawStatic(playerPos, labels, markers) {
     boardWrap.innerHTML = '';
     const { el, view } = renderGrid({
       grid: spec.grid,
       walls: spec.walls,
-      goal: spec.goal,
+      goal: null,
       items: spec.items,
       playerPos,
       labels,
@@ -273,8 +275,26 @@ function renderPlay(root, step) {
 
   const prompt = document.createElement('p');
   prompt.className = 'text-xl text-center mb-2';
-  prompt.textContent = 'めいれいを くみたてよう';
+  const defaultText =
+    spec.items.length > 0 ? 'どんぐりを ぜんぶ とって ゴール' : 'ロボットを ゴールへ うごかそう';
+  renderInto(prompt, step.text ?? defaultText, S.readingLevel, S.furigana);
   root.appendChild(prompt);
+
+  // もくひょう行：ゴール（旗）とitems有時の残数（Issue #80）。
+  const objectiveRow = document.createElement('div');
+  objectiveRow.className = 'objective-row flex justify-center items-center gap-4 mb-2 text-sm font-bold text-slate-700';
+  objectiveRow.innerHTML = `<span class="inline-flex items-center gap-1"><span class="inline-block w-5 h-5">${shapeSvg('flag')}</span>ゴール</span>`;
+  let remainingEl = null;
+  if (spec.items.length > 0) {
+    const itemBadge = document.createElement('span');
+    itemBadge.className = 'inline-flex items-center gap-1';
+    itemBadge.innerHTML = `<span class="inline-block w-5 h-5">${shapeSvg('item')}</span>のこり `;
+    remainingEl = document.createElement('span');
+    remainingEl.dataset.remaining = '';
+    itemBadge.appendChild(remainingEl);
+    objectiveRow.appendChild(itemBadge);
+  }
+  root.appendChild(objectiveRow);
 
   const layout = document.createElement('div');
   layout.className = 'flex flex-col md:flex-row gap-4 items-center md:items-start justify-center';
@@ -320,6 +340,7 @@ function renderPlay(root, step) {
   controls.appendChild(resultEl);
 
   // 静的な盤面の再構築。アニメーション中には呼ばない（プレイヤー駒はview経由で差分更新する）。
+  // 実行開始・もういちど双方でここを通るため、のこり表示の初期値リセットも兼ねる。
   function drawBoard(playerPos) {
     boardWrap.innerHTML = '';
     const { el, view } = renderGrid({
@@ -333,6 +354,8 @@ function renderPlay(root, step) {
     });
     boardWrap.appendChild(el);
     local.view = view;
+    local.remaining = spec.items.length;
+    if (remainingEl) remainingEl.textContent = String(local.remaining);
   }
 
   function drawQueue() {
@@ -400,6 +423,10 @@ function renderPlay(root, step) {
       onTick: (i) => {
         local.activeIndex = i;
         drawQueue();
+      },
+      onPickup: () => {
+        local.remaining -= 1;
+        if (remainingEl) remainingEl.textContent = String(local.remaining);
       },
       onDone: (result) => {
         local.running = false;

@@ -23,6 +23,8 @@ description: 単元名からgrid-runtimeレッスンJSONを生成し、npm run v
    - 否定語（「ちがう」「まちがい」「ざんねん」）を使わない
    - `predict` を最低1つ、`grid-runtime` では `play` をちょうど1つ含める
    - `predict.commands` の終点が `answer` の `optionCells` 座標と一致すること
+   - `play.text`（任意）を書く。省略時は`items`有無で既定文言が出るため、既定と異なる指示を
+     出したい場合のみ明示する（`docs/lesson-schema.md`「`play.text`」）
    - `play.groupRepeats: true` を使う場合、同方向連続をまとめた最小チップ数が
      `maxCommands` 以内であること（`tools/validate-lessons.mjs` が自動判定する。
      Issue #48）
