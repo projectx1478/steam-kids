@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# .githooks/pre-push: mainへの直接push・force pushをローカルで拒否する（AGENTS.md「GitHub運用」）
+# 有効化: git config core.hooksPath .githooks（Codespacesでは.devcontainer/post-create.shが自動設定）
+set -euo pipefail
+
+zero="0000000000000000000000000000000000000000"
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  # ブランチ削除（local_shaが全ゼロ）は対象外
+  [ "$local_sha" = "$zero" ] && continue
+
+  if [ "$remote_ref" = "refs/heads/main" ]; then
+    echo "push blocked: mainへの直接pushは禁止（AGENTS.md「GitHub運用」）。PR経由でmergeしてください" >&2
+    exit 1
+  fi
+
+  if [ "$remote_sha" != "$zero" ] && ! git merge-base --is-ancestor "$remote_sha" "$local_sha" 2>/dev/null; then
+    echo "push blocked: force push（履歴の巻き戻し）を検知しました（AGENTS.md「GitHub運用」）" >&2
+    echo "意図的な場合は git push --no-verify を使用してください" >&2
+    exit 1
+  fi
+done
+
+exit 0
