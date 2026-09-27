@@ -36,10 +36,9 @@ export function renderPredict(root, step) {
   opScreen.style.display = 'none';
   root.appendChild(opScreen);
 
-  const topRow = document.createElement('div');
-  topRow.className = 'flex justify-end';
-  opScreen.appendChild(topRow);
-  renderShowTaskButton(topRow, showTaskCard);
+  // 「？」はヘッダーの#step-toolsに置き、操作画面内に行を作らない（盤面の縦幅確保。Issue #99）。
+  const showTaskBtn = renderShowTaskButton(document.getElementById('step-tools'), showTaskCard);
+  showTaskBtn.style.display = 'none';
 
   const commandRow = document.createElement('div');
   commandRow.className = 'flex justify-center items-center gap-2 shrink-0';
@@ -141,12 +140,14 @@ export function renderPredict(root, step) {
   function showTaskCard() {
     local.nudge?.stop();
     opScreen.style.display = 'none';
+    showTaskBtn.style.display = 'none';
     taskCardEl.style.display = '';
   }
 
   function beginTask() {
     taskCardEl.style.display = 'none';
     opScreen.style.display = 'flex';
+    showTaskBtn.style.display = '';
     if (!local.started) {
       local.started = true;
       showQuestion();
