@@ -12,6 +12,14 @@ import { renderPredict } from './ui-predict.js';
 const STEP_DELAY_MS = 600;
 const STEP_TRANSITION_MS = 220;
 const STEP_SLIDE_PX = 24;
+// ヘッダーの区分チップ文言（Issue #91）。
+const KIND_CHIP_LABEL = {
+  intro: 'はじめに',
+  tutorial: 'れんしゅう',
+  predict: 'よそう',
+  play: 'うごかす',
+  summary: 'まとめ',
+};
 
 // clear到達後は離脱してもabandonを記録しない。1セッションにつき1回だけ記録する。
 let lessonCleared = false;
@@ -38,12 +46,40 @@ function stage() {
   return document.getElementById('stage');
 }
 
+function headerEls() {
+  return {
+    wrap: document.getElementById('lesson-header'),
+    back: document.getElementById('back-btn'),
+    title: document.getElementById('lesson-title'),
+    chip: document.getElementById('step-kind-chip'),
+  };
+}
+
+// ヘッダー（#stageの外）：タイトル・区分チップ・もどるボタン。renderStepのたびに更新する（Issue #91）。
+function renderHeader() {
+  const { wrap, back, title, chip } = headerEls();
+  wrap.style.display = 'flex';
+  title.textContent = S.unit ? `${S.unit.title} ・ ${S.lesson.title}` : S.lesson.title;
+  chip.textContent = KIND_CHIP_LABEL[currentStep().kind] ?? '';
+  back.hidden = S.stepIndex === 0;
+}
+
+// 実行アニメーション中はもどるを操作させない（playAnimationの開始・終了で呼ぶ）。
+function setBackDisabled(disabled) {
+  headerEls().back.disabled = disabled;
+}
+
 export function initSteps() {
   const toggle = document.getElementById('furigana-toggle');
   toggle.addEventListener('click', () => {
     S.furigana = !S.furigana;
     toggle.setAttribute('aria-pressed', String(S.furigana));
     refreshRubyText(S.readingLevel, S.furigana);
+  });
+
+  headerEls().back.addEventListener('click', () => {
+    if (headerEls().back.disabled || S.stepIndex === 0) return;
+    goToStep(S.stepIndex - 1);
   });
 
   document.addEventListener('visibilitychange', () => {
@@ -101,6 +137,7 @@ function renderStep() {
   root.dataset.step = step.kind;
   root.dataset.stepId = step.stepId;
 
+  renderHeader();
   renderStepDots(root);
   if (step.kind === 'intro') renderIntro(root, step);
   else if (step.kind === 'predict') renderPredict(root, step);
@@ -136,6 +173,7 @@ function dirAt(commands, idx) {
 export function playAnimation(commands, spec, view, { onTick, onDone, onPickup }) {
   const result = simulate(commands, spec);
   playSfx('run');
+  setBackDisabled(true);
   let i = 0;
   const step = () => {
     const from = result.path[i];
@@ -155,7 +193,10 @@ export function playAnimation(commands, spec, view, { onTick, onDone, onPickup }
     });
     onTick(result.stepOwner[i], to);
     if (i === result.path.length - 2) {
-      setTimeout(() => onDone(result), STEP_DELAY_MS);
+      setTimeout(() => {
+        setBackDisabled(false);
+        onDone(result);
+      }, STEP_DELAY_MS);
       return;
     }
     setTimeout(() => {
