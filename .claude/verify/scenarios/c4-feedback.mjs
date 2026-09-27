@@ -1,5 +1,5 @@
 export const name =
-  'C4 実機フィードバック一括対応: ヘッダー(もどる・えらぶ がめんへ＋確認ダイアログ)・反応統一・ヒント・もういちど・まとめ(Issue #91/#93)';
+  'C4 実機フィードバック一括対応: ヘッダー(もどる・えらぶ がめんへ)・反応統一・ヒント・もういちど・まとめ(Issue #91/#93)';
 
 async function noLongLine(page) {
   const text = await page.locator('body').innerText();
@@ -32,7 +32,7 @@ export default async function run({ page, check }) {
   await page.unroute('**/lessons/cmd-01-susumu.json');
   await page.unroute('**/lessons/donguri-01-hirou.json');
 
-  // --- 1. ヘッダー（タイトル・区分チップ・もどる・えらぶ がめんへ＋確認ダイアログ）・introのデモ ---
+  // --- 1. ヘッダー（タイトル・区分チップ・もどる・えらぶ がめんへ）・introのデモ ---
   await page.goto('/index.html?lesson=cmd-03-naosu');
   await check('introではもどるが非表示', async () => page.isHidden('#back-btn'));
   await check('introでも えらぶ がめんへ は表示される', async () => page.isVisible('#home-btn'));
@@ -54,30 +54,14 @@ export default async function run({ page, check }) {
   // 最初から満杯でdisabled。チップの取り消しで最初の操作を行う。
   await page.click('[data-remove-index="2"]');
 
-  // --- もどる・えらぶ がめんへは操作中に押すと確認ダイアログを挟む（window.confirmは使わない。Issue #93） ---
+  // --- もどる・えらぶ がめんへは確認ダイアログを挟まず即座に遷移する。誤タップの保険は
+  // 確認ダイアログではなく命令列の下書き保持で行う（c6-tactile-ui.mjsで検証。Issue #95） ---
+  await check('確認ダイアログは存在しない', async () => (await page.$$('.confirm-dialog')).length, 0);
   await page.click('#back-btn');
-  await check('もどるで確認ダイアログが出る', async () => (await page.$$('.confirm-dialog')).length, 1);
-  await check('確認ダイアログの文言は20字以内', async () => (await page.textContent('.confirm-dialog p')).length <= 20);
-  const dialogBtnBoxes = [];
-  for (const el of await page.$$('.confirm-dialog button')) {
-    dialogBtnBoxes.push(await el.boundingBox());
-  }
-  await check('確認ダイアログのボタンは48px以上', () => dialogBtnBoxes.every((b) => b.height >= 48));
-  await page.click('[data-action="confirm-cancel"]');
-  await check('つづけるでダイアログが閉じ、playのまま', async () => {
-    const dialogGone = (await page.$$('.confirm-dialog')).length === 0;
-    const stillPlay = (await page.getAttribute('#stage', 'data-step')) === 'play';
-    return dialogGone && stillPlay;
-  });
-
-  await page.click('#back-btn');
-  await page.click('[data-action="confirm-ok"]');
-  await check('もどる確定で1つ前のpredictへ戻る', async () => page.getAttribute('#stage', 'data-step'), 'predict');
+  await check('確認無しで1つ前のpredictへ戻る', async () => page.getAttribute('#stage', 'data-step'), 'predict');
 
   await page.click('#home-btn');
-  await check('えらぶ がめんへ も確認ダイアログを挟む', async () => (await page.$$('.confirm-dialog')).length, 1);
-  await page.click('[data-action="confirm-cancel"]');
-  await check('つづけるでpredictのまま', async () => page.getAttribute('#stage', 'data-step'), 'predict');
+  await check('えらぶ がめんへ も確認無しで即座に遷移する', async () => page.url().endsWith('/index.html'));
 
   // --- 2. predictの正解・不正解の反応統一・もういちど よそう ---
   await page.goto('/index.html?lesson=cmd-01-susumu');
@@ -164,13 +148,13 @@ export default async function run({ page, check }) {
   await check('mobile: 横スクロールが発生しない', async () =>
     page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)
   );
-  await check('mobile: 全ボタンが48px以上', async () => {
+  await check('mobile: 全ボタンが64px以上', async () => {
     const boxes = [];
     for (const el of await page.$$('button')) {
       const b = await el.boundingBox();
       if (b) boxes.push(b);
     }
-    return boxes.every((b) => b.width >= 48 && b.height >= 48);
+    return boxes.every((b) => b.width >= 64 && b.height >= 64);
   });
   await page.setViewportSize({ width: 1280, height: 800 });
 
