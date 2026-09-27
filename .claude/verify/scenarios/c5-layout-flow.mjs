@@ -1,7 +1,8 @@
-// C2d 実機フィードバック: 画面に収まるレイアウト・課題カード分離・ゴースト矢印・順序表示
-// （Issue #93）。課題カードは検証ハーネスの既定でOFFのため、このシナリオ冒頭でONに戻す。
+// C2d 実機フィードバック: 画面に収まるレイアウト・ゴースト矢印・順序表示（Issue #93）。
+// 課題カードはIssue #97で廃止し、predict/playは即座に操作画面へ入る（begin-task/show-taskは
+// 存在しない）。
 
-export const name = 'C5 レイアウト・課題カード・ゴースト矢印: 画面に収まる・重ならない・順序が分かる(Issue #93)';
+export const name = 'C5 レイアウト・ゴースト矢印: 画面に収まる・重ならない・順序が分かる(Issue #93/#97)';
 
 const VIEWPORTS = [
   { width: 375, height: 667 },
@@ -56,44 +57,32 @@ async function checkFitsAndNonOverlap(page, check, label, viewport) {
 }
 
 export default async function run({ page, check }) {
-  await page.addInitScript(() => localStorage.setItem('steamkids.taskCard', 'on'));
   await page.unroute('**/lessons/cmd-01-susumu.json');
   await page.unroute('**/lessons/donguri-01-hirou.json');
 
-  // --- 課題カード→操作画面、「？」で再表示。操作画面には説明要素が無い ---
+  // --- predict/playは即座に操作画面（課題カードは無い。Issue #97） ---
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/index.html?lesson=cmd-03-naosu');
   await page.click('[data-action="start"]');
-  await check('predict課題カードに「はじめる」がある', async () => (await page.$$('[data-action="begin-task"]')).length, 1);
-  await check('操作画面はまだ非表示', async () => page.isHidden('.predict-screen'));
-
-  await page.click('[data-action="begin-task"]');
-  await check('はじめるで操作画面が表示される', async () => page.isVisible('.predict-screen'));
+  await check('predictへ即座に入る（課題カード無し）', async () => page.getAttribute('#stage', 'data-step'), 'predict');
   await check('操作画面に区分見出しが無い', async () => (await page.$$('.predict-screen h2')).length, 0);
   await check('操作画面にデモが無い', async () => (await page.$$('.predict-screen .demo-widget')).length, 0);
   await check('操作画面にやりかた帯が無い', async () => (await page.$$('.predict-screen .howto-strip')).length, 0);
-  await check('操作画面に「？」がある', async () => (await page.$$('[data-action="show-task"]')).length, 1);
-
-  await page.click('[data-action="show-task"]');
-  await check('「？」で課題カードへ戻る', async () => page.isVisible('.task-card'));
-  await page.click('[data-action="begin-task"]');
 
   await page.click('[data-option="A"]');
   await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
   await page.click('[data-action="next"]');
-  await check('playに入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
-  await page.click('[data-action="begin-task"]');
-  await check('play操作画面に説明要素(<p>)が無い', async () => (await page.$$('.play-screen > p, .play-screen h2')).length, 0);
-  await check('play操作画面にキャプションが無い', async () => (await page.$$('.play-screen .demo-widget, .play-screen .category-banner')).length, 0);
+  await check('playへ即座に入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
+  await check('play操作画面に説明要素(<p>)が問い文以外に無い', async () => (await page.$$('.play-screen > p, .play-screen h2')).length, 0);
+  await check('play操作画面にデモが無い', async () => (await page.$$('.play-screen .demo-widget, .play-screen .category-banner')).length, 0);
 
   // --- 命令列に→区切りと順番数字（Issue #93）。cmd-02-mijikaku(tutorial無し)の空queueで確認する ---
   await page.goto('/index.html?lesson=cmd-02-mijikaku');
   await page.click('[data-action="start"]');
-  await page.click('[data-action="begin-task"]');
+  await check('predictへ即座に入る', async () => page.getAttribute('#stage', 'data-step'), 'predict');
   await page.click('[data-option="A"]');
   await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
   await page.click('[data-action="next"]');
-  await page.click('[data-action="begin-task"]');
   await page.click('[data-command="down"]');
   await page.click('[data-command="right"]');
   await check('命令列に→区切りがある', async () => (await page.$$('.command-arrow')).length, 1);
@@ -117,15 +106,15 @@ export default async function run({ page, check }) {
     await page.waitForSelector('[data-action="continue-to-task"]', { timeout: 8000 });
     await page.click('[data-action="continue-to-task"]');
 
-    // predict
-    await page.click('[data-action="begin-task"]');
+    // predict（即座に操作画面）
+    await check(`${label}: predictへ即座に入る`, async () => page.getAttribute('#stage', 'data-step'), 'predict');
     await checkFitsAndNonOverlap(page, check, `${label} predict`, viewport);
     await page.click('[data-option="B"]');
     await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
     await page.click('[data-action="next"]');
 
-    // play
-    await page.click('[data-action="begin-task"]');
+    // play（即座に操作画面）
+    await check(`${label}: playへ即座に入る`, async () => page.getAttribute('#stage', 'data-step'), 'play');
     await checkFitsAndNonOverlap(page, check, `${label} play`, viewport);
   }
   await page.setViewportSize({ width: 1280, height: 800 });

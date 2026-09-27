@@ -5,7 +5,18 @@
   "type": "grid-runtime",
   "estimatedMinutes": 5,
   "steps": [
-    { "stepId": "s1", "kind": "intro", "text": "おなじ{道|みち}をみじかくしよう" },
+    {
+      "stepId": "s1",
+      "kind": "intro",
+      "text": "おなじ {道|みち}を みじかく しよう",
+      "demo": {
+        "grid": { "cols": 3, "rows": 6 },
+        "start": { "x": 2, "y": 0 },
+        "goal": { "x": 0, "y": 5 },
+        "walls": [],
+        "commands": ["down", "down", "down", "down", "down", "left", "left"]
+      }
+    },
     {
       "stepId": "s2",
       "kind": "predict",

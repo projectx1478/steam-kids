@@ -63,6 +63,58 @@ function checkBoard(board, add, label) {
   });
 }
 
+// introのdemo（Issue #97:「はじめに」画面でロボットがゴールへ到達する完成イメージ。本番playとは
+// 別のstart/goal）を検証する。demoが無ければ何もしない（現状は任意項目）。
+function checkDemo(intro, play, add) {
+  const demo = intro?.demo;
+  if (!demo) return;
+  const grid = demo.grid || {};
+  const walls = Array.isArray(demo.walls) ? demo.walls : [];
+  const wallKeySet = new Set(walls.map((w) => `${w.x},${w.y}`));
+  const items = Array.isArray(demo.items) ? demo.items : [];
+  const label = `stepId="${intro.stepId}" のdemo`;
+
+  const coordChecks = [
+    ['start', demo.start],
+    ['goal', demo.goal],
+    ...walls.map((w, i) => [`walls[${i}]`, w]),
+    ...items.map((it, i) => [`items[${i}]`, it]),
+  ];
+  for (const [coordLabel, p] of coordChecks) {
+    if (!p || !inGrid(grid, p)) add('座標範囲', `${label} ${coordLabel}=${JSON.stringify(p)} が盤外`);
+  }
+  if (demo.start && demo.goal) {
+    if (demo.start.x === demo.goal.x && demo.start.y === demo.goal.y) {
+      add('盤面の妥当性', `${label} start と goal が同一`);
+    }
+    if (wallKeySet.has(`${demo.start.x},${demo.start.y}`)) add('盤面の妥当性', `${label} start が壁と重なる`);
+    if (wallKeySet.has(`${demo.goal.x},${demo.goal.y}`)) add('盤面の妥当性', `${label} goal が壁と重なる`);
+  }
+
+  if (!Array.isArray(demo.commands) || demo.commands.some((c) => !COMMANDS.includes(c))) {
+    add('命令語彙', `${label} commands=${JSON.stringify(demo.commands)} が不正`);
+    return;
+  }
+  if (!demo.start || !demo.goal || !grid.cols || !grid.rows) return;
+
+  const result = simulate(demo.commands, { grid, start: demo.start, goal: demo.goal, walls, items });
+  if (!result.reachedGoal || result.remainingItems.length > 0 || result.blockedAt.length > 0) {
+    add('デモの到達可能性', `${label} のcommandsを実行してもゴール到達＋全item回収にならない、または壁にぶつかる`);
+  }
+
+  // ネタバレ防止: 本番playと同じ(start,goal)の組を答えの経路として見せない（Issue #97）。
+  if (
+    play?.start &&
+    play?.goal &&
+    demo.start.x === play.start.x &&
+    demo.start.y === play.start.y &&
+    demo.goal.x === play.goal.x &&
+    demo.goal.y === play.goal.y
+  ) {
+    add('デモのネタバレ', `${label} のstart/goalが本番playと同一（答えのネタバレになる）`);
+  }
+}
+
 function validateLesson(fileName, data) {
   const errors = [];
   const add = (rule, detail) => errors.push(`${fileName}: ${rule}: ${detail}`);
@@ -140,6 +192,7 @@ function validateLesson(fileName, data) {
   const items = Array.isArray(play.items) ? play.items : [];
 
   checkBoard(play, add, '');
+  checkDemo(steps.find((s) => s.kind === 'intro'), play, add);
 
   if ('groupRepeats' in play && typeof play.groupRepeats !== 'boolean') {
     add('groupRepeatsの型', `play.groupRepeats=${JSON.stringify(play.groupRepeats)} はboolean以外`);

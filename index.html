@@ -18,9 +18,6 @@
       </div>
     </div>
     <div class="flex items-center gap-2 ml-auto">
-    <!-- 操作画面の「？」等ステップ固有のボタン置き場（ステップ切替時にui-step.jsが空にする）。
-         盤面の縦幅を確保するため、操作画面内に専用の行を作らない（Issue #99） -->
-    <div id="step-tools" class="flex items-center gap-2"></div>
     <!-- 🏠は#lesson-headerの外（もどると離れた右側）に置く。誤タップで両方押してしまうのを
          防ぐための配置分離（確認ダイアログ全廃の代わり。Issue #95） -->
     <button id="home-btn" type="button" data-action="home" aria-label="えらぶ がめんへ" style="display:none"
@@ -34,7 +31,7 @@
     </a>
     </div>
   </header>
-  <main id="stage" class="bg-white rounded-2xl shadow p-2 sm:p-4flex-1 min-h-0 flex flex-col overflow-y-auto"></main>
+  <main id="stage" class="bg-white rounded-2xl shadow p-2 sm:p-4 flex-1 min-h-0 flex flex-col overflow-y-auto"></main>
 </div>
 <script type="module" src="app.js"></script>
 </body>

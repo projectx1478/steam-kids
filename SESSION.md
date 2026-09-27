@@ -38,14 +38,17 @@
   （`.claude/skills/lesson-author/SKILL.md`手順4）
 - `.claude/verify/config.mjs`が`cmd-01-susumu`・`donguri-01-hirou`を凍結fixture（tutorial追加前）へ
   差し替えている。現行構造を検証する新シナリオは冒頭で`page.unroute('**/lessons/<id>.json')`する
-  （c2・c3・c4と同じ）
-- 同`config.mjs`が`localStorage['steamkids.taskCard']`を`'off'`にしている（Issue #93で
-  predict/playの前に課題カードを挟むようにしたため、既存シナリオの「開始→即操作」前提を保護）。
-  課題カードの構造そのものを検証するシナリオは冒頭で`page.addInitScript(...'on')`し直す
-  （c3・c5と同じ）
+  （c2・c4・c5と同じ）
+- 課題カード（predict/play前の説明画面）はIssue #97で廃止した。操作画面へ直接入り、問い文は
+  `.status-bar`に常時表示、結果（やったね／ヒント）は同じ場所へ3秒だけトースト表示する
+  （`js/ui-toast.js`）
 - `#app`は`h-[100dvh]`固定（`min-h`ではない）。操作画面（play/predict/tutorial）のflex-1な
   盤面エリアが画面高さから縮む前提のレイアウトのため、`min-h`に戻すと縦スクロールが発生する
   （Issue #93で発覚。360×640で再現）
+- `js/ui-grid.js`の`computeCellSize`の下限（`MIN_CELL`）は8px（0除算防止のみが目的で、見た目の
+  下限ではない）。48px等の固定下限に戻すと、行数の多い盤面＋文字拡大＋操作パネルが重なる
+  組み合わせで盤面がエリアより大きくなり、ロボットが隠れる事故が起きる（Issue #99・#97。
+  盤面のマスはplay中はタップ対象ではないため64pxタップ領域規則とは衝突しない）
 - 無操作タイマー等の時間検証は`page.clock.install()`＋`fastForward`（Playwright 1.63）
 - `node .claude/verify/run.mjs`全件をバックグラウンド実行すると、この端末ではメモリ不足で停止
   されることがある（#87・#90・#91で発生）。停止時は勝手に再実行せず、フォアグラウンドで

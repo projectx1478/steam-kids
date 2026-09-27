@@ -30,6 +30,9 @@ description: 単元名からgrid-runtimeレッスンJSONを生成し、npm run v
      Issue #48）
    - 新しい単元の1本目には、`intro`直後・`predict`より前に`kind: "tutorial"`を置く
      （`docs/lesson-schema.md`「`tutorial`」参照。既存単元の2本目以降には置かない。Issue #81）
+   - `intro.demo`（任意だが付ける）にロボットがゴールへ到達する完成イメージの経路を書く。
+     `start`/`goal`は本番`play`と別の組にする（答えのネタバレ防止。`validate-lessons.mjs`が
+     機械チェックする。`docs/lesson-schema.md`「`intro.demo`」参照。Issue #97）
 3. `lessons/<lessonId>.json` を書き出す（`lessonId` はファイル名と一致させる）
 4. `lessons/index.json` を更新する（`docs/lesson-schema.md`「`lessons/index.json`」参照）。
    既存 `unitId` への追加なら該当 `unit.lessonIds` に追記、新しい単元なら `units` に
