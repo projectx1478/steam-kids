@@ -110,10 +110,15 @@ export function renderPlay(root, step, { guide = null } = {}) {
   root.appendChild(layout);
 
   const boardWrap = document.createElement('div');
+  boardWrap.className = 'pb-40 md:pb-0';
   layout.appendChild(boardWrap);
 
+  // md未満は画面下に固定する操作パネルにまとめる（盤面が長くても「じっこう」が常に見える。Issue #91）。
+  // stickyでは初期スクロール位置によって画面外に出うるため、常時視認できるfixedにする。
   const controls = document.createElement('div');
-  controls.className = 'flex flex-col gap-3 w-full max-w-xs';
+  controls.className =
+    'fixed inset-x-0 bottom-0 z-20 flex flex-col gap-2 bg-white/95 backdrop-blur-sm border-t border-slate-200 px-4 py-3 max-h-[70vh] overflow-y-auto ' +
+    'md:static md:inset-auto md:z-auto md:max-h-none md:overflow-visible md:bg-transparent md:border-0 md:px-0 md:py-0 md:w-full md:max-w-xs';
   layout.appendChild(controls);
 
   const paletteEl = document.createElement('div');
@@ -121,36 +126,67 @@ export function renderPlay(root, step, { guide = null } = {}) {
   controls.appendChild(paletteEl);
 
   const queueEl = document.createElement('ul');
-  queueEl.className = 'command-queue flex flex-col gap-1 min-h-[48px]';
+  queueEl.className = 'command-queue flex flex-nowrap gap-2 overflow-x-auto min-h-[48px] py-1';
   controls.appendChild(queueEl);
 
   const actionsEl = document.createElement('div');
   actionsEl.className = 'flex gap-2 justify-center';
   controls.appendChild(actionsEl);
 
-  // guide時は「ぜんぶけす」を出さない（お手本通りに進めるだけで、消す操作は不要。Issue #81）。
+  // guide時は「ぜんぶけす」「ひとつけす」を出さない（お手本通りに進めるだけで、消す操作は不要。Issue #81）。
+  let removeLastBtn = null;
   let clearBtn = null;
   if (!guide) {
+    removeLastBtn = document.createElement('button');
+    removeLastBtn.type = 'button';
+    removeLastBtn.dataset.action = 'remove-last';
+    removeLastBtn.textContent = '⌫ ひとつ けす';
+    removeLastBtn.className =
+      'min-w-[48px] min-h-[48px] px-2 rounded-lg bg-slate-200 text-sm transition-transform duration-100 active:scale-95 disabled:opacity-40';
+    actionsEl.appendChild(removeLastBtn);
+
     clearBtn = document.createElement('button');
     clearBtn.type = 'button';
     clearBtn.dataset.action = 'clear-all';
-    clearBtn.textContent = 'ぜんぶけす';
+    clearBtn.textContent = 'ぜんぶ けす';
     clearBtn.className =
-      'min-w-[48px] min-h-[48px] px-3 rounded-lg bg-slate-200 transition-transform duration-100 active:scale-95 disabled:opacity-40';
+      'min-w-[48px] min-h-[48px] px-3 rounded-lg bg-slate-200 text-sm transition-transform duration-100 active:scale-95 disabled:opacity-40';
     actionsEl.appendChild(clearBtn);
   }
 
   const runBtn = document.createElement('button');
   runBtn.type = 'button';
   runBtn.dataset.action = 'run';
-  runBtn.textContent = 'じっこう';
+  runBtn.textContent = '▶ じっこう';
   runBtn.className =
-    'min-w-[48px] min-h-[48px] px-4 rounded-lg bg-emerald-500 text-white transition-transform duration-100 active:scale-95 disabled:opacity-40';
+    'min-w-[48px] min-h-[48px] px-4 rounded-lg bg-emerald-500 text-white text-lg font-bold transition-transform duration-100 active:scale-95 disabled:opacity-40';
   actionsEl.appendChild(runBtn);
+
+  // 実行が失敗したらrunBtn自体を橙色の「もういちど」に変える（目線を動かさずに押せる。Issue #91）。
+  function setRunButtonMode(mode) {
+    if (mode === 'retry') {
+      runBtn.dataset.action = 'retry';
+      runBtn.textContent = '↺ もういちど';
+      runBtn.classList.remove('bg-emerald-500');
+      runBtn.classList.add('bg-amber-500');
+    } else {
+      runBtn.dataset.action = 'run';
+      runBtn.textContent = '▶ じっこう';
+      runBtn.classList.remove('bg-amber-500');
+      runBtn.classList.add('bg-emerald-500');
+    }
+  }
 
   const resultEl = document.createElement('div');
   resultEl.className = 'text-center mt-2';
   controls.appendChild(resultEl);
+
+  // 失敗後にrunBtnが「もういちど」化した状態で、もういちどを押さず直接キューを編集した場合
+  // （例: cmd03のなおす操作）でも[data-action="run"]に戻す。次のrunで盤面はどのみち
+  // drawBoard(spec.start)からやり直すため、機能上は編集時に静かに戻すだけでよい。
+  function revertRunButtonIfRetrying() {
+    if (runBtn.dataset.action === 'retry') setRunButtonMode('run');
+  }
 
   // 無操作時、いまの段階に応じた実物ボタンを促す（8秒後・最大2回。guide時は出さない。Issue #89）。
   if (!guide) {
@@ -192,6 +228,7 @@ export function renderPlay(root, step, { guide = null } = {}) {
       removable: !guide,
       onRemove: (i) => {
         if (local.running) return;
+        revertRunButtonIfRetrying();
         if (isFix) local.fixOpened = true;
         local.commands.splice(i, 1);
         logEvent('undo', { index: i });
@@ -261,8 +298,10 @@ export function renderPlay(root, step, { guide = null } = {}) {
     paletteEl.querySelectorAll('button').forEach((b) => {
       b.disabled = atMax || local.running;
     });
-    runBtn.disabled = local.commands.length === 0 || local.running;
+    const isRetry = runBtn.dataset.action === 'retry';
+    runBtn.disabled = local.running || (!isRetry && local.commands.length === 0);
     clearBtn.disabled = local.commands.length === 0 || local.running;
+    removeLastBtn.disabled = local.commands.length === 0 || local.running;
     if (howto) howto.setPhase(currentPhase());
   }
 
@@ -278,6 +317,7 @@ export function renderPlay(root, step, { guide = null } = {}) {
         updateControls();
         return;
       }
+      revertRunButtonIfRetrying();
       const last = local.commands.at(-1);
       if (step.groupRepeats && last && last.dir === dir) {
         last.times += 1;
@@ -294,10 +334,27 @@ export function renderPlay(root, step, { guide = null } = {}) {
     },
   });
 
+  if (removeLastBtn) {
+    removeLastBtn.addEventListener('click', () => {
+      if (local.running || local.commands.length === 0) return;
+      vibrate();
+      revertRunButtonIfRetrying();
+      if (isFix) local.fixOpened = true;
+      const i = local.commands.length - 1;
+      local.commands.splice(i, 1);
+      logEvent('undo', { index: i });
+      playSfx('remove');
+      drawQueue();
+      updateControls();
+      nudge?.poke();
+    });
+  }
+
   if (clearBtn) {
     clearBtn.addEventListener('click', () => {
       if (local.running || local.commands.length === 0) return;
       vibrate();
+      revertRunButtonIfRetrying();
       if (isFix) local.fixOpened = true;
       logEvent('undo', { all: true, commandCount: local.commands.length });
       local.commands = [];
@@ -309,6 +366,17 @@ export function renderPlay(root, step, { guide = null } = {}) {
   }
 
   runBtn.addEventListener('click', () => {
+    if (runBtn.dataset.action === 'retry') {
+      vibrate();
+      if (!guide) logEvent('retry', {});
+      resultEl.innerHTML = '';
+      delete resultEl.dataset.result;
+      setRunButtonMode('run');
+      drawBoard(spec.start);
+      updateControls();
+      nudge?.poke();
+      return;
+    }
     if (local.running || local.commands.length === 0) return;
     if (guide && guideTarget() !== 'run') return;
     vibrate();
@@ -344,19 +412,8 @@ export function renderPlay(root, step, { guide = null } = {}) {
           resultEl.appendChild(createClearReaction());
           resultEl.appendChild(createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'));
         } else {
-          resultEl.appendChild(
-            createPrimaryButton(
-              'もういちど',
-              () => {
-                if (!guide) logEvent('retry', {});
-                resultEl.innerHTML = '';
-                drawBoard(spec.start);
-                updateControls();
-                nudge?.poke();
-              },
-              'retry'
-            )
-          );
+          setRunButtonMode('retry');
+          updateControls();
         }
         if (howto) howto.setPhase(0);
       },

@@ -1,6 +1,6 @@
 import { S, initState } from './js/state.js';
 import { loadLesson } from './js/lesson-loader.js';
-import { initSteps } from './js/ui-step.js';
+import { initSteps, refreshHeader } from './js/ui-step.js';
 import { push } from './js/sync.js';
 import { registerServiceWorker } from './js/register-sw.js';
 import { initSoundToggle } from './js/sfx.js';
@@ -30,8 +30,13 @@ async function startLesson(lessonId) {
   try {
     const lesson = await loadLesson(lessonId);
     initState(lesson);
-    S.unit = await loadUnitInfo(lessonId);
     initSteps();
+    // 単元情報の取得はinitSteps()を遅らせない（visibilitychange等のリスナー登録が
+    // 遅れるとabandon記録のタイミングがずれるため）。取得できたらヘッダーだけ更新する。
+    loadUnitInfo(lessonId).then((unit) => {
+      S.unit = unit;
+      refreshHeader();
+    });
     push();
   } catch {
     showError();

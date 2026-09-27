@@ -69,6 +69,14 @@ function setBackDisabled(disabled) {
   headerEls().back.disabled = disabled;
 }
 
+// app.jsが単元情報(S.unit)を非同期取得した後、ヘッダーのタイトルだけ再描画するための窓口。
+// initSteps()自体は単元情報の取得を待たずに進める（visibilitychange等のリスナー登録を
+// 遅らせないため。P2のabandon記録タイミングに影響していた）。
+export function refreshHeader() {
+  if (!S.lesson) return;
+  renderHeader();
+}
+
 export function initSteps() {
   const toggle = document.getElementById('furigana-toggle');
   toggle.addEventListener('click', () => {
