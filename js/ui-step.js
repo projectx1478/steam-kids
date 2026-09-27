@@ -6,6 +6,7 @@ import { renderGrid, prefersReducedMotion, shapeSvg } from './ui-grid.js';
 import { renderCommandPalette, renderCommandQueue, COMMAND_LABELS, vibrate, arrowSvg } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
 import { renderInto, refreshRubyText } from './text-render.js';
+import { renderHowTo, createIdleNudge } from './ui-guide.js';
 
 const STEP_DELAY_MS = 600;
 const STEP_TRANSITION_MS = 220;
@@ -16,6 +17,8 @@ const GUIDE_GLOW_CLASSES = ['ring-4', 'ring-amber-400', 'ring-offset-2', 'motion
 // clear到達後は離脱してもabandonを記録しない。1セッションにつき1回だけ記録する。
 let lessonCleared = false;
 let abandonLogged = false;
+// 現在のステップが持つ無操作促し。ステップ離脱時（renderStep冒頭）に止める（Issue #89）。
+let activeNudge = null;
 
 function logAbandonOnce() {
   if (abandonLogged || lessonCleared) return;
@@ -82,6 +85,8 @@ function applyStepTransition(root) {
 }
 
 function renderStep() {
+  activeNudge?.stop();
+  activeNudge = null;
   const step = currentStep();
   const root = stage();
   root.innerHTML = '';
@@ -200,6 +205,10 @@ function renderPredict(root, step) {
   renderInto(prompt, step.text, S.readingLevel, S.furigana);
   root.appendChild(prompt);
 
+  // やりかた帯：どのますをタップすればいいかを示す（Issue #89）。
+  const howto = renderHowTo(root, 'predict');
+  howto.setPhase(1);
+
   const commandRow = document.createElement('div');
   commandRow.className = 'flex justify-center gap-2 mb-4';
   step.commands.forEach((cmd, i) => {
@@ -236,9 +245,14 @@ function renderPredict(root, step) {
   }
   drawStatic(spec.start, step.optionCells.map((o) => ({ id: o.id, x: o.x, y: o.y })), []);
 
+  // 無操作時、光っていない選択肢マスを促す（8秒後・最大2回。Issue #89）。
+  const nudge = createIdleNudge({ getTarget: () => [...boardWrap.querySelectorAll('[data-option]')] });
+  activeNudge = nudge;
+
   boardWrap.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-option]');
     if (!btn || local.selected) return;
+    nudge.stop();
     local.selected = btn.dataset.option;
     const correct = local.selected === step.answer;
     logEvent('predict', { selected: local.selected, correct });
@@ -260,6 +274,7 @@ function renderPredict(root, step) {
           { x: chosen.x, y: chosen.y, kind: 'predicted' },
           { x: finalPos.x, y: finalPos.y, kind: 'result' },
         ]);
+        howto.setPhase(0);
         root.appendChild(createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'));
       },
     });
@@ -279,7 +294,11 @@ function renderPlay(root, step, { guide = null } = {}) {
     running: false,
     view: null,
     guideIndex: 0,
+    // なおす系（initialCommandsあり）で最初の編集（×・追加・ぜんぶけす）をしたか。
+    // やりかた帯の段階・無操作促しの対象を決めるのに使う（Issue #89）。
+    fixOpened: false,
   };
+  const isFix = (step.initialCommands ?? []).length > 0;
 
   if (!guide) {
     const prompt = document.createElement('p');
@@ -339,6 +358,13 @@ function renderPlay(root, step, { guide = null } = {}) {
     root.appendChild(guideRowEl);
   }
 
+  // やりかた帯（guide時以外）。操作の流れをブロック図＋短文で常時表示する（Issue #89）。
+  let howto = null;
+  let nudge = null;
+  if (!guide) {
+    howto = renderHowTo(root, isFix ? 'fix' : 'play');
+  }
+
   const layout = document.createElement('div');
   layout.className = 'flex flex-col md:flex-row gap-4 items-center md:items-start justify-center';
   root.appendChild(layout);
@@ -386,6 +412,20 @@ function renderPlay(root, step, { guide = null } = {}) {
   resultEl.className = 'text-center mt-2';
   controls.appendChild(resultEl);
 
+  // 無操作時、いまの段階に応じた実物ボタンを促す（8秒後・最大2回。guide時は出さない。Issue #89）。
+  if (!guide) {
+    nudge = createIdleNudge({
+      getTarget: () => {
+        const phase = currentPhase();
+        if (phase === 0) return [];
+        if (phase === 1 && isFix) return [...queueEl.querySelectorAll('.command-remove')];
+        if (phase === 3) return [runBtn];
+        return [...paletteEl.querySelectorAll('button:not(:disabled)')];
+      },
+    });
+    activeNudge = nudge;
+  }
+
   // 静的な盤面の再構築。アニメーション中には呼ばない（プレイヤー駒はview経由で差分更新する）。
   // 実行開始・もういちど双方でここを通るため、のこり表示の初期値リセットも兼ねる。
   function drawBoard(playerPos) {
@@ -412,11 +452,13 @@ function renderPlay(root, step, { guide = null } = {}) {
       removable: !guide,
       onRemove: (i) => {
         if (local.running) return;
+        if (isFix) local.fixOpened = true;
         local.commands.splice(i, 1);
         logEvent('undo', { index: i });
         playSfx('remove');
         drawQueue();
         updateControls();
+        nudge?.poke();
       },
     });
   }
@@ -462,6 +504,14 @@ function renderPlay(root, step, { guide = null } = {}) {
     }
   }
 
+  // やりかた帯・無操作促しの対象を決める段階（Issue #89）。0=強調なし（実行中・結果表示中）、
+  // 1=けす/おす、3=じっこう。なおす系は編集済みか否かのみで1↔3を決める（②は経由しない）。
+  function currentPhase() {
+    if (local.running || resultEl.childElementCount > 0) return 0;
+    if (isFix) return local.fixOpened ? 3 : 1;
+    return local.commands.length === 0 ? 1 : 3;
+  }
+
   function updateControls() {
     if (guide) {
       applyGuide();
@@ -473,6 +523,7 @@ function renderPlay(root, step, { guide = null } = {}) {
     });
     runBtn.disabled = local.commands.length === 0 || local.running;
     clearBtn.disabled = local.commands.length === 0 || local.running;
+    if (howto) howto.setPhase(currentPhase());
   }
 
   renderCommandPalette(paletteEl, {
@@ -496,8 +547,10 @@ function renderPlay(root, step, { guide = null } = {}) {
         local.commands.push({ dir, times: 1 });
         playSfx('tap');
       }
+      if (isFix) local.fixOpened = true;
       drawQueue();
       updateControls();
+      nudge?.poke();
     },
   });
 
@@ -505,11 +558,13 @@ function renderPlay(root, step, { guide = null } = {}) {
     clearBtn.addEventListener('click', () => {
       if (local.running || local.commands.length === 0) return;
       vibrate();
+      if (isFix) local.fixOpened = true;
       logEvent('undo', { all: true, commandCount: local.commands.length });
       local.commands = [];
       playSfx('remove');
       drawQueue();
       updateControls();
+      nudge?.poke();
     });
   }
 
@@ -519,6 +574,7 @@ function renderPlay(root, step, { guide = null } = {}) {
     vibrate();
     if (guide) local.guideIndex += 1;
     local.running = true;
+    nudge?.stop();
     resultEl.innerHTML = '';
     delete resultEl.dataset.result;
     if (!guide) logEvent('run', { commandCount: local.commands.length });
@@ -555,11 +611,14 @@ function renderPlay(root, step, { guide = null } = {}) {
                 if (!guide) logEvent('retry', {});
                 resultEl.innerHTML = '';
                 drawBoard(spec.start);
+                updateControls();
+                nudge?.poke();
               },
               'retry'
             )
           );
         }
+        if (howto) howto.setPhase(0);
       },
     });
   });
