@@ -1,17 +1,18 @@
-// playステップ（課題カード→操作画面：命令パレット・実行アニメーション）の描画。
-// 操作画面は「盤面・矢印ボタン・並んだ命令・じっこう」のみに絞り、区分バナー・デモ・
-// やりかた帯・キャプション・長い指示文は課題カードへ集約する（Issue #93）。
+// playステップ（盤面・矢印ボタン・並んだ命令・じっこう）の描画。課題カードは廃止し、
+// 操作画面に直接入る。説明は「れんしゅう」画面と指ガイドで行う（Issue #97。旧仕様はIssue #93）。
+// 画面上部の問い文スロットは、実行結果（やったね／ヒント）を数秒だけトースト表示する場所も兼ねる。
 import { S } from './state.js';
 import { logEvent } from './events.js';
 import { renderGrid, shapeSvg, computeCellSize } from './ui-grid.js';
 import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, vibrate } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
-import { renderTaskCard, renderShowTaskButton, taskCardEnabled } from './ui-task-card.js';
+import { renderInto } from './text-render.js';
 import { createIdleNudge } from './ui-guide.js';
 import { showHandHint } from './ui-hand.js';
 import { isLessonCleared } from './ui-picker.js';
 import { goToStep, createPrimaryButton, playAnimation, setActiveNudge, setActiveHandHint, markLessonCleared } from './ui-step.js';
 import { showSuccess, showHint, diagnose } from './ui-reaction.js';
+import { clearToast } from './ui-toast.js';
 
 // diagnose()の原因ごとの文言（20字以内・否定語なし。Issue #91）。
 const HINT_MESSAGE = {
@@ -38,7 +39,7 @@ export function renderPlay(root, step) {
     activeIndex: -1,
     running: false,
     view: null,
-    started: false,
+    resultShown: false,
     nudge: null,
     remaining: spec.items.length,
     // なおす系（initialCommandsあり）で最初の編集（×・追加・ぜんぶけす）をしたか。
@@ -46,17 +47,37 @@ export function renderPlay(root, step) {
     fixOpened: isFix && JSON.stringify(commands) !== JSON.stringify(freshCommands),
   };
 
-  const taskCardEl = document.createElement('div');
-  root.appendChild(taskCardEl);
-
   const opScreen = document.createElement('div');
   opScreen.className = 'play-screen flex flex-col flex-1 min-h-0 gap-2';
-  opScreen.style.display = 'none';
   root.appendChild(opScreen);
 
-  // 「？」はヘッダーの#step-toolsに置き、操作画面内に行を作らない（盤面の縦幅確保。Issue #99）。
-  const showTaskBtn = renderShowTaskButton(document.getElementById('step-tools'), showTaskCard);
-  showTaskBtn.style.display = 'none';
+  // 問い文スロット（1行）。実行結果もここへ数秒だけトースト表示する（Issue #97）。
+  const statusBar = document.createElement('div');
+  statusBar.className = 'status-bar flex flex-col items-center gap-0.5 shrink-0 text-center';
+  opScreen.appendChild(statusBar);
+
+  let remainingEl = null;
+  function renderQuestion() {
+    statusBar.innerHTML = '';
+    const q = document.createElement('p');
+    q.className = 'text-sm font-bold text-slate-700';
+    renderInto(q, step.text ?? defaultText, S.readingLevel, S.furigana);
+    statusBar.appendChild(q);
+    if (spec.items.length > 0) {
+      const badge = document.createElement('p');
+      badge.className = 'flex items-center justify-center gap-1 text-xs text-slate-600';
+      badge.innerHTML = `<span class="inline-block w-4 h-4">${shapeSvg('item')}</span><span data-remaining>${local.remaining}</span>`;
+      statusBar.appendChild(badge);
+      remainingEl = badge.querySelector('[data-remaining]');
+    } else {
+      remainingEl = null;
+    }
+  }
+
+  function clearResult() {
+    local.resultShown = false;
+    renderQuestion();
+  }
 
   const boardArea = document.createElement('div');
   boardArea.className = 'board-area relative flex-1 min-h-0 flex items-center justify-center overflow-hidden';
@@ -64,23 +85,6 @@ export function renderPlay(root, step) {
 
   const boardWrap = document.createElement('div');
   boardArea.appendChild(boardWrap);
-
-  let remainingBadge = null;
-  let remainingEl = null;
-  if (spec.items.length > 0) {
-    remainingBadge = document.createElement('div');
-    remainingBadge.className =
-      'absolute top-2 left-2 z-10 inline-flex items-center gap-1 bg-white/90 rounded-full px-2 py-1 text-xs font-bold text-slate-700 shadow';
-    remainingBadge.innerHTML = `<span class="inline-block w-4 h-4">${shapeSvg('item')}</span><span data-remaining></span>`;
-    boardArea.appendChild(remainingBadge);
-    remainingEl = remainingBadge.querySelector('[data-remaining]');
-    remainingEl.textContent = String(local.remaining);
-  }
-
-  const resultEl = document.createElement('div');
-  resultEl.className =
-    'absolute top-2 left-1/2 -translate-x-1/2 z-20 max-w-[92%] bg-white/95 rounded-xl shadow px-3 py-2 text-center empty:hidden empty:p-0 empty:shadow-none';
-  boardArea.appendChild(resultEl);
 
   const controls = document.createElement('div');
   controls.className = 'controller-panel flex flex-col gap-2 shrink-0';
@@ -104,7 +108,6 @@ export function renderPlay(root, step) {
   removeLastBtn.textContent = '⌫ ひとつ けす';
   removeLastBtn.className =
     'min-w-[64px] min-h-[64px] px-2 rounded-lg bg-slate-200 text-sm break-keep transition-transform duration-100 active:scale-95 disabled:opacity-40';
-  actionsEl.appendChild(removeLastBtn);
 
   const clearBtn = document.createElement('button');
   clearBtn.type = 'button';
@@ -112,14 +115,12 @@ export function renderPlay(root, step) {
   clearBtn.textContent = 'ぜんぶ けす';
   clearBtn.className =
     'min-w-[64px] min-h-[64px] px-3 rounded-lg bg-slate-200 text-sm break-keep transition-transform duration-100 active:scale-95 disabled:opacity-40';
-  actionsEl.appendChild(clearBtn);
 
   const runBtn = document.createElement('button');
   runBtn.type = 'button';
   runBtn.dataset.action = 'run';
   runBtn.textContent = '▶ じっこう';
   runBtn.className = 'btn-tactile px-4 bg-emerald-500 text-white text-lg font-bold break-keep disabled:opacity-40';
-  actionsEl.appendChild(runBtn);
 
   // 実行が失敗したらrunBtn自体を橙色の「もういちど」に変える（目線を動かさずに押せる。Issue #91）。
   function setRunButtonMode(mode) {
@@ -136,22 +137,35 @@ export function renderPlay(root, step) {
     }
   }
 
+  // クリア時はつぎへ・もういちど（レッスン再挑戦）を通常アクション行に差し替えて表示する
+  // （盤面上に重ねない。Issue #97）。
+  function showNormalActions() {
+    actionsEl.innerHTML = '';
+    actionsEl.appendChild(removeLastBtn);
+    actionsEl.appendChild(clearBtn);
+    actionsEl.appendChild(runBtn);
+  }
+
+  function showResultActions(buttons) {
+    actionsEl.innerHTML = '';
+    buttons.forEach((b) => actionsEl.appendChild(b));
+  }
+
   // 失敗後にrunBtnが「もういちど」化した状態で、もういちどを押さず直接キューを編集した場合
   // （例: cmd03のなおす操作）でも[data-action="run"]に戻す。次のrunで盤面はどのみち
   // drawBoard(spec.start)からやり直すため、機能上は編集時に静かに戻すだけでよい。
   function revertRunButtonIfRetrying() {
     if (runBtn.dataset.action !== 'retry') return;
     setRunButtonMode('run');
-    // ヒントの黄色表示は次に命令を編集したら消える（Issue #91。チップ側はdrawQueue()の
-    // 再描画で自然に消えるため、盤面側とヒントパネルのみここで消す）。
+    // ヒントの表示は次に命令を編集したら消える（Issue #91）。盤面側の印も消す。
     local.view?.clearHints();
-    resultEl.innerHTML = '';
+    clearToast(statusBar);
   }
 
   // やりかた帯・無操作促しの対象を決める段階（Issue #89）。0=強調なし（実行中・結果表示中）、
   // 1=けす/おす、3=じっこう。なおす系は編集済みか否かのみで1↔3を決める（②は経由しない）。
   function currentPhase() {
-    if (local.running || resultEl.childElementCount > 0) return 0;
+    if (local.running || local.resultShown) return 0;
     if (isFix) return local.fixOpened ? 3 : 1;
     return local.commands.length === 0 ? 1 : 3;
   }
@@ -243,7 +257,10 @@ export function renderPlay(root, step) {
     revertRunButtonIfRetrying();
     if (isFix) local.fixOpened = true;
     const i = local.commands.length - 1;
-    local.commands.splice(i, 1);
+    const last = local.commands[i];
+    // まとめられたチップ（times>1）は1回分だけ減らす。1の時だけチップごと消す（Issue #97）。
+    if (last.times > 1) last.times -= 1;
+    else local.commands.splice(i, 1);
     logEvent('undo', { index: i });
     playSfx('remove');
     drawQueue();
@@ -266,8 +283,8 @@ export function renderPlay(root, step) {
   });
 
   function replay() {
-    resultEl.innerHTML = '';
-    delete resultEl.dataset.result;
+    showNormalActions();
+    clearToast(statusBar);
     drawBoard(spec.start);
     updateControls();
     local.nudge?.poke();
@@ -277,8 +294,7 @@ export function renderPlay(root, step) {
     if (runBtn.dataset.action === 'retry') {
       vibrate();
       logEvent('retry', {});
-      resultEl.innerHTML = '';
-      delete resultEl.dataset.result;
+      clearToast(statusBar);
       setRunButtonMode('run');
       drawBoard(spec.start);
       updateControls();
@@ -289,8 +305,7 @@ export function renderPlay(root, step) {
     vibrate();
     local.running = true;
     local.nudge?.stop();
-    resultEl.innerHTML = '';
-    delete resultEl.dataset.result;
+    clearToast(statusBar);
     logEvent('run', { commandCount: local.commands.length });
     updateControls();
     drawBoard(spec.start);
@@ -313,9 +328,12 @@ export function renderPlay(root, step) {
           logEvent('clear', {});
           markLessonCleared();
           delete S.drafts[step.stepId];
-          showSuccess(resultEl, { view: local.view });
-          resultEl.appendChild(createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'));
-          resultEl.appendChild(createPrimaryButton('もういちど', replay, 'replay'));
+          local.resultShown = true;
+          showSuccess(statusBar, { view: local.view, restore: clearResult });
+          showResultActions([
+            createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'),
+            createPrimaryButton('もういちど', replay, 'replay'),
+          ]);
         } else {
           setRunButtonMode('retry');
           updateControls();
@@ -330,71 +348,47 @@ export function renderPlay(root, step) {
             local.view.markCell(spec.goal, 'goal-hint');
           }
           local.view.shrug();
-          showHint(resultEl, { kind: info.reason, message: HINT_MESSAGE[info.reason] });
+          local.resultShown = true;
+          showHint(statusBar, { kind: info.reason, message: HINT_MESSAGE[info.reason], restore: clearResult });
         }
       },
     });
   });
 
-  function showTaskCard() {
-    local.nudge?.stop();
-    opScreen.style.display = 'none';
-    showTaskBtn.style.display = 'none';
-    taskCardEl.style.display = '';
-  }
-
-  function beginTask() {
-    taskCardEl.style.display = 'none';
-    opScreen.style.display = 'flex';
-    showTaskBtn.style.display = '';
-    if (!local.started) {
-      local.started = true;
-      drawBoard(spec.start);
-      drawQueue();
-      updateControls();
-      // 無操作時、いまの段階に応じた実物ボタンを促す（8秒後・最大2回。Issue #89）。
-      local.nudge = createIdleNudge({
-        getTarget: () => {
-          const phase = currentPhase();
-          if (phase === 0) return [];
-          if (phase === 1 && isFix) return [...queueEl.querySelectorAll('.command-remove')];
-          if (phase === 3) return [runBtn];
-          return [...paletteEl.querySelectorAll('button:not(:disabled)')];
-        },
-      });
-      setActiveNudge(local.nudge);
-      // 未クリアレッスンの最初の操作画面表示時だけ、指ガイドを1回出す。最初のタップ/
-      // ドラッグでフェードアウトして消える（Issue #95）。
-      if (!isLessonCleared(S.lesson.lessonId)) {
-        const firstBtn = paletteEl.querySelector('[data-command]');
-        if (firstBtn) {
-          setActiveHandHint(showHandHint({ from: firstBtn, to: queueEl, mode: 'drag' }));
-          opScreen.addEventListener('pointerdown', () => setActiveHandHint(null), { once: true });
-        }
-      }
-      new ResizeObserver(() => {
-        // 実行中・結果/ヒント表示中は盤面状態を保つため再構築しない（Issue #93）。
-        if (local.running || resultEl.childElementCount > 0) return;
-        const next = computeCellSize({
-          cols: spec.grid.cols,
-          rows: spec.grid.rows,
-          width: boardArea.clientWidth,
-          height: boardArea.clientHeight,
-        });
-        if (next !== local.cellSize) drawBoard(spec.start);
-      }).observe(boardArea);
-    } else {
-      local.nudge?.poke();
+  renderQuestion();
+  showNormalActions();
+  drawBoard(spec.start);
+  drawQueue();
+  updateControls();
+  // 無操作時、いまの段階に応じた実物ボタンを促す（8秒後・最大2回。Issue #89）。
+  local.nudge = createIdleNudge({
+    getTarget: () => {
+      const phase = currentPhase();
+      if (phase === 0) return [];
+      if (phase === 1 && isFix) return [...queueEl.querySelectorAll('.command-remove')];
+      if (phase === 3) return [runBtn];
+      return [...paletteEl.querySelectorAll('button:not(:disabled)')];
+    },
+  });
+  setActiveNudge(local.nudge);
+  // 未クリアレッスンの最初の操作画面表示時だけ、指ガイドを1回出す。最初のタップ/
+  // ドラッグでフェードアウトして消える（Issue #95）。
+  if (!isLessonCleared(S.lesson.lessonId)) {
+    const firstBtn = paletteEl.querySelector('[data-command]');
+    if (firstBtn) {
+      setActiveHandHint(showHandHint({ from: firstBtn, to: queueEl, mode: 'drag' }));
+      opScreen.addEventListener('pointerdown', () => setActiveHandHint(null), { once: true });
     }
   }
-
-  renderTaskCard(taskCardEl, {
-    kind: 'play',
-    howtoVariant: isFix ? 'fix' : 'play',
-    text: step.text,
-    defaultText,
-    items: spec.items.length,
-    onBegin: beginTask,
-  });
-  if (!taskCardEnabled()) beginTask();
+  new ResizeObserver(() => {
+    // 実行中・結果表示中は盤面状態を保つため再構築しない（Issue #93）。
+    if (local.running || local.resultShown) return;
+    const next = computeCellSize({
+      cols: spec.grid.cols,
+      rows: spec.grid.rows,
+      width: boardArea.clientWidth,
+      height: boardArea.clientHeight,
+    });
+    if (next !== local.cellSize) drawBoard(spec.start);
+  }).observe(boardArea);
 }

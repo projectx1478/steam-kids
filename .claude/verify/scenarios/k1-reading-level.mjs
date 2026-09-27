@@ -18,7 +18,7 @@ export default async function run({ page, check }) {
   await setReadingLevel(page, 0);
   await page.goto('/index.html?lesson=cmd-02-mijikaku');
   await check('よみレベル0ではrubyが無い', async () => (await page.$$('ruby')).length, 0);
-  await check('よみレベル0ではひらがな表示', async () => page.textContent('[data-step="intro"] p'), 'おなじみちをみじかくしよう');
+  await check('よみレベル0ではひらがな表示', async () => page.textContent('[data-step="intro"] p'), 'おなじ みちを みじかく しよう');
 
   // 2: よみレベル2(2ねん)では配当学年2の「道」が漢字表示され、ふりがなON(既定)で<ruby>になる
   await setReadingLevel(page, 2);
@@ -40,7 +40,7 @@ export default async function run({ page, check }) {
 
   await page.goto('/index.html?lesson=cmd-02-mijikaku');
   await check('トグルOFFでrubyが消える', async () => (await page.$$('ruby')).length, 0);
-  await check('トグルOFFでも漢字表示は維持される', async () => page.textContent('[data-step="intro"] p'), 'おなじ道をみじかくしよう');
+  await check('トグルOFFでも漢字表示は維持される', async () => page.textContent('[data-step="intro"] p'), 'おなじ 道を みじかく しよう');
 
   // 4: 新規端末（プロファイル未作成）ではふりがなトグルの既定値がON
   await page.evaluate(() => localStorage.removeItem('steamkids.profile'));

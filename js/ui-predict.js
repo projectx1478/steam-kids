@@ -1,15 +1,16 @@
-// predictステップ（課題カード→操作画面：固定命令列を自動実行し予想と結果を表示）の描画。
-// 操作画面は「固定命令列・盤面」のみに絞り、区分バナー・デモ・やりかた帯・キャプション・
-// 長い指示文は課題カードへ集約する（Issue #93）。
+// predictステップ（固定命令列を自動実行し予想と結果を表示）の描画。課題カードは廃止し、
+// 操作画面に直接入る（Issue #97。旧仕様はIssue #93）。画面上部の問い文スロットは、実行結果
+// （やったね／ヒント）を数秒だけトースト表示する場所も兼ねる。
 import { S } from './state.js';
 import { logEvent } from './events.js';
 import { renderGrid, computeCellSize } from './ui-grid.js';
 import { COMMAND_LABELS, ORDER_BADGE_CLASS, renderOrderArrow } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
-import { renderTaskCard, renderShowTaskButton, taskCardEnabled } from './ui-task-card.js';
+import { renderInto } from './text-render.js';
 import { createIdleNudge } from './ui-guide.js';
 import { goToStep, createPrimaryButton, playAnimation, setActiveNudge } from './ui-step.js';
 import { showSuccess, showHint } from './ui-reaction.js';
+import { clearToast } from './ui-toast.js';
 
 const RETRY_HINT_MESSAGE = 'ロボットは ここで とまったよ';
 
@@ -26,19 +27,24 @@ function getPlaySpec() {
 
 export function renderPredict(root, step) {
   const spec = getPlaySpec();
-  const local = { selected: null, view: null, started: false, nudge: null, cellSize: 64 };
-
-  const taskCardEl = document.createElement('div');
-  root.appendChild(taskCardEl);
+  const local = { selected: null, view: null, nudge: null, cellSize: 64 };
 
   const opScreen = document.createElement('div');
   opScreen.className = 'predict-screen flex flex-col flex-1 min-h-0 gap-2';
-  opScreen.style.display = 'none';
   root.appendChild(opScreen);
 
-  // 「？」はヘッダーの#step-toolsに置き、操作画面内に行を作らない（盤面の縦幅確保。Issue #99）。
-  const showTaskBtn = renderShowTaskButton(document.getElementById('step-tools'), showTaskCard);
-  showTaskBtn.style.display = 'none';
+  // 問い文スロット（1行）。実行結果もここへ数秒だけトースト表示する（Issue #97）。
+  const statusBar = document.createElement('div');
+  statusBar.className = 'status-bar shrink-0 text-center';
+  opScreen.appendChild(statusBar);
+
+  function renderQuestion() {
+    statusBar.innerHTML = '';
+    const q = document.createElement('p');
+    q.className = 'text-sm font-bold text-slate-700';
+    renderInto(q, step.text, S.readingLevel, S.furigana);
+    statusBar.appendChild(q);
+  }
 
   const commandRow = document.createElement('div');
   commandRow.className = 'flex justify-center items-center gap-2 shrink-0';
@@ -60,10 +66,9 @@ export function renderPredict(root, step) {
   const boardWrap = document.createElement('div');
   boardArea.appendChild(boardWrap);
 
-  const resultEl = document.createElement('div');
-  resultEl.className =
-    'absolute top-2 left-1/2 -translate-x-1/2 z-20 max-w-[92%] bg-white/95 rounded-xl shadow px-3 py-2 text-center empty:hidden empty:p-0 empty:shadow-none';
-  boardArea.appendChild(resultEl);
+  const actionsEl = document.createElement('div');
+  actionsEl.className = 'flex gap-2 justify-center shrink-0';
+  opScreen.appendChild(actionsEl);
 
   // 静的な盤面の再構築。選択前・もういちどの時のみ呼ぶ（結果表示中は足あとを残すため呼ばない）。
   function drawStatic(playerPos, labels) {
@@ -90,7 +95,9 @@ export function renderPredict(root, step) {
   // 選択肢タップ待ちの状態を(再)表示する。もういちど よそう（不正解時・正解時とも）から再度呼ばれる。
   function showQuestion() {
     local.selected = null;
-    resultEl.innerHTML = '';
+    clearToast(statusBar);
+    renderQuestion();
+    actionsEl.innerHTML = '';
     commandRow.querySelectorAll('[data-index]').forEach((el) => delete el.dataset.active);
     drawStatic(spec.start, step.optionCells.map((o) => ({ id: o.id, x: o.x, y: o.y })));
 
@@ -125,51 +132,29 @@ export function renderPredict(root, step) {
         local.view.markCell(finalPos, 'result');
 
         if (correct) {
-          showSuccess(resultEl, { view: local.view });
-          resultEl.appendChild(createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'));
-          resultEl.appendChild(createPrimaryButton('もういちど よそう', showQuestion, 'retry-predict'));
+          showSuccess(statusBar, { view: local.view, restore: renderQuestion });
+          actionsEl.innerHTML = '';
+          actionsEl.appendChild(createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'));
+          actionsEl.appendChild(createPrimaryButton('もういちど よそう', showQuestion, 'retry-predict'));
         } else {
-          showHint(resultEl, { kind: 'predict', message: RETRY_HINT_MESSAGE });
-          resultEl.appendChild(createPrimaryButton('もういちど よそう', showQuestion, 'retry-predict'));
-          resultEl.appendChild(createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'));
+          showHint(statusBar, { kind: 'predict', message: RETRY_HINT_MESSAGE, restore: renderQuestion });
+          actionsEl.innerHTML = '';
+          actionsEl.appendChild(createPrimaryButton('もういちど よそう', showQuestion, 'retry-predict'));
+          actionsEl.appendChild(createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'));
         }
       },
     });
   });
 
-  function showTaskCard() {
-    local.nudge?.stop();
-    opScreen.style.display = 'none';
-    showTaskBtn.style.display = 'none';
-    taskCardEl.style.display = '';
-  }
-
-  function beginTask() {
-    taskCardEl.style.display = 'none';
-    opScreen.style.display = 'flex';
-    showTaskBtn.style.display = '';
-    if (!local.started) {
-      local.started = true;
-      showQuestion();
-      new ResizeObserver(() => {
-        if (local.selected) return; // 結果表示中は盤面状態を保つ
-        const next = computeCellSize({
-          cols: spec.grid.cols,
-          rows: spec.grid.rows,
-          width: boardArea.clientWidth,
-          height: boardArea.clientHeight,
-        });
-        if (next !== local.cellSize) showQuestion();
-      }).observe(boardArea);
-    } else {
-      local.nudge?.poke();
-    }
-  }
-
-  renderTaskCard(taskCardEl, {
-    kind: 'predict',
-    text: step.text,
-    onBegin: beginTask,
-  });
-  if (!taskCardEnabled()) beginTask();
+  showQuestion();
+  new ResizeObserver(() => {
+    if (local.selected) return; // 結果表示中は盤面状態を保つ
+    const next = computeCellSize({
+      cols: spec.grid.cols,
+      rows: spec.grid.rows,
+      width: boardArea.clientWidth,
+      height: boardArea.clientHeight,
+    });
+    if (next !== local.cellSize) showQuestion();
+  }).observe(boardArea);
 }

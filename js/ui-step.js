@@ -7,7 +7,7 @@ import { prefersReducedMotion } from './ui-grid.js';
 import { vibrate } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
 import { renderInto } from './text-render.js';
-import { renderDemo } from './ui-demo.js';
+import { renderGoalDemo } from './ui-demo.js';
 import { renderPlay } from './ui-play.js';
 import { renderPredict } from './ui-predict.js';
 import { renderTutorial, isTutorialDone } from './ui-tutorial.js';
@@ -178,7 +178,6 @@ function renderStep() {
   const step = currentStep();
   const root = stage();
   root.innerHTML = '';
-  document.getElementById('step-tools')?.replaceChildren();
   root.dataset.step = step.kind;
   root.dataset.stepId = step.stepId;
 
@@ -256,8 +255,9 @@ function renderIntro(root, step) {
   p.className = 'text-2xl text-center py-8';
   renderInto(p, step.text, S.readingLevel, S.furigana);
   root.appendChild(p);
-  // このレッスンで何をするかの簡易デモ（Issue #91）。playステップが無い教材型は対象外。
-  if (S.lesson.steps.some((s) => s.kind === 'play')) renderDemo(root, 'play');
+  // ロボットが正解の道をたどってゴールへ到達する完成イメージ（本番とは別のstart/goal。
+  // Issue #97）。demoが無い教材型は対象外。
+  if (step.demo) renderGoalDemo(root, step.demo);
   root.appendChild(createPrimaryButton('はじめる', () => goToStep(S.stepIndex + 1), 'start'));
 
   // tutorialが完了・スキップ済み（自動で飛ばされる）の単元だけ、やり直す入口を小さく出す（Issue #93）。

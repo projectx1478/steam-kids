@@ -12,7 +12,18 @@
   "type": "grid-runtime",
   "estimatedMinutes": 5,
   "steps": [
-    { "stepId": "s1", "kind": "intro", "text": "ゴールまで すすもう" },
+    {
+      "stepId": "s1",
+      "kind": "intro",
+      "text": "ゴールまで {進|すす}もう",
+      "demo": {
+        "grid": { "cols": 4, "rows": 4 },
+        "start": { "x": 3, "y": 3 },
+        "goal": { "x": 0, "y": 0 },
+        "walls": [{ "x": 2, "y": 2 }],
+        "commands": ["left", "left", "left", "up", "up", "up"]
+      }
+    },
     {
       "stepId": "s2",
       "kind": "predict",
@@ -70,6 +81,13 @@
 playステップの指示文になる。未指定時の既定文言は`items`の有無で決まる（`js/ui-step.js`）：
 `items`が1つ以上あれば「どんぐりを ぜんぶ とって ゴール」、無ければ
 「ロボットを ゴールへ うごかそう」（Issue #80）。
+
+`intro.demo`（任意・`{ grid, start, goal, walls, items?, commands }`。`play`と同じ形状の自前の盤面）
+を指定すると、「はじめに」画面でロボットがその経路をたどってゴールへ到達する完成イメージを
+アニメーションで見せる（`js/ui-demo.js`の`renderGoalDemo`）。`start`/`goal`の組は**本番の`play`と
+同一にしない**（答えのネタバレになるため。`validate-lessons.mjs`が機械チェックする）。
+`commands`は壁にぶつからずゴール到達・全item回収する内容にする（同じくチェック対象）。
+reduced-motion時はゴール到達後の最終状態を静止表示するだけになる。未指定の教材型は表示しない。
 
 ### `tutorial`（なぞり操作型チュートリアル）
 

@@ -18,7 +18,7 @@ async function assertNoNegativeWords(page, check, label) {
 }
 
 // cmd-01-susumu/donguri-01-hirouのtutorial（up,up,right,right/up,up,right）を最短で通過する。
-// 課題カードは検証ハーネスの既定でOFFのため、predict/playは操作画面へ即座に入る（config.mjs）。
+// 課題カードはIssue #97で廃止したため、predict/playは操作画面へ常に即座に入る。
 async function skipTutorial(page, dirs) {
   if ((await page.getAttribute('#stage', 'data-step')) !== 'tutorial') return;
   for (const dir of dirs) await page.click(`[data-command="${dir}"]`);
@@ -38,7 +38,7 @@ export default async function run({ page, check }) {
   await check('introでも えらぶ がめんへ は表示される', async () => page.isVisible('#home-btn'));
   await check('ヘッダーに単元名・レッスン名が表示される', async () => page.textContent('#lesson-title'), 'めいれいでうごかす ・ なおす');
   await check('introの区分チップ「はじめに」', async () => page.textContent('#step-kind-chip'), 'はじめに');
-  await check('introにplayデモが表示される', async () => (await page.$$('.demo-widget[data-demo="play"]')).length, 1);
+  await check('introにゴールデモが表示される', async () => (await page.$$('.demo-widget[data-demo="goal"]')).length, 1);
   await check('reduced-motion時、デモに「もういちど みる」が無い', async () => (await page.$$('.demo-widget [data-action="demo-replay"]')).length, 0);
 
   await page.click('[data-action="start"]');

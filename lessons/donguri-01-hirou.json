@@ -5,7 +5,18 @@
   "type": "grid-runtime",
   "estimatedMinutes": 5,
   "steps": [
-    { "stepId": "s1", "kind": "intro", "text": "どんぐりを ぜんぶ ひろおう" },
+    {
+      "stepId": "s1",
+      "kind": "intro",
+      "text": "どんぐりを ぜんぶ ひろおう",
+      "demo": {
+        "grid": { "cols": 4, "rows": 4 },
+        "start": { "x": 3, "y": 0 },
+        "goal": { "x": 0, "y": 3 },
+        "walls": [],
+        "commands": ["down", "down", "down", "left", "left", "left"]
+      }
+    },
     {
       "stepId": "t1",
       "kind": "tutorial",

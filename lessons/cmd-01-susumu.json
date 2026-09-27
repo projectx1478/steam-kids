@@ -5,7 +5,18 @@
   "type": "grid-runtime",
   "estimatedMinutes": 5,
   "steps": [
-    { "stepId": "s1", "kind": "intro", "text": "ゴールまで すすもう" },
+    {
+      "stepId": "s1",
+      "kind": "intro",
+      "text": "ゴールまで {進|すす}もう",
+      "demo": {
+        "grid": { "cols": 4, "rows": 4 },
+        "start": { "x": 3, "y": 3 },
+        "goal": { "x": 0, "y": 0 },
+        "walls": [{ "x": 2, "y": 2 }],
+        "commands": ["left", "left", "left", "up", "up", "up"]
+      }
+    },
     {
       "stepId": "t1",
       "kind": "tutorial",

@@ -1,42 +1,57 @@
-// 正解・不正解の反応をpredict/playで統一する（Issue #91）。
+// 正解・不正解の反応をpredict/playで統一する（Issue #91）。盤面の上に重ねず、操作画面上部の
+// 問い文スロットへトーストとして数秒だけ表示し、その後は問い文へ自動で戻る（Issue #97）。
 // 正解: showSuccess（星＋「やったね！」＋clear音＋振動＋紙ふぶき）。
 // 不正解: showHint（「おしい！」＋否定語を使わないヒント文。data-hintを持ちdata-resultは付けない）。
 import { play as playSfx } from './sfx.js';
 import { vibrate } from './ui-commands.js';
+import { showToast } from './ui-toast.js';
 
-// showSuccess(el, { view }): elに.clear-reaction・data-result="clear"を描く。
-// view.confetti()があれば盤面の紙ふぶきも再生する（play・predict双方のviewが持つ）。
-export function showSuccess(el, { view } = {}) {
-  el.innerHTML = '';
-  el.dataset.result = 'clear';
-  const wrap = document.createElement('div');
-  wrap.className = 'clear-reaction flex flex-col items-center gap-1';
-  wrap.innerHTML = `<svg viewBox="0 0 64 64" class="w-12 h-12" aria-hidden="true">
-    <polygon points="32,4 39,24 60,24 43,37 49,58 32,46 15,58 21,37 4,24 25,24"
-      fill="#fbbf24" stroke="#f59e0b" stroke-width="2" />
-  </svg><p class="text-lg font-bold text-amber-600">やったね！</p>`;
-  el.appendChild(wrap);
+// showSuccess(slotEl, { view, restore }): slotElに.clear-reaction・data-result="clear"をトースト
+// 表示する。view.confetti()があれば盤面の紙ふぶきも再生する（play・predict双方のviewが持つ）。
+// restoreはトーストが消えた時に呼ばれる（呼び出し側が問い文へ戻す）。
+export function showSuccess(slotEl, { view, restore } = {}) {
   playSfx('clear');
   vibrate();
   view?.confetti?.();
+  showToast(slotEl, {
+    render: (el) => {
+      el.dataset.result = 'clear';
+      const wrap = document.createElement('p');
+      wrap.className = 'clear-reaction flex items-center justify-center gap-1 text-base font-bold text-amber-600';
+      wrap.innerHTML = `<svg viewBox="0 0 64 64" class="w-6 h-6 shrink-0" aria-hidden="true">
+        <polygon points="32,4 39,24 60,24 43,37 49,58 32,46 15,58 21,37 4,24 25,24"
+          fill="#fbbf24" stroke="#f59e0b" stroke-width="2" />
+      </svg>やったね！`;
+      el.appendChild(wrap);
+    },
+    restore: (el) => {
+      delete el.dataset.result;
+      restore?.(el);
+    },
+  });
 }
 
-// showHint(el, { kind, message }): kindはdata-hintに入る種別（wall/items/goal/predict等）。
+// showHint(slotEl, { kind, message, restore }): kindはdata-hintに入る種別（wall/items/goal/predict等）。
 // data-resultは付けない（cmd01-clear-reactionの「未達成時はdata-resultが付かない」を維持）。
-export function showHint(el, { kind, message }) {
-  el.innerHTML = '';
-  const panel = document.createElement('div');
-  panel.dataset.hint = kind;
-  panel.className = 'hint-panel flex flex-col items-center gap-1';
-  const heading = document.createElement('p');
-  heading.className = 'text-lg font-bold text-slate-700';
-  heading.textContent = 'おしい！';
-  panel.appendChild(heading);
-  const msg = document.createElement('p');
-  msg.className = 'text-sm text-slate-600';
-  msg.textContent = message;
-  panel.appendChild(msg);
-  el.appendChild(panel);
+// 見出しとメッセージを別行にする（1行20字以内のUI規則を保つため。Issue #91のまま）。
+export function showHint(slotEl, { kind, message, restore }) {
+  showToast(slotEl, {
+    render: (el) => {
+      const panel = document.createElement('div');
+      panel.dataset.hint = kind;
+      panel.className = 'hint-panel flex flex-col items-center';
+      const heading = document.createElement('p');
+      heading.className = 'text-sm font-bold text-slate-700';
+      heading.textContent = 'おしい！';
+      panel.appendChild(heading);
+      const msg = document.createElement('p');
+      msg.className = 'text-xs text-slate-600';
+      msg.textContent = message;
+      panel.appendChild(msg);
+      el.appendChild(panel);
+    },
+    restore,
+  });
 }
 
 // diagnose(result, commands, spec) -> { reason: 'wall', cmdIndex, cell }

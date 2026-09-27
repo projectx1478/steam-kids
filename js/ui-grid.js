@@ -1,6 +1,6 @@
 // SVGグリッド描画。すべて自作SVG（<img>・background-imageは使わない）。
 const DEFAULT_CELL = 64;
-const MIN_CELL = 24;
+const MIN_CELL = 8;
 const MAX_CELL = 64;
 const GAP_PX = 4; // Tailwind gap-1
 const PAD_PX = 4; // Tailwind p-1
@@ -73,10 +73,14 @@ export function prefersReducedMotion() {
   return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-// computeCellSize({cols, rows, width, height}) -> 24〜64の整数。
+// computeCellSize({cols, rows, width, height}) -> 8〜64の整数。
 // 盤面エリアの実寸から1マスの大きさを決める（画面回転・端末差に追従。Issue #93）。
-// 盤面全体（p-1の余白・gap込み）がエリアに収まることを優先する。下限を48pxにすると
-// スマホ縦で盤面が切れてロボットが隠れるため、下限は描画が潰れない24pxとする（Issue #99）。
+// 盤面全体（p-1の余白・gap込み）がエリアに収まることを最優先する。下限は0除算・負値の
+// 防止のみを目的とした8px（見た目の下限ではない）。48px等の固定下限にすると、行数の多い
+// 盤面＋文字拡大＋操作パネルが重なる極端な組み合わせでエリアより盤面が大きくなり、
+// ロボットが隠れる事故が起きるため（Issue #99・#97）。盤面のマスはplay中はタップ対象では
+// ないため、この下限撤廃はタップ領域64px規則（PROJECT.md）と衝突しない。predict/tutorialの
+// 選択肢マスも操作パネル分の余白が無く、実運用でここまで縮む想定はしていない。
 export function computeCellSize({ cols, rows, width, height, gap = GAP_PX }) {
   if (!cols || !rows || !width || !height) return DEFAULT_CELL;
   const fit = (size, n) => (size - PAD_PX * 2 - gap * (n - 1)) / n;
