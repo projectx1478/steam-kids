@@ -178,6 +178,7 @@ function renderStep() {
   const step = currentStep();
   const root = stage();
   root.innerHTML = '';
+  document.getElementById('step-tools')?.replaceChildren();
   root.dataset.step = step.kind;
   root.dataset.stepId = step.stepId;
 

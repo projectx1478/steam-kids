@@ -1,6 +1,6 @@
 // SVGグリッド描画。すべて自作SVG（<img>・background-imageは使わない）。
 const DEFAULT_CELL = 64;
-const MIN_CELL = 48;
+const MIN_CELL = 24;
 const MAX_CELL = 64;
 const GAP_PX = 4; // Tailwind gap-1
 const PAD_PX = 4; // Tailwind p-1
@@ -73,12 +73,14 @@ export function prefersReducedMotion() {
   return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-// computeCellSize({cols, rows, width, height}) -> 48〜64の整数。
+// computeCellSize({cols, rows, width, height}) -> 24〜64の整数。
 // 盤面エリアの実寸から1マスの大きさを決める（画面回転・端末差に追従。Issue #93）。
-// 下限48pxはタップ領域規則のため、上限64pxは元々の固定サイズを超えて大きくしないため。
+// 盤面全体（p-1の余白・gap込み）がエリアに収まることを優先する。下限を48pxにすると
+// スマホ縦で盤面が切れてロボットが隠れるため、下限は描画が潰れない24pxとする（Issue #99）。
 export function computeCellSize({ cols, rows, width, height, gap = GAP_PX }) {
   if (!cols || !rows || !width || !height) return DEFAULT_CELL;
-  const raw = Math.floor(Math.min(width / cols, height / rows)) - gap;
+  const fit = (size, n) => (size - PAD_PX * 2 - gap * (n - 1)) / n;
+  const raw = Math.floor(Math.min(fit(width, cols), fit(height, rows)));
   return Math.min(MAX_CELL, Math.max(MIN_CELL, raw));
 }
 
@@ -106,6 +108,10 @@ export function renderGrid({ grid, walls, goal, items = [], playerPos, labels = 
   board.className = 'grid-board relative inline-grid gap-1 bg-sky-100 p-1 rounded-xl';
   board.style.gridTemplateColumns = `repeat(${grid.cols}, ${CELL}px)`;
   board.style.gridTemplateRows = `repeat(${grid.rows}, ${CELL}px)`;
+  // gap-1/p-1はrem単位のため、端末の文字サイズ拡大でpixelFor()・computeCellSize()の前提
+  // （4px）とずれて盤面がはみ出す。px固定で上書きする（Issue #99）。
+  board.style.gap = `${GAP_PX}px`;
+  board.style.padding = `${PAD_PX}px`;
 
   for (let y = 0; y < grid.rows; y++) {
     for (let x = 0; x < grid.cols; x++) {

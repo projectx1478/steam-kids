@@ -41,7 +41,7 @@ export function renderTutorial(root, step) {
   const local = { commands: [], guideIndex: 0, running: false, view: null, cellSize: TUTORIAL_CELL_MAX };
 
   const panel = document.createElement('div');
-  panel.className = 'tutorial-screen flex flex-col flex-1 min-h-0 gap-2 bg-amber-50 rounded-xl p-3';
+  panel.className = 'tutorial-screen flex flex-col flex-1 min-h-0 gap-2 bg-amber-50 rounded-xl p-2';
   root.appendChild(panel);
 
   const headerRow = document.createElement('div');
@@ -124,16 +124,21 @@ export function renderTutorial(root, step) {
   paletteEl.className = 'flex gap-2 justify-center shrink-0';
   panel.appendChild(paletteEl);
 
+  // 命令列とじっこうを1行に並べる（行を分けるとスマホ縦で盤面の高さが残らないため。Issue #99）。
+  const queueRow = document.createElement('div');
+  queueRow.className = 'flex items-center gap-2 shrink-0';
+  panel.appendChild(queueRow);
+
   const queueEl = document.createElement('ul');
-  queueEl.className = 'command-queue flex flex-nowrap items-center gap-2 overflow-x-auto min-h-[64px] py-1 shrink-0';
-  panel.appendChild(queueEl);
+  queueEl.className = 'command-queue flex flex-nowrap items-center gap-2 overflow-x-auto min-h-[64px] py-1 flex-1 min-w-0';
+  queueRow.appendChild(queueEl);
 
   const runBtn = document.createElement('button');
   runBtn.type = 'button';
   runBtn.dataset.action = 'run';
   runBtn.textContent = '▶ じっこう';
-  runBtn.className = 'btn-tactile block mx-auto px-4 bg-emerald-500 text-white text-lg font-bold disabled:opacity-40 shrink-0';
-  panel.appendChild(runBtn);
+  runBtn.className = 'btn-tactile px-4 bg-emerald-500 text-white text-lg font-bold whitespace-nowrap disabled:opacity-40 shrink-0';
+  queueRow.appendChild(runBtn);
 
   function drawBoard() {
     local.cellSize = Math.min(

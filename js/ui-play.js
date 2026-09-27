@@ -54,10 +54,9 @@ export function renderPlay(root, step) {
   opScreen.style.display = 'none';
   root.appendChild(opScreen);
 
-  const topRow = document.createElement('div');
-  topRow.className = 'flex justify-end';
-  opScreen.appendChild(topRow);
-  renderShowTaskButton(topRow, showTaskCard);
+  // 「？」はヘッダーの#step-toolsに置き、操作画面内に行を作らない（盤面の縦幅確保。Issue #99）。
+  const showTaskBtn = renderShowTaskButton(document.getElementById('step-tools'), showTaskCard);
+  showTaskBtn.style.display = 'none';
 
   const boardArea = document.createElement('div');
   boardArea.className = 'board-area relative flex-1 min-h-0 flex items-center justify-center overflow-hidden';
@@ -104,7 +103,7 @@ export function renderPlay(root, step) {
   removeLastBtn.dataset.action = 'remove-last';
   removeLastBtn.textContent = '⌫ ひとつ けす';
   removeLastBtn.className =
-    'min-w-[64px] min-h-[64px] px-2 rounded-lg bg-slate-200 text-sm transition-transform duration-100 active:scale-95 disabled:opacity-40';
+    'min-w-[64px] min-h-[64px] px-2 rounded-lg bg-slate-200 text-sm break-keep transition-transform duration-100 active:scale-95 disabled:opacity-40';
   actionsEl.appendChild(removeLastBtn);
 
   const clearBtn = document.createElement('button');
@@ -112,14 +111,14 @@ export function renderPlay(root, step) {
   clearBtn.dataset.action = 'clear-all';
   clearBtn.textContent = 'ぜんぶ けす';
   clearBtn.className =
-    'min-w-[64px] min-h-[64px] px-3 rounded-lg bg-slate-200 text-sm transition-transform duration-100 active:scale-95 disabled:opacity-40';
+    'min-w-[64px] min-h-[64px] px-3 rounded-lg bg-slate-200 text-sm break-keep transition-transform duration-100 active:scale-95 disabled:opacity-40';
   actionsEl.appendChild(clearBtn);
 
   const runBtn = document.createElement('button');
   runBtn.type = 'button';
   runBtn.dataset.action = 'run';
   runBtn.textContent = '▶ じっこう';
-  runBtn.className = 'btn-tactile px-4 bg-emerald-500 text-white text-lg font-bold disabled:opacity-40';
+  runBtn.className = 'btn-tactile px-4 bg-emerald-500 text-white text-lg font-bold break-keep disabled:opacity-40';
   actionsEl.appendChild(runBtn);
 
   // 実行が失敗したらrunBtn自体を橙色の「もういちど」に変える（目線を動かさずに押せる。Issue #91）。
@@ -337,12 +336,14 @@ export function renderPlay(root, step) {
   function showTaskCard() {
     local.nudge?.stop();
     opScreen.style.display = 'none';
+    showTaskBtn.style.display = 'none';
     taskCardEl.style.display = '';
   }
 
   function beginTask() {
     taskCardEl.style.display = 'none';
     opScreen.style.display = 'flex';
+    showTaskBtn.style.display = '';
     if (!local.started) {
       local.started = true;
       drawBoard(spec.start);
