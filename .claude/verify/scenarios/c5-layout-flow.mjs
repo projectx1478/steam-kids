@@ -1,8 +1,8 @@
 // C2d 実機フィードバック: 画面に収まるレイアウト・ゴースト矢印・順序表示（Issue #93）。
-// 課題カードはIssue #97で廃止し、predict/playは即座に操作画面へ入る（begin-task/show-taskは
-// 存在しない）。
+// 課題カードはIssue #97で廃止し、playは即座に操作画面へ入る（begin-task/show-taskは
+// 存在しない）。よそう（predict）はIssue #104で全廃した。
 
-export const name = 'C5 レイアウト・ゴースト矢印: 画面に収まる・重ならない・順序が分かる(Issue #93/#97)';
+export const name = 'C5 レイアウト・ゴースト矢印: 画面に収まる・重ならない・順序が分かる(Issue #93/#97/#104)';
 
 const VIEWPORTS = [
   { width: 375, height: 667 },
@@ -60,29 +60,21 @@ export default async function run({ page, check }) {
   await page.unroute('**/lessons/cmd-01-susumu.json');
   await page.unroute('**/lessons/donguri-01-hirou.json');
 
-  // --- predict/playは即座に操作画面（課題カードは無い。Issue #97） ---
+  // --- playは即座に操作画面（課題カードは無い。Issue #97）。よそうは無い（Issue #104） ---
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/index.html?lesson=cmd-03-naosu');
   await page.click('[data-action="start"]');
-  await check('predictへ即座に入る（課題カード無し）', async () => page.getAttribute('#stage', 'data-step'), 'predict');
-  await check('操作画面に区分見出しが無い', async () => (await page.$$('.predict-screen h2')).length, 0);
-  await check('操作画面にデモが無い', async () => (await page.$$('.predict-screen .demo-widget')).length, 0);
-  await check('操作画面にやりかた帯が無い', async () => (await page.$$('.predict-screen .howto-strip')).length, 0);
-
-  await page.click('[data-option="A"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
-  await page.click('[data-action="next"]');
-  await check('playへ即座に入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
+  await check('playへ即座に入る（課題カード・よそう無し）', async () => page.getAttribute('#stage', 'data-step'), 'play');
+  await check('操作画面に区分見出しが無い', async () => (await page.$$('.play-screen h2')).length, 0);
+  await check('操作画面にデモが無い', async () => (await page.$$('.play-screen .demo-widget')).length, 0);
+  await check('操作画面にやりかた帯が無い', async () => (await page.$$('.play-screen .howto-strip')).length, 0);
   await check('play操作画面に説明要素(<p>)が問い文以外に無い', async () => (await page.$$('.play-screen > p, .play-screen h2')).length, 0);
   await check('play操作画面にデモが無い', async () => (await page.$$('.play-screen .demo-widget, .play-screen .category-banner')).length, 0);
 
   // --- 命令列に→区切りと順番数字（Issue #93）。cmd-02-mijikaku(tutorial無し)の空queueで確認する ---
   await page.goto('/index.html?lesson=cmd-02-mijikaku');
   await page.click('[data-action="start"]');
-  await check('predictへ即座に入る', async () => page.getAttribute('#stage', 'data-step'), 'predict');
-  await page.click('[data-option="A"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
-  await page.click('[data-action="next"]');
+  await check('playへ即座に入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
   await page.click('[data-command="down"]');
   await page.click('[data-command="right"]');
   await check('命令列に→区切りがある', async () => (await page.$$('.command-arrow')).length, 1);
@@ -106,14 +98,7 @@ export default async function run({ page, check }) {
     await page.waitForSelector('[data-action="continue-to-task"]', { timeout: 8000 });
     await page.click('[data-action="continue-to-task"]');
 
-    // predict（即座に操作画面）
-    await check(`${label}: predictへ即座に入る`, async () => page.getAttribute('#stage', 'data-step'), 'predict');
-    await checkFitsAndNonOverlap(page, check, `${label} predict`, viewport);
-    await page.click('[data-option="B"]');
-    await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
-    await page.click('[data-action="next"]');
-
-    // play（即座に操作画面）
+    // play（即座に操作画面。よそうは無い。Issue #104）
     await check(`${label}: playへ即座に入る`, async () => page.getAttribute('#stage', 'data-step'), 'play');
     await checkFitsAndNonOverlap(page, check, `${label} play`, viewport);
   }
@@ -137,5 +122,5 @@ export default async function run({ page, check }) {
     const data = await res.json();
     return data.steps.map((s) => s.stepId);
   });
-  await check('レッスンJSONのstepIdは不変（サブ画面はJSONを増やさない）', () => stepIds, ['s1', 't1', 's2', 's3', 's4']);
+  await check('レッスンJSONのstepIdは不変（サブ画面はJSONを増やさない）', () => stepIds, ['s1', 't1', 'p1', 'p2', 'p3', 's2']);
 }

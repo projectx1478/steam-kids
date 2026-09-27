@@ -129,10 +129,12 @@ export function summarize(events, now) {
   return { lessons, recentDays: computeRecentDays(events, now) };
 }
 
-// lessonAchievements(events, lessonId, sinceTs, { shortest }) -> string[]
+// lessonAchievements(events, lessonId, sinceTs, { shortest, playStepIds }) -> string[]
 // このレッスンを開始(sinceTs)してからのイベントだけを対象に、子ども向けの「できたこと」文言を
 // 作る（最大3件）。点数・割合・他人との比較は返さない（PROJECT.md非目標。Issue #91）。
-export function lessonAchievements(events, lessonId, sinceTs, { shortest } = {}) {
+// playStepIds: レッスンのplay全ステージのstepId一覧（だんだん難易度を上げる複数ステージ構成。
+// Issue #104）。省略時は単一ステージ扱い（1回で通したかの判定基準=1）。
+export function lessonAchievements(events, lessonId, sinceTs, { shortest, playStepIds = [] } = {}) {
   const relevant = events
     .filter((e) => e.lessonId === lessonId && e.ts >= sinceTs)
     .sort((a, b) => a.ts - b.ts);
@@ -146,8 +148,11 @@ export function lessonAchievements(events, lessonId, sinceTs, { shortest } = {})
 
   const clearEvent = relevant.find((e) => e.type === 'clear');
   if (clearEvent) {
+    const totalStages = Math.max(1, playStepIds.length);
+    if (totalStages > 1) cards.push(`${totalStages}つの ステージを クリア！`);
+
     const runsBeforeClear = relevant.filter((e) => e.type === 'run' && e.ts <= clearEvent.ts);
-    cards.push(runsBeforeClear.length <= 1 ? '1かいで ゴール！' : 'あきらめずに ゴールできたね');
+    cards.push(runsBeforeClear.length <= totalStages ? '1かいで ゴール！' : 'あきらめずに ゴールできたね');
 
     const lastRun = runsBeforeClear.at(-1);
     if (typeof shortest === 'number' && lastRun?.payload?.commandCount === shortest) {

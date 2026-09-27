@@ -7,9 +7,6 @@ async function countSfx(page, name) {
 export default async function run({ page, check }) {
   await page.goto('/index.html?lesson=cmd-02-mijikaku');
   await page.click('[data-action="start"]');
-  await page.click('[data-option="A"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
-  await page.click('[data-action="next"]');
   await check('playステップに入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
 
   for (let i = 0; i < 5; i++) await page.click('[data-command="down"]');

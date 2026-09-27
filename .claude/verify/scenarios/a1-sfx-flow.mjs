@@ -25,7 +25,10 @@ export default async function run({ page, check }) {
   await page.waitForSelector('[data-action="retry"]', { timeout: 4000 });
   await check('盤外へ進んでbumpが鳴る', async () => (await sfxLog(page)).includes('bump'));
 
+  // retryは正解・不正解に関わらず命令列をリセットする（Issue #104）ため、ぜんぶ けすを
+  // 試すには先に何か積み直す必要がある。
   await page.click('[data-action="retry"]');
+  await page.click('[data-command="up"]');
   await page.click('[data-action="clear-all"]');
   // ぜんぶけすは個別削除(remove)と区別するため専用のreset音を鳴らす（Issue #95）。
   await check('ぜんぶけすでresetが鳴る', async () => (await sfxLog(page)).includes('reset'));
@@ -34,13 +37,14 @@ export default async function run({ page, check }) {
   for (const c of commands) await page.click(`[data-command="${c}"]`);
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="next"]', { timeout: 8000 });
-  await check('ゴール到達でclearが鳴る', async () => (await sfxLog(page)).includes('clear'));
+  // ゴール到達（showSuccess）はclearよりも長いfanfare音を鳴らす（Issue #104）。
+  await check('ゴール到達でfanfareが鳴る', async () => (await sfxLog(page)).includes('fanfare'));
 
   const before = (await sfxLog(page)).length;
   await page.click('[data-action="next"]');
   await check('summaryへの遷移でもログが増える', async () => (await sfxLog(page)).length > before);
-  // summaryは達成感の演出（星のはじけ）でclear音を再生するため、最後に鳴るのはwhooshではなく
-  // clearになる（Issue #91）。
+  // summaryは達成感の演出（星のはじけ）でfanfare音を再生するため、最後に鳴るのはwhooshではなく
+  // fanfareになる（Issue #91・#104）。
   const log = await sfxLog(page);
-  await check('最後に鳴った音はclear（summaryのクリア演出）', () => log[log.length - 1], 'clear');
+  await check('最後に鳴った音はfanfare（summaryのクリア演出）', () => log[log.length - 1], 'fanfare');
 }

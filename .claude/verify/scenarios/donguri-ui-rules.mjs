@@ -18,19 +18,24 @@ async function noLongLine(page) {
     .every((l) => l.length <= 20);
 }
 
-async function checkLesson(page, check, lessonId, predictOptionId) {
-  await page.goto(`/index.html?lesson=${lessonId}`);
+async function checkCommon(page, check, lessonId) {
   await check(`[${lessonId}] imgが0個`, async () => (await page.$$('img')).length, 0);
   await check(`[${lessonId}] 外部リンクが0個`, async () => (await page.$$('a[href^="http"]')).length, 0);
-
   await check(`[${lessonId}] introの全ボタンが48px以上`, async () => boxesOk(page));
   await check(`[${lessonId}] introの表示文言が20字以内`, async () => noLongLine(page));
+}
+
+// donguri-01-hirouはconfig.mjsが凍結した旧構造（predict込み・単一play）で検証する（他シナリオと同じ）。
+async function checkDonguri01(page, check) {
+  const lessonId = 'donguri-01-hirou';
+  await page.goto(`/index.html?lesson=${lessonId}`);
+  await checkCommon(page, check, lessonId);
 
   await page.click('[data-action="start"]');
   await check(`[${lessonId}] predictの全ボタンが48px以上`, async () => boxesOk(page));
   await check(`[${lessonId}] predictの表示文言が20字以内`, async () => noLongLine(page));
 
-  await page.click(`[data-option="${predictOptionId}"]`);
+  await page.click('[data-option="A"]');
   await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
   await check(`[${lessonId}] 予想結果表示の文言が20字以内`, async () => noLongLine(page));
 
@@ -39,7 +44,18 @@ async function checkLesson(page, check, lessonId, predictOptionId) {
   await check(`[${lessonId}] playの表示文言が20字以内`, async () => noLongLine(page));
 }
 
+// donguri-02-mawarimichiは実JSON（よそう全廃・3ステージ。Issue #104）で検証する。
+async function checkDonguri02(page, check) {
+  const lessonId = 'donguri-02-mawarimichi';
+  await page.goto(`/index.html?lesson=${lessonId}`);
+  await checkCommon(page, check, lessonId);
+
+  await page.click('[data-action="start"]');
+  await check(`[${lessonId}] playの全ボタンが48px以上`, async () => boxesOk(page));
+  await check(`[${lessonId}] playの表示文言が20字以内`, async () => noLongLine(page));
+}
+
 export default async function run({ page, check }) {
-  await checkLesson(page, check, 'donguri-01-hirou', 'A');
-  await checkLesson(page, check, 'donguri-02-mawarimichi', 'A');
+  await checkDonguri01(page, check);
+  await checkDonguri02(page, check);
 }

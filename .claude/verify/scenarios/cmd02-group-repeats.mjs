@@ -1,12 +1,16 @@
-export const name = 'cmd-02-mijikaku: 同方向連続タップがまとめられ、3チップでゴールに到達する(Issue #48)';
+export const name = 'cmd-02-mijikaku: 同方向連続タップがまとめられ、3チップでゴールに到達する(Issue #48/#104)';
 
 export default async function run({ page, check }) {
   await page.goto('/index.html?lesson=cmd-02-mijikaku');
   await page.click('[data-action="start"]');
-  await page.click('[data-option="A"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
-  await page.click('[data-action="next"]');
-  await check('playステップに入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
+  await check('play(p1)ステップに入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
+  // p1（2チップ・maxCommands2）をクリアしてp2（この検証対象。down×5+right×2の2チップ・
+  // maxCommands3）へ進む（よそうはIssue #104で全廃）。
+  for (const c of ['down', 'down', 'down', 'left', 'left']) await page.click(`[data-command="${c}"]`);
+  await page.click('[data-action="run"]');
+  await page.waitForSelector('[data-action="next-stage"]', { timeout: 8000 });
+  await page.click('[data-action="next-stage"]');
+  await check('play(p2)ステップに入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
 
   for (let i = 0; i < 5; i++) {
     await page.click('[data-command="down"]');
@@ -32,6 +36,6 @@ export default async function run({ page, check }) {
   );
 
   await page.click('[data-action="run"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 8000 });
+  await page.waitForSelector('[data-action="next-stage"]', { timeout: 8000 });
   await check('ゴールに到達し「やったね」が表示される', async () => (await page.$('.clear-reaction')) !== null);
 }

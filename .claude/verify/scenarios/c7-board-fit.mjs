@@ -48,11 +48,7 @@ async function runLesson(page, check, lessonId, label) {
     await check(`${label} ${lessonId} tutorial: 盤面が収まる`, () => boardFits(page), 'ok');
     await page.click('[data-action="skip-tutorial"]');
   }
-  await page.waitForSelector('[data-option]');
-  await check(`${label} ${lessonId} predict: 盤面が収まる`, () => boardFits(page), 'ok');
-  await page.click('[data-option]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 8000 });
-  await page.click('[data-action="next"]');
+  // よそう（predict）はIssue #104で全廃。tutorial後は直接play(p1)へ入る。
   await page.waitForSelector('.play-screen .grid-board');
   await check(`${label} ${lessonId} play: 盤面が収まる`, () => boardFits(page), 'ok');
   // 命令を積んでキューにチップが並んだ状態（パネルが最も高くなる状態）でも収まるか
@@ -110,10 +106,7 @@ async function checkQueueOverflow(page, check) {
   );
   await page.goto('/index.html?lesson=donguri-02-mawarimichi');
   await page.click('[data-action="start"]');
-  await page.waitForSelector('[data-option]');
-  await page.click('[data-option]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 8000 });
-  await page.click('[data-action="next"]');
+  // よそう（predict）はIssue #104で全廃。introの「はじめる」から直接play(p1)へ入る。
   await page.waitForSelector('.play-screen .grid-board');
   for (let i = 0; i < 9; i += 1) {
     const btn = await page.$('[data-command]:not(:disabled)');

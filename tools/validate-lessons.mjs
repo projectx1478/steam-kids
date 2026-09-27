@@ -15,6 +15,8 @@ const KINDS = ['intro', 'predict', 'play', 'tutorial', 'summary'];
 const COMMANDS = ['up', 'down', 'left', 'right'];
 const MIN_STEPS = 4;
 const MAX_STEPS = 7;
+const MIN_PLAY = 2;
+const MAX_PLAY = 4;
 // docs/authoring-rules.md「禁止事項」で確定した否定語リスト。
 const FORBIDDEN_WORDS = ['ちがう', 'まちがい', 'ざんねん'];
 
@@ -63,9 +65,20 @@ function checkBoard(board, add, label) {
   });
 }
 
+// demo.commands/demo.fixFromの各要素は方向文字列、または{dir, times}（cmd-02のまとめ表示。Issue #104）。
+function demoEntryDir(entry) {
+  return typeof entry === 'string' ? entry : entry?.dir;
+}
+function demoEntryTimes(entry) {
+  return typeof entry === 'string' ? 1 : entry?.times;
+}
+
 // introのdemo（Issue #97:「はじめに」画面でロボットがゴールへ到達する完成イメージ。本番playとは
 // 別のstart/goal）を検証する。demoが無ければ何もしない（現状は任意項目）。
-function checkDemo(intro, play, add) {
+// showCommands（命令チップ列を表示）・fixFrom（先に誤った命令列を実行してから正しい commands へ
+// 差し替える「なおす」デモ。Issue #104）は任意項目。playStepsは本番のplay全ステージ（ネタバレ防止の
+// 比較対象）。
+function checkDemo(intro, playSteps, add) {
   const demo = intro?.demo;
   if (!demo) return;
   const grid = demo.grid || {};
@@ -73,6 +86,10 @@ function checkDemo(intro, play, add) {
   const wallKeySet = new Set(walls.map((w) => `${w.x},${w.y}`));
   const items = Array.isArray(demo.items) ? demo.items : [];
   const label = `stepId="${intro.stepId}" のdemo`;
+
+  if ('showCommands' in demo && typeof demo.showCommands !== 'boolean') {
+    add('demoの型', `${label} showCommands=${JSON.stringify(demo.showCommands)} はboolean以外`);
+  }
 
   const coordChecks = [
     ['start', demo.start],
@@ -91,27 +108,50 @@ function checkDemo(intro, play, add) {
     if (wallKeySet.has(`${demo.goal.x},${demo.goal.y}`)) add('盤面の妥当性', `${label} goal が壁と重なる`);
   }
 
-  if (!Array.isArray(demo.commands) || demo.commands.some((c) => !COMMANDS.includes(c))) {
-    add('命令語彙', `${label} commands=${JSON.stringify(demo.commands)} が不正`);
-    return;
+  const commandLists = [['commands', demo.commands]];
+  if ('fixFrom' in demo) commandLists.push(['fixFrom', demo.fixFrom]);
+  let vocabOk = true;
+  for (const [key, list] of commandLists) {
+    if (!Array.isArray(list) || list.length === 0) {
+      add('命令語彙', `${label} ${key}=${JSON.stringify(list)} が空、または配列でない`);
+      vocabOk = false;
+      continue;
+    }
+    if (list.some((c) => !COMMANDS.includes(demoEntryDir(c)))) {
+      add('命令語彙', `${label} ${key}=${JSON.stringify(list)} が不正`);
+      vocabOk = false;
+    } else if (list.some((c) => !Number.isInteger(demoEntryTimes(c)) || demoEntryTimes(c) < 1)) {
+      add('命令語彙', `${label} ${key}のtimesが不正`);
+      vocabOk = false;
+    }
   }
-  if (!demo.start || !demo.goal || !grid.cols || !grid.rows) return;
+  if (!vocabOk || !demo.start || !demo.goal || !grid.cols || !grid.rows) return;
 
   const result = simulate(demo.commands, { grid, start: demo.start, goal: demo.goal, walls, items });
   if (!result.reachedGoal || result.remainingItems.length > 0 || result.blockedAt.length > 0) {
     add('デモの到達可能性', `${label} のcommandsを実行してもゴール到達＋全item回収にならない、または壁にぶつかる`);
   }
 
-  // ネタバレ防止: 本番playと同じ(start,goal)の組を答えの経路として見せない（Issue #97）。
-  if (
-    play?.start &&
-    play?.goal &&
-    demo.start.x === play.start.x &&
-    demo.start.y === play.start.y &&
-    demo.goal.x === play.goal.x &&
-    demo.goal.y === play.goal.y
-  ) {
-    add('デモのネタバレ', `${label} のstart/goalが本番playと同一（答えのネタバレになる）`);
+  if (demo.fixFrom) {
+    const fixResult = simulate(demo.fixFrom, { grid, start: demo.start, goal: demo.goal, walls, items });
+    if (fixResult.reachedGoal && fixResult.remainingItems.length === 0 && fixResult.blockedAt.length === 0) {
+      add('デモの到達可能性', `${label} のfixFromがそのままゴールに到達してしまう（直す必要が無い）`);
+    }
+  }
+
+  // ネタバレ防止: 本番playのいずれかのステージと同じ(start,goal)の組を答えの経路として見せない
+  // （Issue #97・#104で全ステージへ拡張）。
+  for (const play of playSteps) {
+    if (
+      play?.start &&
+      play?.goal &&
+      demo.start.x === play.start.x &&
+      demo.start.y === play.start.y &&
+      demo.goal.x === play.goal.x &&
+      demo.goal.y === play.goal.y
+    ) {
+      add('デモのネタバレ', `${label} のstart/goalが本番play(stepId="${play.stepId}")と同一（答えのネタバレになる）`);
+    }
   }
 }
 
@@ -169,12 +209,13 @@ function validateLesson(fileName, data) {
     }
   }
 
+  // predictは0個でもよい（現行レッスンはIssue #104で全廃。将来の教材型のため語彙は残す）。
   const predictSteps = steps.filter((s) => s.kind === 'predict');
-  if (predictSteps.length === 0) add('予想の必須', 'kind="predict" のステップがない');
 
+  // playは2〜4個（だんだん難易度を上げる複数ステージ構成。Issue #104）。
   const playSteps = steps.filter((s) => s.kind === 'play');
-  if (data.type === 'grid-runtime' && playSteps.length !== 1) {
-    add('盤面の必須', `kind="play" が${playSteps.length}個（ちょうど1個である必要がある）`);
+  if (data.type === 'grid-runtime' && (playSteps.length < MIN_PLAY || playSteps.length > MAX_PLAY)) {
+    add('盤面の必須', `kind="play" が${playSteps.length}個（${MIN_PLAY}〜${MAX_PLAY}個である必要がある）`);
   }
 
   // チュートリアル（tutorial）は各単元1本目のみ・0〜1個（Issue #81）。
@@ -183,55 +224,79 @@ function validateLesson(fileName, data) {
     add('チュートリアルの個数', `kind="tutorial" が${tutorialSteps.length}個（0〜1個である必要がある）`);
   }
 
-  if (data.type !== 'grid-runtime' || playSteps.length !== 1) return errors;
+  if (data.type !== 'grid-runtime' || playSteps.length === 0) return errors;
 
-  const play = playSteps[0];
-  const grid = play.grid || {};
-  const walls = Array.isArray(play.walls) ? play.walls : [];
-  const wallKeySet = new Set(walls.map((w) => `${w.x},${w.y}`));
-  const items = Array.isArray(play.items) ? play.items : [];
+  checkDemo(steps.find((s) => s.kind === 'intro'), playSteps, add);
 
-  checkBoard(play, add, '');
-  checkDemo(steps.find((s) => s.kind === 'intro'), play, add);
+  // 各ステージの最短距離（groupRepeatsはチップ数）。難易度がステージごとに非減少であることを
+  // 後段でまとめて検証する（Issue #104）。
+  const stageDistances = [];
+  for (const play of playSteps) {
+    const grid = play.grid || {};
+    const walls = Array.isArray(play.walls) ? play.walls : [];
+    const items = Array.isArray(play.items) ? play.items : [];
+    const label = `stepId="${play.stepId}" の`;
 
-  if ('groupRepeats' in play && typeof play.groupRepeats !== 'boolean') {
-    add('groupRepeatsの型', `play.groupRepeats=${JSON.stringify(play.groupRepeats)} はboolean以外`);
-  }
+    checkBoard(play, add, label);
 
-  if ('initialCommands' in play) {
-    const initial = play.initialCommands;
-    if (!Array.isArray(initial) || initial.some((c) => !COMMANDS.includes(c))) {
-      add('命令語彙', `play.initialCommands=${JSON.stringify(initial)} が不正`);
-    } else if (typeof play.maxCommands === 'number' && initial.length > play.maxCommands) {
-      add('なおすの初期状態', `initialCommands.length=${initial.length} がmaxCommands=${play.maxCommands}を超える`);
+    if ('groupRepeats' in play && typeof play.groupRepeats !== 'boolean') {
+      add('groupRepeatsの型', `${label}groupRepeats=${JSON.stringify(play.groupRepeats)} はboolean以外`);
+    }
+
+    if ('initialCommands' in play) {
+      const initial = play.initialCommands;
+      if (!Array.isArray(initial) || initial.some((c) => !COMMANDS.includes(c))) {
+        add('命令語彙', `${label}initialCommands=${JSON.stringify(initial)} が不正`);
+      } else if (typeof play.maxCommands === 'number' && initial.length > play.maxCommands) {
+        add('なおすの初期状態', `${label}initialCommands.length=${initial.length} がmaxCommands=${play.maxCommands}を超える`);
+      }
+    }
+
+    let dist = null;
+    if (play.start && play.goal && grid.cols && grid.rows) {
+      const spec = { grid, start: play.start, goal: play.goal, walls, items };
+      // groupRepeatsありのレッスンは、同方向連続をまとめた最小チップ数で判定する
+      // （まとめないと手数制限に収まらないレッスンを正しく通すため）。
+      dist = play.groupRepeats ? shortestChips(spec) : shortestSteps(spec);
+      if (dist > play.maxCommands) {
+        add(
+          'ゴール到達可能性',
+          `${label}最短${dist === Infinity ? '到達不能' : dist + (play.groupRepeats ? 'チップ' : '手')}` +
+            `（maxCommands=${play.maxCommands}以内で到達できない）`
+        );
+      }
+    }
+    stageDistances.push(dist);
+
+    if (
+      Array.isArray(play.initialCommands) &&
+      play.initialCommands.every((c) => COMMANDS.includes(c)) &&
+      play.start &&
+      play.goal
+    ) {
+      const result = simulate(play.initialCommands, { grid, start: play.start, goal: play.goal, walls, items });
+      if (result.reachedGoal && result.remainingItems.length === 0 && result.blockedAt.length === 0) {
+        add('なおすの初期状態', `${label}initialCommandsがそのまま実行してもゴールに到達してしまう（直す必要が無い）`);
+      }
     }
   }
 
-  if (play.start && play.goal && grid.cols && grid.rows) {
-    const spec = { grid, start: play.start, goal: play.goal, walls, items };
-    // groupRepeatsありのレッスンは、同方向連続をまとめた最小チップ数で判定する
-    // （まとめないと手数制限に収まらないレッスンを正しく通すため）。
-    const dist = play.groupRepeats ? shortestChips(spec) : shortestSteps(spec);
-    if (dist > play.maxCommands) {
+  for (let i = 1; i < stageDistances.length; i += 1) {
+    const prev = stageDistances[i - 1];
+    const cur = stageDistances[i];
+    if (prev !== null && cur !== null && cur !== Infinity && prev !== Infinity && cur < prev) {
       add(
-        'ゴール到達可能性',
-        `最短${dist === Infinity ? '到達不能' : dist + (play.groupRepeats ? 'チップ' : '手')}` +
-          `（maxCommands=${play.maxCommands}以内で到達できない）`
+        '難易度の順序',
+        `stepId="${playSteps[i].stepId}" の最短(${cur})がstepId="${playSteps[i - 1].stepId}"の最短(${prev})より短い` +
+          '（ステージが進むほど難易度は非減少である必要がある）'
       );
     }
   }
 
-  if (
-    Array.isArray(play.initialCommands) &&
-    play.initialCommands.every((c) => COMMANDS.includes(c)) &&
-    play.start &&
-    play.goal
-  ) {
-    const result = simulate(play.initialCommands, { grid, start: play.start, goal: play.goal, walls, items });
-    if (result.reachedGoal && result.remainingItems.length === 0) {
-      add('なおすの初期状態', 'initialCommandsがそのまま実行してもゴールに到達してしまう（直す必要が無い）');
-    }
-  }
+  // 予想向けの検証は最初のplayステージの盤面を基準にする（predictは現行レッスンでは未使用。Issue #104）。
+  const referencePlay = playSteps[0];
+  const refGrid = referencePlay.grid || {};
+  const refWalls = Array.isArray(referencePlay.walls) ? referencePlay.walls : [];
 
   if (tutorialSteps.length === 1) {
     const tutorial = tutorialSteps[0];
@@ -240,9 +305,9 @@ function validateLesson(fileName, data) {
     if (!prevStep || prevStep.kind !== 'intro') {
       add('チュートリアルの位置', `stepId="${tutorial.stepId}" の直前がintroでない`);
     }
-    const firstPredictIdx = steps.findIndex((s) => s.kind === 'predict');
-    if (firstPredictIdx !== -1 && tutorialIdx > firstPredictIdx) {
-      add('チュートリアルの位置', `stepId="${tutorial.stepId}" がpredictより後にある`);
+    const firstPlayIdx = steps.findIndex((s) => s.kind === 'play');
+    if (firstPlayIdx !== -1 && tutorialIdx > firstPlayIdx) {
+      add('チュートリアルの位置', `stepId="${tutorial.stepId}" が最初のplayより後にある`);
     }
 
     checkBoard(tutorial, add, `stepId="${tutorial.stepId}" の`);
@@ -301,14 +366,14 @@ function validateLesson(fileName, data) {
       add('予想の選択肢', `stepId="${predict.stepId}" の optionCells の id が options と不一致`);
     }
     for (const cell of optionCells) {
-      if (!inGrid(grid, cell)) add('座標範囲', `stepId="${predict.stepId}" optionCells id="${cell.id}" が盤外`);
+      if (!inGrid(refGrid, cell)) add('座標範囲', `stepId="${predict.stepId}" optionCells id="${cell.id}" が盤外`);
     }
 
     const predictCommands = Array.isArray(predict.commands) ? predict.commands : [];
     if (predictCommands.some((c) => !COMMANDS.includes(c))) {
       add('命令語彙', `stepId="${predict.stepId}" の commands=${JSON.stringify(predictCommands)} が不正`);
-    } else if (play.start) {
-      const result = simulate(predictCommands, { grid, start: play.start, goal: play.goal, walls });
+    } else if (referencePlay?.start) {
+      const result = simulate(predictCommands, { grid: refGrid, start: referencePlay.start, goal: referencePlay.goal, walls: refWalls });
       const end = result.path[result.path.length - 1];
       const answerCell = optionCells.find((c) => c.id === predict.answer);
       if (answerCell && (end.x !== answerCell.x || end.y !== answerCell.y)) {

@@ -1,14 +1,18 @@
 // summaryステップ（クリア演出・「できたこと」・単元の進み具合）の描画（Issue #91）。
+// レッスンクリア（このファイル）＜単元ぜんぶクリアの2段階で演出を大きくする（Issue #104。
+// ステージクリアの演出はjs/ui-reaction.jsのshowSuccessが担う）。
 import { S } from './state.js';
 import { getEvents } from './events.js';
 import { summarize, lessonAchievements } from './analytics.js';
 import { shortestSteps, shortestChips } from './engine-grid.js';
-import { stampSvg } from './ui-picker.js';
+import { stampSvg, flagSvg, medalSvg } from './ui-picker.js';
 import { play as playSfx } from './sfx.js';
-import { prefersReducedMotion } from './ui-grid.js';
+import { prefersReducedMotion, screenConfetti } from './ui-grid.js';
 import { createPrimaryButton } from './ui-step.js';
 
 const MAX_CARDS = 3;
+const LESSON_CONFETTI = { count: 120, duration: 3000 };
+const UNIT_CONFETTI = { count: 200, duration: 4000, colors: ['#f87171', '#fb923c', '#fbbf24', '#34d399', '#38bdf8', '#818cf8', '#e879f9'] };
 
 function achievementCard(text) {
   const card = document.createElement('div');
@@ -39,11 +43,16 @@ function playSpecOf(playStep) {
 
 export function renderSummary(root) {
   const lessonId = S.lesson.lessonId;
+  const events = getEvents();
+  const { lessons: lessonStatus } = summarize(events, Date.now());
+  const isCleared = (id) => id === lessonId || lessonStatus[id]?.status === 'cleared';
+  const unitAllCleared = Boolean(S.unit) && S.unit.lessonIds.every(isCleared);
 
   const burst = document.createElement('div');
   burst.className = 'flex flex-col items-center gap-2 py-4';
   const star = document.createElement('div');
-  star.className = prefersReducedMotion() ? 'w-16 h-16' : 'w-16 h-16 motion-safe:animate-bounce';
+  // レッスンクリアの星は大きめ(w-32)で回転しながら出る。reduced-motion時は静止表示（Issue #104）。
+  star.className = prefersReducedMotion() ? 'w-32 h-32' : 'w-32 h-32 star-reveal';
   star.innerHTML = `<svg viewBox="0 0 64 64" aria-hidden="true">
     <polygon points="32,4 39,24 60,24 43,37 49,58 32,46 15,58 21,37 4,24 25,24" fill="#fbbf24" stroke="#f59e0b" stroke-width="2" />
   </svg>`;
@@ -57,17 +66,20 @@ export function renderSummary(root) {
   lessonTitle.textContent = S.lesson.title;
   burst.appendChild(lessonTitle);
   root.appendChild(burst);
-  playSfx('clear');
+  // レッスンクリアの演出：画面全体の紙ふぶき＋fanfare（Issue #104）。単元ぜんぶクリアの
+  // 演出（メダル・虹色紙ふぶき・grandFanfare）はこの後さらに重ねる。
+  playSfx('fanfare');
+  screenConfetti(LESSON_CONFETTI);
 
-  const events = getEvents();
-  const playStep = S.lesson.steps.find((s) => s.kind === 'play');
+  const playStepIds = S.lesson.steps.filter((s) => s.kind === 'play').map((s) => s.stepId);
+  const lastPlay = S.lesson.steps.filter((s) => s.kind === 'play').at(-1);
   let shortest;
-  if (playStep) {
-    const spec = playSpecOf(playStep);
-    shortest = playStep.groupRepeats ? shortestChips(spec) : shortestSteps(spec);
+  if (lastPlay) {
+    const spec = playSpecOf(lastPlay);
+    shortest = lastPlay.groupRepeats ? shortestChips(spec) : shortestSteps(spec);
   }
   const sinceTs = currentAttemptSinceTs(events, lessonId);
-  const cards = lessonAchievements(events, lessonId, sinceTs, { shortest });
+  const cards = lessonAchievements(events, lessonId, sinceTs, { shortest, playStepIds });
   if (cards.length > 0) {
     const cardsWrap = document.createElement('div');
     cardsWrap.className = 'achievement-cards flex flex-wrap justify-center gap-2 my-2';
@@ -76,26 +88,44 @@ export function renderSummary(root) {
   }
 
   if (S.unit) {
-    const { lessons: lessonStatus } = summarize(events, Date.now());
-    const isCleared = (id) => id === lessonId || lessonStatus[id]?.status === 'cleared';
-
     const stampsWrap = document.createElement('div');
     stampsWrap.className = 'unit-progress flex justify-center gap-1 my-2';
     S.unit.lessonIds.forEach((id) => {
       const dot = document.createElement('span');
       dot.className = 'inline-flex w-6 h-6';
       dot.dataset.stamp = isCleared(id) ? 'done' : 'todo';
-      if (isCleared(id)) dot.innerHTML = stampSvg();
-      else dot.className += ' rounded-full bg-slate-200';
+      if (isCleared(id)) {
+        dot.innerHTML = stampSvg();
+        // 今回クリアしたレッスンのスタンプだけ「ぽん」と押される演出にする（reduced-motion時は
+        // 静止表示のまま。Issue #104）。
+        if (id === lessonId && !prefersReducedMotion()) dot.classList.add('stamp-pop');
+      } else {
+        dot.className += ' rounded-full bg-slate-200';
+      }
       stampsWrap.appendChild(dot);
     });
     root.appendChild(stampsWrap);
 
-    if (S.unit.lessonIds.every(isCleared)) {
+    if (unitAllCleared) {
+      // 単元ぜんぶクリア：レッスンクリアの演出にメダル・虹色紙ふぶき・grandFanfareを重ねる
+      // （Issue #104。以前は「しま クリア！」という文言が単元名の言い換えとして分かりにくかった
+      // ため、単元名そのものを入れた文言に変える）。
+      playSfx('grandFanfare');
+      screenConfetti(UNIT_CONFETTI);
+
+      const medal = document.createElement('div');
+      medal.className = 'w-40 h-40 mx-auto my-2';
+      medal.innerHTML = medalSvg();
+      root.appendChild(medal);
+
+      const flagWrap = document.createElement('div');
+      flagWrap.className = `flex items-center justify-center gap-1 ${prefersReducedMotion() ? '' : 'flag-wave'}`;
+      flagWrap.innerHTML = `<span class="w-7 h-7 inline-block">${flagSvg()}</span>`;
       const flagMsg = document.createElement('h2');
       flagMsg.className = 'text-center text-emerald-700 font-bold';
-      flagMsg.textContent = 'しま クリア！';
-      root.appendChild(flagMsg);
+      flagMsg.textContent = `${S.unit.title} ぜんぶ クリア！`;
+      flagWrap.appendChild(flagMsg);
+      root.appendChild(flagWrap);
     }
 
     const nextId = S.unit.lessonIds[S.unit.lessonIds.indexOf(lessonId) + 1];

@@ -27,12 +27,19 @@ export function renderPlay(root, step) {
   const isFix = (step.initialCommands ?? []).length > 0;
 
   // initialCommandsがあれば「ずれた」命令列を最初から積んでおく（なおす系レッスン用）。
+  // もういちど（失敗時のretry・クリア後のreplay双方）でこの内容へ戻す（Issue #104）ため、
+  // 以後書き換えるcommandsとは別の配列として持つ。
   const freshCommands = (step.initialCommands ?? []).map((dir) => ({ dir, times: 1 }));
   // ←で戻って再びこのplayへ進んだ時、命令列の下書き（S.drafts）があれば復元する
   // （確認ダイアログ全廃の代わりの誤タップ対策。以後の追加・削除はこの配列を直接
   // 書き換えるため、参照を共有するだけで自動的に保存される。Issue #95）。
-  const commands = S.drafts[step.stepId] ?? freshCommands;
+  const commands = S.drafts[step.stepId] ?? freshCommands.map((c) => ({ ...c }));
   S.drafts[step.stepId] = commands;
+
+  // このステージがレッスン中の何番目のplayか（複数ステージ構成向け。Issue #104）。
+  const playSteps = S.lesson.steps.filter((s) => s.kind === 'play');
+  const stageIndex = playSteps.findIndex((s) => s.stepId === step.stepId);
+  const isFinalStage = stageIndex === playSteps.length - 1;
 
   const local = {
     commands,
@@ -195,6 +202,16 @@ export function renderPlay(root, step) {
     if (remainingEl) remainingEl.textContent = String(local.remaining);
   }
 
+  // resetToFresh(): 命令列をfreshCommands（なおす系は初期の「ずれた」列、それ以外は空）へ戻す。
+  // 「もういちど」（失敗後のretry・クリア後のreplay）は正解・不正解に関わらず必ずこれを呼ぶ
+  // （前回の命令列を残さない。Issue #104）。参照(S.drafts)は保ったまま中身だけ入れ替える。
+  function resetToFresh() {
+    local.commands.length = 0;
+    freshCommands.forEach((c) => local.commands.push({ ...c }));
+    S.drafts[step.stepId] = local.commands;
+    local.fixOpened = false;
+  }
+
   function drawQueue() {
     renderCommandQueue(queueEl, {
       commands: local.commands,
@@ -285,6 +302,8 @@ export function renderPlay(root, step) {
   function replay() {
     showNormalActions();
     clearToast(statusBar);
+    resetToFresh();
+    drawQueue();
     drawBoard(spec.start);
     updateControls();
     local.nudge?.poke();
@@ -296,6 +315,8 @@ export function renderPlay(root, step) {
       logEvent('retry', {});
       clearToast(statusBar);
       setRunButtonMode('run');
+      resetToFresh();
+      drawQueue();
       drawBoard(spec.start);
       updateControls();
       local.nudge?.poke();
@@ -324,16 +345,27 @@ export function renderPlay(root, step) {
         local.activeIndex = -1;
         drawQueue();
         updateControls();
-        if (result.reachedGoal && result.remainingItems.length === 0) {
-          logEvent('clear', {});
-          markLessonCleared();
+        // 壁にぶつかった手が1つでもあれば、結果としてゴールに着いても正解にしない（Issue #104）。
+        if (result.reachedGoal && result.remainingItems.length === 0 && result.blockedAt.length === 0) {
           delete S.drafts[step.stepId];
           local.resultShown = true;
           showSuccess(statusBar, { view: local.view, restore: clearResult });
-          showResultActions([
-            createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'),
-            createPrimaryButton('もういちど', replay, 'replay'),
-          ]);
+          if (isFinalStage) {
+            logEvent('clear', {});
+            markLessonCleared();
+            showResultActions([
+              createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'),
+              createPrimaryButton('もういちど', replay, 'replay'),
+            ]);
+          } else {
+            // 途中ステージのクリアはstage_clearのみを記録し、レッスン全体のクリア（clear）や
+            // 単元スタンプの対象にはしない（Issue #104）。
+            logEvent('stage_clear', { stage: stageIndex + 1 });
+            showResultActions([
+              createPrimaryButton('つぎの ステージ', () => goToStep(S.stepIndex + 1), 'next-stage'),
+              createPrimaryButton('もういちど', replay, 'replay'),
+            ]);
+          }
         } else {
           setRunButtonMode('retry');
           updateControls();
@@ -371,9 +403,9 @@ export function renderPlay(root, step) {
     },
   });
   setActiveNudge(local.nudge);
-  // 未クリアレッスンの最初の操作画面表示時だけ、指ガイドを1回出す。最初のタップ/
-  // ドラッグでフェードアウトして消える（Issue #95）。
-  if (!isLessonCleared(S.lesson.lessonId)) {
+  // 未クリアレッスンの最初のステージ（p1）表示時だけ、指ガイドを1回出す。最初のタップ/
+  // ドラッグでフェードアウトして消える（Issue #95・#104でp1限定に変更）。
+  if (stageIndex === 0 && !isLessonCleared(S.lesson.lessonId)) {
     const firstBtn = paletteEl.querySelector('[data-command]');
     if (firstBtn) {
       setActiveHandHint(showHandHint({ from: firstBtn, to: queueEl, mode: 'drag' }));

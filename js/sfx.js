@@ -17,6 +17,8 @@ export const DURATIONS_MS = {
   reveal: 200,
   clear: 460,
   whoosh: 200,
+  fanfare: 860,
+  grandFanfare: 2030,
 };
 
 const SCALE = [523.25, 587.33, 659.25, 698.46, 783.99, 880, 987.77]; // ドレミファソラシ(C5基準)
@@ -168,6 +170,20 @@ const SOUND = {
   },
   whoosh(ctx, now) {
     noiseSweep(ctx, now, { duration: 0.2, freqStart: 3000, freqEnd: 600, peak: 0.5 });
+  },
+  // fanfare: ステージクリア・レッスンクリアで鳴らす、clearより長い達成音（Issue #104）。
+  fanfare(ctx, now) {
+    const notes = [523.25, 659.25, 783.99, 1046.5, 1318.5]; // ド・ミ・ソ・ド・ミ(高)
+    notes.forEach((freq, i) =>
+      tone(ctx, now + i * 0.09, { freq, duration: i === notes.length - 1 ? 0.5 : 0.22, type: 'sine' })
+    );
+  },
+  // grandFanfare: 単元ぜんぶクリアだけで鳴らす、さらに長い達成音（Issue #104）。
+  grandFanfare(ctx, now) {
+    const notes = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1318.5];
+    notes.forEach((freq, i) => tone(ctx, now + i * 0.14, { freq, duration: 0.22, type: 'sine' }));
+    const chordAt = now + notes.length * 0.14 + 0.05;
+    [1046.5, 1318.5, 1568.0].forEach((freq) => tone(ctx, chordAt, { freq, duration: 1.0, type: 'sine', peak: 0.7 }));
   },
 };
 

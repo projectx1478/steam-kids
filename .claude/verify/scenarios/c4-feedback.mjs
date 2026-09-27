@@ -1,5 +1,5 @@
 export const name =
-  'C4 実機フィードバック一括対応: ヘッダー(もどる・えらぶ がめんへ)・反応統一・ヒント・もういちど・まとめ(Issue #91/#93)';
+  'C4 実機フィードバック一括対応: ヘッダー(もどる・えらぶ がめんへ)・反応統一・ヒント・もういちど・まとめ(Issue #91/#93/#104)';
 
 async function noLongLine(page) {
   const text = await page.locator('body').innerText();
@@ -18,13 +18,24 @@ async function assertNoNegativeWords(page, check, label) {
 }
 
 // cmd-01-susumu/donguri-01-hirouのtutorial（up,up,right,right/up,up,right）を最短で通過する。
-// 課題カードはIssue #97で廃止したため、predict/playは操作画面へ常に即座に入る。
+// よそう（predict）はIssue #104で全廃したため、tutorial後は直接play(p1)へ入る。
 async function skipTutorial(page, dirs) {
   if ((await page.getAttribute('#stage', 'data-step')) !== 'tutorial') return;
   for (const dir of dirs) await page.click(`[data-command="${dir}"]`);
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="continue-to-task"]', { timeout: 8000 });
   await page.click('[data-action="continue-to-task"]');
+}
+
+// 現在のplayステージをcommandsで実行してクリアし、最終ステージなら[data-action="next"]を、
+// 途中ステージなら[data-action="next-stage"]をクリックして次へ進む。
+async function clearStage(page, commands) {
+  for (const c of commands) await page.click(`[data-command="${c}"]`);
+  await page.click('[data-action="run"]');
+  const nextSel = '[data-action="next"], [data-action="next-stage"]';
+  // 1手0.6秒のため、命令が多いステージ(最大16個)でも間に合う余裕を持たせる。
+  await page.waitForSelector(nextSel, { timeout: 15000 });
+  await page.click(nextSel);
 }
 
 export default async function run({ page, check }) {
@@ -39,18 +50,16 @@ export default async function run({ page, check }) {
   await check('ヘッダーに単元名・レッスン名が表示される', async () => page.textContent('#lesson-title'), 'めいれいでうごかす ・ なおす');
   await check('introの区分チップ「はじめに」', async () => page.textContent('#step-kind-chip'), 'はじめに');
   await check('introにゴールデモが表示される', async () => (await page.$$('.demo-widget[data-demo="goal"]')).length, 1);
-  await check('reduced-motion時、デモに「もういちど みる」が無い', async () => (await page.$$('.demo-widget [data-action="demo-replay"]')).length, 0);
+  await check(
+    'reduced-motion時でもデモに「もういちど みる」がある（1回だけ自動再生し、再生はボタンで行う。Issue #104）',
+    async () => (await page.$$('.demo-widget [data-action="demo-replay"]')).length,
+    1
+  );
 
   await page.click('[data-action="start"]');
-  await check('predictの区分チップ「よそう」', async () => page.textContent('#step-kind-chip'), 'よそう');
-  await check('predictでもどるが表示される', async () => page.isVisible('#back-btn'));
-
-  await page.click('[data-option="A"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
-  await page.click('[data-action="next"]');
-
-  await check('playの区分チップ「うごかす」', async () => page.textContent('#step-kind-chip'), 'うごかす');
-  // cmd-03-naosuのplayはinitialCommands(4個)がmaxCommands(4)と同数のため、パレットは
+  await check('playの区分チップ「うごかす 1/3」（複数ステージ構成。Issue #104）', async () => page.textContent('#step-kind-chip'), 'うごかす 1/3');
+  await check('playへ即座に入る（よそうは全廃。Issue #104）', async () => page.getAttribute('#stage', 'data-step'), 'play');
+  // cmd-03-naosuのp1はinitialCommands(3個)がmaxCommands(3)と同数のため、パレットは
   // 最初から満杯でdisabled。チップの取り消しで最初の操作を行う。
   await page.click('[data-remove-index="2"]');
 
@@ -58,38 +67,22 @@ export default async function run({ page, check }) {
   // 確認ダイアログではなく命令列の下書き保持で行う（c6-tactile-ui.mjsで検証。Issue #95） ---
   await check('確認ダイアログは存在しない', async () => (await page.$$('.confirm-dialog')).length, 0);
   await page.click('#back-btn');
-  await check('確認無しで1つ前のpredictへ戻る', async () => page.getAttribute('#stage', 'data-step'), 'predict');
+  await check('確認無しで1つ前のintroへ戻る', async () => page.getAttribute('#stage', 'data-step'), 'intro');
 
+  await page.click('[data-action="start"]');
   await page.click('#home-btn');
   await check('えらぶ がめんへ も確認無しで即座に遷移する', async () => page.url().endsWith('/index.html'));
 
-  // --- 2. predictの正解・不正解の反応統一・もういちど よそう ---
+  // --- 2. playの失敗ヒント（壁）・その場でもういちど・ひとつ けす ---
+  // 壁を持つのはp2（4x4, start(0,3), goal(3,0), walls[(2,2)]）なので、p1をクリアしてp2へ進む。
   await page.goto('/index.html?lesson=cmd-01-susumu');
   await page.click('[data-action="start"]');
   await skipTutorial(page, ['up', 'up', 'right', 'right']);
-  await check('predictに入る', async () => page.getAttribute('#stage', 'data-step'), 'predict');
+  await check('play(p1)に入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
+  await clearStage(page, ['up', 'up', 'left', 'left']);
+  await check('play(p2)に入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
+  await check('p2の区分チップ「うごかす 2/3」', async () => page.textContent('#step-kind-chip'), 'うごかす 2/3');
 
-  await page.click('[data-option="A"]'); // cmd-01-susumuの正解はB。Aは不正解。
-  await page.waitForSelector('[data-hint="predict"]', { timeout: 4000 });
-  await check('不正解でヒントパネルが1個', async () => (await page.$$('[data-hint="predict"]')).length, 1);
-  await check('不正解でclear-reactionは出ない', async () => (await page.$$('.clear-reaction')).length, 0);
-  await check('不正解でも足あとが残る', async () => (await page.$$('.grid-footprint')).length > 0);
-  await check('不正解ヒントは20字以内', () => noLongLine(page));
-  await assertNoNegativeWords(page, check, 'predict不正解');
-
-  await page.click('[data-action="retry-predict"]');
-  await check('もういちど よそうで選び直せる状態に戻る', async () => (await page.$$('[data-hint="predict"]')).length, 0);
-  await check('選択肢が再表示される', async () => (await page.$$('[data-option]')).length, 3);
-
-  await page.click('[data-option="B"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
-  await check('正解でclear-reactionが1個', async () => (await page.$$('.clear-reaction')).length, 1);
-  await check('正解でdata-result="clear"が付く', async () => page.getAttribute('#stage [data-result]', 'data-result'), 'clear');
-  await check('正解でも「もういちど よそう」が出る（Issue #93）', async () => (await page.$$('[data-action="retry-predict"]')).length, 1);
-  await page.click('[data-action="next"]');
-
-  // --- 3. playの失敗ヒント（壁）・その場でもういちど・ひとつ けす ---
-  await check('playに入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
   await page.click('[data-command="left"]'); // start(0,3)からleftは盤外
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="retry"]', { timeout: 4000 });
@@ -118,14 +111,18 @@ export default async function run({ page, check }) {
   await check('未到達ヒントパネル', async () => (await page.$$('[data-hint="goal"]')).length, 1);
   await assertNoNegativeWords(page, check, 'play未到達ヒント');
 
-  // --- item未回収ヒント（donguri-01-hirou） ---
+  // --- もういちど（失敗後のretry）は正解・不正解に関わらず命令列をリセットする（Issue #104） ---
+  await page.click('[data-action="retry"]');
+  await check('retryで命令列は0個に戻る（前回の命令を残さない）', async () => (await page.$$('.command-chip')).length, 0);
+
+  // --- item未回収ヒント（donguri-01-hirou）。items(1,3)/(2,3)を持つp2で検証する ---
   await page.goto('/index.html?lesson=donguri-01-hirou');
   await page.click('[data-action="start"]');
   await skipTutorial(page, ['up', 'up', 'right']);
-  await page.click('[data-option="A"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
-  await page.click('[data-action="next"]');
-  await check('donguri playに入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
+  await check('donguri play(p1)に入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
+  await clearStage(page, ['right', 'right', 'up', 'up']);
+  await check('donguri play(p2)に入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
+  // items(1,3)/(2,3)を踏まずにゴールへ直行する経路（up×3, right×3）
   for (const c of ['up', 'up', 'up', 'right', 'right', 'right']) await page.click(`[data-command="${c}"]`);
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="retry"]', { timeout: 8000 });
@@ -134,13 +131,11 @@ export default async function run({ page, check }) {
   await check('item未回収ヒントは20字以内', () => noLongLine(page));
   await assertNoNegativeWords(page, check, 'play item未回収ヒント');
 
-  // --- 4. スマホの操作画面（375x667）：じっこうが画面内、横スクロール無し、全ボタン48px以上 ---
+  // --- 3. スマホの操作画面（375x667）：じっこうが画面内、横スクロール無し、全ボタン48px以上 ---
   await page.setViewportSize({ width: 375, height: 667 });
   await page.goto('/index.html?lesson=cmd-03-naosu');
   await page.click('[data-action="start"]');
-  await page.click('[data-option="A"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
-  await page.click('[data-action="next"]');
+  await check('mobile: playへ即座に入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
   await check('mobile: じっこうボタンの下端が画面内', async () => {
     const box = await page.locator('[data-action="run"]').boundingBox();
     return box.y + box.height <= 667;
@@ -158,28 +153,64 @@ export default async function run({ page, check }) {
   });
   await page.setViewportSize({ width: 1280, height: 800 });
 
-  // --- 5. まとめ：できたことカード・単元スタンプ・つぎのレッスンへ ---
+  // --- 4. ステージクリア演出（Issue #104: 拡大・fanfare・ジャンプ・紙ふぶき60粒）と、
+  // クリア後「もういちど」で命令列がリセットされること ---
   await page.goto('/index.html?lesson=cmd-01-susumu');
   await page.click('[data-action="start"]');
   await skipTutorial(page, ['up', 'up', 'right', 'right']);
-  await page.click('[data-option="B"]'); // 正解
-  await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
-  await page.click('[data-action="next"]');
-  for (const c of ['up', 'up', 'up', 'right', 'right', 'right']) await page.click(`[data-command="${c}"]`); // 最短6手・1回目でクリア
+  for (const c of ['up', 'up', 'left', 'left']) await page.click(`[data-command="${c}"]`);
   await page.click('[data-action="run"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 8000 });
-
-  // --- クリア時は「つぎへ」に加え「もういちど」が出る（Issue #93） ---
-  await check('クリアで「もういちど」が出る', async () => (await page.$$('[data-action="replay"]')).length, 1);
+  await page.waitForSelector('[data-action="next-stage"]', { timeout: 8000 });
+  await check('ステージクリアで大きな「やったね！」（text-2xl）が出る', async () => {
+    const cls = await page.getAttribute('.clear-reaction', 'class');
+    return cls?.includes('text-2xl');
+  });
+  await check('ステージクリアの反応イベント数が増えている（fanfare音）', async () =>
+    page.evaluate(() => window.__sfxLog.includes('fanfare'))
+  );
+  await check('途中ステージのクリアは「つぎの ステージ」が出る', async () => (await page.$$('[data-action="next-stage"]')).length, 1);
+  await check('途中ステージのクリアでも「もういちど」が出る', async () => (await page.$$('[data-action="replay"]')).length, 1);
   await page.click('[data-action="replay"]');
   await check('もういちどで結果表示が消える', async () => (await page.$$('#stage [data-result]')).length, 0);
-  await check('もういちどで命令列は残る', async () => (await page.$$('.command-chip')).length, 6);
-  await page.click('[data-action="run"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 8000 });
+  await check('もういちどで命令列は0個にリセットされる（Issue #104）', async () => (await page.$$('.command-chip')).length, 0);
+  await clearStage(page, ['up', 'up', 'left', 'left']);
+  await check('つぎの ステージでp2に入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
 
-  await page.click('[data-action="next"]');
+  // --- なおす系（cmd-03）は「もういちど」で初期の「ずれた」列に戻る ---
+  await page.goto('/index.html?lesson=cmd-03-naosu');
+  await page.click('[data-action="start"]');
+  await check('なおすp1は初期状態で3個のチップ', async () => (await page.$$('.command-chip')).length, 3);
+  await page.click('[data-action="run"]');
+  await page.waitForSelector('[data-action="retry"]', { timeout: 8000 });
+  await page.click('[data-remove-index="1"]');
+  await check('編集後は2個', async () => (await page.$$('.command-chip')).length, 2);
+  await page.click('[data-action="run"]');
+  await page.waitForSelector('[data-action="next-stage"]', { timeout: 8000 });
+  await page.click('[data-action="replay"]');
+  await check(
+    'なおす系のもういちどは初期の「ずれた」列(3個)に戻る（空にすると直す題材が消えるため。Issue #104）',
+    async () => (await page.$$('.command-chip')).length,
+    3
+  );
+
+  // --- 5. まとめ：3ステージぶんの「できたこと」カード・単元スタンプ・つぎのレッスンへ ---
+  await page.goto('/index.html?lesson=cmd-01-susumu');
+  await page.click('[data-action="start"]');
+  await skipTutorial(page, ['up', 'up', 'right', 'right']);
+  await clearStage(page, ['up', 'up', 'left', 'left']); // p1(最短4)
+  await clearStage(page, ['up', 'up', 'up', 'right', 'right', 'right']); // p2(最短6)
+  // p3(5x5, start(0,4), goal(4,0), 壁は列x=2のy=2のみ空き): up×2, right×4, up×2 = 最短8
+  await clearStage(page, ['up', 'up', 'right', 'right', 'right', 'right', 'up', 'up']);
+
   await check('summaryに入る', async () => page.getAttribute('#stage', 'data-step'), 'summary');
-  await check('できたことカードが3枚（よそう正解・1回でクリア・最短）', async () => (await page.$$('.achievement-card')).length, 3);
+  await check(
+    'できたことカードが3枚（3ステージクリア・1かいでゴール・最短）',
+    async () => (await page.$$('.achievement-card')).length,
+    3
+  );
+  await check('「3つの ステージを クリア！」が表示される', async () =>
+    (await page.locator('.achievement-cards').innerText()).includes('3つの ステージを クリア！')
+  );
   await check('単元スタンプがlessonIds数(3)だけ表示される', async () => (await page.$$('.unit-progress [data-stamp]')).length, 3);
   await check('つぎの レッスンへボタンが出る', async () => (await page.$$('[data-action="next-lesson"]')).length, 1);
   await check('summaryは20字以内', () => noLongLine(page));
@@ -188,25 +219,59 @@ export default async function run({ page, check }) {
   // --- 不正解・複数回クリアでは別のカード文言になる（最短でもない） ---
   await page.goto('/index.html?lesson=donguri-02-mawarimichi');
   await page.click('[data-action="start"]');
-  await page.click('[data-option="B"]'); // donguri-02の正解はA。Bは不正解。
-  await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
-  await page.click('[data-action="next"]');
+  await clearStage(page, ['right', 'down', 'down', 'down', 'up', 'up', 'up', 'right']); // p1(最短8)
+  await clearStage(page, ['down', 'down', 'down', 'down', 'right', 'right', 'up', 'up', 'up', 'up', 'right']); // p2(最短11)
+  // p3は1回失敗させてから、最短(14)ではない手数(16)でクリアする
   await page.click('[data-command="down"]');
-  await page.click('[data-action="run"]'); // 1回目は失敗させる（未到達）
-  await page.waitForSelector('[data-action="retry"]', { timeout: 4000 });
-  await page.click('[data-action="retry"]');
-  for (const c of ['down', 'down', 'down', 'right', 'up', 'up', 'up', 'right']) await page.click(`[data-command="${c}"]`);
   await page.click('[data-action="run"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 8000 });
+  await page.waitForSelector('[data-action="retry"]', { timeout: 8000 });
+  await page.click('[data-action="retry"]');
+  for (const c of [
+    'down', 'down', 'down', 'down', 'down',
+    'right', 'left',
+    'right', 'right', 'right',
+    'up', 'up', 'up', 'up', 'up',
+    'right',
+  ]) {
+    await page.click(`[data-command="${c}"]`);
+  }
+  await page.click('[data-action="run"]');
+  await page.waitForSelector('[data-action="next"]', { timeout: 15000 });
   await page.click('[data-action="next"]');
   await check('donguri-02 summaryに入る', async () => page.getAttribute('#stage', 'data-step'), 'summary');
   await check(
-    '不正解・複数回クリアのカード文言になる',
-    async () => (await page.locator('.achievement-cards').innerText()).includes('たしかめたね') &&
-      (await page.locator('.achievement-cards').innerText()).includes('あきらめずに')
+    'あきらめずクリアのカード文言になる（最短カードは出ない）',
+    async () => (await page.locator('.achievement-cards').innerText()).includes('あきらめずに')
+  );
+  await check(
+    '最短カードは出ない（p3は最短14に対し16手でクリアしたため）',
+    async () => !(await page.locator('.achievement-cards').innerText()).includes('いちばん みじかい')
   );
   await check('最終レッスンでは「つぎの レッスンへ」が出ない', async () => (await page.$$('[data-action="next-lesson"]')).length, 0);
   await check('最終レッスンでも「ほかのレッスンへ」は出る', async () => (await page.$$('[data-action="back-to-picker"]')).length, 1);
+  await check('「しま クリア！」という表現は出ない', async () => !(await page.textContent('#stage')).includes('しま クリア'));
+
+  // --- 単元ぜんぶクリア：cmd-02・cmd-03も片付けて「めいれいでうごかす」を全クリアする ---
+  await page.goto('/index.html?lesson=cmd-02-mijikaku');
+  await page.click('[data-action="start"]');
+  await clearStage(page, ['down', 'down', 'down', 'left', 'left']); // p1(2チップ)
+  await clearStage(page, ['down', 'down', 'down', 'down', 'down', 'right', 'right']); // p2(2チップ)
+  await clearStage(page, ['right', 'right', 'down', 'down', 'down', 'down', 'right']); // p3(3チップ)
+  await check('cmd-02もsummaryに入る', async () => page.getAttribute('#stage', 'data-step'), 'summary');
+
+  await page.goto('/index.html?lesson=cmd-03-naosu');
+  await page.click('[data-action="start"]');
+  await page.click('[data-remove-index="1"]'); // p1: 誤ったdownを消す
+  await clearStage(page, []);
+  await page.click('[data-remove-index="2"]'); // p2: 誤ったupを消す
+  await clearStage(page, []);
+  await page.click('[data-remove-index="6"]'); // p3: 誤ったupを消す
+  await clearStage(page, []);
+  await check('単元ぜんぶクリアで単元名を含む文言が出る（Issue #104）', async () =>
+    (await page.textContent('#stage')).includes('めいれいでうごかす ぜんぶ クリア！')
+  );
+  await check('単元ぜんぶクリアでもメダルが表示される', async () => (await page.$$('#stage svg')).length > 0);
+  await check('単元ぜんぶクリアでgrandFanfare音が鳴る', async () => page.evaluate(() => window.__sfxLog.includes('grandFanfare')));
 
   // --- 6. diagnose・lessonAchievementsの境界値をpage.evaluateから直接確認 ---
   const boundary = await page.evaluate(async () => {
@@ -220,26 +285,39 @@ export default async function run({ page, check }) {
     const itemsSpec = { ...spec, items: [{ x: 1, y: 3 }] };
     const itemsResult = simulate(['up', 'up', 'up', 'right', 'right', 'right'], itemsSpec);
 
-    const events = [
+    const singleStageEvents = [
       { lessonId: 'l', ts: 1, type: 'predict', payload: { correct: true } },
       { lessonId: 'l', ts: 2, type: 'run', payload: { commandCount: 6 } },
       { lessonId: 'l', ts: 3, type: 'clear', payload: {} },
+    ];
+    const multiStageEvents = [
+      { lessonId: 'l', ts: 1, type: 'run', payload: { commandCount: 4 } },
+      { lessonId: 'l', ts: 2, type: 'stage_clear', payload: { stage: 1 } },
+      { lessonId: 'l', ts: 3, type: 'run', payload: { commandCount: 6 } },
+      { lessonId: 'l', ts: 4, type: 'stage_clear', payload: { stage: 2 } },
+      { lessonId: 'l', ts: 5, type: 'run', payload: { commandCount: 8 } },
+      { lessonId: 'l', ts: 6, type: 'clear', payload: {} },
     ];
 
     return {
       wallReason: diagnose(wallResult, ['left'], spec).reason,
       goalReason: diagnose(goalResult, ['up'], spec).reason,
       itemsReason: diagnose(itemsResult, ['up', 'up', 'up', 'right', 'right', 'right'], itemsSpec).reason,
-      achievementsAllMatch: lessonAchievements(events, 'l', 0, { shortest: 6 }),
-      achievementsNoShortestData: lessonAchievements(events, 'l', 0, {}),
-      achievementsFilteredBySince: lessonAchievements(events, 'l', 10, { shortest: 6 }),
+      // playStepIds省略時は単一ステージ扱い（1回で通したかの基準=1。既存の単一play教材との互換）。
+      achievementsAllMatch: lessonAchievements(singleStageEvents, 'l', 0, { shortest: 6 }),
+      achievementsNoShortestData: lessonAchievements(singleStageEvents, 'l', 0, {}),
+      achievementsFilteredBySince: lessonAchievements(singleStageEvents, 'l', 10, { shortest: 6 }),
+      achievementsMultiStage: lessonAchievements(multiStageEvents, 'l', 0, {
+        shortest: 8,
+        playStepIds: ['p1', 'p2', 'p3'],
+      }),
     };
   });
   await check('diagnose: 盤外はwall', () => boundary.wallReason, 'wall');
   await check('diagnose: 未到達はgoal', () => boundary.goalReason, 'goal');
   await check('diagnose: item未回収はitems', () => boundary.itemsReason, 'items');
   await check(
-    'lessonAchievements: 正解・1回目・最短が全て揃う',
+    'lessonAchievements: 正解・1回目・最短が全て揃う（単一ステージ扱い）',
     () => boundary.achievementsAllMatch,
     ['よそうが ぴったり！', '1かいで ゴール！', 'いちばん みじかい めいれい！']
   );
@@ -249,4 +327,9 @@ export default async function run({ page, check }) {
     ['よそうが ぴったり！', '1かいで ゴール！']
   );
   await check('lessonAchievements: sinceTs以降のイベントが無ければ空配列', () => boundary.achievementsFilteredBySince, []);
+  await check(
+    'lessonAchievements: playStepIdsを渡すと3ステージぶんのカードになる（Issue #104）',
+    () => boundary.achievementsMultiStage,
+    ['3つの ステージを クリア！', '1かいで ゴール！', 'いちばん みじかい めいれい！']
+  );
 }

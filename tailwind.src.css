@@ -66,4 +66,70 @@
   .spring-in {
     animation: spring-in 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
   }
+
+  /* クリア演出のポップイン（ステージ・レッスン・単元の3段階共通。Issue #104）。 */
+  @keyframes success-pop {
+    0% {
+      transform: scale(0.5);
+      opacity: 0;
+    }
+    60% {
+      transform: scale(1.15);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+  .success-pop {
+    animation: success-pop 400ms ease-out;
+  }
+
+  /* レッスンクリアの星が回転しながら出る演出（Issue #104）。 */
+  @keyframes star-reveal {
+    0% {
+      transform: scale(0.3) rotate(-180deg);
+      opacity: 0;
+    }
+    70% {
+      transform: scale(1.1) rotate(20deg);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1) rotate(0deg);
+    }
+  }
+  .star-reveal {
+    animation: star-reveal 700ms ease-out;
+  }
+
+  /* 単元進捗スタンプが押される演出（レッスンクリア時。Issue #104）。 */
+  @keyframes stamp-pop {
+    0% {
+      transform: scale(2);
+      opacity: 0;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+  .stamp-pop {
+    animation: stamp-pop 400ms ease-out;
+  }
+
+  /* 単元ぜんぶクリアの旗が揺れる演出（Issue #104）。 */
+  @keyframes flag-wave {
+    0%,
+    100% {
+      transform: rotate(0deg);
+    }
+    50% {
+      transform: rotate(8deg);
+    }
+  }
+  .flag-wave {
+    transform-origin: bottom left;
+    animation: flag-wave 1.2s ease-in-out infinite;
+  }
 }
