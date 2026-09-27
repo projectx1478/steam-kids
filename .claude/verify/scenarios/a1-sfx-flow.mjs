@@ -27,7 +27,8 @@ export default async function run({ page, check }) {
 
   await page.click('[data-action="retry"]');
   await page.click('[data-action="clear-all"]');
-  await check('ぜんぶけすでremoveが鳴る', async () => (await sfxLog(page)).includes('remove'));
+  // ぜんぶけすは個別削除(remove)と区別するため専用のreset音を鳴らす（Issue #95）。
+  await check('ぜんぶけすでresetが鳴る', async () => (await sfxLog(page)).includes('reset'));
 
   const commands = ['up', 'up', 'up', 'right', 'right', 'right'];
   for (const c of commands) await page.click(`[data-command="${c}"]`);

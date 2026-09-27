@@ -54,8 +54,7 @@ export function renderTaskCard(root, { kind, text, defaultText, items = 0, howto
   beginBtn.type = 'button';
   beginBtn.dataset.action = 'begin-task';
   beginBtn.textContent = 'はじめる';
-  beginBtn.className =
-    'min-w-[48px] min-h-[48px] px-6 py-3 mt-1 rounded-xl bg-sky-500 text-white text-lg transition-transform duration-100 active:scale-95';
+  beginBtn.className = 'btn-tactile px-6 py-3 mt-1 bg-sky-500 text-white text-lg';
   beginBtn.addEventListener('click', onBegin);
   card.appendChild(beginBtn);
 
@@ -69,7 +68,7 @@ export function renderShowTaskButton(container, onClick) {
   btn.dataset.action = 'show-task';
   btn.setAttribute('aria-label', 'かだいを みる');
   btn.className =
-    'min-w-[48px] min-h-[48px] flex items-center justify-center rounded-lg bg-white shadow text-lg font-bold text-sky-600 shrink-0';
+    'min-w-[64px] min-h-[64px] flex items-center justify-center rounded-lg bg-white shadow text-lg font-bold text-sky-600 shrink-0';
   btn.textContent = '？';
   btn.addEventListener('click', onClick);
   container.appendChild(btn);

@@ -23,6 +23,10 @@ export const S = {
   unit: null,
   // introの「れんしゅう する」から明示的にtutorialへ入る時だけtrue（自動スキップを1回だけ回避。Issue #93）。
   forceTutorial: false,
+  // playの操作画面の下書き（stepId→commands）。確認ダイアログを全廃した代わりの誤タップ対策で、
+  // ←で戻って再びそのplayへ進んだ時に命令列を復元する。レッスン内のみ・メモリのみで保持し、
+  // クリア時またはレッスンを開始し直すと消える（Issue #95）。
+  drafts: {},
 };
 
 export function initState(lesson) {
@@ -30,6 +34,7 @@ export function initState(lesson) {
   S.stepIndex = 0;
   S.unit = null;
   S.forceTutorial = false;
+  S.drafts = {};
 }
 
 export function currentStep() {

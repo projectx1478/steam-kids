@@ -8,6 +8,13 @@ function isCleared(lessonStatus, lessonId) {
   return lessonStatus[lessonId]?.status === 'cleared';
 }
 
+// isLessonCleared(lessonId): 単発でクリア済みか調べる（js/ui-play.jsの指ガイド表示判定から
+// 利用。Issue #95）。単元マップを描くisCleared()と同じ判定を1レッスン分だけ行う。
+export function isLessonCleared(lessonId) {
+  const { lessons: lessonStatus } = summarize(getEvents(), Date.now());
+  return isCleared(lessonStatus, lessonId);
+}
+
 function islandSvg() {
   return `<svg viewBox="0 0 200 100" class="absolute inset-0 w-full h-full -z-10" aria-hidden="true">
     <ellipse cx="100" cy="70" rx="90" ry="26" fill="#a7f3d0" stroke="#34d399" stroke-width="2" />
@@ -39,7 +46,7 @@ async function createLessonStop(lessonId, cleared, onPick) {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.dataset.lessonId = lessonId;
-  btn.className = 'lesson-pick-btn min-h-[48px] px-4 rounded-xl bg-sky-500 text-white text-lg';
+  btn.className = 'lesson-pick-btn min-w-[64px] min-h-[64px] px-4 rounded-xl bg-sky-500 text-white text-lg';
   try {
     btn.textContent = (await loadLesson(lessonId)).title;
   } catch {

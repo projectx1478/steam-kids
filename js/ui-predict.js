@@ -8,7 +8,7 @@ import { COMMAND_LABELS, ORDER_BADGE_CLASS, renderOrderArrow } from './ui-comman
 import { play as playSfx } from './sfx.js';
 import { renderTaskCard, renderShowTaskButton, taskCardEnabled } from './ui-task-card.js';
 import { createIdleNudge } from './ui-guide.js';
-import { goToStep, createPrimaryButton, playAnimation, setActiveNudge, setLeaveConfirmNeeded } from './ui-step.js';
+import { goToStep, createPrimaryButton, playAnimation, setActiveNudge } from './ui-step.js';
 import { showSuccess, showHint } from './ui-reaction.js';
 
 const RETRY_HINT_MESSAGE = 'ロボットは ここで とまったよ';
@@ -140,13 +140,11 @@ export function renderPredict(root, step) {
 
   function showTaskCard() {
     local.nudge?.stop();
-    setLeaveConfirmNeeded(false);
     opScreen.style.display = 'none';
     taskCardEl.style.display = '';
   }
 
   function beginTask() {
-    setLeaveConfirmNeeded(true);
     taskCardEl.style.display = 'none';
     opScreen.style.display = 'flex';
     if (!local.started) {

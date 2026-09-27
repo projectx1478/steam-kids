@@ -5,15 +5,17 @@ const MASTER_VOLUME = 0.3;
 
 // 各音の長さ上限（ms）。PROJECT.mdの表に合わせる。
 export const DURATIONS_MS = {
-  tap: 80,
+  tap: 50,
+  snap: 30,
   stack: 120,
   remove: 120,
+  reset: 80,
   run: 300,
   step: 150,
   bump: 250,
   pickup: 200,
   reveal: 200,
-  clear: 1200,
+  clear: 460,
   whoosh: 200,
 };
 
@@ -120,7 +122,11 @@ function noiseSweep(ctx, start, { duration, freqStart, freqEnd, peak = 1 }) {
 
 const SOUND = {
   tap(ctx, now) {
-    tone(ctx, now, { freq: 880, duration: 0.08, type: 'sine' });
+    tone(ctx, now, { freq: 400, freqEnd: 800, duration: 0.05, type: 'sine' });
+  },
+  // snap: ドラッグで命令列に吸着した時の音（Issue #95）。
+  snap(ctx, now) {
+    tone(ctx, now, { freq: 1200, duration: 0.03, type: 'triangle', peak: 0.9 });
   },
   stack(ctx, now, opts) {
     const count = opts.count ?? 2;
@@ -130,6 +136,10 @@ const SOUND = {
   },
   remove(ctx, now) {
     tone(ctx, now, { freq: 500, freqEnd: 300, duration: 0.12, type: 'sine' });
+  },
+  // reset: ぜんぶ けす専用の音。removeより速いピッチダウンで「一気に戻した」感を出す（Issue #95）。
+  reset(ctx, now) {
+    tone(ctx, now, { freq: 450, freqEnd: 150, duration: 0.08, type: 'sine', peak: 0.7 });
   },
   run(ctx, now) {
     tone(ctx, now, { freq: 400, freqEnd: 900, duration: 0.3, type: 'triangle', peak: 0.8 });
@@ -154,7 +164,7 @@ const SOUND = {
   },
   clear(ctx, now) {
     const notes = [523.25, 659.25, 783.99, 1046.5]; // ド・ミ・ソ・ド
-    notes.forEach((freq, i) => tone(ctx, now + i * 0.3, { freq, duration: 0.28, type: 'sine' }));
+    notes.forEach((freq, i) => tone(ctx, now + i * 0.08, { freq, duration: 0.2, type: 'sine' }));
   },
   whoosh(ctx, now) {
     noiseSweep(ctx, now, { duration: 0.2, freqStart: 3000, freqEnd: 600, peak: 0.5 });

@@ -1,5 +1,5 @@
 // ステップ切替（intro/predict/play/summary）、実行アニメーション、ヘッダーのもどる・
-// えらぶ がめんへ（確認ダイアログ付き）。
+// えらぶ がめんへ。
 import { S, currentStep } from './state.js';
 import { logEvent } from './events.js';
 import { simulate } from './engine-grid.js';
@@ -12,7 +12,6 @@ import { renderPlay } from './ui-play.js';
 import { renderPredict } from './ui-predict.js';
 import { renderTutorial, isTutorialDone } from './ui-tutorial.js';
 import { renderSummary } from './ui-summary.js';
-import { showConfirmDialog } from './ui-confirm.js';
 
 const STEP_DELAY_MS = 600;
 const STEP_TRANSITION_MS = 220;
@@ -31,17 +30,19 @@ let lessonCleared = false;
 let abandonLogged = false;
 // 現在のステップが持つ無操作促し。ステップ離脱時（renderStep冒頭）に止める（Issue #89）。
 let activeNudge = null;
-// もどる・えらぶ がめんへで確認ダイアログが要るか。課題カード・区切り画面（進行中の操作が
-// 無い）ではfalseにして直接遷移する（Issue #93）。renderStepのたびにfalseへ戻し、
-// 各画面（renderPlay/renderPredict/renderTutorial）が操作画面に入った時にtrueにする。
-let leaveConfirmNeeded = false;
-export function setLeaveConfirmNeeded(needed) {
-  leaveConfirmNeeded = needed;
-}
+// 現在のステップが持つ指ガイド（js/ui-hand.js）。ステップ離脱時に消す（Issue #95）。
+let activeHandHint = null;
 
-// renderPlay/renderPredict（別モジュール）から現在の無操作促し・クリア済みフラグを更新するための窓口。
+// renderPlay/renderPredict/renderTutorial（別モジュール）から現在の無操作促し・指ガイド・
+// クリア済みフラグを更新するための窓口。
 export function setActiveNudge(nudge) {
   activeNudge = nudge;
+}
+
+// setActiveHandHint(hint): 前の指ガイドを消してから新しいものに差し替える。hint=nullで消すだけ。
+export function setActiveHandHint(hint) {
+  activeHandHint?.remove();
+  activeHandHint = hint ?? null;
 }
 
 export function markLessonCleared() {
@@ -71,8 +72,11 @@ function headerEls() {
 // ヘッダー（#stageの外）：タイトル・区分チップ・もどる/えらぶ がめんへボタン。
 // renderStepのたびに更新する（Issue #91）。
 function renderHeader() {
-  const { wrap, back, title, chip } = headerEls();
+  const { wrap, back, home, title, chip } = headerEls();
   wrap.style.display = 'flex';
+  // home-btnは#lesson-headerの外（ヘッダー右側）にあるため、ここで表示を切り替える
+  // （←ともどるを分けて誤タップを防ぐ配置。Issue #95）。
+  home.style.display = '';
   title.textContent = S.unit ? `${S.unit.title} ・ ${S.lesson.title}` : S.lesson.title;
   chip.textContent = KIND_CHIP_LABEL[currentStep().kind] ?? '';
   // Tailwindの`flex`ユーティリティ(back.classListが持つ)はUA既定の[hidden]より強いため、
@@ -96,25 +100,16 @@ export function refreshHeader() {
 }
 
 export function initSteps() {
+  // もどる・えらぶ がめんへは確認ダイアログを挟まず即座に遷移する。誤タップの保険は
+  // 確認ダイアログではなく、playの命令列の下書き保持（S.drafts）で行う（Issue #95）。
   headerEls().back.addEventListener('click', () => {
     if (headerEls().back.disabled || S.stepIndex === 0) return;
-    if (leaveConfirmNeeded) {
-      showConfirmDialog({ message: 'まえの がめんに もどる？', onConfirm: () => goToStep(S.stepIndex - 1) });
-    } else {
-      goToStep(S.stepIndex - 1);
-    }
+    goToStep(S.stepIndex - 1);
   });
 
   headerEls().home.addEventListener('click', () => {
     if (headerEls().home.disabled) return;
-    const toPicker = () => {
-      location.href = './index.html';
-    };
-    if (leaveConfirmNeeded) {
-      showConfirmDialog({ message: 'えらぶ がめんに もどる？', onConfirm: toPicker });
-    } else {
-      toPicker();
-    }
+    location.href = './index.html';
   });
 
   document.addEventListener('visibilitychange', () => {
@@ -179,7 +174,7 @@ function applyStepTransition(root) {
 function renderStep() {
   activeNudge?.stop();
   activeNudge = null;
-  leaveConfirmNeeded = false;
+  setActiveHandHint(null);
   const step = currentStep();
   const root = stage();
   root.innerHTML = '';
@@ -199,8 +194,7 @@ function renderStep() {
 export function createPrimaryButton(label, onClick, action) {
   const btn = document.createElement('button');
   btn.type = 'button';
-  btn.className =
-    'primary-btn block mx-auto min-w-[48px] min-h-[48px] px-6 py-3 mt-4 rounded-xl bg-sky-500 text-white text-lg transition-transform duration-100 active:scale-95';
+  btn.className = 'primary-btn btn-tactile block mx-auto px-6 py-3 mt-4 bg-sky-500 text-white text-lg';
   if (action) btn.dataset.action = action;
   btn.textContent = label;
   btn.addEventListener('click', () => {
@@ -272,7 +266,7 @@ function renderIntro(root, step) {
     redoBtn.type = 'button';
     redoBtn.dataset.action = 'redo-tutorial';
     redoBtn.textContent = 'れんしゅう する';
-    redoBtn.className = 'block mx-auto mt-2 min-h-[48px] px-4 rounded-lg bg-white shadow text-sm text-slate-600';
+    redoBtn.className = 'block mx-auto mt-2 min-w-[64px] min-h-[64px] px-4 rounded-lg bg-white shadow text-sm text-slate-600';
     redoBtn.addEventListener('click', () => {
       vibrate();
       S.forceTutorial = true;

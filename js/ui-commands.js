@@ -1,9 +1,104 @@
-// 命令パレット・命令列（キュー）の描画。操作はタップのみ。
+// 命令パレット・命令列（キュー）の描画。パレットの操作はタップ、またはドラッグして
+// 命令列へドロップ（末尾に追加。Issue #95）。
 
 // 対応端末のみ短く振動する（未対応環境では何もしない。例外を投げない）。
 export function vibrate(ms = 15) {
   if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
     navigator.vibrate(ms);
+  }
+}
+
+const DRAG_THRESHOLD_PX = 8;
+
+// attachTapOrDrag(el, { onTap, getDropTarget, onDragOver, onDrop })
+// pointerdownから8px未満の移動で指を離したらタップ（onTap）。8px以上動くとドラッグを開始し、
+// elの見た目を複製したクローンをposition:fixedで指に追従させる。getDropTarget()が返す
+// DOMRect内で離すとonDrop、外なら何もしない（クローンが消えるだけ）。onDragOver(inside)は
+// ドラッグ中、対象領域に入った/出た瞬間にのみ呼ぶ（ゴースト枠の出し入れ用）。
+function attachTapOrDrag(el, { onTap, getDropTarget, onDragOver, onDrop }) {
+  el.addEventListener('pointerdown', (downEvent) => {
+    if (el.disabled) return;
+    const startX = downEvent.clientX;
+    const startY = downEvent.clientY;
+    let dragging = false;
+    let inside = false;
+    let clone = null;
+
+    function pointInRect(x, y, rect) {
+      return Boolean(rect) && x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+    }
+
+    function moveClone(x, y) {
+      clone.style.left = `${x - clone.offsetWidth / 2}px`;
+      clone.style.top = `${y - clone.offsetHeight / 2}px`;
+    }
+
+    function startDrag(x, y) {
+      dragging = true;
+      clone = el.cloneNode(true);
+      clone.disabled = false;
+      clone.className = `${el.className} fixed z-50 pointer-events-none shadow-2xl scale-105`;
+      clone.style.width = `${el.offsetWidth}px`;
+      clone.style.height = `${el.offsetHeight}px`;
+      document.body.appendChild(clone);
+      moveClone(x, y);
+    }
+
+    function onMove(moveEvent) {
+      const dx = moveEvent.clientX - startX;
+      const dy = moveEvent.clientY - startY;
+      if (!dragging && Math.hypot(dx, dy) >= DRAG_THRESHOLD_PX) startDrag(moveEvent.clientX, moveEvent.clientY);
+      if (!dragging) return;
+      moveClone(moveEvent.clientX, moveEvent.clientY);
+      const nowInside = pointInRect(moveEvent.clientX, moveEvent.clientY, getDropTarget?.());
+      if (nowInside !== inside) {
+        inside = nowInside;
+        onDragOver?.(inside);
+      }
+    }
+
+    function cleanupListeners() {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('pointercancel', onCancel);
+    }
+
+    function onUp() {
+      cleanupListeners();
+      if (!dragging) {
+        onTap();
+        return;
+      }
+      clone.remove();
+      onDragOver?.(false);
+      if (inside) onDrop();
+    }
+
+    function onCancel() {
+      cleanupListeners();
+      if (!dragging) return;
+      clone.remove();
+      onDragOver?.(false);
+    }
+
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onCancel);
+  });
+}
+
+// toggleGhostSlot(listEl, active): ドラッグ中、命令列(<ul>)末尾に配置先の枠を出し入れする（Issue #95）。
+export function toggleGhostSlot(listEl, active) {
+  let slot = listEl.querySelector(':scope > .ghost-slot');
+  if (active) {
+    if (!slot) {
+      slot = document.createElement('li');
+      slot.className = 'ghost-slot shrink-0 w-16 h-16';
+      slot.setAttribute('aria-hidden', 'true');
+      listEl.appendChild(slot);
+    }
+  } else {
+    slot?.remove();
   }
 }
 
@@ -23,19 +118,30 @@ export function arrowSvg(dir) {
   </svg>`;
 }
 
-// renderCommandPalette(container, { onAdd })
-export function renderCommandPalette(container, { onAdd }) {
+// renderCommandPalette(container, { onAdd, dropTarget, onDragOver })
+// onAdd(dir, { via }): viaは'tap'|'drag'。dropTarget(): ドロップ判定に使うDOMRectを返す関数
+// （省略時はドラッグしても追加されない＝タップのみの画面になる）。onDragOver(inside):
+// ドラッグ中、dropTarget領域への出入りで呼ぶ（ゴースト枠の出し入れ用）。
+export function renderCommandPalette(container, { onAdd, dropTarget, onDragOver }) {
   container.innerHTML = '';
   DIRECTIONS.forEach((dir) => {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.dataset.command = dir;
     btn.className =
-      'command-btn flex flex-col items-center justify-center gap-1 min-w-[48px] min-h-[48px] px-3 py-2 rounded-xl bg-sky-500 text-white transition-transform duration-100 active:scale-95 disabled:opacity-40';
+      'command-btn btn-tactile flex flex-col items-center justify-center gap-1 px-3 py-2 bg-sky-500 text-white touch-none disabled:opacity-40';
     btn.innerHTML = `${arrowSvg(dir)}<span class="text-sm">${COMMAND_LABELS[dir]}</span>`;
-    btn.addEventListener('click', () => {
-      vibrate();
-      onAdd(dir);
+    attachTapOrDrag(btn, {
+      onTap: () => {
+        vibrate();
+        onAdd(dir, { via: 'tap' });
+      },
+      getDropTarget: dropTarget,
+      onDragOver,
+      onDrop: () => {
+        vibrate();
+        onAdd(dir, { via: 'drag' });
+      },
     });
     container.appendChild(btn);
   });
@@ -60,7 +166,7 @@ export function renderOrderArrow(tag = 'li') {
 // commandsの各要素は{dir, times}。times>=2は「した ×5」のようにまとめて表示する。
 // removable:falseの時は取り消しを描かない（チュートリアルでは命令を消させない。Issue #81）。
 // removable時はチップ自体が取り消しボタン（data-remove-index・.command-remove。Issue #91）。
-// 横に並ぶ48px四角チップで、はみ出す分は横スクロールする（container側でoverflow-x-autoを付ける）。
+// 横に並ぶ64px四角チップで、はみ出す分は横スクロールする（container側でoverflow-x-autoを付ける）。
 // チップ間には→区切り、各チップ左上に順番数字を重ねる（Issue #93）。
 export function renderCommandQueue(container, { commands, activeIndex, onRemove, removable = true }) {
   container.innerHTML = '';
@@ -69,7 +175,7 @@ export function renderCommandQueue(container, { commands, activeIndex, onRemove,
     const chip = document.createElement('li');
     // ×バッジはCSS疑似要素(after:content)で描く。実DOMに<span>を増やすと、チップ内テキストを
     // spanで厳密比較する既存シナリオ（cmd02-group-repeats・group-repeats-engine）が壊れるため。
-    chip.className = `command-chip relative flex flex-col items-center justify-center gap-0.5 min-w-[48px] min-h-[48px] px-1 rounded-lg bg-sky-100 shrink-0 ${ORDER_BADGE_CLASS} ${
+    chip.className = `command-chip relative flex flex-col items-center justify-center gap-0.5 min-w-[64px] min-h-[64px] px-1 rounded-lg bg-sky-100 shrink-0 ${ORDER_BADGE_CLASS} ${
       removable
         ? "command-remove cursor-pointer transition-transform duration-100 active:scale-95 after:content-['×'] after:absolute after:-top-1.5 after:-right-1.5 after:w-4 after:h-4 after:rounded-full after:bg-rose-500 after:text-white after:text-[10px] after:font-bold after:leading-4 after:text-center"
         : ''
