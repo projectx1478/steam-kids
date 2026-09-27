@@ -14,6 +14,7 @@
         "start": { "x": 3, "y": 0 },
         "goal": { "x": 0, "y": 3 },
         "walls": [],
+        "items": [{ "x": 3, "y": 2 }],
         "commands": ["down", "down", "down", "left", "left", "left"]
       }
     },
@@ -35,22 +36,19 @@
       ]
     },
     {
-      "stepId": "s2",
-      "kind": "predict",
-      "text": "ロボットは どこで とまる？",
-      "commands": ["right", "right", "right"],
-      "optionCells": [
-        { "id": "A", "x": 3, "y": 3 },
-        { "id": "B", "x": 3, "y": 2 },
-        { "id": "C", "x": 2, "y": 2 }
-      ],
-      "options": ["A", "B", "C"],
-      "answer": "A"
+      "stepId": "p1",
+      "kind": "play",
+      "grid": { "cols": 3, "rows": 3 },
+      "start": { "x": 0, "y": 2 },
+      "goal": { "x": 2, "y": 0 },
+      "walls": [],
+      "items": [{ "x": 1, "y": 2 }],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "maxCommands": 6
     },
     {
-      "stepId": "s3",
+      "stepId": "p2",
       "kind": "play",
-      "text": "どんぐりを ぜんぶ とって ゴール",
       "grid": { "cols": 4, "rows": 4 },
       "start": { "x": 0, "y": 3 },
       "goal": { "x": 3, "y": 0 },
@@ -62,6 +60,21 @@
       "allowedCommands": ["up", "down", "left", "right"],
       "maxCommands": 8
     },
-    { "stepId": "s4", "kind": "summary", "text": "どんぐりを ぜんぶ とったら ゴール" }
+    {
+      "stepId": "p3",
+      "kind": "play",
+      "grid": { "cols": 5, "rows": 5 },
+      "start": { "x": 0, "y": 4 },
+      "goal": { "x": 4, "y": 0 },
+      "walls": [],
+      "items": [
+        { "x": 1, "y": 4 },
+        { "x": 3, "y": 4 },
+        { "x": 4, "y": 2 }
+      ],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "maxCommands": 10
+    },
+    { "stepId": "s2", "kind": "summary", "text": "どんぐりを ぜんぶ とったら ゴール" }
   ]
 }

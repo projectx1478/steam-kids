@@ -14,7 +14,8 @@
         "start": { "x": 3, "y": 3 },
         "goal": { "x": 0, "y": 0 },
         "walls": [{ "x": 2, "y": 2 }],
-        "commands": ["left", "left", "left", "up", "up", "up"]
+        "commands": ["left", "left", "left", "up", "up", "up"],
+        "showCommands": true
       }
     },
     {
@@ -34,22 +35,18 @@
       ]
     },
     {
-      "stepId": "s2",
-      "kind": "predict",
-      "text": "ロボットは どこで とまる？",
-      "commands": ["up", "up", "right"],
-      "optionCells": [
-        { "id": "A", "x": 1, "y": 2 },
-        { "id": "B", "x": 1, "y": 1 },
-        { "id": "C", "x": 2, "y": 1 }
-      ],
-      "options": ["A", "B", "C"],
-      "answer": "B"
+      "stepId": "p1",
+      "kind": "play",
+      "grid": { "cols": 3, "rows": 3 },
+      "start": { "x": 2, "y": 2 },
+      "goal": { "x": 0, "y": 0 },
+      "walls": [],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "maxCommands": 6
     },
     {
-      "stepId": "s3",
+      "stepId": "p2",
       "kind": "play",
-      "text": "ロボットを ゴールへ うごかそう",
       "grid": { "cols": 4, "rows": 4 },
       "start": { "x": 0, "y": 3 },
       "goal": { "x": 3, "y": 0 },
@@ -57,6 +54,21 @@
       "allowedCommands": ["up", "down", "left", "right"],
       "maxCommands": 8
     },
-    { "stepId": "s4", "kind": "summary", "text": "めいれいの じゅんばんが だいじ" }
+    {
+      "stepId": "p3",
+      "kind": "play",
+      "grid": { "cols": 5, "rows": 5 },
+      "start": { "x": 0, "y": 4 },
+      "goal": { "x": 4, "y": 0 },
+      "walls": [
+        { "x": 2, "y": 0 },
+        { "x": 2, "y": 1 },
+        { "x": 2, "y": 3 },
+        { "x": 2, "y": 4 }
+      ],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "maxCommands": 10
+    },
+    { "stepId": "s2", "kind": "summary", "text": "めいれいの じゅんばんが だいじ" }
   ]
 }

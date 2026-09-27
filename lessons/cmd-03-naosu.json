@@ -10,28 +10,28 @@
       "kind": "intro",
       "text": "ずれた めいれいを {直|なお}そう",
       "demo": {
-        "grid": { "cols": 4, "rows": 4 },
+        "grid": { "cols": 3, "rows": 3 },
         "start": { "x": 0, "y": 0 },
-        "goal": { "x": 3, "y": 0 },
+        "goal": { "x": 0, "y": 2 },
         "walls": [],
-        "commands": ["right", "right", "right"]
+        "fixFrom": ["down", "right", "down"],
+        "commands": ["down", "down"]
       }
     },
     {
-      "stepId": "s2",
-      "kind": "predict",
-      "text": "ロボットは どこで とまる？",
-      "commands": ["right", "right", "up", "right"],
-      "optionCells": [
-        { "id": "A", "x": 3, "y": 2 },
-        { "id": "B", "x": 3, "y": 3 },
-        { "id": "C", "x": 2, "y": 2 }
-      ],
-      "options": ["A", "B", "C"],
-      "answer": "A"
+      "stepId": "p1",
+      "kind": "play",
+      "text": "めいれいを なおして ゴールへ",
+      "grid": { "cols": 3, "rows": 3 },
+      "start": { "x": 0, "y": 0 },
+      "goal": { "x": 2, "y": 0 },
+      "walls": [],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "maxCommands": 3,
+      "initialCommands": ["right", "down", "right"]
     },
     {
-      "stepId": "s3",
+      "stepId": "p2",
       "kind": "play",
       "text": "めいれいを なおして ゴールへ",
       "grid": { "cols": 4, "rows": 4 },
@@ -42,6 +42,21 @@
       "maxCommands": 4,
       "initialCommands": ["right", "right", "up", "right"]
     },
-    { "stepId": "s4", "kind": "summary", "text": "ずれを{直|なお}せたね" }
+    {
+      "stepId": "p3",
+      "kind": "play",
+      "text": "めいれいを なおして ゴールへ",
+      "grid": { "cols": 5, "rows": 5 },
+      "start": { "x": 0, "y": 0 },
+      "goal": { "x": 4, "y": 4 },
+      "walls": [],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "maxCommands": 9,
+      "initialCommands": [
+        "right", "right", "right", "right",
+        "down", "down", "up", "down", "down"
+      ]
+    },
+    { "stepId": "s2", "kind": "summary", "text": "ずれを{直|なお}せたね" }
   ]
 }

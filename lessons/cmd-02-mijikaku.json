@@ -14,24 +14,27 @@
         "start": { "x": 2, "y": 0 },
         "goal": { "x": 0, "y": 5 },
         "walls": [],
-        "commands": ["down", "down", "down", "down", "down", "left", "left"]
+        "commands": [
+          { "dir": "down", "times": 5 },
+          { "dir": "left", "times": 2 }
+        ],
+        "showCommands": true
       }
     },
     {
-      "stepId": "s2",
-      "kind": "predict",
-      "text": "ロボットは どこで とまる？",
-      "commands": ["down", "down", "down"],
-      "optionCells": [
-        { "id": "A", "x": 0, "y": 3 },
-        { "id": "B", "x": 0, "y": 2 },
-        { "id": "C", "x": 1, "y": 3 }
-      ],
-      "options": ["A", "B", "C"],
-      "answer": "A"
+      "stepId": "p1",
+      "kind": "play",
+      "text": "みじかい めいれいで ゴールへ",
+      "grid": { "cols": 3, "rows": 4 },
+      "start": { "x": 2, "y": 0 },
+      "goal": { "x": 0, "y": 3 },
+      "walls": [],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "maxCommands": 3,
+      "groupRepeats": true
     },
     {
-      "stepId": "s3",
+      "stepId": "p2",
       "kind": "play",
       "text": "みじかい めいれいで ゴールへ",
       "grid": { "cols": 3, "rows": 6 },
@@ -42,6 +45,21 @@
       "maxCommands": 3,
       "groupRepeats": true
     },
-    { "stepId": "s4", "kind": "summary", "text": "おなじむきは まとめよう" }
+    {
+      "stepId": "p3",
+      "kind": "play",
+      "text": "みじかい めいれいで ゴールへ",
+      "grid": { "cols": 4, "rows": 5 },
+      "start": { "x": 0, "y": 0 },
+      "goal": { "x": 3, "y": 4 },
+      "walls": [
+        { "x": 3, "y": 0 },
+        { "x": 0, "y": 4 }
+      ],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "maxCommands": 4,
+      "groupRepeats": true
+    },
+    { "stepId": "s2", "kind": "summary", "text": "おなじむきは まとめよう" }
   ]
 }
