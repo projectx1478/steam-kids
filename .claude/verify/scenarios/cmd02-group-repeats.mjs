@@ -17,9 +17,11 @@ export default async function run({ page, check }) {
   await page.click('[data-command="right"]');
   await page.click('[data-command="right"]');
   await check('みぎ×2がまとまり合計2チップ', async () => (await page.$$('.command-chip')).length, 2);
+  // Issue #93で命令列チップ間に→区切り(.command-arrow)を挿入したため、
+  // nth-childではなくdata-indexで2個目のチップを特定する。
   await check(
     '2個目のチップの表示が「みぎ ×2」',
-    async () => page.textContent('.command-chip:nth-child(2) span'),
+    async () => page.textContent('.command-chip[data-index="1"] span'),
     'みぎ ×2'
   );
 

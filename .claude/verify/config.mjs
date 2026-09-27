@@ -24,5 +24,9 @@ export default {
         route.fulfill({ contentType: 'application/json', body })
       );
     }
+    // C2d（Issue #93）でpredict/playの前に課題カードを挟むようにしたため、既存シナリオの
+    // 「開始→即操作」前提を崩さないよう既定でOFFにする。新構造を検証するシナリオ
+    // （c5-layout-flow.mjs）は冒頭でlocalStorageを'on'に戻す。
+    await page.addInitScript(() => localStorage.setItem('steamkids.taskCard', 'off'));
   },
 };

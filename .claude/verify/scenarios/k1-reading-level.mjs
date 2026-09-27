@@ -27,25 +27,32 @@ export default async function run({ page, check }) {
   await check('rubyの基底テキストが「道」', async () => page.textContent('ruby'), '道みち');
   await check('rtのふりがなが「みち」', async () => page.textContent('rt'), 'みち');
 
-  // 3: ふりがなトグルをOFFにするとrtは消えるが漢字表示は維持される（play中のDOMを壊さない
-  // 軽量な再描画=refreshRubyTextで行われることの確認）
+  // 3: ふりがなトグルはdashboard(保護者設定)へ移った（Issue #93）。OFFにして問題画面を
+  // 開き直すとrtは消えるが漢字表示は維持される（S.furiganaは起動時にprofileから読む）。
+  const PASSCODE = 'testtest';
+  await page.goto('/dashboard.html');
+  await page.fill('#gate-setup-passcode', PASSCODE);
+  await page.fill('#gate-setup-confirm', PASSCODE);
+  await page.click('#gate-setup-submit');
+  await check('既定でふりがなトグルがON', async () => page.getAttribute('#furigana-toggle', 'aria-pressed'), 'true');
   await page.click('#furigana-toggle');
+  await check('ふりがなトグルのaria-pressedがfalseになる', async () => page.getAttribute('#furigana-toggle', 'aria-pressed'), 'false');
+
+  await page.goto('/index.html?lesson=cmd-02-mijikaku');
   await check('トグルOFFでrubyが消える', async () => (await page.$$('ruby')).length, 0);
   await check('トグルOFFでも漢字表示は維持される', async () => page.textContent('[data-step="intro"] p'), 'おなじ道をみじかくしよう');
-  await check('ふりがなトグルのaria-pressedがfalseになる', async () => page.getAttribute('#furigana-toggle', 'aria-pressed'), 'false');
 
   // 4: 新規端末（プロファイル未作成）ではふりがなトグルの既定値がON
   await page.evaluate(() => localStorage.removeItem('steamkids.profile'));
-  await page.goto('/index.html');
-  await check('既定でふりがなトグルがON', async () => page.getAttribute('#furigana-toggle', 'aria-pressed'), 'true');
+  await page.goto('/dashboard.html');
+  await page.fill('#gate-login-passcode', PASSCODE);
+  await page.click('#gate-login-submit');
+  await check('プロファイル未作成でも既定でふりがなトグルがON', async () => page.getAttribute('#furigana-toggle', 'aria-pressed'), 'true');
 
   // 5: ダッシュボードのよみレベル設定が保存され、リロード後も保持される（同期ペイロードには
   // 含まれない。sync.jsはlearnerIdとイベントしか送らないため、送信されるBearerトークンの
-  // 組み立てにprofile全体が使われないことは既存p3-sync.mjs等で担保されている）
-  await page.goto('/dashboard.html');
-  await page.fill('#gate-setup-passcode', 'testtest');
-  await page.fill('#gate-setup-confirm', 'testtest');
-  await page.click('#gate-setup-submit');
+  // 組み立てにprofile全体が使われないことは既存p3-sync.mjs等で担保されている）。
+  // 合言葉は3で設定済みなのでログインのみ行う。
   await check('よみレベルのselectが表示される', async () => (await page.$('#reading-level-select')) !== null);
   await check('既定は「ねんちょう」', async () => page.inputValue('#reading-level-select'), '0');
 
@@ -57,7 +64,7 @@ export default async function run({ page, check }) {
   );
 
   await page.reload();
-  await page.fill('#gate-login-passcode', 'testtest');
+  await page.fill('#gate-login-passcode', PASSCODE);
   await page.click('#gate-login-submit');
   await check('リロード後もよみレベルの選択が保持される', async () => page.inputValue('#reading-level-select'), '3');
 }

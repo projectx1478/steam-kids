@@ -1,4 +1,5 @@
-export const name = 'C2チュートリアル: なぞり操作型（お手本列・光るボタン・イベント非記録）';
+export const name =
+  'C2チュートリアル: 説明専用画面（お手本列・ゴースト矢印・区切り画面・スキップ・自動スキップ。Issue #93）';
 
 async function noScrollX(page) {
   return page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
@@ -16,21 +17,23 @@ async function animationName(page, selector) {
 }
 
 export default async function run({ page, check }) {
-  // --- cmd-01-susumu: text未指定＝文字を読ませない、お手本列＋光るボタンで誘導 ---
+  // --- cmd-01-susumu: text未指定＝文字を読ませない、お手本列＋光るボタン＋ゴースト矢印で誘導 ---
   await page.unroute('**/lessons/cmd-01-susumu.json');
   await page.goto('/index.html?lesson=cmd-01-susumu');
   await page.click('[data-action="start"]');
 
   await check('tutorialステップに入る', async () => page.getAttribute('#stage', 'data-step'), 'tutorial');
+  await check('見出しが「れんしゅう」', async () => page.textContent('.tutorial-screen h2'), 'れんしゅう');
   await check('ステップドットが5個（intro/tutorial/predict/play/summary）', async () => (await page.$$('.step-dot')).length, 5);
   await check('横スクロールが発生しない', async () => noScrollX(page));
-  await check('指示文<p>が無い（cmd-01は文字を読ませない）', async () => (await page.$$('#stage p')).length, 0);
+  await check('指示文<p>が無い（cmd-01は文字を読ませない）', async () => (await page.$$('.tutorial-prompt')).length, 0);
   await check('お手本列の要素数が5個（script長と一致）', async () => (await page.$$('.guide-row [data-guide-index]')).length, 5);
   await check('最初のお手本はcurrent', async () => page.getAttribute('[data-guide-index="0"]', 'data-state'), 'current');
   await check('光っている操作対象は1個のみ', async () => (await page.$$('[data-guide="true"]')).length, 1);
   await check('光っているのはupボタン', async () => (await page.$('[data-command="up"][data-guide="true"]')) !== null);
   await check('rightボタンは無効', async () => page.isDisabled('[data-command="right"]'));
   await check('runボタンは無効', async () => page.isDisabled('[data-action="run"]'));
+  await check('スキップボタンがある', async () => (await page.$('[data-action="skip-tutorial"]')) !== null);
 
   // reduced-motion(既定): リング(box-shadow)は付くがアニメーションは無し
   await check('reduced-motion時、光るボタンにアニメーションが無い', async () => animationName(page, '[data-command="up"]'), 'none');
@@ -52,15 +55,43 @@ export default async function run({ page, check }) {
   await check('「ぜんぶけす」が無い', async () => (await page.$$('[data-action="clear-all"]')).length, 0);
   await check('キューに×ボタンが無い', async () => (await page.$$('.command-remove')).length, 0);
 
+  // 結果の見える化：タップごとに番号付きゴースト矢印＋1行キャプション（Issue #93）
+  await check('ゴースト矢印が1個（①）', async () => (await page.$$('.grid-marker-ghost')).length, 1);
+  await check('ゴーストの番号は1', async () => page.getAttribute('.grid-marker-ghost', 'data-ghost-order'), '1');
+  await check('1行キャプションが20字以内', async () => (await page.textContent('.ghost-caption')).length <= 20);
+  await check('キャプションに向きの言葉がある', async () => (await page.textContent('.ghost-caption')).includes('うえ'));
+
+  // --- 途中でスキップしても即座に次(predict)へ進み、単元スタンプは付かない ---
+  await page.click('[data-action="skip-tutorial"]');
+  await check('スキップでpredictへ進む', async () => page.getAttribute('#stage', 'data-step'), 'predict');
+  const skippedEvents = await eventTypes(page, 'cmd-01-susumu');
+  await check(
+    'スキップでもrun/clearイベントが記録されない（単元スタンプの誤付与防止）',
+    () => !skippedEvents.includes('run') && !skippedEvents.includes('clear')
+  );
+
+  // --- 再訪時は自動でスキップされ、introに「れんしゅう する」が出る ---
+  await page.goto('/index.html?lesson=cmd-01-susumu');
+  await check('introに「れんしゅう する」がある(スキップ済み)', async () => (await page.$('[data-action="redo-tutorial"]')) !== null);
+  await page.click('[data-action="start"]');
+  await check('完了済みは自動でpredictへ(tutorialを飛ばす)', async () => page.getAttribute('#stage', 'data-step'), 'predict');
+
+  // --- 「れんしゅう する」で明示的に入り直し、実行完了→区切り画面まで確認 ---
+  await page.goto('/index.html?lesson=cmd-01-susumu');
+  await page.click('[data-action="redo-tutorial"]');
+  await check('れんしゅう するでtutorialへ入り直せる', async () => page.getAttribute('#stage', 'data-step'), 'tutorial');
+
+  await page.click('[data-command="up"]');
   await page.click('[data-command="up"]');
   await page.click('[data-command="right"]');
   await page.click('[data-command="right"]');
   await check('4回タップ後、runボタンが光る', async () => page.getAttribute('[data-action="run"]', 'data-guide'), 'true');
 
   await page.click('[data-action="run"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 8000 });
-  await check('クリア表示になる', async () => (await page.$$('[data-result="clear"]')).length, 1);
-  await check('お手本列は全てdone', async () => (await page.$$('.guide-row [data-state="done"]')).length, 5);
+  await page.waitForSelector('[data-action="continue-to-task"]', { timeout: 8000 });
+  await check('区切り画面が出る', async () => (await page.$$('.tutorial-divider')).length, 1);
+  await check('区切り画面に「れんしゅう おしまい」がある', async () => (await page.textContent('.tutorial-divider')).includes('れんしゅう おしまい'));
+  await check('区切り画面に「じゅんばんに うごいたね」がある', async () => (await page.textContent('.tutorial-divider')).includes('じゅんばんに うごいたね'));
 
   const cmdEvents = await eventTypes(page, 'cmd-01-susumu');
   await check(
@@ -69,13 +100,13 @@ export default async function run({ page, check }) {
   );
   await check('step_enter/step_leaveは通常どおり記録される', () => cmdEvents.includes('step_enter'));
 
-  await page.click('[data-action="next"]');
+  await page.click('[data-action="continue-to-task"]');
   await check('predictへ遷移', async () => page.getAttribute('#stage', 'data-step'), 'predict');
 
   // --- no-preference: 光るボタンにpulseアニメーションが付く ---
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto('/index.html?lesson=cmd-01-susumu');
-  await page.click('[data-action="start"]');
+  await page.click('[data-action="redo-tutorial"]');
   await check('no-preference時、光るボタンにpulseアニメーション', async () => animationName(page, '[data-command="up"]'), 'pulse');
   await page.emulateMedia({ reducedMotion: 'reduce' });
 
@@ -86,7 +117,7 @@ export default async function run({ page, check }) {
   await check('donguri: tutorialに入る', async () => page.getAttribute('#stage', 'data-step'), 'tutorial');
   await check(
     'donguri: 指示文が表示される（視覚で表せないルールのみtext表示）',
-    async () => page.textContent('#stage p'),
+    async () => page.textContent('.tutorial-prompt'),
     'どんぐりを とって ゴール'
   );
   await check('donguri: のこりが1', async () => page.textContent('[data-remaining]'), '1');
@@ -97,9 +128,9 @@ export default async function run({ page, check }) {
   await check('donguri: 実行前はのこり1のまま（タップは積むだけ）', async () => page.textContent('[data-remaining]'), '1');
 
   await page.click('[data-action="run"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 8000 });
-  await check('donguri: 実行後にのこり0（回収済み）', async () => page.textContent('[data-remaining]'), '0');
-  await check('donguri: クリア表示になる', async () => (await page.$$('[data-result="clear"]')).length, 1);
+  await page.waitForSelector('[data-action="continue-to-task"]', { timeout: 8000 });
+  // 完了後は区切り画面に差し替わり、のこり表示ごと消える（回収自体はonPickupでの減算をplay側で確認済み）。
+  await check('donguri: 区切り画面が出る', async () => (await page.$$('.tutorial-divider')).length, 1);
 
   const donguriEvents = await eventTypes(page, 'donguri-01-hirou');
   await check(
