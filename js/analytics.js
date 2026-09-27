@@ -128,3 +128,32 @@ export function summarize(events, now) {
 
   return { lessons, recentDays: computeRecentDays(events, now) };
 }
+
+// lessonAchievements(events, lessonId, sinceTs, { shortest }) -> string[]
+// このレッスンを開始(sinceTs)してからのイベントだけを対象に、子ども向けの「できたこと」文言を
+// 作る（最大3件）。点数・割合・他人との比較は返さない（PROJECT.md非目標。Issue #91）。
+export function lessonAchievements(events, lessonId, sinceTs, { shortest } = {}) {
+  const relevant = events
+    .filter((e) => e.lessonId === lessonId && e.ts >= sinceTs)
+    .sort((a, b) => a.ts - b.ts);
+
+  const cards = [];
+
+  const firstPredict = relevant.find((e) => e.type === 'predict');
+  if (firstPredict) {
+    cards.push(firstPredict.payload?.correct ? 'よそうが ぴったり！' : 'けっかを しっかり たしかめたね');
+  }
+
+  const clearEvent = relevant.find((e) => e.type === 'clear');
+  if (clearEvent) {
+    const runsBeforeClear = relevant.filter((e) => e.type === 'run' && e.ts <= clearEvent.ts);
+    cards.push(runsBeforeClear.length <= 1 ? '1かいで ゴール！' : 'あきらめずに ゴールできたね');
+
+    const lastRun = runsBeforeClear.at(-1);
+    if (typeof shortest === 'number' && lastRun?.payload?.commandCount === shortest) {
+      cards.push('いちばん みじかい めいれい！');
+    }
+  }
+
+  return cards;
+}

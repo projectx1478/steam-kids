@@ -15,7 +15,8 @@ function islandSvg() {
   </svg>`;
 }
 
-function stampSvg() {
+// 単元進捗（ui-summary.jsの「しま」進み具合）でも再利用する（Issue #91）。
+export function stampSvg() {
   return `<svg viewBox="0 0 32 32" class="w-7 h-7" aria-hidden="true">
     <circle cx="16" cy="16" r="14" fill="#fecdd3" stroke="#e11d48" stroke-width="2" />
     <path d="M9 16l5 5 9-11" fill="none" stroke="#e11d48" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />

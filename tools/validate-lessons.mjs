@@ -3,7 +3,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { simulate } from '../js/engine-grid.js';
+import { simulate, shortestSteps, shortestChips } from '../js/engine-grid.js';
 import { plainSegmentsText, plainReading, parseSegments, rubyGrade, textKanjiMaxGrade, KANJI_RE } from '../js/text-render.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -17,81 +17,6 @@ const MIN_STEPS = 4;
 const MAX_STEPS = 7;
 // docs/authoring-rules.md「禁止事項」で確定した否定語リスト。
 const FORBIDDEN_WORDS = ['ちがう', 'まちがい', 'ざんねん'];
-
-// simulateを1手ずつ呼ぶことで、探索の移動ロジックをengine-grid.jsと二重に持たない。
-function stepOnce(pos, cmd, spec) {
-  const result = simulate([cmd], { ...spec, start: pos });
-  return result.blockedAt.length > 0 ? null : result.path[result.path.length - 1];
-}
-
-// itemsのうちposで回収できるものをビットマスクにして返す（Issue #60）。
-function itemMaskAt(pos, items) {
-  let mask = 0;
-  items.forEach((it, idx) => {
-    if (it.x === pos.x && it.y === pos.y) mask |= 1 << idx;
-  });
-  return mask;
-}
-
-// BFSでstart→goal（かつitems全回収）の最短手数を求める（到達不能ならInfinity）。
-// items未指定時はfullMask=0・startMask=0となり従来通りの挙動になる。
-function shortestSteps(spec) {
-  const items = spec.items ?? [];
-  const fullMask = (1 << items.length) - 1;
-  const key = (p, mask) => `${p.x},${p.y}|${mask}`;
-  const startMask = itemMaskAt(spec.start, items);
-  const queue = [{ pos: spec.start, mask: startMask, dist: 0 }];
-  const seen = new Set([key(spec.start, startMask)]);
-  while (queue.length > 0) {
-    const cur = queue.shift();
-    if (cur.pos.x === spec.goal.x && cur.pos.y === spec.goal.y && cur.mask === fullMask) return cur.dist;
-    for (const cmd of COMMANDS) {
-      const next = stepOnce(cur.pos, cmd, spec);
-      if (!next) continue;
-      const nextMask = cur.mask | itemMaskAt(next, items);
-      const k = key(next, nextMask);
-      if (seen.has(k)) continue;
-      seen.add(k);
-      queue.push({ pos: next, mask: nextMask, dist: cur.dist + 1 });
-    }
-  }
-  return Infinity;
-}
-
-// groupRepeats:true向け。同方向を連続させれば1チップにまとめられる前提で、
-// start→goal（かつitems全回収）に必要な最小チップ数を0-1 BFSで求める（到達不能ならInfinity）。
-// 同方向への移動はコスト0（直前と同じチップに乗る）、方向転換はコスト1（新しいチップ）。
-function shortestChips(spec) {
-  const items = spec.items ?? [];
-  const fullMask = (1 << items.length) - 1;
-  const key = (p, dir, mask) => `${p.x},${p.y}|${dir ?? '-'}|${mask}`;
-  const startMask = itemMaskAt(spec.start, items);
-  const dist = new Map([[key(spec.start, null, startMask), 0]]);
-  const deque = [{ pos: spec.start, dir: null, mask: startMask }];
-  while (deque.length > 0) {
-    const cur = deque.shift();
-    const curDist = dist.get(key(cur.pos, cur.dir, cur.mask));
-    for (const cmd of COMMANDS) {
-      const next = stepOnce(cur.pos, cmd, spec);
-      if (!next) continue;
-      const nextMask = cur.mask | itemMaskAt(next, items);
-      const cost = cmd === cur.dir ? 0 : 1;
-      const nextDist = curDist + cost;
-      const nk = key(next, cmd, nextMask);
-      if (dist.has(nk) && dist.get(nk) <= nextDist) continue;
-      dist.set(nk, nextDist);
-      if (cost === 0) deque.unshift({ pos: next, dir: cmd, mask: nextMask });
-      else deque.push({ pos: next, dir: cmd, mask: nextMask });
-    }
-  }
-  let best = Infinity;
-  for (const [k, v] of dist) {
-    const [xy, , mask] = k.split('|');
-    const [x, y] = xy.split(',').map(Number);
-    if (x === spec.goal.x && y === spec.goal.y && Number(mask) === fullMask) best = Math.min(best, v);
-  }
-  return best;
-}
 
 function inGrid(grid, p) {
   return p.x >= 0 && p.x < grid.cols && p.y >= 0 && p.y < grid.rows;

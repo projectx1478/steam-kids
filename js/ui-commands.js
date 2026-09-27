@@ -43,32 +43,40 @@ export function renderCommandPalette(container, { onAdd }) {
 
 // renderCommandQueue(container, { commands, activeIndex, onRemove, removable = true })
 // commandsの各要素は{dir, times}。times>=2は「した ×5」のようにまとめて表示する。
-// removable:falseの時は×ボタンを描かない（チュートリアルでは命令を消させない。Issue #81）。
+// removable:falseの時は取り消しを描かない（チュートリアルでは命令を消させない。Issue #81）。
+// removable時はチップ自体が取り消しボタン（data-remove-index・.command-remove。Issue #91）。
+// 横に並ぶ48px四角チップで、はみ出す分は横スクロールする（container側でoverflow-x-autoを付ける）。
 export function renderCommandQueue(container, { commands, activeIndex, onRemove, removable = true }) {
   container.innerHTML = '';
   commands.forEach(({ dir, times }, i) => {
     const chip = document.createElement('li');
-    chip.className = 'command-chip flex items-center gap-1 min-h-[48px] px-2 rounded-lg bg-sky-100';
+    // ×バッジはCSS疑似要素(after:content)で描く。実DOMに<span>を増やすと、チップ内テキストを
+    // spanで厳密比較する既存シナリオ（cmd02-group-repeats・group-repeats-engine）が壊れるため。
+    chip.className = `command-chip relative flex flex-col items-center justify-center gap-0.5 min-w-[48px] min-h-[48px] px-1 rounded-lg bg-sky-100 shrink-0 ${
+      removable
+        ? "command-remove cursor-pointer transition-transform duration-100 active:scale-95 after:content-['×'] after:absolute after:-top-1.5 after:-right-1.5 after:w-4 after:h-4 after:rounded-full after:bg-rose-500 after:text-white after:text-[10px] after:font-bold after:leading-4 after:text-center"
+        : ''
+    }`;
     chip.dataset.index = String(i);
     if (i === activeIndex) chip.dataset.active = 'true';
 
+    chip.insertAdjacentHTML('beforeend', arrowSvg(dir));
+    const icon = chip.lastElementChild;
+    icon.classList.add('w-5', 'h-5', 'text-sky-600');
+
+    // ラベルは既存シナリオ（cmd02-group-repeats・group-repeats-engine）がテキストを厳密比較するため
+    // 「した ×5」/「うえ」形式を維持する。チップ内で唯一の<span>にする。
     const label = document.createElement('span');
-    label.className = 'text-sm flex-1';
+    label.className = 'text-[10px] leading-tight';
     label.textContent = times >= 2 ? `${COMMAND_LABELS[dir]} ×${times}` : COMMAND_LABELS[dir];
     chip.appendChild(label);
 
     if (removable) {
-      const removeBtn = document.createElement('button');
-      removeBtn.type = 'button';
-      removeBtn.dataset.removeIndex = String(i);
-      removeBtn.className =
-        'command-remove min-w-[48px] min-h-[48px] flex items-center justify-center text-lg text-slate-500 transition-transform duration-100 active:scale-95';
-      removeBtn.textContent = '×';
-      removeBtn.addEventListener('click', () => {
+      chip.dataset.removeIndex = String(i);
+      chip.addEventListener('click', () => {
         vibrate();
         onRemove(i);
       });
-      chip.appendChild(removeBtn);
     }
 
     container.appendChild(chip);

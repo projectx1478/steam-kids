@@ -77,18 +77,20 @@ function pixelFor(pos) {
 
 window.__gridAnimLog = window.__gridAnimLog || [];
 
-// renderGrid({grid, walls, goal, items, playerPos, labels, markers}) -> { el, view }
+// renderGrid({grid, walls, goal, items, playerPos, labels}) -> { el, view }
 // items: [{x, y}] どんぐり等の回収対象（Issue #60）。壁・ゴールと違い回収で個別に消えるため、
 // board全再構築とは別にitemEls（座標キー）で個体管理する
 // labels: [{id, x, y}] 予想ステップの選択肢ボタン
-// markers: [{x, y, kind: 'predicted' | 'result'}] 予想と結果を並べて表示するマーカー
 // view: プレイヤー駒・足あとの差分更新API（アニメーション中はこちらのみ使う。draw全再構築はしない）
 //   view.moveTo(pos): 通常移動（450ms、reduced-motion時は即時）
 //   view.bounce(dir): 壁停止の演出（250ms、reduced-motion時は何もしない）
 //   view.footprint(pos): 通過マスに足あとを追加
+//   view.markCell(pos, kind): 盤面を再構築せず印を重ねる（予想の答え合わせ・playのヒント。Issue #91）
+//   view.hintItems(items) / view.clearHints(): 未回収itemの点滅とヒント表示の一括解除（Issue #91）
+//   view.shrug(): 未達成時にロボットが首をかしげる（reduced-motion時は何もしない。Issue #91）
 //   view.confetti(): ゴール紙ふぶき（粒子24個・1.5秒で除去、reduced-motion時は何もしない）
 //   view.collectItem(pos): 該当マスのitemを回収演出付きで消す（reduced-motion時は即時に消す）
-export function renderGrid({ grid, walls, goal, items = [], playerPos, labels = [], markers = [] }) {
+export function renderGrid({ grid, walls, goal, items = [], playerPos, labels = [] }) {
   const wallSet = new Set(walls.map((w) => `${w.x},${w.y}`));
   const board = document.createElement('div');
   board.className = 'grid-board relative inline-grid gap-1 bg-sky-100 p-1 rounded-xl';
@@ -121,19 +123,6 @@ export function renderGrid({ grid, walls, goal, items = [], playerPos, labels = 
         btn.textContent = label.id;
         cell.appendChild(btn);
       }
-
-      markers
-        .filter((m) => m.x === x && m.y === y)
-        .forEach((m) => {
-          const badge = document.createElement('div');
-          badge.className = `grid-marker grid-marker-${m.kind} absolute inset-0 rounded-lg border-4 pointer-events-none flex items-end justify-center pb-0.5`;
-          badge.classList.add(m.kind === 'predicted' ? 'border-amber-400' : 'border-emerald-500');
-          const tag = document.createElement('span');
-          tag.className = 'text-[10px] font-bold bg-white/80 rounded px-1';
-          tag.textContent = m.kind === 'predicted' ? 'よそう' : 'けっか';
-          badge.appendChild(tag);
-          cell.appendChild(badge);
-        });
 
       board.appendChild(cell);
     }
@@ -249,6 +238,67 @@ export function renderGrid({ grid, walls, goal, items = [], playerPos, labels = 
       el.style.transform = `translate(${px.x}px, ${px.y}px) scale(1.4)`;
       el.style.opacity = '0';
       setTimeout(() => el.remove(), COLLECT_MS);
+    },
+    // markCell(pos, kind): 既存の盤面を再構築せず（足あとを残したまま）マス上に印を重ねる。
+    // kind: 'predicted' | 'result'（予想の答え合わせ）、'stopped' | 'goal-hint'（playの未達成ヒント）。
+    // data-hint="true"を付け、clearHints()で一括除去できるようにする（Issue #91）。
+    markCell(markerPos, kind) {
+      const px = pixelFor(markerPos);
+      const BORDER = {
+        predicted: 'border-amber-400',
+        result: 'border-emerald-500',
+        wall: 'border-amber-400 bg-amber-200/40',
+        stopped: 'border-sky-400',
+        'goal-hint': 'border-amber-500',
+      };
+      const LABEL = { predicted: 'よそう', result: 'けっか' };
+      const badge = document.createElement('div');
+      badge.className = `grid-marker grid-marker-${kind} absolute pointer-events-none rounded-lg border-4 flex items-end justify-center pb-0.5 ${BORDER[kind] ?? 'border-slate-400'}`;
+      badge.dataset.hint = 'true';
+      badge.style.top = '0';
+      badge.style.left = '0';
+      badge.style.width = `${CELL}px`;
+      badge.style.height = `${CELL}px`;
+      badge.style.transform = `translate(${px.x}px, ${px.y}px)`;
+      if (LABEL[kind]) {
+        const tag = document.createElement('span');
+        tag.className = 'text-[10px] font-bold bg-white/80 rounded px-1';
+        tag.textContent = LABEL[kind];
+        badge.appendChild(tag);
+      }
+      board.appendChild(badge);
+      return badge;
+    },
+    // hintItems(items): 未回収itemを点滅させて残っていることを示す（Issue #91）。
+    hintItems(items) {
+      items.forEach((it) => {
+        const el = itemEls.get(`${it.x},${it.y}`);
+        if (!el) return;
+        el.dataset.hint = 'true';
+        el.classList.add('motion-safe:animate-pulse', 'ring-4', 'ring-amber-400', 'rounded-full');
+      });
+    },
+    // clearHints(): markCell/hintItemsで付けた印を全て消す（命令を編集したら消える。Issue #91）。
+    clearHints() {
+      board.querySelectorAll('.grid-marker[data-hint="true"]').forEach((el) => el.remove());
+      itemEls.forEach((el) => {
+        delete el.dataset.hint;
+        el.classList.remove('motion-safe:animate-pulse', 'ring-4', 'ring-amber-400', 'rounded-full');
+      });
+    },
+    // shrug(): 未達成時にロボットが首をかしげる（reduced-motion時は何もしない。Issue #91）。
+    shrug() {
+      if (prefersReducedMotion()) return;
+      const base = token.style.transform;
+      token.animate(
+        [
+          { transform: `${base} rotate(0deg)` },
+          { transform: `${base} rotate(-12deg)` },
+          { transform: `${base} rotate(10deg)` },
+          { transform: `${base} rotate(0deg)` },
+        ],
+        { duration: 500, easing: 'ease-in-out' }
+      );
     },
     confetti() {
       if (prefersReducedMotion()) return;
