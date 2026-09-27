@@ -1,3 +1,69 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer components {
+  /* Clean & Tactileボタン。背景色・角丸以外の見た目は呼び出し側(bg-sky-500等)に任せる（Issue #95）。 */
+  .btn-tactile {
+    @apply border-2 border-slate-800 rounded-2xl shadow-[0_4px_0_#1e293b] transition-all duration-75 select-none min-w-[64px] min-h-[64px];
+  }
+  .btn-tactile:active:not(:disabled) {
+    @apply translate-y-1 shadow-[0_1px_0_#1e293b];
+  }
+  .btn-tactile:disabled {
+    @apply translate-y-1 shadow-none;
+  }
+
+  /* 操作エリア（パレット・命令列・じっこう）の背景。盤面(board-area)と視覚的に分離する（Issue #95）。 */
+  .controller-panel {
+    @apply bg-slate-100 border-t-2 border-slate-300 rounded-2xl p-3;
+  }
+
+  /* ドラッグ中に配置先を示す枠。指ガイド・実際のドラッグ操作の両方で使う（Issue #95）。 */
+  .ghost-slot {
+    @apply border-2 border-dashed border-amber-500/70 bg-amber-100/40 rounded-lg motion-safe:animate-pulse;
+  }
+}
+
+/* 指ガイド・ドロップ演出。prefers-reduced-motion時はアニメーションさせず静止表示にする（Issue #95）。 */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes hand-tap {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(0.85);
+    }
+  }
+  @keyframes hand-drag {
+    0%,
+    100% {
+      transform: translate(0, 0);
+    }
+    50% {
+      transform: translate(var(--hand-dx, 24px), var(--hand-dy, 0));
+    }
+  }
+  .hand-hint[data-mode='tap'] {
+    animation: hand-tap 1s ease-in-out infinite;
+  }
+  .hand-hint[data-mode='drag'] {
+    animation: hand-drag 1.4s ease-in-out infinite;
+  }
+
+  @keyframes spring-in {
+    0% {
+      transform: scale(0.7);
+    }
+    60% {
+      transform: scale(1.08);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+  .spring-in {
+    animation: spring-in 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+}
