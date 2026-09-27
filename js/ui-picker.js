@@ -30,10 +30,23 @@ export function stampSvg() {
   </svg>`;
 }
 
-function flagSvg() {
+// summaryの単元ぜんぶクリア演出でも再利用する（Issue #104）。
+export function flagSvg() {
   return `<svg viewBox="0 0 32 32" class="w-7 h-7" aria-hidden="true">
     <line x1="6" y1="4" x2="6" y2="28" stroke="#92400e" stroke-width="2" stroke-linecap="round" />
     <path d="M6 5 L26 10 L6 15 Z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5" stroke-linejoin="round" />
+  </svg>`;
+}
+
+// medalSvg(): 単元ぜんぶクリアだけで出すメダル（画像素材を使わず自作SVG。Issue #104）。
+export function medalSvg() {
+  return `<svg viewBox="0 0 64 64" class="w-full h-full" aria-hidden="true">
+    <path d="M22 30 L14 52 L24 48 L30 58 L38 38Z" fill="#38bdf8" stroke="#0284c7" stroke-width="1.5" />
+    <path d="M42 30 L50 52 L40 48 L34 58 L26 38Z" fill="#f87171" stroke="#dc2626" stroke-width="1.5" />
+    <circle cx="32" cy="26" r="18" fill="#fde68a" stroke="#f59e0b" stroke-width="3" />
+    <circle cx="32" cy="26" r="12" fill="#fbbf24" stroke="#f59e0b" stroke-width="2" />
+    <polygon points="32,18 34.4,23.2 40,23.8 35.8,27.6 37,33 32,30 27,33 28.2,27.6 24,23.8 29.6,23.2"
+      fill="#fff7ed" />
   </svg>`;
 }
 

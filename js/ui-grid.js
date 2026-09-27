@@ -329,13 +329,15 @@ export function renderGrid({ grid, walls, goal, items = [], playerPos, labels = 
         { duration: 500, easing: 'ease-in-out' }
       );
     },
-    confetti() {
+    // confetti({count, duration}): ゴール紙ふぶき。既定は24個・1.5秒（reduced-motion時は何もしない）。
+    // ステージクリア演出（Issue #104）ではcountを増やして使う。
+    confetti({ count = CONFETTI_COUNT, duration = CONFETTI_MS } = {}) {
       if (prefersReducedMotion()) return;
       const base = pixelFor(pos);
       const originX = base.x + CELL / 2;
       const originY = base.y + CELL / 2;
-      for (let i = 0; i < CONFETTI_COUNT; i++) {
-        const angle = (Math.PI * 2 * i) / CONFETTI_COUNT + Math.random() * 0.4;
+      for (let i = 0; i < count; i++) {
+        const angle = (Math.PI * 2 * i) / count + Math.random() * 0.4;
         const dist = 40 + Math.random() * 30;
         const dx = Math.cos(angle) * dist;
         const dy = Math.sin(angle) * dist - 20;
@@ -355,10 +357,59 @@ export function renderGrid({ grid, walls, goal, items = [], playerPos, labels = 
           piece.style.transform = `translate(${originX + dx}px, ${originY + dy}px) rotate(${rotate}deg)`;
           piece.style.opacity = '0';
         });
-        setTimeout(() => piece.remove(), CONFETTI_MS);
+        setTimeout(() => piece.remove(), duration);
       }
+    },
+    // celebrateJump(): ステージクリア時にロボットが2回ジャンプする（600ms・reduced-motion時は
+    // 何もしない。Issue #104）。
+    celebrateJump() {
+      if (prefersReducedMotion()) return;
+      const base = token.style.transform;
+      token.animate(
+        [
+          { transform: `${base} translateY(0)` },
+          { transform: `${base} translateY(-14px)` },
+          { transform: `${base} translateY(0)` },
+          { transform: `${base} translateY(-14px)` },
+          { transform: `${base} translateY(0)` },
+        ],
+        { duration: 600, easing: 'ease-in-out' }
+      );
     },
   };
 
   return { el: board, view };
+}
+
+// screenConfetti({count, duration, colors}): 画面全体を使う紙ふぶき（レッスンクリア・単元クリア用。
+// Issue #104）。grid-boardの座標系に依存せず、document.bodyへfixedで重ねて上から降らせる。
+// reduced-motion時は何もしない。
+export function screenConfetti({ count = CONFETTI_COUNT, duration = CONFETTI_MS, colors = CONFETTI_COLORS } = {}) {
+  if (prefersReducedMotion()) return;
+  const layer = document.createElement('div');
+  layer.className = 'screen-confetti fixed inset-0 pointer-events-none z-50';
+  layer.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(layer);
+  for (let i = 0; i < count; i++) {
+    const piece = document.createElement('div');
+    piece.className = 'absolute rounded-sm';
+    const size = 6 + Math.random() * 6;
+    const fallDuration = duration * (0.7 + Math.random() * 0.6);
+    const delay = Math.random() * duration * 0.3;
+    piece.style.left = `${Math.random() * 100}%`;
+    piece.style.top = '-20px';
+    piece.style.width = `${size}px`;
+    piece.style.height = `${size}px`;
+    piece.style.background = colors[i % colors.length];
+    piece.style.transform = 'translateY(0) rotate(0deg)';
+    piece.style.opacity = '1';
+    piece.style.transition = `transform ${fallDuration}ms ease-in ${delay}ms, opacity 400ms ease-in ${delay + fallDuration - 400}ms`;
+    layer.appendChild(piece);
+    requestAnimationFrame(() => {
+      const rotate = Math.round(Math.random() * 720 - 360);
+      piece.style.transform = `translateY(${window.innerHeight + 40}px) rotate(${rotate}deg)`;
+      piece.style.opacity = '0';
+    });
+  }
+  setTimeout(() => layer.remove(), duration + 500);
 }
