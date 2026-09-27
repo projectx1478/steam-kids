@@ -16,16 +16,20 @@ export const S = {
   learnerId: profile.learnerId,
   // よみレベル（0=ねんちょう〜6）。端末内(profile)のみで保持し同期しない（Issue #59）。
   readingLevel: profile.readingLevel ?? 0,
-  furigana: true,
+  // ふりがなON/OFF。dashboardの設定画面でのみ切り替える（端末内のみ・同期しない。Issue #93）。
+  furigana: profile.furigana ?? true,
   // 単元情報（{title, lessonIds}）。app.jsのstartLessonがlessons/index.jsonから設定する。
   // 取得失敗時はnullのまま（ヘッダーはレッスン名のみ表示。Issue #91）。
   unit: null,
+  // introの「れんしゅう する」から明示的にtutorialへ入る時だけtrue（自動スキップを1回だけ回避。Issue #93）。
+  forceTutorial: false,
 };
 
 export function initState(lesson) {
   S.lesson = lesson;
   S.stepIndex = 0;
   S.unit = null;
+  S.forceTutorial = false;
 }
 
 export function currentStep() {

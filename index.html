@@ -6,12 +6,14 @@
 <title>すすむ | steam-kids</title>
 <link rel="stylesheet" href="style.css" />
 </head>
-<body class="min-h-screen bg-sky-50 flex items-center justify-center p-4 touch-manipulation">
-<div id="app" class="w-full max-w-3xl">
-  <header class="flex justify-between items-center gap-2 mb-2">
+<body class="min-h-[100dvh] bg-sky-50 touch-manipulation">
+<div id="app" class="w-full max-w-3xl mx-auto h-[100dvh] flex flex-col p-4">
+  <header class="flex justify-between items-center gap-2 mb-2 shrink-0">
     <div id="lesson-header" class="items-center gap-2 min-w-0" style="display:none">
-      <button id="back-btn" type="button" data-action="back" aria-label="ひとつ前へ"
+      <button id="back-btn" type="button" data-action="back" aria-label="まえの がめんへ"
         class="min-w-[48px] min-h-[48px] flex items-center justify-center rounded-lg bg-white shadow text-xl transition-transform duration-100 active:scale-95 disabled:opacity-40">←</button>
+      <button id="home-btn" type="button" data-action="home" aria-label="えらぶ がめんへ"
+        class="min-w-[48px] min-h-[48px] flex items-center justify-center rounded-lg bg-white shadow text-xl transition-transform duration-100 active:scale-95 disabled:opacity-40">🏠</button>
       <div class="min-w-0 leading-tight">
         <p id="lesson-title" class="text-sm font-bold truncate"></p>
         <span id="step-kind-chip" class="inline-block text-[10px] px-2 py-0.5 rounded-full bg-sky-100 text-sky-700"></span>
@@ -25,13 +27,9 @@
         <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.6 1H21a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.6 1z" />
       </svg>
     </a>
-    <button id="furigana-toggle" type="button" aria-pressed="true"
-      class="min-w-[48px] min-h-[48px] px-3 rounded-lg bg-white shadow text-sm">ふりがな</button>
-    <button id="sound-toggle" type="button" aria-pressed="true"
-      class="min-w-[48px] min-h-[48px] px-3 rounded-lg bg-white shadow text-sm">おと</button>
     </div>
   </header>
-  <main id="stage" class="bg-white rounded-2xl shadow p-4"></main>
+  <main id="stage" class="bg-white rounded-2xl shadow p-4 flex-1 min-h-0 flex flex-col overflow-y-auto"></main>
 </div>
 <script type="module" src="app.js"></script>
 </body>

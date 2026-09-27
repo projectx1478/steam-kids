@@ -1,5 +1,7 @@
 // SVGグリッド描画。すべて自作SVG（<img>・background-imageは使わない）。
-const CELL = 64;
+const DEFAULT_CELL = 64;
+const MIN_CELL = 48;
+const MAX_CELL = 64;
 const GAP_PX = 4; // Tailwind gap-1
 const PAD_PX = 4; // Tailwind p-1
 const MOVE_MS = 450;
@@ -71,13 +73,19 @@ export function prefersReducedMotion() {
   return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-function pixelFor(pos) {
-  return { x: PAD_PX + pos.x * (CELL + GAP_PX), y: PAD_PX + pos.y * (CELL + GAP_PX) };
+// computeCellSize({cols, rows, width, height}) -> 48〜64の整数。
+// 盤面エリアの実寸から1マスの大きさを決める（画面回転・端末差に追従。Issue #93）。
+// 下限48pxはタップ領域規則のため、上限64pxは元々の固定サイズを超えて大きくしないため。
+export function computeCellSize({ cols, rows, width, height, gap = GAP_PX }) {
+  if (!cols || !rows || !width || !height) return DEFAULT_CELL;
+  const raw = Math.floor(Math.min(width / cols, height / rows)) - gap;
+  return Math.min(MAX_CELL, Math.max(MIN_CELL, raw));
 }
 
 window.__gridAnimLog = window.__gridAnimLog || [];
 
-// renderGrid({grid, walls, goal, items, playerPos, labels}) -> { el, view }
+// renderGrid({grid, walls, goal, items, playerPos, labels, cellSize}) -> { el, view }
+// cellSize省略時はDEFAULT_CELL(64px)。呼び出し側がcomputeCellSize()で盤面エリアの実寸から算出する（Issue #93）。
 // items: [{x, y}] どんぐり等の回収対象（Issue #60）。壁・ゴールと違い回収で個別に消えるため、
 // board全再構築とは別にitemEls（座標キー）で個体管理する
 // labels: [{id, x, y}] 予想ステップの選択肢ボタン
@@ -90,7 +98,9 @@ window.__gridAnimLog = window.__gridAnimLog || [];
 //   view.shrug(): 未達成時にロボットが首をかしげる（reduced-motion時は何もしない。Issue #91）
 //   view.confetti(): ゴール紙ふぶき（粒子24個・1.5秒で除去、reduced-motion時は何もしない）
 //   view.collectItem(pos): 該当マスのitemを回収演出付きで消す（reduced-motion時は即時に消す）
-export function renderGrid({ grid, walls, goal, items = [], playerPos, labels = [] }) {
+export function renderGrid({ grid, walls, goal, items = [], playerPos, labels = [], cellSize = DEFAULT_CELL }) {
+  const CELL = cellSize;
+  const pixelFor = (pos) => ({ x: PAD_PX + pos.x * (CELL + GAP_PX), y: PAD_PX + pos.y * (CELL + GAP_PX) });
   const wallSet = new Set(walls.map((w) => `${w.x},${w.y}`));
   const board = document.createElement('div');
   board.className = 'grid-board relative inline-grid gap-1 bg-sky-100 p-1 rounded-xl';
@@ -240,9 +250,10 @@ export function renderGrid({ grid, walls, goal, items = [], playerPos, labels = 
       setTimeout(() => el.remove(), COLLECT_MS);
     },
     // markCell(pos, kind): 既存の盤面を再構築せず（足あとを残したまま）マス上に印を重ねる。
-    // kind: 'predicted' | 'result'（予想の答え合わせ）、'stopped' | 'goal-hint'（playの未達成ヒント）。
+    // kind: 'predicted' | 'result'（予想の答え合わせ）、'stopped' | 'goal-hint'（playの未達成ヒント）、
+    // 'ghost'（チュートリアルの予定の道。番号付き。Issue #93）。
     // data-hint="true"を付け、clearHints()で一括除去できるようにする（Issue #91）。
-    markCell(markerPos, kind) {
+    markCell(markerPos, kind, opts = {}) {
       const px = pixelFor(markerPos);
       const BORDER = {
         predicted: 'border-amber-400',
@@ -250,17 +261,25 @@ export function renderGrid({ grid, walls, goal, items = [], playerPos, labels = 
         wall: 'border-amber-400 bg-amber-200/40',
         stopped: 'border-sky-400',
         'goal-hint': 'border-amber-500',
+        ghost: 'border-dashed border-sky-400 bg-sky-100/60',
       };
       const LABEL = { predicted: 'よそう', result: 'けっか' };
       const badge = document.createElement('div');
-      badge.className = `grid-marker grid-marker-${kind} absolute pointer-events-none rounded-lg border-4 flex items-end justify-center pb-0.5 ${BORDER[kind] ?? 'border-slate-400'}`;
+      const alignClass = kind === 'ghost' ? 'items-center' : 'items-end';
+      badge.className = `grid-marker grid-marker-${kind} absolute pointer-events-none rounded-lg border-4 flex ${alignClass} justify-center pb-0.5 ${BORDER[kind] ?? 'border-slate-400'}`;
       badge.dataset.hint = 'true';
       badge.style.top = '0';
       badge.style.left = '0';
       badge.style.width = `${CELL}px`;
       badge.style.height = `${CELL}px`;
       badge.style.transform = `translate(${px.x}px, ${px.y}px)`;
-      if (LABEL[kind]) {
+      if (kind === 'ghost' && opts.order) {
+        badge.dataset.ghostOrder = String(opts.order);
+        const num = document.createElement('span');
+        num.className = 'text-xs font-bold text-sky-700 bg-white/90 rounded-full w-5 h-5 flex items-center justify-center';
+        num.textContent = String(opts.order);
+        badge.appendChild(num);
+      } else if (LABEL[kind]) {
         const tag = document.createElement('span');
         tag.className = 'text-[10px] font-bold bg-white/80 rounded px-1';
         tag.textContent = LABEL[kind];

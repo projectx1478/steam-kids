@@ -3,7 +3,6 @@ import { loadLesson } from './js/lesson-loader.js';
 import { initSteps, refreshHeader } from './js/ui-step.js';
 import { push } from './js/sync.js';
 import { registerServiceWorker } from './js/register-sw.js';
-import { initSoundToggle } from './js/sfx.js';
 import { renderUnitMap } from './js/ui-picker.js';
 
 function showError() {
@@ -60,8 +59,6 @@ async function renderPicker() {
 
   await renderUnitMap(stage, units, startLesson);
 }
-
-initSoundToggle(document.getElementById('sound-toggle'));
 
 const lessonId = new URLSearchParams(location.search).get('lesson');
 if (lessonId) {
