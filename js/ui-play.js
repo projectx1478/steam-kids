@@ -196,8 +196,9 @@ export function renderPlay(root, step, { guide = null } = {}) {
     if (runBtn.dataset.action !== 'retry') return;
     setRunButtonMode('run');
     // ヒントの黄色表示は次に命令を編集したら消える（Issue #91。チップ側はdrawQueue()の
-    // 再描画で自然に消えるため、盤面側のみここで消す）。
+    // 再描画で自然に消えるため、盤面側とヒントパネルのみここで消す）。
     local.view?.clearHints();
+    resultEl.innerHTML = '';
   }
 
   // 無操作時、いまの段階に応じた実物ボタンを促す（8秒後・最大2回。guide時は出さない。Issue #89）。

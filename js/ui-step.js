@@ -66,7 +66,9 @@ function renderHeader() {
   wrap.style.display = 'flex';
   title.textContent = S.unit ? `${S.unit.title} ・ ${S.lesson.title}` : S.lesson.title;
   chip.textContent = KIND_CHIP_LABEL[currentStep().kind] ?? '';
-  back.hidden = S.stepIndex === 0;
+  // Tailwindの`flex`ユーティリティ（back.classListが持つ）はUA既定の[hidden]より強いため、
+  // hidden属性ではなくinline style.displayで確実に隠す。
+  back.style.display = S.stepIndex === 0 ? 'none' : '';
 }
 
 // 実行アニメーション中はもどるを操作させない（playAnimationの開始・終了で呼ぶ）。
