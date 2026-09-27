@@ -7,19 +7,17 @@ import { play as playSfx } from './sfx.js';
 import { renderInto } from './text-render.js';
 import { renderHowTo, createIdleNudge } from './ui-guide.js';
 import { goToStep, createPrimaryButton, playAnimation, setActiveNudge, markLessonCleared } from './ui-step.js';
+import { showSuccess, showHint, diagnose } from './ui-reaction.js';
 
 // チュートリアル（tutorial）のお手本列・現在操作対象を光らせる共通クラス（Issue #81）。
 const GUIDE_GLOW_CLASSES = ['ring-4', 'ring-amber-400', 'ring-offset-2', 'motion-safe:animate-pulse'];
 
-function createClearReaction() {
-  const wrap = document.createElement('div');
-  wrap.className = 'clear-reaction flex flex-col items-center gap-1';
-  wrap.innerHTML = `<svg viewBox="0 0 64 64" class="w-12 h-12" aria-hidden="true">
-    <polygon points="32,4 39,24 60,24 43,37 49,58 32,46 15,58 21,37 4,24 25,24"
-      fill="#fbbf24" stroke="#f59e0b" stroke-width="2" />
-  </svg><p class="text-lg font-bold text-amber-600">やったね</p>`;
-  return wrap;
-}
+// diagnose()の原因ごとの文言（20字以内・否定語なし。Issue #91）。
+const HINT_MESSAGE = {
+  wall: 'この めいれいで かべに ぶつかったよ',
+  items: 'どんぐりが まだ のこって いるよ',
+  goal: 'ゴールまで あと すこし',
+};
 
 // guide（tutorial用・任意）: [{tap: 'up'|'down'|'left'|'right'|'run'}]。指定時は現在の
 // tap対象だけ操作可・光らせ、他は無効化する（なぞり操作型チュートリアル。Issue #81）。
@@ -185,7 +183,11 @@ export function renderPlay(root, step, { guide = null } = {}) {
   // （例: cmd03のなおす操作）でも[data-action="run"]に戻す。次のrunで盤面はどのみち
   // drawBoard(spec.start)からやり直すため、機能上は編集時に静かに戻すだけでよい。
   function revertRunButtonIfRetrying() {
-    if (runBtn.dataset.action === 'retry') setRunButtonMode('run');
+    if (runBtn.dataset.action !== 'retry') return;
+    setRunButtonMode('run');
+    // ヒントの黄色表示は次に命令を編集したら消える（Issue #91。チップ側はdrawQueue()の
+    // 再描画で自然に消えるため、盤面側のみここで消す）。
+    local.view?.clearHints();
   }
 
   // 無操作時、いまの段階に応じた実物ボタンを促す（8秒後・最大2回。guide時は出さない。Issue #89）。
@@ -213,7 +215,6 @@ export function renderPlay(root, step, { guide = null } = {}) {
       items: spec.items,
       playerPos,
       labels: [],
-      markers: [],
     });
     boardWrap.appendChild(el);
     local.view = view;
@@ -405,15 +406,24 @@ export function renderPlay(root, step, { guide = null } = {}) {
         updateControls();
         if (result.reachedGoal && result.remainingItems.length === 0) {
           if (!guide) logEvent('clear', {});
-          playSfx('clear');
-          local.view.confetti();
           if (!guide) markLessonCleared();
-          resultEl.dataset.result = 'clear';
-          resultEl.appendChild(createClearReaction());
+          showSuccess(resultEl, { view: local.view });
           resultEl.appendChild(createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'));
         } else {
           setRunButtonMode('retry');
           updateControls();
+          const info = diagnose(result, local.commands, spec);
+          if (info.reason === 'wall') {
+            queueEl.querySelector(`[data-index="${info.cmdIndex}"]`)?.classList.add('ring-4', 'ring-amber-400');
+            local.view.markCell(info.cell, 'wall');
+          } else if (info.reason === 'items') {
+            local.view.hintItems(info.remainingItems);
+          } else {
+            local.view.markCell(info.cell, 'stopped');
+            local.view.markCell(spec.goal, 'goal-hint');
+          }
+          local.view.shrug();
+          showHint(resultEl, { kind: info.reason, message: HINT_MESSAGE[info.reason] });
         }
         if (howto) howto.setPhase(0);
       },

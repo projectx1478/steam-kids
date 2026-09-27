@@ -7,6 +7,9 @@ import { play as playSfx } from './sfx.js';
 import { renderInto } from './text-render.js';
 import { renderHowTo, createIdleNudge } from './ui-guide.js';
 import { goToStep, createPrimaryButton, playAnimation, setActiveNudge } from './ui-step.js';
+import { showSuccess, showHint } from './ui-reaction.js';
+
+const RETRY_HINT_MESSAGE = 'ロボットは ここで とまったよ';
 
 function getPlaySpec() {
   const playStep = S.lesson.steps.find((s) => s.kind === 'play');
@@ -47,29 +50,41 @@ export function renderPredict(root, step) {
   boardWrap.className = 'flex justify-center';
   root.appendChild(boardWrap);
 
-  const local = { selected: null, view: null };
+  const resultEl = document.createElement('div');
+  resultEl.className = 'text-center mt-2';
+  root.appendChild(resultEl);
 
-  // 静的な盤面の再構築。アニメーション中には呼ばない（プレイヤー駒はview経由で差分更新する）。
-  // goalは描かない（Issue #80。星がゴール/答えだと誤解された。itemsは経路に関わるため残す）。
-  function drawStatic(playerPos, labels, markers) {
+  const local = { selected: null, view: null };
+  let nudge = null;
+
+  // 静的な盤面の再構築。選択前・もういちどの時のみ呼ぶ（結果表示中は足あとを残すため呼ばない）。
+  function drawStatic(playerPos, labels) {
     boardWrap.innerHTML = '';
     const { el, view } = renderGrid({
       grid: spec.grid,
       walls: spec.walls,
-      goal: null,
+      goal: null, // ゴールは描かない（Issue #80。星がゴール/答えだと誤解された）
       items: spec.items,
       playerPos,
       labels,
-      markers,
     });
     boardWrap.appendChild(el);
     local.view = view;
   }
-  drawStatic(spec.start, step.optionCells.map((o) => ({ id: o.id, x: o.x, y: o.y })), []);
 
-  // 無操作時、光っていない選択肢マスを促す（8秒後・最大2回。Issue #89）。
-  const nudge = createIdleNudge({ getTarget: () => [...boardWrap.querySelectorAll('[data-option]')] });
-  setActiveNudge(nudge);
+  // 選択肢タップ待ちの状態を(再)表示する。もういちど よそう（不正解時）から再度呼ばれる。
+  function showQuestion() {
+    local.selected = null;
+    resultEl.innerHTML = '';
+    commandRow.querySelectorAll('[data-index]').forEach((el) => delete el.dataset.active);
+    howto.setPhase(1);
+    drawStatic(spec.start, step.optionCells.map((o) => ({ id: o.id, x: o.x, y: o.y })));
+
+    // 無操作時、光っていない選択肢マスを促す（8秒後・最大2回。Issue #89）。
+    nudge = createIdleNudge({ getTarget: () => [...boardWrap.querySelectorAll('[data-option]')] });
+    setActiveNudge(nudge);
+  }
+  showQuestion();
 
   boardWrap.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-option]');
@@ -78,7 +93,7 @@ export function renderPredict(root, step) {
     local.selected = btn.dataset.option;
     const correct = local.selected === step.answer;
     logEvent('predict', { selected: local.selected, correct });
-    drawStatic(spec.start, [], []);
+    drawStatic(spec.start, []);
 
     playAnimation(step.commands, spec, local.view, {
       onTick: (i) => {
@@ -92,12 +107,19 @@ export function renderPredict(root, step) {
         playSfx('reveal');
         const chosen = step.optionCells.find((o) => o.id === local.selected);
         const finalPos = result.path[result.path.length - 1];
-        drawStatic(finalPos, [], [
-          { x: chosen.x, y: chosen.y, kind: 'predicted' },
-          { x: finalPos.x, y: finalPos.y, kind: 'result' },
-        ]);
+        // 足あとを残したまま(drawStaticで再構築しない)、よそう・けっか印だけ重ねる（Issue #91）。
+        local.view.markCell(chosen, 'predicted');
+        local.view.markCell(finalPos, 'result');
         howto.setPhase(0);
-        root.appendChild(createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'));
+
+        if (correct) {
+          showSuccess(resultEl, { view: local.view });
+          resultEl.appendChild(createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'));
+        } else {
+          showHint(resultEl, { kind: 'predict', message: RETRY_HINT_MESSAGE });
+          resultEl.appendChild(createPrimaryButton('もういちど よそう', showQuestion, 'retry-predict'));
+          resultEl.appendChild(createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'));
+        }
       },
     });
   });
