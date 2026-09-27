@@ -9,6 +9,7 @@ import { renderInto, refreshRubyText } from './text-render.js';
 import { renderDemo } from './ui-demo.js';
 import { renderPlay } from './ui-play.js';
 import { renderPredict } from './ui-predict.js';
+import { renderSummary } from './ui-summary.js';
 
 // predict/playの区分バナー文言（Issue #91）。tutorialには出さない。
 const CATEGORY_LABEL = { predict: 'もんだい1 よそう', play: 'もんだい2 うごかす' };
@@ -155,7 +156,7 @@ function renderStep() {
   else if (step.kind === 'predict') renderPredict(root, step);
   else if (step.kind === 'play') renderPlay(root, step);
   else if (step.kind === 'tutorial') renderPlay(root, step, { guide: step.script });
-  else if (step.kind === 'summary') renderSummary(root, step);
+  else if (step.kind === 'summary') renderSummary(root);
   applyStepTransition(root);
 }
 
@@ -249,14 +250,4 @@ export function renderCategoryBanner(root, kind) {
       demoEl.remove();
     },
   };
-}
-
-function renderSummary(root, step) {
-  const p = document.createElement('p');
-  p.className = 'text-2xl text-center py-8';
-  renderInto(p, step.text, S.readingLevel, S.furigana);
-  root.appendChild(p);
-  root.appendChild(
-    createPrimaryButton('ほかのレッスンへ', () => (location.href = './index.html'), 'back-to-picker')
-  );
 }
