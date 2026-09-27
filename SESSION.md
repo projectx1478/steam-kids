@@ -1,6 +1,6 @@
 # SESSION.md
 
-最終更新：2026-09-27（Issue #91取り込み）
+最終更新：2026-09-28（Issue #104取り込み）
 
 引き継ぎ専用。進捗・仕様はここに書かない（仕様→PROJECT.md、進捗→git/PR履歴、個別タスク→GitHub Issue）。
 進行中タスクの正本は`agent:<tool>`ラベル付きのオープンIssue、完了タスクの正本はPR履歴（AGENTS.md
@@ -56,6 +56,19 @@
 - `.claude/verify/run.mjs`のWindows ESM修正は配布元project-template側に正式反映され、
   テンプレート同期PR #85で取り込み済み（2026-09-26。project-template#93対応）。以後は
   ローカルでの一時当ては不要
+- `kind: "predict"`（よそうの選択肢UI）はIssue #104で全レッスンから廃止した。`js/ui-predict.js`・
+  `tools/validate-lessons.mjs`の対応する検証・`js/analytics.js`のpredict集計は将来の教材型向けに
+  コードだけ残す（呼ばれないだけで壊してはいない）
+- `grid-runtime`の`play`は2〜4ステージ（`p1`, `p2`…）が既定。途中ステージのクリアは`stage_clear`、
+  最終ステージのクリアのみ`clear`を記録する（`isLessonCleared`・単元スタンプは`clear`基準のまま）
+- `js/ui-step.js`の`resolveStepIndex`はtutorialの自動スキップを**前進時のみ**行う。後退
+  （← もどる）では自動スキップしない（tutorial直後がpredict無しでplayになった結果、後退でも
+  スキップすると「← もどるが効かない」ように見えるため。Issue #104）
+- `.claude/verify/config.mjs`が凍結するcmd-01-susumu・donguri-01-hirouのフィクスチャは
+  レッスン**構造**の変更からは隔離されるが、`js/ui-reaction.js`・`js/ui-summary.js`等の
+  **コード側の挙動変更**（例: クリア音がclear→fanfareへ、紙ふぶきが24→60個へ。Issue #104）は
+  フィクスチャ経由でも影響する。効果音・演出を変える時はフリーズ系シナリオ（a1-sfx-flow等）も
+  必ず確認する
 
 ## 環境
 

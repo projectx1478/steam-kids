@@ -54,8 +54,12 @@
 ```
 
 `kind` は `intro` / `predict` / `play` / `tutorial` / `summary`。座標は y が下向きに増加する。
+`grid-runtime`の`play`は2〜4個（`p1`, `p2`…と番号付きのstepIdにする）で構成し、だんだん
+難易度を上げる（後のステージほど最短手数・`groupRepeats`時はチップ数が非減少であること。
+`tools/validate-lessons.mjs`が機械チェック）。`predict`は将来の教材型向けに語彙のみ残し、
+現行レッスンでは0個（Issue #104で全廃。0個でも検証NG にはしない）。
 
-`predict` ステップは自前の盤面を持たず、同じレッスン内の `play` ステップの
+`predict` ステップは自前の盤面を持たず、同じレッスン内の最初の `play` ステップ（`p1`）の
 `grid` / `start` / `goal` / `walls` を参照する。`commands` はその盤面上で予想させる命令列、
 `optionCells` は `options` の各選択肢が指すマス座標（`id` が `options` の値と対応）。
 
@@ -82,16 +86,22 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 `items`が1つ以上あれば「どんぐりを ぜんぶ とって ゴール」、無ければ
 「ロボットを ゴールへ うごかそう」（Issue #80）。
 
-`intro.demo`（任意・`{ grid, start, goal, walls, items?, commands }`。`play`と同じ形状の自前の盤面）
-を指定すると、「はじめに」画面でロボットがその経路をたどってゴールへ到達する完成イメージを
-アニメーションで見せる（`js/ui-demo.js`の`renderGoalDemo`）。`start`/`goal`の組は**本番の`play`と
-同一にしない**（答えのネタバレになるため。`validate-lessons.mjs`が機械チェックする）。
+`intro.demo`（任意・`{ grid, start, goal, walls, items?, commands, showCommands?, fixFrom? }`。
+`play`と同じ形状の自前の盤面）を指定すると、「はじめに」画面でロボットがその経路をたどって
+ゴールへ到達する完成イメージをアニメーションで見せる（`js/ui-demo.js`の`renderGoalDemo`）。
+自動再生は1回だけ（「もういちど みる」で再生し直せる）。`start`/`goal`の組は**本番の`play`の
+どのステージとも同一にしない**（答えのネタバレになるため。`validate-lessons.mjs`が機械チェックする）。
 `commands`は壁にぶつからずゴール到達・全item回収する内容にする（同じくチェック対象）。
-reduced-motion時はゴール到達後の最終状態を静止表示するだけになる。未指定の教材型は表示しない。
+`commands`の各要素は方向文字列、または`{dir, times}`（まとめ表示。`cmd-02-mijikaku`で使用）。
+`showCommands`（任意・boolean）を`true`にすると、盤面の上に命令チップ列を表示し実行中のチップを
+光らせる。`fixFrom`（任意・`commands`と同じ形状の配列）を指定すると、先にこの誤った命令列を
+実行して失敗させ、一呼吸おいてから正しい`commands`へ差し替えて再実行する（「なおす」のデモ。
+`fixFrom`はそのまま実行してもゴールに到達しない内容にする）。reduced-motion時も1手0.6秒の
+コマ送りで動かし、静止画にはしない。未指定の教材型は表示しない（Issue #97・#104）。
 
 ### `tutorial`（なぞり操作型チュートリアル）
 
-各単元1本目のみ・`intro`直後かつ`predict`より前に0〜1個置く（新ルール初登場時のガイド）。
+各単元1本目のみ・`intro`直後かつ最初の`play`より前に0〜1個置く（新ルール初登場時のガイド）。
 `grid`/`start`/`goal`/`walls`/`items`（任意）/`allowedCommands`は`play`と同じ形状の自前の盤面を持つ。
 `maxCommands`は持たない（`script`の手数がそのまま操作対象になるため）。
 
@@ -162,11 +172,11 @@ reduced-motion時はゴール到達後の最終状態を静止表示するだけ
 - `lessonId` がファイル名と一致する
 - `text` は全てひらがなに展開した表示（よみレベル0相当）で20字以内
 - `steps` は4〜7個
-- `predict` ステップが最低1つ含まれること
-- `grid-runtime` では `play` ステップがちょうど1つであること
+- `grid-runtime` では `play` ステップが2〜4個であること（`predict`は0個でもよい。Issue #104）
 - `estimatedMinutes` が5であること
 - `answer` が `options` に存在し、`optionCells` の `id` 集合が `options` と一致すること
-- `predict.commands` を `play` の盤面で実行した終点が `answer` の `optionCells` 座標と一致すること
+- `predict.commands` を最初の `play`（`p1`）の盤面で実行した終点が `answer` の `optionCells` 座標と
+  一致すること
 - `commands` / `allowedCommands` が `up` `down` `left` `right` のみであること
 - `groupRepeats` を持つ場合はboolean型であること
 - `initialCommands` を持つ場合は語彙が正しく、長さが `maxCommands` 以内であり、そのまま実行
@@ -177,6 +187,11 @@ reduced-motion時はゴール到達後の最終状態を静止表示するだけ
 - ゴールが到達可能であること（`items` がある場合は全回収した上でのゴール到達）を `maxCommands`
   以内の最短手数でBFS確認する（`groupRepeats: true` の場合は同方向連続を1チップにまとめた
   最小チップ数で判定する）
+- 複数の`play`ステージがある場合、後のステージほど最短手数（`groupRepeats`時はチップ数）が
+  非減少であること（Issue #104）
+- `intro.demo`がある場合、`commands`（`fixFrom`があればそれも）の語彙が正しく、壁にぶつからず
+  ゴール到達＋全item回収になること。`fixFrom`はそのまま実行してもゴールに到達しないこと。
+  `start`/`goal`の組が本番`play`のいずれのステージとも一致しないこと（ネタバレ防止。Issue #104）
 - `text` に否定語（「ちがう」「まちがい」「ざんねん」）が含まれないこと（ひらがな展開後の
   文字列で判定。`docs/authoring-rules.md`）
 - `text` のルビ記法 `{漢字|よみ}` 外に生の漢字が無いこと、ルビ内の漢字が
@@ -184,7 +199,7 @@ reduced-motion時はゴール到達後の最終状態を静止表示するだけ
   （`docs/authoring-rules.md`「使用できる文字」）
 - 各レッスンで使われている漢字の最大配当学年（`kanjiMaxGrade`）を算出し、使用があれば
   `INFO`行で表示する（失敗にはしない情報表示）
-- `tutorial`は0〜1個であること。ある場合は直前が`intro`かつ`predict`より前の位置にあること
+- `tutorial`は0〜1個であること。ある場合は直前が`intro`かつ最初の`play`より前の位置にあること
 - `tutorial.script`が非空配列であること、各`tap`が`allowedCommands`∪`run`のいずれかであること、
   `script`要素に`text`キーを持たないこと、`run`は最後の要素のみであること
 - `tutorial.script`から`run`を除いた方向列を実行すると、壁にぶつからずゴール到達＋全item回収に
@@ -219,7 +234,8 @@ reduced-motion時はゴール到達後の最終状態を静止表示するだけ
 | `run` | 実行 |
 | `retry` | 失敗後の再実行 |
 | `undo` | 命令の取り消し |
-| `clear` | レッスン達成 |
+| `stage_clear` | 途中のplayステージのクリア（最終ステージ以外。Issue #104） |
+| `clear` | レッスン達成（最終playステージのクリア） |
 | `abandon` | 途中離脱 |
 
 `logEvent(type, payload)` で `js/storage.js` 経由の localStorage（キー `steamkids.events`）へ
