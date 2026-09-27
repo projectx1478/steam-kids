@@ -24,7 +24,7 @@ export default async function run({ page, check }) {
 
   await check('tutorialステップに入る', async () => page.getAttribute('#stage', 'data-step'), 'tutorial');
   await check('見出しが「れんしゅう」', async () => page.textContent('.tutorial-screen h2'), 'れんしゅう');
-  await check('ステップドットが5個（intro/tutorial/predict/play/summary）', async () => (await page.$$('.step-dot')).length, 5);
+  await check('ステップドットが6個（intro/tutorial/p1/p2/p3/summary）', async () => (await page.$$('.step-dot')).length, 6);
   await check('横スクロールが発生しない', async () => noScrollX(page));
   await check('指示文<p>が無い（cmd-01は文字を読ませない）', async () => (await page.$$('.tutorial-prompt')).length, 0);
   await check('お手本列の要素数が5個（script長と一致）', async () => (await page.$$('.guide-row [data-guide-index]')).length, 5);
@@ -61,9 +61,9 @@ export default async function run({ page, check }) {
   await check('1行キャプションが20字以内', async () => (await page.textContent('.ghost-caption')).length <= 20);
   await check('キャプションに向きの言葉がある', async () => (await page.textContent('.ghost-caption')).includes('うえ'));
 
-  // --- 途中でスキップしても即座に次(predict)へ進み、単元スタンプは付かない ---
+  // --- 途中でスキップしても即座に次(play=p1)へ進み、単元スタンプは付かない ---
   await page.click('[data-action="skip-tutorial"]');
-  await check('スキップでpredictへ進む', async () => page.getAttribute('#stage', 'data-step'), 'predict');
+  await check('スキップでplay(p1)へ進む', async () => page.getAttribute('#stage', 'data-step'), 'play');
   const skippedEvents = await eventTypes(page, 'cmd-01-susumu');
   await check(
     'スキップでもrun/clearイベントが記録されない（単元スタンプの誤付与防止）',
@@ -74,7 +74,7 @@ export default async function run({ page, check }) {
   await page.goto('/index.html?lesson=cmd-01-susumu');
   await check('introに「れんしゅう する」がある(スキップ済み)', async () => (await page.$('[data-action="redo-tutorial"]')) !== null);
   await page.click('[data-action="start"]');
-  await check('完了済みは自動でpredictへ(tutorialを飛ばす)', async () => page.getAttribute('#stage', 'data-step'), 'predict');
+  await check('完了済みは自動でplay(p1)へ(tutorialを飛ばす)', async () => page.getAttribute('#stage', 'data-step'), 'play');
 
   // --- 「れんしゅう する」で明示的に入り直し、実行完了→区切り画面まで確認 ---
   await page.goto('/index.html?lesson=cmd-01-susumu');
@@ -101,7 +101,7 @@ export default async function run({ page, check }) {
   await check('step_enter/step_leaveは通常どおり記録される', () => cmdEvents.includes('step_enter'));
 
   await page.click('[data-action="continue-to-task"]');
-  await check('predictへ遷移', async () => page.getAttribute('#stage', 'data-step'), 'predict');
+  await check('play(p1)へ遷移', async () => page.getAttribute('#stage', 'data-step'), 'play');
 
   // --- no-preference: 光るボタンにpulseアニメーションが付く ---
   await page.emulateMedia({ reducedMotion: 'no-preference' });

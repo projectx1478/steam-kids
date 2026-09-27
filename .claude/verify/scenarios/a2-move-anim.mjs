@@ -24,8 +24,8 @@ export default async function run({ page, check }) {
   const bounceLog = await animLog(page);
   await check('壁で250msのbounceが記録される', () => bounceLog.some((e) => e.type === 'bounce' && e.ms === 250));
 
+  // retryは正解・不正解に関わらず命令列をリセットする（Issue #104）ため、既に空になっている。
   await page.click('[data-action="retry"]');
-  await page.click('[data-action="clear-all"]');
   const commands = ['up', 'up', 'up', 'right', 'right', 'right'];
   for (const c of commands) await page.click(`[data-command="${c}"]`);
   await page.click('[data-action="run"]');

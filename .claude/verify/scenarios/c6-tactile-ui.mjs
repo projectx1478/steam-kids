@@ -32,9 +32,6 @@ export default async function run({ page, check }) {
     await page.click('[data-action="run"]');
     await page.waitForSelector('[data-action="continue-to-task"]', { timeout: 8000 });
     await page.click('[data-action="continue-to-task"]');
-    await page.click('[data-option="B"]');
-    await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
-    await page.click('[data-action="next"]');
     const label = `${viewport.width}x${viewport.height}`;
     const boxes = await allButtonBoxes(page);
     await check(`${label}: 全<button>が64px四方以上`, () => boxes.length > 0 && boxes.every((b) => b.width >= 64 && b.height >= 64));
@@ -44,13 +41,11 @@ export default async function run({ page, check }) {
   }
   await page.setViewportSize({ width: 1280, height: 800 });
 
-  // --- 2. ドラッグ・タップ・reset音・確認ダイアログ撤去・下書き復元（tutorialは1で完了済みのため自動スキップ） ---
+  // --- 2. ドラッグ・タップ・reset音・確認ダイアログ撤去・下書き復元（tutorialは1で完了済みのため
+  // 前進時は自動スキップされ、intro「はじめる」からplay(p1)へ直接入る。よそうは無い。Issue #104） ---
   await page.goto('/index.html?lesson=cmd-01-susumu');
   await page.click('[data-action="start"]');
-  await page.click('[data-option="B"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
-  await page.click('[data-action="next"]');
-  await check('playに入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
+  await check('play(p1)に入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
 
   // ドラッグ: パレットのボタンを8px以上動かして命令列上で離すと追加される（snap音・spring-in）。
   await page.evaluate(() => {
@@ -97,51 +92,54 @@ export default async function run({ page, check }) {
   await check('ぜんぶ けすでチップが0個になる', async () => (await page.$$('.command-chip')).length, 0);
 
   // 確認ダイアログは存在しない。←で戻っても命令列の下書きが復元される（Issue #95）。
+  // p1の直前はtutorialのため、← もどるはtutorial画面（もう一度見られる。Issue #104）へ戻り、
+  // れんしゅうを とばすで再びp1へ進める。
   await check('.confirm-dialogは存在しない', async () => (await page.$$('.confirm-dialog')).length, 0);
-  for (const dir of ['up', 'up', 'right']) await page.click(`[data-command="${dir}"]`);
+  for (const dir of ['up', 'up', 'left']) await page.click(`[data-command="${dir}"]`);
   await check('編集後の命令列は3個', async () => (await page.$$('.command-chip')).length, 3);
   await page.click('#back-btn');
-  await check('確認なしで即座にpredictへ戻る', async () => page.getAttribute('#stage', 'data-step'), 'predict');
-  await page.click('[data-option="B"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
-  await page.click('[data-action="next"]');
-  await check('playへ戻ると下書き(3個)が復元される', async () => (await page.$$('.command-chip')).length, 3);
+  await check('確認なしで即座にtutorialへ戻る', async () => page.getAttribute('#stage', 'data-step'), 'tutorial');
+  await page.click('[data-action="skip-tutorial"]');
+  await check('play(p1)へ戻ると下書き(3個)が復元される', async () => (await page.$$('.command-chip')).length, 3);
 
-  // クリアすると下書きが消え、次にplayへ入る時は空から始まる。
+  // クリアすると下書きが消え、次にp1へ入る時は空から始まる。
   await page.click('[data-action="clear-all"]');
-  for (const dir of ['up', 'up', 'up', 'right', 'right', 'right']) await page.click(`[data-command="${dir}"]`);
+  for (const dir of ['up', 'up', 'left', 'left']) await page.click(`[data-command="${dir}"]`);
   await page.click('[data-action="run"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 8000 });
+  await page.waitForSelector('[data-action="next-stage"]', { timeout: 8000 });
   await page.click('#back-btn');
-  await page.click('[data-option="B"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
-  await page.click('[data-action="next"]');
+  await page.click('[data-action="skip-tutorial"]');
   await check('クリア後は下書きが残らず命令列が空で始まる', async () => (await page.$$('.command-chip')).length, 0);
 
-  // --- 3. 未クリアレッスンのplay初回、指ガイドが出て最初の操作で消える ---
+  // 4で「クリア済みレッスン」を検証するため、p1を再度クリアしp2・p3まで通してレッスン全体を
+  // クリアしておく（stage_clearだけでは単元スタンプ・isLessonClearedの対象にならないため。Issue #104）。
+  for (const dir of ['up', 'up', 'left', 'left']) await page.click(`[data-command="${dir}"]`);
+  await page.click('[data-action="run"]');
+  await page.waitForSelector('[data-action="next-stage"]', { timeout: 8000 });
+  await page.click('[data-action="next-stage"]');
+  for (const dir of ['up', 'up', 'up', 'right', 'right', 'right']) await page.click(`[data-command="${dir}"]`);
+  await page.click('[data-action="run"]');
+  await page.waitForSelector('[data-action="next-stage"]', { timeout: 8000 });
+  await page.click('[data-action="next-stage"]');
+  for (const dir of ['up', 'up', 'right', 'right', 'right', 'right', 'up', 'up']) await page.click(`[data-command="${dir}"]`);
+  await page.click('[data-action="run"]');
+  await page.waitForSelector('[data-action="next"]', { timeout: 15000 });
+
+  // --- 3. 未クリアレッスンのplay初回(p1)、指ガイドが出て最初の操作で消える ---
   await page.goto('/index.html?lesson=cmd-02-mijikaku');
   await page.click('[data-action="start"]');
-  await page.click('[data-option="A"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
-  await page.click('[data-action="next"]');
-  await check('未クリアplay初回で指ガイドが出る', async () => (await page.$$('.hand-hint')).length, 1);
+  await check('未クリアplay初回(p1)で指ガイドが出る', async () => (await page.$$('.hand-hint')).length, 1);
   await page.click('[data-command="down"]');
   await check('最初の操作で指ガイドが消える', async () => (await page.$$('.hand-hint')).length, 0);
 
-  // --- 4. クリア済みレッスンのplayでは指ガイドが出ない（2でcmd-01-susumuをクリア済み） ---
+  // --- 4. クリア済みレッスンのplay(p1)では指ガイドが出ない（2でcmd-01-susumuのp1をクリア済み） ---
   await page.goto('/index.html?lesson=cmd-01-susumu');
   await page.click('[data-action="start"]');
-  await page.click('[data-option="B"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
-  await page.click('[data-action="next"]');
-  await check('クリア済みレッスンのplayでは指ガイドが出ない', async () => (await page.$$('.hand-hint')).length, 0);
+  await check('クリア済みレッスンのplay(p1)では指ガイドが出ない', async () => (await page.$$('.hand-hint')).length, 0);
 
   // --- 5. reduced-motion時（既定）、指ガイドはアニメーションしない ---
   await page.goto('/index.html?lesson=cmd-02-mijikaku');
   await page.click('[data-action="start"]');
-  await page.click('[data-option="A"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
-  await page.click('[data-action="next"]');
   await check('reduced-motion時、指ガイドはアニメーションしない', async () =>
     page.evaluate(() => {
       const el = document.querySelector('.hand-hint');
@@ -153,9 +151,6 @@ export default async function run({ page, check }) {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto('/index.html?lesson=cmd-02-mijikaku');
   await page.click('[data-action="start"]');
-  await page.click('[data-option="A"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
-  await page.click('[data-action="next"]');
   await check('motion許可時、指ガイドはアニメーションする', async () =>
     page.evaluate(() => {
       const el = document.querySelector('.hand-hint');
