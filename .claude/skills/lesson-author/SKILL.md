@@ -36,7 +36,7 @@ description: 単元名からgrid-runtimeレッスンJSONを生成し、npm run v
    `{unitId, title, lessonIds}` を追加する
 5. `npm run validate:lessons` を実行する。**検証NGの場合は再生成する。手で通さない**
 6. `.claude/verify` にそのレッスン用のシナリオを作成する（`cmd01-ui-rules.mjs`
-   `cmd02-ui-rules.mjs` を参考に、48px・20字・横スクロール無しを確認する内容）。
+   `cmd02-ui-rules.mjs` を参考に、64px・20字・横スクロール無しを確認する内容）。
    `node .claude/verify/run.mjs <シナリオ名>` と `--mobile` 付きの両方で実行する
 7. 既存シナリオを全再実行し、後方互換を確認する（`p3-link.mjs` の実行環境依存クラッシュは
    本スキルと無関係な既知の問題。Issue #43）
@@ -45,4 +45,4 @@ description: 単元名からgrid-runtimeレッスンJSONを生成し、npm run v
 
 - 単元名1つを入力に `lessons/*.json` が1本生成される
 - 生成JSONが `npm run validate:lessons` を無改変で通る
-- 実機シナリオで48px・20字・375px横スクロール無しを確認済み
+- 実機シナリオで64px・20字・375px横スクロール無しを確認済み
