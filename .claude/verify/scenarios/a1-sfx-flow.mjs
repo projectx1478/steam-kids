@@ -38,6 +38,8 @@ export default async function run({ page, check }) {
   const before = (await sfxLog(page)).length;
   await page.click('[data-action="next"]');
   await check('summaryへの遷移でもログが増える', async () => (await sfxLog(page)).length > before);
+  // summaryは達成感の演出（星のはじけ）でclear音を再生するため、最後に鳴るのはwhooshではなく
+  // clearになる（Issue #91）。
   const log = await sfxLog(page);
-  await check('最後に鳴った音はwhoosh', () => log[log.length - 1], 'whoosh');
+  await check('最後に鳴った音はclear（summaryのクリア演出）', () => log[log.length - 1], 'clear');
 }
