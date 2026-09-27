@@ -6,7 +6,14 @@ import { renderCommandPalette, renderCommandQueue, arrowSvg, vibrate } from './u
 import { play as playSfx } from './sfx.js';
 import { renderInto } from './text-render.js';
 import { renderHowTo, createIdleNudge } from './ui-guide.js';
-import { goToStep, createPrimaryButton, playAnimation, setActiveNudge, markLessonCleared } from './ui-step.js';
+import {
+  goToStep,
+  createPrimaryButton,
+  playAnimation,
+  setActiveNudge,
+  markLessonCleared,
+  renderCategoryBanner,
+} from './ui-step.js';
 import { showSuccess, showHint, diagnose } from './ui-reaction.js';
 
 // チュートリアル（tutorial）のお手本列・現在操作対象を光らせる共通クラス（Issue #81）。
@@ -37,6 +44,9 @@ export function renderPlay(root, step, { guide = null } = {}) {
     fixOpened: false,
   };
   const isFix = (step.initialCommands ?? []).length > 0;
+
+  // 区分バナー＋デモ（tutorialには出さない。Issue #91）。
+  const banner = guide ? null : renderCategoryBanner(root, 'play');
 
   if (!guide) {
     const prompt = document.createElement('p');
@@ -236,6 +246,7 @@ export function renderPlay(root, step, { guide = null } = {}) {
         playSfx('remove');
         drawQueue();
         updateControls();
+        banner?.collapse();
         nudge?.poke();
       },
     });
@@ -331,7 +342,8 @@ export function renderPlay(root, step, { guide = null } = {}) {
       if (isFix) local.fixOpened = true;
       drawQueue();
       updateControls();
-      nudge?.poke();
+      banner?.collapse();
+        nudge?.poke();
     },
   });
 
@@ -347,7 +359,8 @@ export function renderPlay(root, step, { guide = null } = {}) {
       playSfx('remove');
       drawQueue();
       updateControls();
-      nudge?.poke();
+      banner?.collapse();
+        nudge?.poke();
     });
   }
 
@@ -362,7 +375,8 @@ export function renderPlay(root, step, { guide = null } = {}) {
       playSfx('remove');
       drawQueue();
       updateControls();
-      nudge?.poke();
+      banner?.collapse();
+        nudge?.poke();
     });
   }
 
@@ -375,7 +389,8 @@ export function renderPlay(root, step, { guide = null } = {}) {
       setRunButtonMode('run');
       drawBoard(spec.start);
       updateControls();
-      nudge?.poke();
+      banner?.collapse();
+        nudge?.poke();
       return;
     }
     if (local.running || local.commands.length === 0) return;

@@ -6,7 +6,7 @@ import { COMMAND_LABELS } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
 import { renderInto } from './text-render.js';
 import { renderHowTo, createIdleNudge } from './ui-guide.js';
-import { goToStep, createPrimaryButton, playAnimation, setActiveNudge } from './ui-step.js';
+import { goToStep, createPrimaryButton, playAnimation, setActiveNudge, renderCategoryBanner } from './ui-step.js';
 import { showSuccess, showHint } from './ui-reaction.js';
 
 const RETRY_HINT_MESSAGE = 'ロボットは ここで とまったよ';
@@ -24,6 +24,9 @@ function getPlaySpec() {
 
 export function renderPredict(root, step) {
   const spec = getPlaySpec();
+
+  // 区分バナー＋デモ（Issue #91）。
+  const banner = renderCategoryBanner(root, 'predict');
 
   const prompt = document.createElement('p');
   prompt.className = 'text-xl text-center mb-2';
@@ -89,6 +92,7 @@ export function renderPredict(root, step) {
   boardWrap.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-option]');
     if (!btn || local.selected) return;
+    banner.collapse();
     nudge.stop();
     local.selected = btn.dataset.option;
     const correct = local.selected === step.answer;

@@ -6,8 +6,12 @@ import { prefersReducedMotion } from './ui-grid.js';
 import { vibrate } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
 import { renderInto, refreshRubyText } from './text-render.js';
+import { renderDemo } from './ui-demo.js';
 import { renderPlay } from './ui-play.js';
 import { renderPredict } from './ui-predict.js';
+
+// predict/playの区分バナー文言（Issue #91）。tutorialには出さない。
+const CATEGORY_LABEL = { predict: 'もんだい1 よそう', play: 'もんだい2 うごかす' };
 
 const STEP_DELAY_MS = 600;
 const STEP_TRANSITION_MS = 220;
@@ -220,7 +224,31 @@ function renderIntro(root, step) {
   p.className = 'text-2xl text-center py-8';
   renderInto(p, step.text, S.readingLevel, S.furigana);
   root.appendChild(p);
+  // このレッスンで何をするかの簡易デモ（Issue #91）。playステップが無い教材型は対象外。
+  if (S.lesson.steps.some((s) => s.kind === 'play')) renderDemo(root, 'play');
   root.appendChild(createPrimaryButton('はじめる', () => goToStep(S.stepIndex + 1), 'start'));
+}
+
+// predict/playの先頭に区分バナー＋デモを表示する（tutorialには出さない。Issue #91）。
+// 最初の操作でデモを畳んで見出し1行だけ残す（collapseは呼び出し側の最初の操作ハンドラで呼ぶ）。
+export function renderCategoryBanner(root, kind) {
+  const banner = document.createElement('div');
+  banner.className = 'category-banner mb-2 flex flex-col items-center gap-1';
+  const heading = document.createElement('h2');
+  heading.className = 'text-sm font-bold text-slate-700';
+  heading.textContent = CATEGORY_LABEL[kind];
+  banner.appendChild(heading);
+  const demoEl = renderDemo(banner, kind);
+  root.appendChild(banner);
+
+  let collapsed = false;
+  return {
+    collapse() {
+      if (collapsed) return;
+      collapsed = true;
+      demoEl.remove();
+    },
+  };
 }
 
 function renderSummary(root, step) {
