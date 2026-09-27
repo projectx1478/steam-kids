@@ -4,18 +4,13 @@
 import { S } from './state.js';
 import { logEvent } from './events.js';
 import { renderGrid, shapeSvg, computeCellSize } from './ui-grid.js';
-import { renderCommandPalette, renderCommandQueue, vibrate } from './ui-commands.js';
+import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, vibrate } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
 import { renderTaskCard, renderShowTaskButton, taskCardEnabled } from './ui-task-card.js';
 import { createIdleNudge } from './ui-guide.js';
-import {
-  goToStep,
-  createPrimaryButton,
-  playAnimation,
-  setActiveNudge,
-  markLessonCleared,
-  setLeaveConfirmNeeded,
-} from './ui-step.js';
+import { showHandHint } from './ui-hand.js';
+import { isLessonCleared } from './ui-picker.js';
+import { goToStep, createPrimaryButton, playAnimation, setActiveNudge, setActiveHandHint, markLessonCleared } from './ui-step.js';
 import { showSuccess, showHint, diagnose } from './ui-reaction.js';
 
 // diagnose()の原因ごとの文言（20字以内・否定語なし。Issue #91）。
@@ -30,9 +25,16 @@ export function renderPlay(root, step) {
   const defaultText = spec.items.length > 0 ? 'どんぐりを ぜんぶ とって ゴール' : 'ロボットを ゴールへ うごかそう';
   const isFix = (step.initialCommands ?? []).length > 0;
 
+  // initialCommandsがあれば「ずれた」命令列を最初から積んでおく（なおす系レッスン用）。
+  const freshCommands = (step.initialCommands ?? []).map((dir) => ({ dir, times: 1 }));
+  // ←で戻って再びこのplayへ進んだ時、命令列の下書き（S.drafts）があれば復元する
+  // （確認ダイアログ全廃の代わりの誤タップ対策。以後の追加・削除はこの配列を直接
+  // 書き換えるため、参照を共有するだけで自動的に保存される。Issue #95）。
+  const commands = S.drafts[step.stepId] ?? freshCommands;
+  S.drafts[step.stepId] = commands;
+
   const local = {
-    // initialCommandsがあれば「ずれた」命令列を最初から積んでおく（なおす系レッスン用）。
-    commands: (step.initialCommands ?? []).map((dir) => ({ dir, times: 1 })),
+    commands,
     activeIndex: -1,
     running: false,
     view: null,
@@ -40,8 +42,8 @@ export function renderPlay(root, step) {
     nudge: null,
     remaining: spec.items.length,
     // なおす系（initialCommandsあり）で最初の編集（×・追加・ぜんぶけす）をしたか。
-    // 無操作促しの対象を決めるのに使う（Issue #89）。
-    fixOpened: false,
+    // 無操作促しの対象を決めるのに使う（Issue #89）。下書き復元時は元の並びと違えば編集済み扱い。
+    fixOpened: isFix && JSON.stringify(commands) !== JSON.stringify(freshCommands),
   };
 
   const taskCardEl = document.createElement('div');
@@ -82,7 +84,7 @@ export function renderPlay(root, step) {
   boardArea.appendChild(resultEl);
 
   const controls = document.createElement('div');
-  controls.className = 'flex flex-col gap-2 shrink-0';
+  controls.className = 'controller-panel flex flex-col gap-2 shrink-0';
   opScreen.appendChild(controls);
 
   const paletteEl = document.createElement('div');
@@ -90,7 +92,7 @@ export function renderPlay(root, step) {
   controls.appendChild(paletteEl);
 
   const queueEl = document.createElement('ul');
-  queueEl.className = 'command-queue flex flex-nowrap items-center gap-2 overflow-x-auto min-h-[48px] py-1';
+  queueEl.className = 'command-queue flex flex-nowrap items-center gap-2 overflow-x-auto min-h-[64px] py-1';
   controls.appendChild(queueEl);
 
   const actionsEl = document.createElement('div');
@@ -102,7 +104,7 @@ export function renderPlay(root, step) {
   removeLastBtn.dataset.action = 'remove-last';
   removeLastBtn.textContent = '⌫ ひとつ けす';
   removeLastBtn.className =
-    'min-w-[48px] min-h-[48px] px-2 rounded-lg bg-slate-200 text-sm transition-transform duration-100 active:scale-95 disabled:opacity-40';
+    'min-w-[64px] min-h-[64px] px-2 rounded-lg bg-slate-200 text-sm transition-transform duration-100 active:scale-95 disabled:opacity-40';
   actionsEl.appendChild(removeLastBtn);
 
   const clearBtn = document.createElement('button');
@@ -110,15 +112,14 @@ export function renderPlay(root, step) {
   clearBtn.dataset.action = 'clear-all';
   clearBtn.textContent = 'ぜんぶ けす';
   clearBtn.className =
-    'min-w-[48px] min-h-[48px] px-3 rounded-lg bg-slate-200 text-sm transition-transform duration-100 active:scale-95 disabled:opacity-40';
+    'min-w-[64px] min-h-[64px] px-3 rounded-lg bg-slate-200 text-sm transition-transform duration-100 active:scale-95 disabled:opacity-40';
   actionsEl.appendChild(clearBtn);
 
   const runBtn = document.createElement('button');
   runBtn.type = 'button';
   runBtn.dataset.action = 'run';
   runBtn.textContent = '▶ じっこう';
-  runBtn.className =
-    'min-w-[48px] min-h-[48px] px-4 rounded-lg bg-emerald-500 text-white text-lg font-bold transition-transform duration-100 active:scale-95 disabled:opacity-40';
+  runBtn.className = 'btn-tactile px-4 bg-emerald-500 text-white text-lg font-bold disabled:opacity-40';
   actionsEl.appendChild(runBtn);
 
   // 実行が失敗したらrunBtn自体を橙色の「もういちど」に変える（目線を動かさずに押せる。Issue #91）。
@@ -212,7 +213,9 @@ export function renderPlay(root, step) {
   }
 
   renderCommandPalette(paletteEl, {
-    onAdd: (dir) => {
+    dropTarget: () => queueEl.getBoundingClientRect(),
+    onDragOver: (active) => toggleGhostSlot(queueEl, active),
+    onAdd: (dir, { via } = {}) => {
       if (local.running) return;
       revertRunButtonIfRetrying();
       const last = local.commands.at(-1);
@@ -222,10 +225,11 @@ export function renderPlay(root, step) {
       } else {
         if (local.commands.length >= step.maxCommands) return;
         local.commands.push({ dir, times: 1 });
-        playSfx('tap');
+        playSfx(via === 'drag' ? 'snap' : 'tap');
       }
       if (isFix) local.fixOpened = true;
       drawQueue();
+      if (via === 'drag') queueEl.lastElementChild?.classList.add('spring-in');
       updateControls();
       local.nudge?.poke();
     },
@@ -251,8 +255,9 @@ export function renderPlay(root, step) {
     revertRunButtonIfRetrying();
     if (isFix) local.fixOpened = true;
     logEvent('undo', { all: true, commandCount: local.commands.length });
-    local.commands = [];
-    playSfx('remove');
+    // 参照を維持したまま空にする（S.drafts[step.stepId]との共有を切らないため。Issue #95）。
+    local.commands.length = 0;
+    playSfx('reset');
     drawQueue();
     updateControls();
     local.nudge?.poke();
@@ -305,6 +310,7 @@ export function renderPlay(root, step) {
         if (result.reachedGoal && result.remainingItems.length === 0) {
           logEvent('clear', {});
           markLessonCleared();
+          delete S.drafts[step.stepId];
           showSuccess(resultEl, { view: local.view });
           resultEl.appendChild(createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'));
           resultEl.appendChild(createPrimaryButton('もういちど', replay, 'replay'));
@@ -330,13 +336,11 @@ export function renderPlay(root, step) {
 
   function showTaskCard() {
     local.nudge?.stop();
-    setLeaveConfirmNeeded(false);
     opScreen.style.display = 'none';
     taskCardEl.style.display = '';
   }
 
   function beginTask() {
-    setLeaveConfirmNeeded(true);
     taskCardEl.style.display = 'none';
     opScreen.style.display = 'flex';
     if (!local.started) {
@@ -355,6 +359,15 @@ export function renderPlay(root, step) {
         },
       });
       setActiveNudge(local.nudge);
+      // 未クリアレッスンの最初の操作画面表示時だけ、指ガイドを1回出す。最初のタップ/
+      // ドラッグでフェードアウトして消える（Issue #95）。
+      if (!isLessonCleared(S.lesson.lessonId)) {
+        const firstBtn = paletteEl.querySelector('[data-command]');
+        if (firstBtn) {
+          setActiveHandHint(showHandHint({ from: firstBtn, to: queueEl, mode: 'drag' }));
+          opScreen.addEventListener('pointerdown', () => setActiveHandHint(null), { once: true });
+        }
+      }
       new ResizeObserver(() => {
         // 実行中・結果/ヒント表示中は盤面状態を保つため再構築しない（Issue #93）。
         if (local.running || resultEl.childElementCount > 0) return;

@@ -4,10 +4,11 @@
 import { S } from './state.js';
 import { simulate } from './engine-grid.js';
 import { renderGrid, computeCellSize } from './ui-grid.js';
-import { renderCommandPalette, renderCommandQueue, COMMAND_LABELS, vibrate } from './ui-commands.js';
+import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, COMMAND_LABELS, vibrate } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
 import { renderInto } from './text-render.js';
-import { goToStep, createPrimaryButton, playAnimation, setLeaveConfirmNeeded } from './ui-step.js';
+import { showHandHint } from './ui-hand.js';
+import { goToStep, createPrimaryButton, playAnimation, setActiveHandHint } from './ui-step.js';
 
 const GUIDE_GLOW_CLASSES = ['ring-4', 'ring-amber-400', 'ring-offset-2', 'motion-safe:animate-pulse'];
 const TUTORIAL_DONE_PREFIX = 'steamkids.tutorialDone.';
@@ -38,7 +39,6 @@ export function renderTutorial(root, step) {
   const spec = { grid: step.grid, start: step.start, goal: step.goal, walls: step.walls, items: step.items ?? [] };
   const guide = step.script;
   const local = { commands: [], guideIndex: 0, running: false, view: null, cellSize: TUTORIAL_CELL_MAX };
-  setLeaveConfirmNeeded(true);
 
   const panel = document.createElement('div');
   panel.className = 'tutorial-screen flex flex-col flex-1 min-h-0 gap-2 bg-amber-50 rounded-xl p-3';
@@ -54,7 +54,7 @@ export function renderTutorial(root, step) {
   skipBtn.type = 'button';
   skipBtn.dataset.action = 'skip-tutorial';
   skipBtn.textContent = 'れんしゅうを とばす';
-  skipBtn.className = 'min-h-[48px] px-3 rounded-lg bg-white text-xs text-slate-600 shadow';
+  skipBtn.className = 'min-w-[64px] min-h-[64px] px-3 rounded-lg bg-white text-xs text-slate-600 shadow';
   headerRow.appendChild(skipBtn);
   panel.appendChild(headerRow);
 
@@ -125,15 +125,14 @@ export function renderTutorial(root, step) {
   panel.appendChild(paletteEl);
 
   const queueEl = document.createElement('ul');
-  queueEl.className = 'command-queue flex flex-nowrap items-center gap-2 overflow-x-auto min-h-[48px] py-1 shrink-0';
+  queueEl.className = 'command-queue flex flex-nowrap items-center gap-2 overflow-x-auto min-h-[64px] py-1 shrink-0';
   panel.appendChild(queueEl);
 
   const runBtn = document.createElement('button');
   runBtn.type = 'button';
   runBtn.dataset.action = 'run';
   runBtn.textContent = '▶ じっこう';
-  runBtn.className =
-    'block mx-auto min-w-[48px] min-h-[48px] px-4 rounded-lg bg-emerald-500 text-white text-lg font-bold transition-transform duration-100 active:scale-95 disabled:opacity-40 shrink-0';
+  runBtn.className = 'btn-tactile block mx-auto px-4 bg-emerald-500 text-white text-lg font-bold disabled:opacity-40 shrink-0';
   panel.appendChild(runBtn);
 
   function drawBoard() {
@@ -209,22 +208,41 @@ export function renderTutorial(root, step) {
       if (state === 'current') el.classList.add(...GUIDE_GLOW_CLASSES);
       if (state === 'done') el.classList.add('opacity-40');
     });
+    updateHandHint(target);
+  }
+
+  // 光るボタンに加え、次に押す方向へ指ガイドを重ねて示す（runは実行ボタン上でタップ動作。
+  // Issue #95）。実行中・案内対象が無い時は消す。
+  function updateHandHint(target) {
+    if (local.running || !target) {
+      setActiveHandHint(null);
+      return;
+    }
+    if (target === 'run') {
+      setActiveHandHint(showHandHint({ from: runBtn, mode: 'tap' }));
+      return;
+    }
+    const btn = paletteEl.querySelector(`[data-command="${target}"]`);
+    setActiveHandHint(btn ? showHandHint({ from: btn, to: queueEl, mode: 'drag' }) : null);
   }
 
   renderCommandPalette(paletteEl, {
-    onAdd: (dir) => {
+    dropTarget: () => queueEl.getBoundingClientRect(),
+    onDragOver: (active) => toggleGhostSlot(queueEl, active),
+    onAdd: (dir, { via } = {}) => {
       if (local.running || dir !== guideTarget()) return;
       local.commands.push({ dir, times: 1 });
-      playSfx('tap');
+      playSfx(via === 'drag' ? 'snap' : 'tap');
       local.guideIndex += 1;
       drawQueue();
+      if (via === 'drag') queueEl.lastElementChild?.classList.add('spring-in');
       updateGhostPreview();
       applyGuide();
     },
   });
 
   function renderDivider() {
-    setLeaveConfirmNeeded(false);
+    setActiveHandHint(null);
     panel.innerHTML = '';
     panel.className = 'tutorial-divider flex flex-col items-center justify-center gap-2 flex-1 min-h-0 py-8 bg-amber-50 rounded-xl p-3';
     const doneHeading = document.createElement('h2');

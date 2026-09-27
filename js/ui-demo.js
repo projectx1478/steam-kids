@@ -95,7 +95,7 @@ export function renderDemo(container, kind) {
   replayBtn.type = 'button';
   replayBtn.dataset.action = 'demo-replay';
   replayBtn.className =
-    'min-w-[48px] min-h-[48px] px-3 rounded-lg bg-slate-100 text-xs transition-transform duration-100 active:scale-95';
+    'min-w-[64px] min-h-[64px] px-3 rounded-lg bg-slate-100 text-xs transition-transform duration-100 active:scale-95';
   replayBtn.textContent = '▶ もういちど みる';
   replayBtn.addEventListener('click', play);
   wrap.appendChild(replayBtn);

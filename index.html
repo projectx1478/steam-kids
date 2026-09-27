@@ -11,15 +11,17 @@
   <header class="flex justify-between items-center gap-2 mb-2 shrink-0">
     <div id="lesson-header" class="items-center gap-2 min-w-0" style="display:none">
       <button id="back-btn" type="button" data-action="back" aria-label="まえの がめんへ"
-        class="min-w-[48px] min-h-[48px] flex items-center justify-center rounded-lg bg-white shadow text-xl transition-transform duration-100 active:scale-95 disabled:opacity-40">←</button>
-      <button id="home-btn" type="button" data-action="home" aria-label="えらぶ がめんへ"
-        class="min-w-[48px] min-h-[48px] flex items-center justify-center rounded-lg bg-white shadow text-xl transition-transform duration-100 active:scale-95 disabled:opacity-40">🏠</button>
+        class="min-w-[64px] min-h-[64px] flex items-center justify-center rounded-lg bg-white shadow text-xl transition-transform duration-100 active:scale-95 disabled:opacity-40">←</button>
       <div class="min-w-0 leading-tight">
         <p id="lesson-title" class="text-sm font-bold truncate"></p>
         <span id="step-kind-chip" class="inline-block text-[10px] px-2 py-0.5 rounded-full bg-sky-100 text-sky-700"></span>
       </div>
     </div>
     <div class="flex items-center gap-2 ml-auto">
+    <!-- 🏠は#lesson-headerの外（もどると離れた右側）に置く。誤タップで両方押してしまうのを
+         防ぐための配置分離（確認ダイアログ全廃の代わり。Issue #95） -->
+    <button id="home-btn" type="button" data-action="home" aria-label="えらぶ がめんへ" style="display:none"
+      class="min-w-[64px] min-h-[64px] flex items-center justify-center rounded-lg bg-white shadow text-xl transition-transform duration-100 active:scale-95 disabled:opacity-40">🏠</button>
     <a href="dashboard.html" aria-label="保護者のかたへ"
       class="dashboard-link min-w-[48px] min-h-[48px] flex items-center justify-center rounded-lg text-slate-300 opacity-60">
       <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
