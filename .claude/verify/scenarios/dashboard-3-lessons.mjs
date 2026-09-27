@@ -59,4 +59,10 @@ export default async function run({ page, check }) {
     async () => (await page.$$('.lesson-card[data-status="cleared"]')).length,
     3
   );
+
+  // ふりがな・おとの設定はdashboardへ移った（Issue #93）。
+  await check('dashboardにふりがなトグルがある', async () => (await page.$('#furigana-toggle')) !== null);
+  await check('dashboardにおとトグルがある', async () => (await page.$('#sound-toggle')) !== null);
+  await page.click('#furigana-toggle');
+  await check('ふりがなトグルでaria-pressedが切り替わる', async () => page.getAttribute('#furigana-toggle', 'aria-pressed'), 'false');
 }

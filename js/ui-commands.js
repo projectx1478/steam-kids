@@ -41,23 +41,41 @@ export function renderCommandPalette(container, { onAdd }) {
   });
 }
 
+// 順番数字（①②③）は::beforeで重ねる（実DOMにspanを増やすと、チップ内テキストをspanで
+// 厳密比較する既存シナリオ（cmd02-group-repeats・group-repeats-engine）が壊れるため。Issue #93）。
+export const ORDER_BADGE_CLASS =
+  "before:content-[attr(data-order)] before:absolute before:-top-1.5 before:-left-1.5 before:w-4 before:h-4 before:rounded-full before:bg-sky-600 before:text-white before:text-[10px] before:font-bold before:leading-4 before:text-center";
+
+// renderOrderArrow(tag): 命令の並び順を示す→区切り。.command-chip等とは別要素にして
+// 既存のチップ件数・span厳密比較を壊さない（Issue #93）。
+export function renderOrderArrow(tag = 'li') {
+  const arrow = document.createElement(tag);
+  arrow.className = 'command-arrow flex items-center text-slate-400 text-sm shrink-0 px-0.5';
+  arrow.setAttribute('aria-hidden', 'true');
+  arrow.textContent = '→';
+  return arrow;
+}
+
 // renderCommandQueue(container, { commands, activeIndex, onRemove, removable = true })
 // commandsの各要素は{dir, times}。times>=2は「した ×5」のようにまとめて表示する。
 // removable:falseの時は取り消しを描かない（チュートリアルでは命令を消させない。Issue #81）。
 // removable時はチップ自体が取り消しボタン（data-remove-index・.command-remove。Issue #91）。
 // 横に並ぶ48px四角チップで、はみ出す分は横スクロールする（container側でoverflow-x-autoを付ける）。
+// チップ間には→区切り、各チップ左上に順番数字を重ねる（Issue #93）。
 export function renderCommandQueue(container, { commands, activeIndex, onRemove, removable = true }) {
   container.innerHTML = '';
   commands.forEach(({ dir, times }, i) => {
+    if (i > 0) container.appendChild(renderOrderArrow());
     const chip = document.createElement('li');
     // ×バッジはCSS疑似要素(after:content)で描く。実DOMに<span>を増やすと、チップ内テキストを
     // spanで厳密比較する既存シナリオ（cmd02-group-repeats・group-repeats-engine）が壊れるため。
-    chip.className = `command-chip relative flex flex-col items-center justify-center gap-0.5 min-w-[48px] min-h-[48px] px-1 rounded-lg bg-sky-100 shrink-0 ${
+    chip.className = `command-chip relative flex flex-col items-center justify-center gap-0.5 min-w-[48px] min-h-[48px] px-1 rounded-lg bg-sky-100 shrink-0 ${ORDER_BADGE_CLASS} ${
       removable
         ? "command-remove cursor-pointer transition-transform duration-100 active:scale-95 after:content-['×'] after:absolute after:-top-1.5 after:-right-1.5 after:w-4 after:h-4 after:rounded-full after:bg-rose-500 after:text-white after:text-[10px] after:font-bold after:leading-4 after:text-center"
         : ''
     }`;
     chip.dataset.index = String(i);
+    chip.dataset.order = String(i + 1);
     if (i === activeIndex) chip.dataset.active = 'true';
 
     chip.insertAdjacentHTML('beforeend', arrowSvg(dir));

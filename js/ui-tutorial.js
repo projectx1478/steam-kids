@@ -1,0 +1,289 @@
+// チュートリアル（なぞり操作型）＝説明専用の画面。問題の操作画面とは分離し、見た目
+// （背景色・見出し「れんしゅう」）も分ける。結果の見える化（番号付きゴースト矢印＋
+// 1行キャプション）・区切り画面・スキップを持つ（Issue #93。旧仕様はIssue #81）。
+import { S } from './state.js';
+import { simulate } from './engine-grid.js';
+import { renderGrid, computeCellSize } from './ui-grid.js';
+import { renderCommandPalette, renderCommandQueue, COMMAND_LABELS, vibrate } from './ui-commands.js';
+import { play as playSfx } from './sfx.js';
+import { renderInto } from './text-render.js';
+import { goToStep, createPrimaryButton, playAnimation, setLeaveConfirmNeeded } from './ui-step.js';
+
+const GUIDE_GLOW_CLASSES = ['ring-4', 'ring-amber-400', 'ring-offset-2', 'motion-safe:animate-pulse'];
+const TUTORIAL_DONE_PREFIX = 'steamkids.tutorialDone.';
+const TUTORIAL_CELL_MAX = 56; // 「小さな盤面」。問題のplay/predict(最大64px)より一回り小さくする
+
+// isTutorialDone/markTutorialDone: 単元単位の完了・スキップ記録（端末内のみ・同期しない）。
+export function isTutorialDone(unitId) {
+  try {
+    return localStorage.getItem(TUTORIAL_DONE_PREFIX + unitId) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export function markTutorialDone(unitId) {
+  try {
+    localStorage.setItem(TUTORIAL_DONE_PREFIX + unitId, 'true');
+  } catch {
+    // 容量超過等は無視（チュートリアル表示が続くだけで機能上は問題ない）
+  }
+}
+
+// guide: [{tap: 'up'|'down'|'left'|'right'|'run'}]。指定された順にしか操作できない
+// （なぞり操作型チュートリアル。Issue #81）。文字を読ませない方針のため指示文は
+// step.textがある時のみ表示（既定文言へのフォールバックはしない）。
+// run/undo/retry/clearのlogEventは行わない（チュートリアル完走で単元スタンプが付くのを防ぐ）。
+export function renderTutorial(root, step) {
+  const spec = { grid: step.grid, start: step.start, goal: step.goal, walls: step.walls, items: step.items ?? [] };
+  const guide = step.script;
+  const local = { commands: [], guideIndex: 0, running: false, view: null, cellSize: TUTORIAL_CELL_MAX };
+  setLeaveConfirmNeeded(true);
+
+  const panel = document.createElement('div');
+  panel.className = 'tutorial-screen flex flex-col flex-1 min-h-0 gap-2 bg-amber-50 rounded-xl p-3';
+  root.appendChild(panel);
+
+  const headerRow = document.createElement('div');
+  headerRow.className = 'flex justify-between items-center shrink-0';
+  const heading = document.createElement('h2');
+  heading.className = 'text-sm font-bold text-amber-800';
+  heading.textContent = 'れんしゅう';
+  headerRow.appendChild(heading);
+  const skipBtn = document.createElement('button');
+  skipBtn.type = 'button';
+  skipBtn.dataset.action = 'skip-tutorial';
+  skipBtn.textContent = 'れんしゅうを とばす';
+  skipBtn.className = 'min-h-[48px] px-3 rounded-lg bg-white text-xs text-slate-600 shadow';
+  headerRow.appendChild(skipBtn);
+  panel.appendChild(headerRow);
+
+  if (step.text) {
+    const prompt = document.createElement('p');
+    prompt.className = 'tutorial-prompt text-lg text-center shrink-0';
+    renderInto(prompt, step.text, S.readingLevel, S.furigana);
+    panel.appendChild(prompt);
+  }
+
+  // お手本列。実物ボタンと同じ見た目（色・矢印SVG）で手順を示し、文言は使わない（Issue #81）。
+  // →区切り・順番数字を付ける（Issue #93）。
+  const guideRowEl = document.createElement('div');
+  guideRowEl.className = 'guide-row flex justify-center items-center gap-1 shrink-0';
+  guideRowEl.setAttribute('aria-hidden', 'true');
+  guide.forEach((entry, i) => {
+    if (i > 0) {
+      const arrow = document.createElement('span');
+      arrow.className = 'text-slate-300 text-xs';
+      arrow.textContent = '→';
+      guideRowEl.appendChild(arrow);
+    }
+    const el = document.createElement('span');
+    el.dataset.guideIndex = String(i);
+    el.dataset.state = 'todo';
+    const isRun = entry.tap === 'run';
+    el.className = `guide-step relative inline-flex items-center justify-center h-10 rounded-lg pointer-events-none ${
+      isRun ? 'px-3 bg-emerald-500 text-white text-sm font-bold' : 'w-10 bg-sky-500 text-white'
+    }`;
+    if (isRun) el.textContent = 'じっこう';
+    else {
+      const rotate = { up: 0, right: 90, down: 180, left: 270 }[entry.tap];
+      el.innerHTML = `<svg viewBox="0 0 24 24" class="w-6 h-6" style="transform:rotate(${rotate}deg)" aria-hidden="true"><path d="M12 2 L20 14 L14 14 L14 22 L10 22 L10 14 L4 14 Z" fill="currentColor" /></svg>`;
+    }
+    const check = document.createElement('span');
+    check.className =
+      'guide-check hidden absolute -top-1 -right-1 w-4 h-4 rounded-full bg-white text-emerald-600 text-xs flex items-center justify-center';
+    check.textContent = '✓';
+    check.setAttribute('aria-hidden', 'true');
+    el.appendChild(check);
+    guideRowEl.appendChild(el);
+  });
+  panel.appendChild(guideRowEl);
+
+  const boardArea = document.createElement('div');
+  boardArea.className = 'board-area relative flex-1 min-h-0 flex items-center justify-center overflow-hidden';
+  panel.appendChild(boardArea);
+  const boardWrap = document.createElement('div');
+  boardArea.appendChild(boardWrap);
+
+  let remainingEl = null;
+  if (spec.items.length > 0) {
+    const remainingBadge = document.createElement('div');
+    remainingBadge.className =
+      'absolute top-2 left-2 z-10 inline-flex items-center gap-1 bg-white/90 rounded-full px-2 py-1 text-xs font-bold text-slate-700 shadow';
+    remainingBadge.innerHTML = `<span data-remaining>${spec.items.length}</span>`;
+    boardArea.appendChild(remainingBadge);
+    remainingEl = remainingBadge.querySelector('[data-remaining]');
+  }
+
+  // 結果の見える化：タップごとに番号付きゴースト矢印＋1行キャプションを出す（Issue #93）。
+  const captionEl = document.createElement('p');
+  captionEl.className = 'ghost-caption text-center text-sm text-slate-600 shrink-0 min-h-[1.25rem]';
+  panel.appendChild(captionEl);
+
+  const paletteEl = document.createElement('div');
+  paletteEl.className = 'flex gap-2 justify-center shrink-0';
+  panel.appendChild(paletteEl);
+
+  const queueEl = document.createElement('ul');
+  queueEl.className = 'command-queue flex flex-nowrap items-center gap-2 overflow-x-auto min-h-[48px] py-1 shrink-0';
+  panel.appendChild(queueEl);
+
+  const runBtn = document.createElement('button');
+  runBtn.type = 'button';
+  runBtn.dataset.action = 'run';
+  runBtn.textContent = '▶ じっこう';
+  runBtn.className =
+    'block mx-auto min-w-[48px] min-h-[48px] px-4 rounded-lg bg-emerald-500 text-white text-lg font-bold transition-transform duration-100 active:scale-95 disabled:opacity-40 shrink-0';
+  panel.appendChild(runBtn);
+
+  function drawBoard() {
+    local.cellSize = Math.min(
+      TUTORIAL_CELL_MAX,
+      computeCellSize({ cols: spec.grid.cols, rows: spec.grid.rows, width: boardArea.clientWidth, height: boardArea.clientHeight })
+    );
+    boardWrap.innerHTML = '';
+    const { el, view } = renderGrid({ grid: spec.grid, walls: spec.walls, goal: spec.goal, items: spec.items, playerPos: spec.start, labels: [], cellSize: local.cellSize });
+    boardWrap.appendChild(el);
+    local.view = view;
+  }
+
+  function drawQueue() {
+    renderCommandQueue(queueEl, { commands: local.commands, activeIndex: -1, removable: false });
+  }
+
+  function guideTarget() {
+    return guide[local.guideIndex]?.tap ?? null;
+  }
+
+  // お手本通りに積んだ命令の予定経路をゴースト矢印＋番号で示す（実行前のプレビュー。Issue #93）。
+  function updateGhostPreview() {
+    local.view.clearHints();
+    if (local.commands.length === 0) {
+      captionEl.textContent = '';
+      return;
+    }
+    const result = simulate(local.commands, spec);
+    let order = 0;
+    let prev = spec.start;
+    for (let i = 1; i < result.path.length; i++) {
+      const cur = result.path[i];
+      if (cur.x === prev.x && cur.y === prev.y) continue;
+      order += 1;
+      local.view.markCell(cur, 'ghost', { order });
+      prev = cur;
+    }
+    const lastDir = local.commands.at(-1).dir;
+    captionEl.textContent = `${COMMAND_LABELS[lastDir]}に 1ます すすむ よてい`;
+  }
+
+  // 現在のtap対象だけ有効化して光らせ、他は無効化する。お手本列は済み(done)/現在(current)/
+  // 未(todo)を色・チェックで示す（Issue #81）。
+  function applyGuide() {
+    const target = guideTarget();
+    paletteEl.querySelectorAll('button').forEach((b) => {
+      const isTarget = b.dataset.command === target;
+      b.disabled = local.running || !isTarget;
+      if (isTarget) {
+        b.dataset.guide = 'true';
+        b.classList.add(...GUIDE_GLOW_CLASSES);
+      } else {
+        delete b.dataset.guide;
+        b.classList.remove(...GUIDE_GLOW_CLASSES);
+      }
+    });
+    const runIsTarget = target === 'run';
+    runBtn.disabled = local.running || !runIsTarget;
+    if (runIsTarget) {
+      runBtn.dataset.guide = 'true';
+      runBtn.classList.add(...GUIDE_GLOW_CLASSES);
+    } else {
+      delete runBtn.dataset.guide;
+      runBtn.classList.remove(...GUIDE_GLOW_CLASSES);
+    }
+    guideRowEl.querySelectorAll('[data-guide-index]').forEach((el) => {
+      const i = Number(el.dataset.guideIndex);
+      const state = i < local.guideIndex ? 'done' : i === local.guideIndex ? 'current' : 'todo';
+      el.dataset.state = state;
+      el.classList.remove(...GUIDE_GLOW_CLASSES, 'opacity-40');
+      el.querySelector('.guide-check').classList.toggle('hidden', state !== 'done');
+      if (state === 'current') el.classList.add(...GUIDE_GLOW_CLASSES);
+      if (state === 'done') el.classList.add('opacity-40');
+    });
+  }
+
+  renderCommandPalette(paletteEl, {
+    onAdd: (dir) => {
+      if (local.running || dir !== guideTarget()) return;
+      local.commands.push({ dir, times: 1 });
+      playSfx('tap');
+      local.guideIndex += 1;
+      drawQueue();
+      updateGhostPreview();
+      applyGuide();
+    },
+  });
+
+  function renderDivider() {
+    setLeaveConfirmNeeded(false);
+    panel.innerHTML = '';
+    panel.className = 'tutorial-divider flex flex-col items-center justify-center gap-2 flex-1 min-h-0 py-8 bg-amber-50 rounded-xl p-3';
+    const doneHeading = document.createElement('h2');
+    doneHeading.className = 'text-lg font-bold text-emerald-700';
+    doneHeading.textContent = 'れんしゅう おしまい';
+    panel.appendChild(doneHeading);
+    const doneCaption = document.createElement('p');
+    doneCaption.className = 'text-sm text-slate-600';
+    doneCaption.textContent = 'じゅんばんに うごいたね';
+    panel.appendChild(doneCaption);
+    const nextText = document.createElement('p');
+    nextText.className = 'text-base';
+    nextText.textContent = 'ここから もんだい';
+    panel.appendChild(nextText);
+    panel.appendChild(createPrimaryButton('もんだいへ', () => goToStep(S.stepIndex + 1), 'continue-to-task'));
+  }
+
+  runBtn.addEventListener('click', () => {
+    if (local.running || guideTarget() !== 'run') return;
+    vibrate();
+    local.guideIndex += 1;
+    local.running = true;
+    local.view.clearHints();
+    captionEl.textContent = '';
+    applyGuide();
+    drawBoard();
+
+    playAnimation(local.commands, spec, local.view, {
+      onTick: () => {},
+      onPickup: () => {
+        if (remainingEl) remainingEl.textContent = String(Number(remainingEl.textContent) - 1);
+      },
+      onDone: () => {
+        local.running = false;
+        markTutorialDone(S.lesson.unitId);
+        renderDivider();
+      },
+    });
+  });
+
+  skipBtn.addEventListener('click', () => {
+    vibrate();
+    markTutorialDone(S.lesson.unitId);
+    goToStep(S.stepIndex + 1);
+  });
+
+  new ResizeObserver(() => {
+    if (local.running) return;
+    const next = Math.min(
+      TUTORIAL_CELL_MAX,
+      computeCellSize({ cols: spec.grid.cols, rows: spec.grid.rows, width: boardArea.clientWidth, height: boardArea.clientHeight })
+    );
+    if (next !== local.cellSize) {
+      drawBoard();
+      updateGhostPreview();
+    }
+  }).observe(boardArea);
+
+  drawBoard();
+  drawQueue();
+  applyGuide();
+}

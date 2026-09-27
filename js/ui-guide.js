@@ -9,12 +9,12 @@ const CURRENT_CLASSES = ['border-amber-400', 'bg-amber-50', 'text-slate-800', 'f
 const DONE_CLASSES = ['border-slate-200', 'text-slate-400', 'opacity-60'];
 const ALL_STATE_CLASSES = [...new Set([...TODO_CLASSES, ...CURRENT_CLASSES, ...DONE_CLASSES])];
 
-// variant別のブロック定義。playは「おす→ならぶ→じっこう」、fixはinitialCommandsがある
-// 「なおす」レッスン用に「けす→たす→じっこう」、predictは選択肢タップの単一ブロック。
+// variant別のブロック定義。playは「おす→じっこう」（子どもの操作ではない「ならぶ」は削除。
+// Issue #93）、fixはinitialCommandsがある「なおす」レッスン用に「けす→たす→じっこう」、
+// predictは選択肢タップの単一ブロック。
 const HOWTO = {
   play: [
     { icon: 'arrows', text: 'やじるしを おす' },
-    { icon: 'queue', text: 'めいれいが ならぶ' },
     { icon: 'run', text: 'じっこうを おす' },
   ],
   fix: [
@@ -32,9 +32,6 @@ function iconHtml(kind) {
   }
   if (kind === 'remove') {
     return '<span class="w-6 h-6 rounded bg-slate-400 text-white flex items-center justify-center text-sm font-bold">×</span>';
-  }
-  if (kind === 'queue') {
-    return '<span class="w-2 h-5 rounded-sm bg-sky-300"></span><span class="w-2 h-5 rounded-sm bg-sky-300"></span>';
   }
   if (kind === 'options') {
     return ['A', 'B', 'C']

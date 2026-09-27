@@ -1,12 +1,14 @@
-// predictステップ（固定命令列を自動実行し、予想と結果を並べて表示）の描画。
+// predictステップ（課題カード→操作画面：固定命令列を自動実行し予想と結果を表示）の描画。
+// 操作画面は「固定命令列・盤面」のみに絞り、区分バナー・デモ・やりかた帯・キャプション・
+// 長い指示文は課題カードへ集約する（Issue #93）。
 import { S } from './state.js';
 import { logEvent } from './events.js';
-import { renderGrid } from './ui-grid.js';
-import { COMMAND_LABELS } from './ui-commands.js';
+import { renderGrid, computeCellSize } from './ui-grid.js';
+import { COMMAND_LABELS, ORDER_BADGE_CLASS, renderOrderArrow } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
-import { renderInto } from './text-render.js';
-import { renderHowTo, createIdleNudge } from './ui-guide.js';
-import { goToStep, createPrimaryButton, playAnimation, setActiveNudge, renderCategoryBanner } from './ui-step.js';
+import { renderTaskCard, renderShowTaskButton, taskCardEnabled } from './ui-task-card.js';
+import { createIdleNudge } from './ui-guide.js';
+import { goToStep, createPrimaryButton, playAnimation, setActiveNudge, setLeaveConfirmNeeded } from './ui-step.js';
 import { showSuccess, showHint } from './ui-reaction.js';
 
 const RETRY_HINT_MESSAGE = 'ロボットは ここで とまったよ';
@@ -24,44 +26,54 @@ function getPlaySpec() {
 
 export function renderPredict(root, step) {
   const spec = getPlaySpec();
+  const local = { selected: null, view: null, started: false, nudge: null, cellSize: 64 };
 
-  // 区分バナー＋デモ（Issue #91）。
-  const banner = renderCategoryBanner(root, 'predict');
+  const taskCardEl = document.createElement('div');
+  root.appendChild(taskCardEl);
 
-  const prompt = document.createElement('p');
-  prompt.className = 'text-xl text-center mb-2';
-  renderInto(prompt, step.text, S.readingLevel, S.furigana);
-  root.appendChild(prompt);
+  const opScreen = document.createElement('div');
+  opScreen.className = 'predict-screen flex flex-col flex-1 min-h-0 gap-2';
+  opScreen.style.display = 'none';
+  root.appendChild(opScreen);
 
-  // やりかた帯：どのますをタップすればいいかを示す（Issue #89）。
-  const howto = renderHowTo(root, 'predict');
-  howto.setPhase(1);
+  const topRow = document.createElement('div');
+  topRow.className = 'flex justify-end';
+  opScreen.appendChild(topRow);
+  renderShowTaskButton(topRow, showTaskCard);
 
   const commandRow = document.createElement('div');
-  commandRow.className = 'flex justify-center gap-2 mb-4';
+  commandRow.className = 'flex justify-center items-center gap-2 shrink-0';
   step.commands.forEach((cmd, i) => {
+    if (i > 0) commandRow.appendChild(renderOrderArrow('span'));
     const chip = document.createElement('span');
-    chip.className =
-      'predict-command-chip inline-flex items-center justify-center min-w-[48px] min-h-[48px] px-3 rounded-lg bg-slate-100 text-sm';
+    chip.className = `predict-command-chip relative inline-flex items-center justify-center min-w-[48px] min-h-[48px] px-3 rounded-lg bg-slate-100 text-sm ${ORDER_BADGE_CLASS}`;
     chip.dataset.index = String(i);
+    chip.dataset.order = String(i + 1);
     chip.textContent = COMMAND_LABELS[cmd];
     commandRow.appendChild(chip);
   });
-  root.appendChild(commandRow);
+  opScreen.appendChild(commandRow);
+
+  const boardArea = document.createElement('div');
+  boardArea.className = 'board-area relative flex-1 min-h-0 flex items-center justify-center overflow-hidden';
+  opScreen.appendChild(boardArea);
 
   const boardWrap = document.createElement('div');
-  boardWrap.className = 'flex justify-center';
-  root.appendChild(boardWrap);
+  boardArea.appendChild(boardWrap);
 
   const resultEl = document.createElement('div');
-  resultEl.className = 'text-center mt-2';
-  root.appendChild(resultEl);
-
-  const local = { selected: null, view: null };
-  let nudge = null;
+  resultEl.className =
+    'absolute top-2 left-1/2 -translate-x-1/2 z-20 max-w-[92%] bg-white/95 rounded-xl shadow px-3 py-2 text-center empty:hidden empty:p-0 empty:shadow-none';
+  boardArea.appendChild(resultEl);
 
   // 静的な盤面の再構築。選択前・もういちどの時のみ呼ぶ（結果表示中は足あとを残すため呼ばない）。
   function drawStatic(playerPos, labels) {
+    local.cellSize = computeCellSize({
+      cols: spec.grid.cols,
+      rows: spec.grid.rows,
+      width: boardArea.clientWidth,
+      height: boardArea.clientHeight,
+    });
     boardWrap.innerHTML = '';
     const { el, view } = renderGrid({
       grid: spec.grid,
@@ -70,30 +82,28 @@ export function renderPredict(root, step) {
       items: spec.items,
       playerPos,
       labels,
+      cellSize: local.cellSize,
     });
     boardWrap.appendChild(el);
     local.view = view;
   }
 
-  // 選択肢タップ待ちの状態を(再)表示する。もういちど よそう（不正解時）から再度呼ばれる。
+  // 選択肢タップ待ちの状態を(再)表示する。もういちど よそう（不正解時・正解時とも）から再度呼ばれる。
   function showQuestion() {
     local.selected = null;
     resultEl.innerHTML = '';
     commandRow.querySelectorAll('[data-index]').forEach((el) => delete el.dataset.active);
-    howto.setPhase(1);
     drawStatic(spec.start, step.optionCells.map((o) => ({ id: o.id, x: o.x, y: o.y })));
 
     // 無操作時、光っていない選択肢マスを促す（8秒後・最大2回。Issue #89）。
-    nudge = createIdleNudge({ getTarget: () => [...boardWrap.querySelectorAll('[data-option]')] });
-    setActiveNudge(nudge);
+    local.nudge = createIdleNudge({ getTarget: () => [...boardWrap.querySelectorAll('[data-option]')] });
+    setActiveNudge(local.nudge);
   }
-  showQuestion();
 
-  boardWrap.addEventListener('click', (e) => {
+  boardArea.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-option]');
     if (!btn || local.selected) return;
-    banner.collapse();
-    nudge.stop();
+    local.nudge.stop();
     local.selected = btn.dataset.option;
     const correct = local.selected === step.answer;
     logEvent('predict', { selected: local.selected, correct });
@@ -114,11 +124,11 @@ export function renderPredict(root, step) {
         // 足あとを残したまま(drawStaticで再構築しない)、よそう・けっか印だけ重ねる（Issue #91）。
         local.view.markCell(chosen, 'predicted');
         local.view.markCell(finalPos, 'result');
-        howto.setPhase(0);
 
         if (correct) {
           showSuccess(resultEl, { view: local.view });
           resultEl.appendChild(createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'));
+          resultEl.appendChild(createPrimaryButton('もういちど よそう', showQuestion, 'retry-predict'));
         } else {
           showHint(resultEl, { kind: 'predict', message: RETRY_HINT_MESSAGE });
           resultEl.appendChild(createPrimaryButton('もういちど よそう', showQuestion, 'retry-predict'));
@@ -127,4 +137,40 @@ export function renderPredict(root, step) {
       },
     });
   });
+
+  function showTaskCard() {
+    local.nudge?.stop();
+    setLeaveConfirmNeeded(false);
+    opScreen.style.display = 'none';
+    taskCardEl.style.display = '';
+  }
+
+  function beginTask() {
+    setLeaveConfirmNeeded(true);
+    taskCardEl.style.display = 'none';
+    opScreen.style.display = 'flex';
+    if (!local.started) {
+      local.started = true;
+      showQuestion();
+      new ResizeObserver(() => {
+        if (local.selected) return; // 結果表示中は盤面状態を保つ
+        const next = computeCellSize({
+          cols: spec.grid.cols,
+          rows: spec.grid.rows,
+          width: boardArea.clientWidth,
+          height: boardArea.clientHeight,
+        });
+        if (next !== local.cellSize) showQuestion();
+      }).observe(boardArea);
+    } else {
+      local.nudge?.poke();
+    }
+  }
+
+  renderTaskCard(taskCardEl, {
+    kind: 'predict',
+    text: step.text,
+    onBegin: beginTask,
+  });
+  if (!taskCardEnabled()) beginTask();
 }

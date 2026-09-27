@@ -1,12 +1,12 @@
-export const name = 'A1 効果音: ?sound=offは未設定時に既定ミュートになる';
+export const name = 'A1 効果音: ?sound=offは未設定時に既定ミュートになる（Issue #93でおとトグルはdashboardへ移動）';
 
 export default async function run({ page, check }) {
   await page.goto('/index.html?lesson=cmd-01-susumu&sound=off');
-  await check('?sound=offで既定ミュート', async () => page.getAttribute('#sound-toggle', 'data-muted'), 'true');
+  await check('?sound=offで既定ミュート', async () => page.evaluate(async () => (await import('/js/sfx.js')).isMuted()));
 
   await page.click('[data-action="start"]');
   await check('ミュート中は__sfxLogが0件', async () => page.evaluate(() => window.__sfxLog.length), 0);
 
-  await page.click('#sound-toggle');
-  await check('ボタンで解除できる', async () => page.getAttribute('#sound-toggle', 'data-muted'), 'false');
+  await page.evaluate(async () => (await import('/js/sfx.js')).setMuted(false));
+  await check('APIで解除できる', async () => page.evaluate(async () => (await import('/js/sfx.js')).isMuted()), false);
 }

@@ -8,6 +8,7 @@ import { registerServiceWorker } from './register-sw.js';
 import { APP_VERSION } from './config.js';
 import { initGate } from './ui-gate.js';
 import { READING_LEVELS } from './kanji-grades.js';
+import { initSoundToggle } from './sfx.js';
 
 const STATUS_LABELS = { not_started: '未着手', in_progress: '途中', cleared: 'クリア' };
 const ALERT_LABELS = {
@@ -79,6 +80,36 @@ function renderProfileSection(root) {
     saveProfile(profile);
   });
   root.appendChild(select);
+
+  // ふりがな・おと（問題画面からここへ移動。Issue #93）。ふりがなは端末内(profile)のみで
+  // 保持し同期しない（Issue #59と同じ扱い）。おとは既存のsteamkids.soundをsfx.js経由で読み書きする。
+  root.appendChild(el('h2', 'text-lg font-bold text-slate-800 mt-4 mb-2', 'ひょうじ・おと'));
+  const toggleRow = el('div', 'flex gap-2');
+
+  const furiganaBtn = document.createElement('button');
+  furiganaBtn.type = 'button';
+  furiganaBtn.id = 'furigana-toggle';
+  const currentFurigana = loadProfile()?.furigana ?? true;
+  furiganaBtn.setAttribute('aria-pressed', String(currentFurigana));
+  furiganaBtn.textContent = 'ふりがな';
+  furiganaBtn.className = 'min-h-[48px] px-3 rounded-lg bg-white border border-slate-300 text-sm flex-1';
+  furiganaBtn.addEventListener('click', () => {
+    const profile = loadProfile() ?? newProfile();
+    profile.furigana = !(profile.furigana ?? true);
+    saveProfile(profile);
+    furiganaBtn.setAttribute('aria-pressed', String(profile.furigana));
+  });
+  toggleRow.appendChild(furiganaBtn);
+
+  const soundBtn = document.createElement('button');
+  soundBtn.type = 'button';
+  soundBtn.id = 'sound-toggle';
+  soundBtn.textContent = 'おと';
+  soundBtn.className = 'min-h-[48px] px-3 rounded-lg bg-white border border-slate-300 text-sm flex-1';
+  toggleRow.appendChild(soundBtn);
+  initSoundToggle(soundBtn);
+
+  root.appendChild(toggleRow);
 }
 
 function renderRecentSection(root, recentDays) {

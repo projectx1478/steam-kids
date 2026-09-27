@@ -27,7 +27,9 @@ export default async function run({ page, check }) {
     'manipulation'
   );
 
-  await check('ふりがなトグルが存在する', async () => (await page.$('#furigana-toggle')) !== null);
+  // ふりがな・おとトグルは問題画面から無くなり、dashboard(保護者設定)へ移った
+  // （dashboard-3-lessons.mjsで存在確認。Issue #93）。
+  await check('ふりがなトグルが問題画面に無い', async () => (await page.$('#furigana-toggle')) === null);
   await check('imgが0個', async () => (await page.$$('img')).length, 0);
   await check('外部リンクが0個', async () => (await page.$$('a[href^="http"]')).length, 0);
 

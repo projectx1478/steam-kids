@@ -1,18 +1,18 @@
-// ステップ切替（intro/predict/play/summary）、実行アニメーション、ふりがなトグル。
+// ステップ切替（intro/predict/play/summary）、実行アニメーション、ヘッダーのもどる・
+// えらぶ がめんへ（確認ダイアログ付き）。
 import { S, currentStep } from './state.js';
 import { logEvent } from './events.js';
 import { simulate } from './engine-grid.js';
 import { prefersReducedMotion } from './ui-grid.js';
 import { vibrate } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
-import { renderInto, refreshRubyText } from './text-render.js';
+import { renderInto } from './text-render.js';
 import { renderDemo } from './ui-demo.js';
 import { renderPlay } from './ui-play.js';
 import { renderPredict } from './ui-predict.js';
+import { renderTutorial, isTutorialDone } from './ui-tutorial.js';
 import { renderSummary } from './ui-summary.js';
-
-// predict/playの区分バナー文言（Issue #91）。tutorialには出さない。
-const CATEGORY_LABEL = { predict: 'もんだい1 よそう', play: 'もんだい2 うごかす' };
+import { showConfirmDialog } from './ui-confirm.js';
 
 const STEP_DELAY_MS = 600;
 const STEP_TRANSITION_MS = 220;
@@ -31,6 +31,13 @@ let lessonCleared = false;
 let abandonLogged = false;
 // 現在のステップが持つ無操作促し。ステップ離脱時（renderStep冒頭）に止める（Issue #89）。
 let activeNudge = null;
+// もどる・えらぶ がめんへで確認ダイアログが要るか。課題カード・区切り画面（進行中の操作が
+// 無い）ではfalseにして直接遷移する（Issue #93）。renderStepのたびにfalseへ戻し、
+// 各画面（renderPlay/renderPredict/renderTutorial）が操作画面に入った時にtrueにする。
+let leaveConfirmNeeded = false;
+export function setLeaveConfirmNeeded(needed) {
+  leaveConfirmNeeded = needed;
+}
 
 // renderPlay/renderPredict（別モジュール）から現在の無操作促し・クリア済みフラグを更新するための窓口。
 export function setActiveNudge(nudge) {
@@ -55,25 +62,29 @@ function headerEls() {
   return {
     wrap: document.getElementById('lesson-header'),
     back: document.getElementById('back-btn'),
+    home: document.getElementById('home-btn'),
     title: document.getElementById('lesson-title'),
     chip: document.getElementById('step-kind-chip'),
   };
 }
 
-// ヘッダー（#stageの外）：タイトル・区分チップ・もどるボタン。renderStepのたびに更新する（Issue #91）。
+// ヘッダー（#stageの外）：タイトル・区分チップ・もどる/えらぶ がめんへボタン。
+// renderStepのたびに更新する（Issue #91）。
 function renderHeader() {
   const { wrap, back, title, chip } = headerEls();
   wrap.style.display = 'flex';
   title.textContent = S.unit ? `${S.unit.title} ・ ${S.lesson.title}` : S.lesson.title;
   chip.textContent = KIND_CHIP_LABEL[currentStep().kind] ?? '';
-  // Tailwindの`flex`ユーティリティ（back.classListが持つ）はUA既定の[hidden]より強いため、
+  // Tailwindの`flex`ユーティリティ(back.classListが持つ)はUA既定の[hidden]より強いため、
   // hidden属性ではなくinline style.displayで確実に隠す。
   back.style.display = S.stepIndex === 0 ? 'none' : '';
 }
 
-// 実行アニメーション中はもどるを操作させない（playAnimationの開始・終了で呼ぶ）。
+// 実行アニメーション中はもどる・えらぶ がめんへを操作させない（playAnimationの開始・終了で呼ぶ）。
 function setBackDisabled(disabled) {
-  headerEls().back.disabled = disabled;
+  const { back, home } = headerEls();
+  back.disabled = disabled;
+  home.disabled = disabled;
 }
 
 // app.jsが単元情報(S.unit)を非同期取得した後、ヘッダーのタイトルだけ再描画するための窓口。
@@ -85,16 +96,25 @@ export function refreshHeader() {
 }
 
 export function initSteps() {
-  const toggle = document.getElementById('furigana-toggle');
-  toggle.addEventListener('click', () => {
-    S.furigana = !S.furigana;
-    toggle.setAttribute('aria-pressed', String(S.furigana));
-    refreshRubyText(S.readingLevel, S.furigana);
-  });
-
   headerEls().back.addEventListener('click', () => {
     if (headerEls().back.disabled || S.stepIndex === 0) return;
-    goToStep(S.stepIndex - 1);
+    if (leaveConfirmNeeded) {
+      showConfirmDialog({ message: 'まえの がめんに もどる？', onConfirm: () => goToStep(S.stepIndex - 1) });
+    } else {
+      goToStep(S.stepIndex - 1);
+    }
+  });
+
+  headerEls().home.addEventListener('click', () => {
+    if (headerEls().home.disabled) return;
+    const toPicker = () => {
+      location.href = './index.html';
+    };
+    if (leaveConfirmNeeded) {
+      showConfirmDialog({ message: 'えらぶ がめんに もどる？', onConfirm: toPicker });
+    } else {
+      toPicker();
+    }
   });
 
   document.addEventListener('visibilitychange', () => {
@@ -106,9 +126,22 @@ export function initSteps() {
   renderStep();
 }
 
+// tutorialが完了・スキップ済みの単元では自動でその先へ進める。ただしrenderIntroの
+// 「れんしゅう する」で明示的に戻る場合（S.forceTutorial）は飛ばさない（Issue #93）。
+function resolveStepIndex(index) {
+  const step = S.lesson.steps[index];
+  if (step?.kind !== 'tutorial') return index;
+  if (S.forceTutorial) {
+    S.forceTutorial = false;
+    return index;
+  }
+  return isTutorialDone(S.lesson.unitId) ? index + 1 : index;
+}
+
 export function goToStep(nextIndex) {
+  const resolvedIndex = resolveStepIndex(nextIndex);
   logEvent('step_leave', {});
-  S.stepIndex = nextIndex;
+  S.stepIndex = resolvedIndex;
   logEvent('step_enter', {});
   playSfx('whoosh');
   renderStep();
@@ -146,6 +179,7 @@ function applyStepTransition(root) {
 function renderStep() {
   activeNudge?.stop();
   activeNudge = null;
+  leaveConfirmNeeded = false;
   const step = currentStep();
   const root = stage();
   root.innerHTML = '';
@@ -157,7 +191,7 @@ function renderStep() {
   if (step.kind === 'intro') renderIntro(root, step);
   else if (step.kind === 'predict') renderPredict(root, step);
   else if (step.kind === 'play') renderPlay(root, step);
-  else if (step.kind === 'tutorial') renderPlay(root, step, { guide: step.script });
+  else if (step.kind === 'tutorial') renderTutorial(root, step);
   else if (step.kind === 'summary') renderSummary(root);
   applyStepTransition(root);
 }
@@ -230,26 +264,20 @@ function renderIntro(root, step) {
   // このレッスンで何をするかの簡易デモ（Issue #91）。playステップが無い教材型は対象外。
   if (S.lesson.steps.some((s) => s.kind === 'play')) renderDemo(root, 'play');
   root.appendChild(createPrimaryButton('はじめる', () => goToStep(S.stepIndex + 1), 'start'));
-}
 
-// predict/playの先頭に区分バナー＋デモを表示する（tutorialには出さない。Issue #91）。
-// 最初の操作でデモを畳んで見出し1行だけ残す（collapseは呼び出し側の最初の操作ハンドラで呼ぶ）。
-export function renderCategoryBanner(root, kind) {
-  const banner = document.createElement('div');
-  banner.className = 'category-banner mb-2 flex flex-col items-center gap-1';
-  const heading = document.createElement('h2');
-  heading.className = 'text-sm font-bold text-slate-700';
-  heading.textContent = CATEGORY_LABEL[kind];
-  banner.appendChild(heading);
-  const demoEl = renderDemo(banner, kind);
-  root.appendChild(banner);
-
-  let collapsed = false;
-  return {
-    collapse() {
-      if (collapsed) return;
-      collapsed = true;
-      demoEl.remove();
-    },
-  };
+  // tutorialが完了・スキップ済み（自動で飛ばされる）の単元だけ、やり直す入口を小さく出す（Issue #93）。
+  const tutorialIndex = S.lesson.steps.findIndex((s) => s.kind === 'tutorial');
+  if (tutorialIndex !== -1 && isTutorialDone(S.lesson.unitId)) {
+    const redoBtn = document.createElement('button');
+    redoBtn.type = 'button';
+    redoBtn.dataset.action = 'redo-tutorial';
+    redoBtn.textContent = 'れんしゅう する';
+    redoBtn.className = 'block mx-auto mt-2 min-h-[48px] px-4 rounded-lg bg-white shadow text-sm text-slate-600';
+    redoBtn.addEventListener('click', () => {
+      vibrate();
+      S.forceTutorial = true;
+      goToStep(tutorialIndex);
+    });
+    root.appendChild(redoBtn);
+  }
 }

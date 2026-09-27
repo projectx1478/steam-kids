@@ -37,12 +37,14 @@ export default async function run({ page, check }) {
     async () => (await page.locator('[data-goal]').innerHTML()).includes('polygon'),
     false
   );
+  // もくひょう行・指示文は課題カードへ移り、操作画面では非表示(display:none)で保持される
+  // （「？」から再表示できる。Issue #93）。非表示要素はinnerText()が空になるためtextContent()で読む。
   await check(
-    '指示文がlessonのplay.text',
-    async () => page.locator('.objective-row').first().locator('xpath=preceding-sibling::p[1]').innerText(),
+    '指示文がlessonのplay.text（課題カード内）',
+    async () => page.locator('.objective-row').first().locator('xpath=preceding-sibling::p[1]').textContent(),
     'ロボットを ゴールへ うごかそう'
   );
-  await check('もくひょう行に「ゴール」表示がある', async () => (await page.locator('.objective-row').innerText()).includes('ゴール'));
+  await check('もくひょう行に「ゴール」表示がある（課題カード内）', async () => (await page.locator('.objective-row').textContent()).includes('ゴール'));
   await check('items無レッスンにのこり表示が無い', async () => (await page.$$('[data-remaining]')).length, 0);
   await check('playで横スクロールが発生しない', async () => noScrollX(page));
 
@@ -95,7 +97,7 @@ export default async function run({ page, check }) {
   await page.click('[data-action="next"]');
   await check(
     'play.text未指定・items無の既定文言',
-    async () => page.locator('.objective-row').first().locator('xpath=preceding-sibling::p[1]').innerText(),
+    async () => page.locator('.objective-row').first().locator('xpath=preceding-sibling::p[1]').textContent(),
     'ロボットを ゴールへ うごかそう'
   );
 
@@ -148,7 +150,7 @@ export default async function run({ page, check }) {
   await page.click('[data-action="next"]');
   await check(
     'play.text未指定・items有の既定文言',
-    async () => page.locator('.objective-row').first().locator('xpath=preceding-sibling::p[1]').innerText(),
+    async () => page.locator('.objective-row').first().locator('xpath=preceding-sibling::p[1]').textContent(),
     'どんぐりを ぜんぶ とって ゴール'
   );
 
