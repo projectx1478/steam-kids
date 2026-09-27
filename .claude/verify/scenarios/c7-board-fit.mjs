@@ -82,4 +82,43 @@ export default async function run({ page, check }) {
     await page.setViewportSize(vp);
     for (const id of LESSONS) await runLesson(page, check, id, `${vp.width}x${vp.height}@125%`);
   }
+  await checkQueueOverflow(page, check);
+}
+
+// 命令をmaxCommandsまで積んだ時、命令列が横スクロールで最新チップを隠さないこと（Issue #102）。
+async function queueKeepsLatestVisible(page) {
+  return page.evaluate(() => {
+    const queue = [...document.querySelectorAll('.command-queue')].find((e) => e.offsetParent !== null);
+    if (!queue) return 'no-queue';
+    const chips = [...queue.querySelectorAll('.command-chip')];
+    const last = chips[chips.length - 1];
+    if (!last) return 'no-chip';
+    const q = queue.getBoundingClientRect();
+    const l = last.getBoundingClientRect();
+    return l.right <= q.right + 1 && l.left >= q.left - 1 ? 'ok' : 'hidden';
+  });
+}
+
+async function checkQueueOverflow(page, check) {
+  await page.unroute('**/lessons/donguri-02-mawarimichi.json');
+  await page.setViewportSize({ width: 360, height: 640 });
+  await page.goto('/index.html?lesson=donguri-02-mawarimichi');
+  await page.evaluate(() =>
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith('steamkids.tutorialDone.'))
+      .forEach((k) => localStorage.removeItem(k))
+  );
+  await page.goto('/index.html?lesson=donguri-02-mawarimichi');
+  await page.click('[data-action="start"]');
+  await page.waitForSelector('[data-option]');
+  await page.click('[data-option]');
+  await page.waitForSelector('[data-action="next"]', { timeout: 8000 });
+  await page.click('[data-action="next"]');
+  await page.waitForSelector('.play-screen .grid-board');
+  for (let i = 0; i < 9; i += 1) {
+    const btn = await page.$('[data-command]:not(:disabled)');
+    if (!btn) break;
+    await btn.click();
+  }
+  await check('play: 命令を積みすぎても最新チップが命令列内に見える', () => queueKeepsLatestVisible(page), 'ok');
 }

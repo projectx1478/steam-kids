@@ -228,6 +228,9 @@ export function renderPlay(root, step) {
       }
       if (isFix) local.fixOpened = true;
       drawQueue();
+      // 命令列は横スクロールのため、積みすぎると最新のチップが右にはみ出して見えなくなる。
+      // 追加のたびに右端へスクロールし、常に最新チップが見える位置にする（Issue #102）。
+      queueEl.scrollLeft = queueEl.scrollWidth;
       if (via === 'drag') queueEl.lastElementChild?.classList.add('spring-in');
       updateControls();
       local.nudge?.poke();

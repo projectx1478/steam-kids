@@ -240,6 +240,8 @@ export function renderTutorial(root, step) {
       playSfx(via === 'drag' ? 'snap' : 'tap');
       local.guideIndex += 1;
       drawQueue();
+      // 命令列は横スクロールのため、追加のたびに右端へスクロールし最新チップを見せる（Issue #102）。
+      queueEl.scrollLeft = queueEl.scrollWidth;
       if (via === 'drag') queueEl.lastElementChild?.classList.add('spring-in');
       updateGhostPreview();
       applyGuide();
