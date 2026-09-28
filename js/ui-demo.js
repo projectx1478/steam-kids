@@ -9,12 +9,16 @@
 //   showCommands: 命令チップ列を盤面の上に表示し、実行中のチップを光らせる
 //   fixFrom: 先にこの誤った命令列を実行して失敗させ、一呼吸おいてから正しいcommandsへ
 //            差し替えて再実行する（「なおす」のデモ）
+// 初回自動再生の前だけ1秒の「よーい…」を挟む（Issue #107）。「▶ もういちど みる」は待たない。
 import { renderGrid, prefersReducedMotion } from './ui-grid.js';
 import { renderCommandQueue } from './ui-commands.js';
 import { playAnimation, setActiveAnimation } from './ui-step.js';
+import { play as playSfx } from './sfx.js';
 
 const DEMO_CELL = 40;
 const FIX_PAUSE_MS = 900;
+// READY_MS: 初回自動再生のみに置く「よーい…」の間（Issue #107）。「▶ もういちど みる」は対象外。
+const READY_MS = 1000;
 
 function toChip(entry) {
   return typeof entry === 'string' ? { dir: entry, times: 1 } : entry;
@@ -40,6 +44,16 @@ export function renderGoalDemo(container, demo) {
   wrap.appendChild(boardOuter);
   const boardWrap = document.createElement('div');
   boardOuter.appendChild(boardWrap);
+
+  // readyBadge: 初回自動再生前の1秒だけ盤面中央に出す「よーい…」（Issue #107）。
+  const readyBadge = document.createElement('div');
+  readyBadge.dataset.demoReady = '';
+  readyBadge.className =
+    'absolute inset-0 z-20 flex items-center justify-center pointer-events-none';
+  readyBadge.style.display = 'none';
+  readyBadge.innerHTML =
+    `<span class="${prefersReducedMotion() ? '' : 'success-pop'} bg-white/90 rounded-full px-4 py-2 text-lg font-bold text-slate-700 shadow">よーい…</span>`;
+  boardOuter.appendChild(readyBadge);
 
   let remainingEl = null;
   if (spec.items.length > 0) {
@@ -67,6 +81,7 @@ export function renderGoalDemo(container, demo) {
 
   let subAnim = null;
   let pendingTimer = null;
+  let readyTimer = null;
 
   function runPhase(commands, onDone) {
     setQueue(commands, -1);
@@ -85,7 +100,7 @@ export function renderGoalDemo(container, demo) {
     );
   }
 
-  function playOnce() {
+  function playNow() {
     draw(demo.start);
     if (demo.fixFrom) {
       runPhase(demo.fixFrom, () => {
@@ -101,6 +116,19 @@ export function renderGoalDemo(container, demo) {
     }
   }
 
+  // playFirst(): 初回自動再生専用。1秒の「よーい…」の後にstart音を鳴らしてplayNowへ入る
+  // （Issue #107）。「▶ もういちど みる」はplayNowを直接呼び、待機を挟まない。
+  function playFirst() {
+    draw(demo.start);
+    readyBadge.style.display = '';
+    readyTimer = setTimeout(() => {
+      readyTimer = null;
+      readyBadge.style.display = 'none';
+      playSfx('start');
+      playNow();
+    }, READY_MS);
+  }
+
   // ステップ離脱時（js/ui-step.jsのrenderStep冒頭）にまとめて止める窓口（Issue #104）。
   setActiveAnimation({
     cancel() {
@@ -109,6 +137,11 @@ export function renderGoalDemo(container, demo) {
       if (pendingTimer) {
         clearTimeout(pendingTimer);
         pendingTimer = null;
+      }
+      if (readyTimer) {
+        clearTimeout(readyTimer);
+        readyTimer = null;
+        readyBadge.style.display = 'none';
       }
     },
   });
@@ -125,11 +158,11 @@ export function renderGoalDemo(container, demo) {
       clearTimeout(pendingTimer);
       pendingTimer = null;
     }
-    playOnce();
+    playNow();
   });
   wrap.appendChild(replayBtn);
 
-  playOnce();
+  playFirst();
   container.appendChild(wrap);
   return wrap;
 }

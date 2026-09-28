@@ -44,7 +44,7 @@ async function clearLesson3(page) {
 export default async function run({ page, check }) {
   await clearLesson1(page);
 
-  await page.goto('/index.html');
+  await page.goto('/index.html?view=map');
   await check(
     'レッスン1クリア後、そのボタンにスタンプが付く',
     async () => (await page.$$('[data-lesson-id="cmd-01-susumu"] ~ .lesson-stamp')).length,
@@ -66,7 +66,7 @@ export default async function run({ page, check }) {
   await clearLesson2(page);
   await clearLesson3(page);
 
-  await page.goto('/index.html');
+  await page.goto('/index.html?view=map');
   await check('3本ともスタンプが付く', async () => (await page.$$('.lesson-stamp')).length, 3);
   await check('単元全クリアで旗が立つ', async () => (await page.$$('.unit-flag')).length, 1);
 }

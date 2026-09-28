@@ -158,4 +158,18 @@
     transform-origin: bottom left;
     animation: flag-wave 1.2s ease-in-out infinite;
   }
+
+  /* タイトル画面のロボットが上下にゆっくり浮く演出（Issue #107）。 */
+  @keyframes float-slow {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-8px);
+    }
+  }
+  .float-slow {
+    animation: float-slow 3s ease-in-out infinite;
+  }
 }

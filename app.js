@@ -4,6 +4,7 @@ import { initSteps, refreshHeader } from './js/ui-step.js';
 import { push } from './js/sync.js';
 import { registerServiceWorker } from './js/register-sw.js';
 import { renderUnitMap } from './js/ui-picker.js';
+import { renderTitle } from './js/ui-title.js';
 
 function showError() {
   const p = document.createElement('p');
@@ -60,11 +61,15 @@ async function renderPicker() {
   await renderUnitMap(stage, units, startLesson);
 }
 
-const lessonId = new URLSearchParams(location.search).get('lesson');
+const params = new URLSearchParams(location.search);
+const lessonId = params.get('lesson');
 if (lessonId) {
   await startLesson(lessonId);
-} else {
+} else if (params.get('view') === 'map') {
   await renderPicker();
+} else {
+  // ?lesson=・?view=mapのどちらも無い起動時のみタイトル画面を挟む（Issue #107）。
+  renderTitle(document.getElementById('stage'), renderPicker);
 }
 
 registerServiceWorker();
