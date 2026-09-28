@@ -1,4 +1,5 @@
 export const name = 'C1: 予想はゴール非表示・playはもくひょう行とテキスト(Issue #80)';
+import { enterPlay } from '../helpers.mjs';
 
 async function noLongLine(page) {
   const text = await page.locator('body').innerText();
@@ -154,11 +155,7 @@ export default async function run({ page, check }) {
   );
 
   // donguri-01: のこり表示の初期値・回収での減少・もういちどでのリセット
-  await page.goto('/index.html?lesson=donguri-01-hirou');
-  await page.click('[data-action="start"]');
-  await page.click('[data-option="A"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
-  await page.click('[data-action="next"]');
+  await enterPlay(page, 'donguri-01-hirou');
   await check('のこり初期値が2', async () => page.locator('[data-remaining]').innerText(), '2');
   await check('donguri-01のもくひょう行を含めて横スクロールが発生しない', async () => noScrollX(page));
 

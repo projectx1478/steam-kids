@@ -1,15 +1,8 @@
 export const name = 'P2: イベントのlocalStorage永続化と学習者プロファイル';
-
-async function toPlayStep(page) {
-  await page.goto('/index.html?lesson=cmd-01-susumu');
-  await page.click('[data-action="start"]');
-  await page.click('[data-option="B"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
-  await page.click('[data-action="next"]');
-}
+import { enterPlay } from '../helpers.mjs';
 
 async function clearLesson(page) {
-  await toPlayStep(page);
+  await enterPlay(page, 'cmd-01-susumu');
   for (const c of ['up', 'up', 'up', 'right', 'right', 'right']) {
     await page.click(`[data-command="${c}"]`);
   }
@@ -40,7 +33,7 @@ async function getAbandonCount(page) {
 
 export default async function run({ page, check }) {
   // 1・2: リロードしてもlearnerIdとイベントが失われない
-  await toPlayStep(page);
+  await enterPlay(page, 'cmd-01-susumu');
   const learnerIdBefore = await getLearnerId(page);
   const countBefore = await getEventCount(page);
 

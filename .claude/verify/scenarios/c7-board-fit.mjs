@@ -4,6 +4,7 @@
 // 端末の文字サイズ拡大（ルート文字125%）でボタン文字が折り返し、操作パネルが高くなる場合も見る。
 
 export const name = 'C7 盤面フィット: 盤面・ロボットが盤面エリア内に収まる(Issue #99)';
+import { enterPlay, resetTutorialFlags } from '../helpers.mjs';
 
 const VIEWPORTS = [
   { width: 360, height: 640 },
@@ -41,7 +42,7 @@ async function setFontScale(page, scale) {
 
 async function runLesson(page, check, lessonId, label) {
   await page.goto(`/index.html?lesson=${lessonId}`);
-  await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('steamkids.tutorialDone.')).forEach((k) => localStorage.removeItem(k)));
+  await resetTutorialFlags(page);
   await page.goto(`/index.html?lesson=${lessonId}`);
   await page.click('[data-action="start"]');
   if (await page.$('.tutorial-screen')) {
@@ -99,13 +100,8 @@ async function checkQueueOverflow(page, check) {
   await page.unroute('**/lessons/donguri-02-mawarimichi.json');
   await page.setViewportSize({ width: 360, height: 640 });
   await page.goto('/index.html?lesson=donguri-02-mawarimichi');
-  await page.evaluate(() =>
-    Object.keys(localStorage)
-      .filter((k) => k.startsWith('steamkids.tutorialDone.'))
-      .forEach((k) => localStorage.removeItem(k))
-  );
-  await page.goto('/index.html?lesson=donguri-02-mawarimichi');
-  await page.click('[data-action="start"]');
+  await resetTutorialFlags(page);
+  await enterPlay(page, 'donguri-02-mawarimichi');
   // よそう（predict）はIssue #104で全廃。introの「はじめる」から直接play(p1)へ入る。
   await page.waitForSelector('.play-screen .grid-board');
   for (let i = 0; i < 9; i += 1) {

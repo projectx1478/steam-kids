@@ -3,6 +3,7 @@
 // 存在しない）。よそう（predict）はIssue #104で全廃した。
 
 export const name = 'C5 レイアウト・ゴースト矢印: 画面に収まる・重ならない・順序が分かる(Issue #93/#97/#104)';
+import { enterPlay, resetTutorialFlags } from '../helpers.mjs';
 
 const VIEWPORTS = [
   { width: 375, height: 667 },
@@ -63,9 +64,7 @@ export default async function run({ page, check }) {
   // --- playは即座に操作画面（課題カードは無い。Issue #97）。よそうは無い（Issue #104）。
   // tutorial(fix)はとばす（Issue #98） ---
   await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto('/index.html?lesson=cmd-03-naosu');
-  await page.click('[data-action="start"]');
-  await page.click('[data-action="skip-tutorial"]');
+  await enterPlay(page, 'cmd-03-naosu');
   await check('playへ即座に入る（課題カード・よそう無し）', async () => page.getAttribute('#stage', 'data-step'), 'play');
   await check('操作画面に区分見出しが無い', async () => (await page.$$('.play-screen h2')).length, 0);
   await check('操作画面にデモが無い', async () => (await page.$$('.play-screen .demo-widget')).length, 0);
@@ -75,9 +74,7 @@ export default async function run({ page, check }) {
 
   // --- 命令列に→区切りと順番数字（Issue #93）。cmd-02-mijikakuのtutorial(group)をとばした
   // play(p1)の空queueで確認する（Issue #98） ---
-  await page.goto('/index.html?lesson=cmd-02-mijikaku');
-  await page.click('[data-action="start"]');
-  await page.click('[data-action="skip-tutorial"]');
+  await enterPlay(page, 'cmd-02-mijikaku');
   await check('playへ即座に入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
   await page.click('[data-command="down"]');
   await page.click('[data-command="right"]');
@@ -92,7 +89,7 @@ export default async function run({ page, check }) {
 
     await page.goto('/index.html?lesson=cmd-01-susumu');
     // 各viewportでtutorialから確認するため、前のiterationで付いた完了フラグを毎回消す。
-    await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('steamkids.tutorialDone.')).forEach((k) => localStorage.removeItem(k)));
+    await resetTutorialFlags(page);
     await page.click('[data-action="start"]');
     await check(`${label}: tutorialから始まる`, async () => page.getAttribute('#stage', 'data-step'), 'tutorial');
     // tutorial
@@ -110,7 +107,7 @@ export default async function run({ page, check }) {
 
   // --- チュートリアル: ゴースト矢印が番号順に増える・キャプション20字以内 ---
   await page.goto('/index.html?lesson=cmd-01-susumu');
-  await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('steamkids.tutorialDone.')).forEach((k) => localStorage.removeItem(k)));
+  await resetTutorialFlags(page);
   await page.click('[data-action="start"]');
   await check('tutorialから始まる', async () => page.getAttribute('#stage', 'data-step'), 'tutorial');
   await page.click('[data-command="up"]');

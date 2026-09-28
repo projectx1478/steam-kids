@@ -1,13 +1,12 @@
 export const name = 'A1 効果音: groupRepeatsでtap→stack、方向が変わるとtapに戻る';
+import { enterPlay } from '../helpers.mjs';
 
 async function countSfx(page, name) {
   return page.evaluate((n) => window.__sfxLog.filter((x) => x === n).length, name);
 }
 
 export default async function run({ page, check }) {
-  await page.goto('/index.html?lesson=cmd-02-mijikaku');
-  await page.click('[data-action="start"]');
-  await page.click('[data-action="skip-tutorial"]');
+  await enterPlay(page, 'cmd-02-mijikaku');
   await check('playステップに入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
 
   for (let i = 0; i < 5; i++) await page.click('[data-command="down"]');

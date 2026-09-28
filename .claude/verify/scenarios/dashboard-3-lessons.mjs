@@ -1,54 +1,12 @@
 export const name = 'ダッシュボード: 3本を完走するとレッスンカードが3枚表示される(Issue #31)';
+import { clearLesson } from '../helpers.mjs';
 
 const PASSCODE = 'testtest';
 
-async function clearLesson1(page) {
-  await page.goto('/index.html?lesson=cmd-01-susumu');
-  await page.click('[data-action="start"]');
-  await page.click('[data-option="B"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
-  await page.click('[data-action="next"]');
-  for (const c of ['up', 'up', 'up', 'right', 'right', 'right']) {
-    await page.click(`[data-command="${c}"]`);
-  }
-  await page.click('[data-action="run"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 8000 });
-}
-
-// よそう（predict）はIssue #104で全廃。各レッスンは3ステージ(p1〜p3)で構成する。
-async function clearStage(page, commands) {
-  for (const c of commands) await page.click(`[data-command="${c}"]`);
-  await page.click('[data-action="run"]');
-  const nextSel = '[data-action="next"], [data-action="next-stage"]';
-  await page.waitForSelector(nextSel, { timeout: 15000 });
-  await page.click(nextSel);
-}
-
-async function clearLesson2(page) {
-  await page.goto('/index.html?lesson=cmd-02-mijikaku');
-  await page.click('[data-action="start"]');
-  await page.click('[data-action="skip-tutorial"]'); // tutorial(group)。Issue #98
-  await clearStage(page, ['down', 'down', 'down', 'left', 'left']); // p1
-  await clearStage(page, ['down', 'down', 'down', 'down', 'down', 'right', 'right']); // p2
-  await clearStage(page, ['right', 'right', 'down', 'down', 'down', 'down', 'right']); // p3
-}
-
-async function clearLesson3(page) {
-  await page.goto('/index.html?lesson=cmd-03-naosu');
-  await page.click('[data-action="start"]');
-  await page.click('[data-action="skip-tutorial"]'); // tutorial(fix)。Issue #98
-  await page.click('[data-remove-index="1"]');
-  await clearStage(page, []); // p1
-  await page.click('[data-remove-index="2"]');
-  await clearStage(page, []); // p2
-  await page.click('[data-remove-index="6"]');
-  await clearStage(page, []); // p3
-}
-
 export default async function run({ page, check }) {
-  await clearLesson1(page);
-  await clearLesson2(page);
-  await clearLesson3(page);
+  await clearLesson(page, 'cmd-01-susumu');
+  await clearLesson(page, 'cmd-02-mijikaku');
+  await clearLesson(page, 'cmd-03-naosu');
 
   await page.goto('/dashboard.html');
   await page.evaluate(async (passcode) => {
