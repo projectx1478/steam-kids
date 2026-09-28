@@ -1,11 +1,8 @@
 export const name = 'cmd-01-susumu: 命令の追加・個別削除・ぜんぶけす・8個上限';
+import { enterPlay } from '../helpers.mjs';
 
 export default async function run({ page, check }) {
-  await page.goto('/index.html?lesson=cmd-01-susumu');
-  await page.click('[data-action="start"]');
-  await page.click('[data-option="B"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
-  await page.click('[data-action="next"]');
+  await enterPlay(page, 'cmd-01-susumu');
   await check('playステップに入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
 
   await page.click('[data-command="up"]');

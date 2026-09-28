@@ -1,16 +1,9 @@
 export const name = 'cmd-01-susumu: ゴール到達時のみ肯定的なリアクションが表示される';
-
-async function toPlayStep(page) {
-  await page.goto('/index.html?lesson=cmd-01-susumu');
-  await page.click('[data-action="start"]');
-  await page.click('[data-option="B"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
-  await page.click('[data-action="next"]');
-}
+import { enterPlay } from '../helpers.mjs';
 
 export default async function run({ page, check }) {
   // ゴール到達時: リアクション演出とdata-result="clear"が付く
-  await toPlayStep(page);
+  await enterPlay(page, 'cmd-01-susumu');
   for (const c of ['up', 'up', 'up', 'right', 'right', 'right']) {
     await page.click(`[data-command="${c}"]`);
   }
@@ -20,7 +13,7 @@ export default async function run({ page, check }) {
   await check('resultElにdata-result="clear"が付く', async () => page.getAttribute('#stage [data-result]', 'data-result'), 'clear');
 
   // 未達成時: 演出は出ず「もういちど」のみ
-  await toPlayStep(page);
+  await enterPlay(page, 'cmd-01-susumu');
   await page.click('[data-command="up"]');
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="retry"]', { timeout: 4000 });

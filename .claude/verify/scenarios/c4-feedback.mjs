@@ -1,6 +1,8 @@
 export const name =
   'C4 実機フィードバック一括対応: ヘッダー(もどる・えらぶ がめんへ)・反応統一・ヒント・もういちど・まとめ(Issue #91/#93/#104)';
 
+import { enterPlay, clearStage } from '../helpers.mjs';
+
 async function noLongLine(page) {
   const text = await page.locator('body').innerText();
   return text
@@ -17,32 +19,11 @@ async function assertNoNegativeWords(page, check, label) {
   await check(`${label}: 否定語(ざんねん)が出ない`, () => !text.includes('ざんねん'));
 }
 
-// cmd-01-susumu/donguri-01-hirouのtutorial（up,up,right,right/up,up,right）を最短で通過する。
-// よそう（predict）はIssue #104で全廃したため、tutorial後は直接play(p1)へ入る。
-async function skipTutorial(page, dirs) {
-  if ((await page.getAttribute('#stage', 'data-step')) !== 'tutorial') return;
-  for (const dir of dirs) await page.click(`[data-command="${dir}"]`);
-  await page.click('[data-action="run"]');
-  await page.waitForSelector('[data-action="continue-to-task"]', { timeout: 8000 });
-  await page.click('[data-action="continue-to-task"]');
-}
-
 // cmd-02-mijikaku/cmd-03-naosuのtutorial（group/fix）をボタンでとばす。完了記録はレッスン単位
 // のため、同じレッスンへ2回目以降に入る時は既に自動スキップ済みでボタンが無い（Issue #98）。
 async function skipTutorialButton(page) {
   if ((await page.getAttribute('#stage', 'data-step')) !== 'tutorial') return;
   await page.click('[data-action="skip-tutorial"]');
-}
-
-// 現在のplayステージをcommandsで実行してクリアし、最終ステージなら[data-action="next"]を、
-// 途中ステージなら[data-action="next-stage"]をクリックして次へ進む。
-async function clearStage(page, commands) {
-  for (const c of commands) await page.click(`[data-command="${c}"]`);
-  await page.click('[data-action="run"]');
-  const nextSel = '[data-action="next"], [data-action="next-stage"]';
-  // 1手0.6秒のため、命令が多いステージ(最大16個)でも間に合う余裕を持たせる。
-  await page.waitForSelector(nextSel, { timeout: 15000 });
-  await page.click(nextSel);
 }
 
 export default async function run({ page, check }) {
@@ -84,9 +65,7 @@ export default async function run({ page, check }) {
 
   // --- 2. playの失敗ヒント（壁）・その場でもういちど・ひとつ けす ---
   // 壁を持つのはp2（4x4, start(0,3), goal(3,0), walls[(2,2)]）なので、p1をクリアしてp2へ進む。
-  await page.goto('/index.html?lesson=cmd-01-susumu');
-  await page.click('[data-action="start"]');
-  await skipTutorial(page, ['up', 'up', 'right', 'right']);
+  await enterPlay(page, 'cmd-01-susumu');
   await check('play(p1)に入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
   await clearStage(page, ['up', 'up', 'left', 'left']);
   await check('play(p2)に入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
@@ -139,9 +118,7 @@ export default async function run({ page, check }) {
   await check('retryで命令列は0個に戻る（前回の命令を残さない）', async () => (await page.$$('.command-chip')).length, 0);
 
   // --- item未回収ヒント（donguri-01-hirou）。items(1,3)/(2,3)を持つp2で検証する ---
-  await page.goto('/index.html?lesson=donguri-01-hirou');
-  await page.click('[data-action="start"]');
-  await skipTutorial(page, ['up', 'up', 'right']);
+  await enterPlay(page, 'donguri-01-hirou');
   await check('donguri play(p1)に入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
   await clearStage(page, ['right', 'right', 'up', 'up']);
   await check('donguri play(p2)に入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
@@ -156,9 +133,7 @@ export default async function run({ page, check }) {
 
   // --- 3. スマホの操作画面（375x667）：じっこうが画面内、横スクロール無し、全ボタン48px以上 ---
   await page.setViewportSize({ width: 375, height: 667 });
-  await page.goto('/index.html?lesson=cmd-03-naosu');
-  await page.click('[data-action="start"]');
-  await skipTutorialButton(page);
+  await enterPlay(page, 'cmd-03-naosu');
   await check('mobile: playへ即座に入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
   await check('mobile: じっこうボタンの下端が画面内', async () => {
     const box = await page.locator('[data-action="run"]').boundingBox();
@@ -179,9 +154,7 @@ export default async function run({ page, check }) {
 
   // --- 4. ステージクリア演出（Issue #104: 拡大・fanfare・ジャンプ・紙ふぶき60粒）と、
   // クリア後「もういちど」で命令列がリセットされること ---
-  await page.goto('/index.html?lesson=cmd-01-susumu');
-  await page.click('[data-action="start"]');
-  await skipTutorial(page, ['up', 'up', 'right', 'right']);
+  await enterPlay(page, 'cmd-01-susumu');
   for (const c of ['up', 'up', 'left', 'left']) await page.click(`[data-command="${c}"]`);
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="next-stage"]', { timeout: 8000 });
@@ -201,9 +174,7 @@ export default async function run({ page, check }) {
   await check('つぎの ステージでp2に入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
 
   // --- なおす系（cmd-03）は「もういちど」で初期の「ずれた」列に戻る ---
-  await page.goto('/index.html?lesson=cmd-03-naosu');
-  await page.click('[data-action="start"]');
-  await skipTutorialButton(page);
+  await enterPlay(page, 'cmd-03-naosu');
   await check('なおすp1は初期状態で3個のチップ', async () => (await page.$$('.command-chip')).length, 3);
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="retry"]', { timeout: 8000 });
@@ -221,9 +192,7 @@ export default async function run({ page, check }) {
   );
 
   // --- 5. まとめ：3ステージぶんの「できたこと」カード・単元スタンプ・つぎのレッスンへ ---
-  await page.goto('/index.html?lesson=cmd-01-susumu');
-  await page.click('[data-action="start"]');
-  await skipTutorial(page, ['up', 'up', 'right', 'right']);
+  await enterPlay(page, 'cmd-01-susumu');
   await clearStage(page, ['up', 'up', 'left', 'left']); // p1(最短4)
   await clearStage(page, ['up', 'up', 'up', 'right', 'right', 'right']); // p2(最短6)
   // p3(5x5, start(0,4), goal(4,0), 壁は列x=2のy=2のみ空き): up×2, right×4, up×2 = 最短8
@@ -244,8 +213,7 @@ export default async function run({ page, check }) {
   await assertNoNegativeWords(page, check, 'summary');
 
   // --- 不正解・複数回クリアでは別のカード文言になる（最短でもない） ---
-  await page.goto('/index.html?lesson=donguri-02-mawarimichi');
-  await page.click('[data-action="start"]');
+  await enterPlay(page, 'donguri-02-mawarimichi');
   await clearStage(page, ['right', 'down', 'down', 'down', 'up', 'up', 'up', 'right']); // p1(最短8)
   await clearStage(page, ['down', 'down', 'down', 'down', 'right', 'right', 'up', 'up', 'up', 'up', 'right']); // p2(最短11)
   // p3は1回失敗させてから、最短(14)ではない手数(16)でクリアする
@@ -280,17 +248,13 @@ export default async function run({ page, check }) {
 
   // --- 単元ぜんぶクリア：cmd-02・cmd-03も片付けて「めいれいでうごかす」を全クリアする
   // （tutorial(group/fix)はとばす。Issue #98） ---
-  await page.goto('/index.html?lesson=cmd-02-mijikaku');
-  await page.click('[data-action="start"]');
-  await skipTutorialButton(page);
+  await enterPlay(page, 'cmd-02-mijikaku');
   await clearStage(page, ['down', 'down', 'down', 'left', 'left']); // p1(2チップ)
   await clearStage(page, ['down', 'down', 'down', 'down', 'down', 'right', 'right']); // p2(2チップ)
   await clearStage(page, ['right', 'right', 'down', 'down', 'down', 'down', 'right']); // p3(3チップ)
   await check('cmd-02もsummaryに入る', async () => page.getAttribute('#stage', 'data-step'), 'summary');
 
-  await page.goto('/index.html?lesson=cmd-03-naosu');
-  await page.click('[data-action="start"]');
-  await skipTutorialButton(page);
+  await enterPlay(page, 'cmd-03-naosu');
   await page.click('[data-remove-index="1"]'); // p1: 誤ったdownを消す
   await clearStage(page, []);
   await page.click('[data-remove-index="2"]'); // p2: 誤ったupを消す

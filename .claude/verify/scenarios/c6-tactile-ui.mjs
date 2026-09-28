@@ -3,6 +3,7 @@
 // ぜんぶ けすのreset音・指ガイドを確認する（Issue #95）。
 
 export const name = 'C6 Tactile UI: 64pxタップ領域・ドラッグ入力・確認ダイアログ撤去・指ガイド(Issue #95)';
+import { enterPlay, resetTutorialFlags } from '../helpers.mjs';
 
 const VIEWPORTS = [
   { width: 360, height: 640 },
@@ -26,7 +27,7 @@ export default async function run({ page, check }) {
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize(viewport);
     await page.goto('/index.html?lesson=cmd-01-susumu');
-    await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('steamkids.tutorialDone.')).forEach((k) => localStorage.removeItem(k)));
+    await resetTutorialFlags(page);
     await page.click('[data-action="start"]');
     for (const dir of ['up', 'up', 'right', 'right']) await page.click(`[data-command="${dir}"]`);
     await page.click('[data-action="run"]');
@@ -127,21 +128,17 @@ export default async function run({ page, check }) {
 
   // --- 3. 未クリアレッスンのplay初回(p1)、指ガイドが出て最初の操作で消える（tutorial(group)は
   // とばす。Issue #98） ---
-  await page.goto('/index.html?lesson=cmd-02-mijikaku');
-  await page.click('[data-action="start"]');
-  await page.click('[data-action="skip-tutorial"]');
+  await enterPlay(page, 'cmd-02-mijikaku');
   await check('未クリアplay初回(p1)で指ガイドが出る', async () => (await page.$$('.hand-hint')).length, 1);
   await page.click('[data-command="down"]');
   await check('最初の操作で指ガイドが消える', async () => (await page.$$('.hand-hint')).length, 0);
 
   // --- 4. クリア済みレッスンのplay(p1)では指ガイドが出ない（2でcmd-01-susumuのp1をクリア済み） ---
-  await page.goto('/index.html?lesson=cmd-01-susumu');
-  await page.click('[data-action="start"]');
+  await enterPlay(page, 'cmd-01-susumu');
   await check('クリア済みレッスンのplay(p1)では指ガイドが出ない', async () => (await page.$$('.hand-hint')).length, 0);
 
   // --- 5. reduced-motion時（既定）、指ガイドはアニメーションしない ---
-  await page.goto('/index.html?lesson=cmd-02-mijikaku');
-  await page.click('[data-action="start"]');
+  await enterPlay(page, 'cmd-02-mijikaku');
   await check('reduced-motion時、指ガイドはアニメーションしない', async () =>
     page.evaluate(() => {
       const el = document.querySelector('.hand-hint');
@@ -151,8 +148,7 @@ export default async function run({ page, check }) {
 
   // --- 6. motion許可時は指ガイドがアニメーションする ---
   await page.emulateMedia({ reducedMotion: 'no-preference' });
-  await page.goto('/index.html?lesson=cmd-02-mijikaku');
-  await page.click('[data-action="start"]');
+  await enterPlay(page, 'cmd-02-mijikaku');
   await check('motion許可時、指ガイドはアニメーションする', async () =>
     page.evaluate(() => {
       const el = document.querySelector('.hand-hint');
@@ -163,7 +159,7 @@ export default async function run({ page, check }) {
 
   // --- 7. チュートリアルでも指ガイドが出る ---
   await page.goto('/index.html?lesson=cmd-01-susumu');
-  await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('steamkids.tutorialDone.')).forEach((k) => localStorage.removeItem(k)));
+  await resetTutorialFlags(page);
   await page.click('[data-action="start"]');
   await check('tutorialから始まる', async () => page.getAttribute('#stage', 'data-step'), 'tutorial');
   await check('tutorialでも指ガイドが出る', async () => (await page.$$('.hand-hint')).length, 1);

@@ -2,17 +2,10 @@
 // （clear・失敗時のロック）を通ることを確認する（Issue #111）。
 
 export const name = 'B1 1コマずつ実行: タップごとに1手進み、じっこうと同じ判定になる(Issue #111)';
-
-async function toPlay(page) {
-  await page.goto('/index.html?lesson=cmd-01-susumu');
-  await page.click('[data-action="start"]');
-  await page.click('[data-option="B"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
-  await page.click('[data-action="next"]');
-}
+import { enterPlay } from '../helpers.mjs';
 
 export default async function run({ page, check }) {
-  await toPlay(page);
+  await enterPlay(page, 'cmd-01-susumu');
   await check('playステップに入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
 
   const commands = ['up', 'up', 'up', 'right', 'right', 'right'];
@@ -54,7 +47,7 @@ export default async function run({ page, check }) {
   await check('完了後: ←が押せる', () => page.$eval('#back-btn', (b) => b.disabled), false);
 
   // --- 失敗時のロックも1コマ実行から同じ判定になる（別セッションで検証） ---
-  await toPlay(page);
+  await enterPlay(page, 'cmd-01-susumu');
   await page.click('[data-command="left"]'); // start(0,3)からleftは盤外
   await page.click('[data-action="step"]');
   await page.waitForSelector('[data-action="retry"]', { timeout: 4000 });

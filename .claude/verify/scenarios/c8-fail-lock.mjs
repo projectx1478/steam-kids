@@ -1,21 +1,5 @@
 export const name = 'C8 不正解時の操作ロック: 盤面のゆれ・tryAgain音・もういちど以外の無効化(Issue #106)';
-
-// cmd-01-susumu/donguri-01-hirouのtutorial（up,up,right,right/up,up,right）を最短で通過する。
-async function skipTutorial(page, dirs) {
-  if ((await page.getAttribute('#stage', 'data-step')) !== 'tutorial') return;
-  for (const dir of dirs) await page.click(`[data-command="${dir}"]`);
-  await page.click('[data-action="run"]');
-  await page.waitForSelector('[data-action="continue-to-task"]', { timeout: 8000 });
-  await page.click('[data-action="continue-to-task"]');
-}
-
-async function clearStage(page, commands) {
-  for (const c of commands) await page.click(`[data-command="${c}"]`);
-  await page.click('[data-action="run"]');
-  const nextSel = '[data-action="next"], [data-action="next-stage"]';
-  await page.waitForSelector(nextSel, { timeout: 15000 });
-  await page.click(nextSel);
-}
+import { enterPlay, clearStage } from '../helpers.mjs';
 
 export default async function run({ page, check }) {
   // config.mjsが凍結しているcmd-01-susumuは現行構造(3ステージ・tutorial)で検証する（c4等と同じ）。
@@ -24,9 +8,7 @@ export default async function run({ page, check }) {
   // （静止表示側の分岐はc4-feedback.mjsのreduced-motion既定で検証済み）。
   await page.emulateMedia({ reducedMotion: 'no-preference' });
 
-  await page.goto('/index.html?lesson=cmd-01-susumu');
-  await page.click('[data-action="start"]');
-  await skipTutorial(page, ['up', 'up', 'right', 'right']);
+  await enterPlay(page, 'cmd-01-susumu');
   await clearStage(page, ['up', 'up', 'left', 'left']); // p1をクリアしてp2(壁あり)へ
 
   await page.click('[data-command="left"]'); // start(0,3)からleftは盤外

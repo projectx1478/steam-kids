@@ -1,12 +1,9 @@
 export const name = 'A3 ゴール紙ふぶき: ステージクリアは60粒・2秒で除去・キャラ本体の回転なし(Issue #104)';
+import { enterPlay } from '../helpers.mjs';
 
 export default async function run({ page, check }) {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
-  await page.goto('/index.html?lesson=cmd-01-susumu');
-  await page.click('[data-action="start"]');
-  await page.click('[data-option="B"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
-  await page.click('[data-action="next"]');
+  await enterPlay(page, 'cmd-01-susumu');
 
   const commands = ['up', 'up', 'up', 'right', 'right', 'right'];
   for (const c of commands) await page.click(`[data-command="${c}"]`);
