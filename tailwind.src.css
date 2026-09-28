@@ -2,7 +2,48 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 丸ゴシック体（M PLUS Rounded 1c ExtraBold）。教育漢字1026字＋かな・記号のみに絞った
+   自前ホストのサブセット（fonts/OFL.txt・fonts/mplusrounded1c-800.woff2。約230KB）。
+   オフライン・CDN禁止規則のためGoogle Fonts等の外部読み込みは行わない（Issue #110）。 */
+@font-face {
+  font-family: 'SteamKidsRounded';
+  src: url('fonts/mplusrounded1c-800.woff2') format('woff2');
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  body {
+    font-family: 'SteamKidsRounded', 'Hiragino Maru Gothic ProN', 'Yu Gothic', sans-serif;
+  }
+}
+
 @layer components {
+  /* 白フチ＋影の強調文字（タイトルロゴ用）。文字サイズ・色は呼び出し側のクラスに任せる（Issue #110）。 */
+  .text-child-title {
+    -webkit-text-stroke: 1.5px white;
+    paint-order: stroke fill;
+    filter: drop-shadow(0 2px 0 rgba(15, 23, 42, 0.25));
+  }
+
+  /* 命令を並べるトレイ（凹み風。Issue #110）。枠は実borderではなくbox-shadowで描く
+     （borderはbox-sizing:border-boxでも内容(64pxチップ+padding)を圧迫し、文字拡大＋狭い
+     viewportの組み合わせで盤面がエリアより大きくなる事故があったため。c7-board-fit）。 */
+  .command-tray {
+    @apply bg-slate-200/80 rounded-2xl shadow-[inset_0_3px_6px_rgba(0,0,0,0.12),0_0_0_2px_rgba(148,163,184,0.7)];
+  }
+
+  /* トレイの「次に置く」空きスロット。番号か←矢印を薄く表示する（Issue #110）。 */
+  .tray-slot {
+    @apply border-2 border-dashed border-slate-400 bg-slate-100/50 rounded-xl w-16 h-16 flex items-center justify-center shrink-0;
+  }
+
+  /* 疑似立体の床マス（Issue #110）。borderは使わない（大きさが変わりpixelForの前提とずれるため）。 */
+  .grid-tile-3d {
+    @apply bg-emerald-300 rounded-lg shadow-[inset_0_-4px_0_rgba(6,95,70,0.45)];
+  }
+
   /* Clean & Tactileボタン。背景色・角丸以外の見た目は呼び出し側(bg-sky-500等)に任せる（Issue #95）。 */
   .btn-tactile {
     @apply border-2 border-slate-800 rounded-2xl shadow-[0_4px_0_#1e293b] transition-all duration-75 select-none min-w-[64px] min-h-[64px];
@@ -172,4 +213,27 @@
   .float-slow {
     animation: float-slow 3s ease-in-out infinite;
   }
+
+  /* ゴールの旗まわりが点滅するキラキラ（Issue #110）。動きを減らす設定では静止表示になる
+     （このmedia自体がno-preference時のみ適用されるため）。 */
+  @keyframes goal-sparkle {
+    0%,
+    100% {
+      opacity: 0.3;
+      transform: scale(0.8);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.3);
+    }
+  }
+  .goal-sparkle {
+    animation: goal-sparkle 1.6s ease-in-out infinite;
+  }
+}
+
+/* goal-sparkleの位置基準はmotion設定に関わらず必要なため、media外に置く（Issue #110）。 */
+.goal-sparkle {
+  transform-box: fill-box;
+  transform-origin: center;
 }

@@ -11,24 +11,45 @@ const NUDGE_BY_DIR = { up: [0, -BOUNCE_NUDGE_PX], down: [0, BOUNCE_NUDGE_PX], le
 const CONFETTI_COUNT = 24;
 const CONFETTI_MS = 1500;
 const CONFETTI_COLORS = ['#f87171', '#fbbf24', '#34d399', '#38bdf8', '#a78bfa'];
-const COLLECT_MS = 220;
+// ITEM_FLY_MS: どんぐり回収時、拡大しながら浮いて消えるまでの時間（Issue #110）。
+const ITEM_FLY_MS = 600;
+const DANCE_MS = 800;
+const DANCE_STAR_COUNT = 8;
+const POP_IN_MS = 300;
+const DIM_MS = 200;
 
 // 旗（ゴール共通パーツ）。星形はクリア演出・単元スタンプ専用にし、ゴール自体とは
 // 見た目を分ける（Issue #80。予想では紛らわしいと誤解された）。
 const FLAG_MARKUP = `<rect x="18" y="8" width="4" height="42" rx="2" fill="#475569" />
       <path d="M22 10 L46 18 L22 26 Z" fill="#f87171" stroke="#dc2626" stroke-width="1.5" stroke-linejoin="round" />`;
 
+// MOUTH_PATH: ロボットの口の形（setMoodで切り替え。Issue #110）。
+const MOUTH_PATH = {
+  normal: 'M26 41 Q32 41 38 41',
+  happy: 'M25 40 Q32 48 39 40',
+  puzzled: 'M26 42 Q32 37 38 42',
+};
+
 function shapeSvg(kind) {
   if (kind === 'wall') {
+    // 上の面（明）＋側面（暗）の2色で疑似立体にする（アイソメトリックは座標計算が崩れるため
+    // 採らない。真上から見たまま影だけ付ける。Issue #110）。
     return `<svg viewBox="0 0 64 64" class="w-full h-full" aria-hidden="true">
-      <rect x="4" y="4" width="56" height="56" rx="8" fill="#94a3b8" />
+      <rect x="4" y="10" width="56" height="50" rx="8" fill="#64748b" />
+      <rect x="4" y="4" width="56" height="50" rx="8" fill="#94a3b8" />
     </svg>`;
   }
   if (kind === 'flag') {
     return `<svg viewBox="0 0 64 64" class="w-full h-full" aria-hidden="true">${FLAG_MARKUP}</svg>`;
   }
   if (kind === 'goal') {
-    return `<svg viewBox="0 0 64 64" class="w-full h-full" aria-hidden="true">${FLAG_MARKUP}
+    // 台座の影＋キラキラ（reduced-motion時はgoal-sparkleのanimationが掛からず静止表示。Issue #110）。
+    return `<svg viewBox="0 0 64 64" class="w-full h-full" aria-hidden="true">
+      <ellipse cx="30" cy="54" rx="16" ry="4" fill="#92400e" opacity="0.35" />
+      ${FLAG_MARKUP}
+      <circle class="goal-sparkle" cx="10" cy="16" r="2" fill="#fde68a" style="animation-delay:0s" />
+      <circle class="goal-sparkle" cx="50" cy="22" r="1.6" fill="#fef9c3" style="animation-delay:0.4s" />
+      <circle class="goal-sparkle" cx="14" cy="40" r="1.4" fill="#fde68a" style="animation-delay:0.8s" />
       <text x="32" y="59" text-anchor="middle" font-size="12" font-weight="bold" fill="#0f172a">ゴール</text>
     </svg>`;
   }
@@ -40,10 +61,14 @@ function shapeSvg(kind) {
     </svg>`;
   }
   if (kind === 'player') {
+    // 光沢帯・ほお・口を追加した表情付きロボット（口はdata-mouthでsetMoodにより切り替える。Issue #110）。
     return `<svg viewBox="0 0 64 64" class="w-full h-full" aria-hidden="true">
       <rect x="12" y="16" width="40" height="34" rx="12" fill="#38bdf8" stroke="#0284c7" stroke-width="3" />
+      <rect x="16" y="18" width="32" height="9" rx="5" fill="#7dd3fc" opacity="0.6" />
       <rect x="29" y="6" width="4" height="12" fill="#0284c7" />
       <circle cx="31" cy="6" r="4" fill="#fbbf24" />
+      <circle cx="20" cy="41" r="3" fill="#f472b6" opacity="0.5" />
+      <circle cx="44" cy="41" r="3" fill="#f472b6" opacity="0.5" />
       <circle cx="24" cy="32" r="6" fill="#f0f9ff" />
       <circle cx="40" cy="32" r="6" fill="#f0f9ff" />
       <circle data-pupil cx="24" cy="32" r="2.6" fill="#0f172a" />
@@ -52,6 +77,7 @@ function shapeSvg(kind) {
         style="transform-box:fill-box;transform-origin:center;transform:scaleY(0)" />
       <rect data-eyelid x="34" y="26" width="12" height="12" fill="#38bdf8"
         style="transform-box:fill-box;transform-origin:center;transform:scaleY(0)" />
+      <path data-mouth d="${MOUTH_PATH.normal}" fill="none" stroke="#0f172a" stroke-width="2" stroke-linecap="round" />
     </svg>`;
   }
   return '';
@@ -101,9 +127,13 @@ window.__gridAnimLog = window.__gridAnimLog || [];
 //   view.footprint(pos): 通過マスに足あとを追加
 //   view.markCell(pos, kind): 盤面を再構築せず印を重ねる（予想の答え合わせ・playのヒント。Issue #91）
 //   view.hintItems(items) / view.clearHints(): 未回収itemの点滅とヒント表示の一括解除（Issue #91）
-//   view.shrug(): 未達成時にロボットが首をかしげる（reduced-motion時は何もしない。Issue #91）
+//   view.shrug(): 未達成時にロボットが首をかしげる（困り顔になる。reduced-motion時は何もしない。Issue #91）
 //   view.confetti(): ゴール紙ふぶき（粒子24個・1.5秒で除去、reduced-motion時は何もしない）
 //   view.collectItem(pos): 該当マスのitemを回収演出付きで消す（reduced-motion時は即時に消す）
+//   view.setMood('normal'|'happy'|'puzzled'): ロボットの口の形を切り替える（Issue #110）
+//   view.celebrateDance(): クリア時にロボットが弾み跳ね、星が舞う（reduced-motion時は何もしない。Issue #110）
+//   view.dim(on): 盤面のマスだけを暗くする（失敗リザルト状態の表示。Issue #110）
+//   view.popIn(): もういちど直後、ロボットがポンと現れる演出（reduced-motion時は何もしない。Issue #110）
 export function renderGrid({ grid, walls, goal, items = [], playerPos, labels = [], cellSize = DEFAULT_CELL }) {
   const CELL = cellSize;
   const pixelFor = (pos) => ({ x: PAD_PX + pos.x * (CELL + GAP_PX), y: PAD_PX + pos.y * (CELL + GAP_PX) });
@@ -120,7 +150,7 @@ export function renderGrid({ grid, walls, goal, items = [], playerPos, labels = 
   for (let y = 0; y < grid.rows; y++) {
     for (let x = 0; x < grid.cols; x++) {
       const cell = document.createElement('div');
-      cell.className = 'grid-cell relative bg-white rounded-lg';
+      cell.className = 'grid-cell relative grid-tile-3d';
       cell.style.width = `${CELL}px`;
       cell.style.height = `${CELL}px`;
       cell.dataset.x = String(x);
@@ -147,6 +177,15 @@ export function renderGrid({ grid, walls, goal, items = [], playerPos, labels = 
       board.appendChild(cell);
     }
   }
+
+  // dimLayer: 不正解時に盤面だけを暗くする層（Issue #110）。セルの直後・item/token/markerより
+  // 前に置くことで、DOM順による重なり順そのままで「マスの上・駒やヒントの下」になる。
+  // pointer-events-noneでタップは通す。
+  const dimLayer = document.createElement('div');
+  dimLayer.className = 'grid-dim absolute inset-0 rounded-xl bg-slate-900/35 pointer-events-none';
+  dimLayer.style.opacity = '0';
+  dimLayer.dataset.active = 'false';
+  board.appendChild(dimLayer);
 
   // itemsはセルのinnerHTMLに焼き込まず、footprint同様に個別要素で持つ（回収時に個体を消すため）。
   const itemEls = new Map();
@@ -181,11 +220,17 @@ export function renderGrid({ grid, walls, goal, items = [], playerPos, labels = 
 
   const pupils = token.querySelectorAll('[data-pupil]');
   const eyelids = token.querySelectorAll('[data-eyelid]');
+  const mouth = token.querySelector('[data-mouth]');
 
   function setGaze(dir) {
     if (!dir) return;
     const [gx, gy] = GAZE_OFFSET[dir] ?? [0, 0];
     pupils.forEach((p) => p.setAttribute('transform', `translate(${gx}, ${gy})`));
+  }
+
+  // setMood(mood): 'normal'|'happy'|'puzzled'。口の形だけを切り替える（Issue #110）。
+  function setMood(mood) {
+    mouth?.setAttribute('d', MOUTH_PATH[mood] ?? MOUTH_PATH.normal);
   }
 
   // まぶたの自己再スケジュール。token.isConnectedが外れたら自然に止まる
@@ -244,6 +289,8 @@ export function renderGrid({ grid, walls, goal, items = [], playerPos, labels = 
       </svg>`;
       board.insertBefore(dot, token);
     },
+    // collectItem(pos): 拾ったどんぐりをポヨンと拡大・浮遊させて消す（+1ポップアップ付き。
+    // reduced-motion時は演出なしで即座に消す。Issue #110）。
     collectItem(itemPos) {
       const key = `${itemPos.x},${itemPos.y}`;
       const el = itemEls.get(key);
@@ -254,10 +301,25 @@ export function renderGrid({ grid, walls, goal, items = [], playerPos, labels = 
         return;
       }
       const px = pixelFor(itemPos);
-      el.style.transition = `transform ${COLLECT_MS}ms ease, opacity ${COLLECT_MS}ms ease`;
-      el.style.transform = `translate(${px.x}px, ${px.y}px) scale(1.4)`;
+      el.style.transition = `transform ${ITEM_FLY_MS}ms cubic-bezier(0.3, 0.5, 0.4, 1), opacity ${ITEM_FLY_MS}ms ease`;
+      el.style.transform = `translate(${px.x}px, ${px.y - 36}px) scale(1.6)`;
       el.style.opacity = '0';
-      setTimeout(() => el.remove(), COLLECT_MS);
+      setTimeout(() => el.remove(), ITEM_FLY_MS);
+
+      const plusOne = document.createElement('div');
+      plusOne.className = 'grid-item-plus absolute pointer-events-none text-sm font-bold text-amber-600';
+      plusOne.style.top = '0';
+      plusOne.style.left = '0';
+      plusOne.style.transform = `translate(${px.x + CELL / 2 - 8}px, ${px.y}px)`;
+      plusOne.style.opacity = '1';
+      plusOne.style.transition = `transform ${ITEM_FLY_MS}ms ease, opacity ${ITEM_FLY_MS}ms ease`;
+      plusOne.textContent = '+1';
+      board.appendChild(plusOne);
+      requestAnimationFrame(() => {
+        plusOne.style.transform = `translate(${px.x + CELL / 2 - 8}px, ${px.y - 40}px)`;
+        plusOne.style.opacity = '0';
+      });
+      setTimeout(() => plusOne.remove(), ITEM_FLY_MS);
     },
     // markCell(pos, kind): 既存の盤面を再構築せず（足あとを残したまま）マス上に印を重ねる。
     // kind: 'predicted' | 'result'（予想の答え合わせ）、'stopped' | 'goal-hint'（playの未達成ヒント）、
@@ -316,8 +378,10 @@ export function renderGrid({ grid, walls, goal, items = [], playerPos, labels = 
       });
     },
     // shrug(): 未達成時にロボットが首をかしげる（reduced-motion時は何もしない。Issue #91）。
+    // 口も困り顔（puzzled）にする（Issue #110）。
     shrug() {
       if (prefersReducedMotion()) return;
+      setMood('puzzled');
       const base = token.style.transform;
       token.animate(
         [
@@ -327,6 +391,29 @@ export function renderGrid({ grid, walls, goal, items = [], playerPos, labels = 
           { transform: `${base} rotate(0deg)` },
         ],
         { duration: 500, easing: 'ease-in-out' }
+      );
+    },
+    // setMood('normal'|'happy'|'puzzled'): 口の形だけ切り替える（Issue #110）。
+    setMood,
+    // dim(on): 盤面のマスだけを暗くする（失敗リザルト状態の表示。Issue #110）。マスより上・
+    // 足あと/印/ロボットより下（DOM順で担保。renderGrid冒頭のdimLayer参照）。
+    dim(on) {
+      dimLayer.style.transition = prefersReducedMotion() ? 'none' : `opacity ${DIM_MS}ms ease`;
+      dimLayer.style.opacity = on ? '1' : '0';
+      dimLayer.dataset.active = String(Boolean(on));
+    },
+    // popIn(): 「もういちど」で盤面を作り直した直後、ロボットがポンと現れる演出
+    // （再スタート状態を視覚で伝える。reduced-motion時は何もしない。Issue #110）。
+    popIn() {
+      if (prefersReducedMotion()) return;
+      const base = token.style.transform;
+      token.animate(
+        [
+          { transform: `${base} scale(0.4)`, opacity: 0.6 },
+          { transform: `${base} scale(1.15)`, opacity: 1 },
+          { transform: `${base} scale(1)`, opacity: 1 },
+        ],
+        { duration: POP_IN_MS, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)' }
       );
     },
     // confetti({count, duration}): ゴール紙ふぶき。既定は24個・1.5秒（reduced-motion時は何もしない）。
@@ -360,21 +447,47 @@ export function renderGrid({ grid, walls, goal, items = [], playerPos, labels = 
         setTimeout(() => piece.remove(), duration);
       }
     },
-    // celebrateJump(): ステージクリア時にロボットが2回ジャンプする（600ms・reduced-motion時は
-    // 何もしない。Issue #104）。
-    celebrateJump() {
+    // celebrateDance(): クリア時にロボットが弾み跳ねて喜び、周りに星が飛ぶ（reduced-motion時は
+    // 何もしない）。回転は加えない（キャラ本体のtransformに回転成分を持たせないテスト
+    // 前提=a3-goal-confetti.mjsを維持するため。Issue #104→#110）。
+    celebrateDance() {
       if (prefersReducedMotion()) return;
       const base = token.style.transform;
       token.animate(
         [
-          { transform: `${base} translateY(0)` },
-          { transform: `${base} translateY(-14px)` },
-          { transform: `${base} translateY(0)` },
-          { transform: `${base} translateY(-14px)` },
-          { transform: `${base} translateY(0)` },
+          { transform: `${base} translateY(0) scale(1)` },
+          { transform: `${base} translateY(-16px) scale(1.12)` },
+          { transform: `${base} translateY(0) scale(0.96)` },
+          { transform: `${base} translateY(-10px) scale(1.08)` },
+          { transform: `${base} translateY(0) scale(1)` },
         ],
-        { duration: 600, easing: 'ease-in-out' }
+        { duration: DANCE_MS, easing: 'ease-in-out' }
       );
+      const origin = pixelFor(pos);
+      const originX = origin.x + CELL / 2;
+      const originY = origin.y + CELL / 2;
+      for (let i = 0; i < DANCE_STAR_COUNT; i += 1) {
+        const angle = (Math.PI * 2 * i) / DANCE_STAR_COUNT;
+        const dist = 34 + Math.random() * 18;
+        const dx = Math.cos(angle) * dist;
+        const dy = Math.sin(angle) * dist - 10;
+        const star = document.createElement('div');
+        star.className = 'grid-celebrate-star absolute pointer-events-none w-3.5 h-3.5';
+        star.style.top = '0';
+        star.style.left = '0';
+        star.style.transform = `translate(${originX - 7}px, ${originY - 7}px) scale(0.4) rotate(0deg)`;
+        star.style.opacity = '1';
+        star.style.transition = 'transform 700ms ease-out, opacity 500ms ease-in 400ms';
+        star.innerHTML =
+          '<svg viewBox="0 0 24 24" aria-hidden="true"><polygon points="12,1 15,9 23,9 16,14 19,22 12,17 5,22 8,14 1,9 9,9" fill="#fbbf24" /></svg>';
+        board.appendChild(star);
+        requestAnimationFrame(() => {
+          const rotate = Math.round(Math.random() * 180 - 90);
+          star.style.transform = `translate(${originX - 7 + dx}px, ${originY - 7 + dy}px) scale(1) rotate(${rotate}deg)`;
+          star.style.opacity = '0';
+        });
+        setTimeout(() => star.remove(), 900);
+      }
     },
   };
 

@@ -40,6 +40,14 @@ kids-player（出典コミット`74adf54`）の`service-worker.js`から移植�
 キャッシュの内容を変える変更（`APP_SHELL`に含まれるファイルの追加・削除、分岐規則の変更）を
 行うPRでは、両方の値を同時に上げること。
 
+## フォントサブセットの作り方（Issue #110）
+
+`fonts/mplusrounded1c-800.woff2`はM PLUS Rounded 1c ExtraBold（OFL）を教育漢字1026字＋かな・
+記号のみに絞った自前ホストのサブセット。`npx fonttools subset`（Pythonの`fonttools`パッケージ）で
+`@fontsource/m-plus-rounded-1c`パッケージ内のjapanese-800.woff2から生成した。文字を追加する場合は
+`js/kanji-grades.js`の配当漢字＋使用するかな・記号を`--text-file`/`--unicodes`に渡して再生成し、
+`fonts/OFL.txt`（ライセンス文）はパッケージのLICENSEをそのままコピーする。
+
 ## 更新の反映
 
 `install`で`skipWaiting()`、`activate`で旧キャッシュ削除＋`clients.claim()`。クライアント側
