@@ -130,7 +130,7 @@ export function initSteps() {
 
   headerEls().home.addEventListener('click', () => {
     if (headerEls().home.disabled) return;
-    location.href = './index.html';
+    location.href = './index.html?view=map';
   });
 
   document.addEventListener('visibilitychange', () => {

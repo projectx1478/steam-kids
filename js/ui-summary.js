@@ -136,5 +136,7 @@ export function renderSummary(root) {
     }
   }
 
-  root.appendChild(createPrimaryButton('ほかのレッスンへ', () => (location.href = './index.html'), 'back-to-picker'));
+  root.appendChild(
+    createPrimaryButton('ほかのレッスンへ', () => (location.href = './index.html?view=map'), 'back-to-picker')
+  );
 }

@@ -3,6 +3,13 @@
 import { loadLesson } from './lesson-loader.js';
 import { getEvents } from './events.js';
 import { summarize } from './analytics.js';
+import { shapeSvg } from './ui-grid.js';
+
+// 単元ヘッダーの単元種別アイコン（Issue #107）。未知のunitIdはアイコン無し。
+const UNIT_TYPE_ICON = {
+  commands: () => flagSvg(),
+  donguri: () => shapeSvg('item'),
+};
 
 function isCleared(lessonStatus, lessonId) {
   return lessonStatus[lessonId]?.status === 'cleared';
@@ -50,8 +57,43 @@ export function medalSvg() {
   </svg>`;
 }
 
-// data-lesson-idを持つボタン本体はタイトル文字列のみを持つ（既存シナリオlesson-picker.mjsの
-// textContent完全一致テストを壊さないため）。スタンプはボタン外のsiblingとして重ねる。
+// starBadgeSvg(): 選択画面のクリア済みバッジ（金色★）。stampSvg（赤チェック）はui-summaryの
+// 単元進捗ドットで使い続けるため残し、選択画面側だけ差し替える（Issue #107）。
+function starBadgeSvg() {
+  return `<svg viewBox="0 0 24 24" class="w-full h-full" fill="#fbbf24" stroke="#f59e0b" stroke-width="1" aria-hidden="true">
+    <path d="M12 2l2.9 6.6 7.1.7-5.4 4.7 1.7 7-6.3-3.9-6.3 3.9 1.7-7L2 9.3l7.1-.7Z" />
+  </svg>`;
+}
+
+// レッスンボタンの小アイコン。初回playの特徴からIssue #107で導出する（JSONにアイコン指定は追加しない）。
+function arrowIconSvg() {
+  return `<svg viewBox="0 0 24 24" class="w-full h-full" fill="currentColor" aria-hidden="true"><path d="M5 4l14 8-14 8V4Z" /></svg>`;
+}
+function groupIconSvg() {
+  return `<svg viewBox="0 0 24 24" class="w-full h-full" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+    <rect x="3" y="7" width="12" height="12" rx="2" />
+    <rect x="9" y="3" width="12" height="12" rx="2" />
+  </svg>`;
+}
+function fixIconSvg() {
+  return `<svg viewBox="0 0 24 24" class="w-full h-full" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M4 20l4-1 10-10-3-3L5 16l-1 4Z" />
+    <path d="M14 6l3 3" />
+  </svg>`;
+}
+
+function lessonIconSvg(lesson) {
+  const playStep = lesson.steps?.find((s) => s.kind === 'play');
+  if (!playStep) return '';
+  if (playStep.initialCommands) return fixIconSvg();
+  if (playStep.groupRepeats) return groupIconSvg();
+  if (playStep.items?.length) return shapeSvg('item');
+  return arrowIconSvg();
+}
+
+// data-lesson-idを持つボタンはアイコン(aria-hidden)＋data-titleのタイトル文字列を持つ
+// （既存シナリオlesson-picker.mjsはdata-title側のtextContentで完全一致を見る。Issue #107）。
+// スタンプはボタン外のsiblingとして重ねる（既存シナリオa5-unit-stamp.mjsのクラス名互換）。
 async function createLessonStop(lessonId, cleared, onPick) {
   const wrap = document.createElement('div');
   wrap.className = 'relative inline-block';
@@ -59,20 +101,38 @@ async function createLessonStop(lessonId, cleared, onPick) {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.dataset.lessonId = lessonId;
-  btn.className = 'lesson-pick-btn min-w-[64px] min-h-[64px] px-4 rounded-xl bg-sky-500 text-white text-lg';
+  btn.className = `lesson-pick-btn btn-tactile flex items-center justify-center gap-1.5 px-4 text-lg text-white ${
+    cleared ? 'bg-emerald-500' : 'bg-sky-500'
+  }`;
+
+  let title = lessonId;
   try {
-    btn.textContent = (await loadLesson(lessonId)).title;
+    const lesson = await loadLesson(lessonId);
+    title = lesson.title;
+    const icon = lessonIconSvg(lesson);
+    if (icon) {
+      const iconSpan = document.createElement('span');
+      iconSpan.className = 'inline-block w-4 h-4 shrink-0';
+      iconSpan.setAttribute('aria-hidden', 'true');
+      iconSpan.innerHTML = icon;
+      btn.appendChild(iconSpan);
+    }
   } catch {
-    btn.textContent = lessonId;
+    // アイコンは省略し、タイトルはlessonIdへフォールバックする
   }
+  const titleSpan = document.createElement('span');
+  titleSpan.dataset.title = '';
+  titleSpan.textContent = title;
+  btn.appendChild(titleSpan);
+
   btn.addEventListener('click', () => onPick(lessonId));
   wrap.appendChild(btn);
 
   if (cleared) {
     const stamp = document.createElement('span');
-    stamp.className = 'lesson-stamp absolute -top-2 -right-2';
+    stamp.className = 'lesson-stamp absolute -top-2 -right-2 w-6 h-6';
     stamp.setAttribute('aria-label', 'たっせい');
-    stamp.innerHTML = stampSvg();
+    stamp.innerHTML = starBadgeSvg();
     wrap.appendChild(stamp);
   }
 
@@ -81,12 +141,20 @@ async function createLessonStop(lessonId, cleared, onPick) {
 
 async function createUnitIsland(unit, lessonStatus, onPick) {
   const island = document.createElement('div');
-  island.className = 'relative rounded-3xl p-4 mb-4 overflow-hidden';
+  island.className = 'relative rounded-3xl p-4 mb-4 overflow-hidden bg-white shadow-xl';
   island.dataset.unitId = unit.unitId;
   island.innerHTML = islandSvg();
 
   const header = document.createElement('div');
   header.className = 'flex items-center justify-center gap-2 mb-3';
+  const typeIcon = UNIT_TYPE_ICON[unit.unitId];
+  if (typeIcon) {
+    const icon = document.createElement('span');
+    icon.className = 'unit-type-icon w-6 h-6';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.innerHTML = typeIcon();
+    header.appendChild(icon);
+  }
   const title = document.createElement('p');
   title.className = 'text-lg font-bold text-emerald-800';
   title.textContent = unit.title;
@@ -114,15 +182,28 @@ async function createUnitIsland(unit, lessonStatus, onPick) {
 // stage: 描画先のコンテナ要素。units: index.jsonのunits配列。onPick(lessonId): タップ時のコールバック。
 export async function renderUnitMap(stage, units, onPick) {
   stage.innerHTML = '';
+  stage.dataset.screen = 'picker';
 
   const heading = document.createElement('p');
-  heading.className = 'text-2xl text-center py-4';
+  heading.className = 'text-2xl font-bold text-center py-4';
   heading.textContent = 'れっすんをえらぼう';
   stage.appendChild(heading);
 
   const { lessons: lessonStatus } = summarize(getEvents(), Date.now());
 
+  // 初回タップ以降は全レッスンボタンをdisabledにし、連打によるstartLessonの多重呼び出しを防ぐ
+  // （Issue #107）。
+  let picked = false;
+  const guardedPick = (lessonId) => {
+    if (picked) return;
+    picked = true;
+    stage.querySelectorAll('[data-lesson-id]').forEach((btn) => {
+      btn.disabled = true;
+    });
+    onPick(lessonId);
+  };
+
   for (const unit of units) {
-    stage.appendChild(await createUnitIsland(unit, lessonStatus, onPick));
+    stage.appendChild(await createUnitIsland(unit, lessonStatus, guardedPick));
   }
 }

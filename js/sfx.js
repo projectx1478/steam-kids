@@ -20,6 +20,7 @@ export const DURATIONS_MS = {
   whoosh: 200,
   fanfare: 860,
   grandFanfare: 2030,
+  start: 100,
 };
 
 const SCALE = [523.25, 587.33, 659.25, 698.46, 783.99, 880, 987.77]; // ドレミファソラシ(C5基準)
@@ -190,6 +191,10 @@ const SOUND = {
     notes.forEach((freq, i) => tone(ctx, now + i * 0.14, { freq, duration: 0.22, type: 'sine' }));
     const chordAt = now + notes.length * 0.14 + 0.05;
     [1046.5, 1318.5, 1568.0].forEach((freq) => tone(ctx, chordAt, { freq, duration: 1.0, type: 'sine', peak: 0.7 }));
+  },
+  // start: デモ前1秒の間の終わりに鳴らす合図音（Issue #107）。
+  start(ctx, now) {
+    tone(ctx, now, { freq: 440, freqEnd: 880, duration: 0.1, type: 'sine', peak: 0.7 });
   },
 };
 
