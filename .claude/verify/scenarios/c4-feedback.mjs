@@ -27,6 +27,13 @@ async function skipTutorial(page, dirs) {
   await page.click('[data-action="continue-to-task"]');
 }
 
+// cmd-02-mijikaku/cmd-03-naosuのtutorial（group/fix）をボタンでとばす。完了記録はレッスン単位
+// のため、同じレッスンへ2回目以降に入る時は既に自動スキップ済みでボタンが無い（Issue #98）。
+async function skipTutorialButton(page) {
+  if ((await page.getAttribute('#stage', 'data-step')) !== 'tutorial') return;
+  await page.click('[data-action="skip-tutorial"]');
+}
+
 // 現在のplayステージをcommandsで実行してクリアし、最終ステージなら[data-action="next"]を、
 // 途中ステージなら[data-action="next-stage"]をクリックして次へ進む。
 async function clearStage(page, commands) {
@@ -57,8 +64,10 @@ export default async function run({ page, check }) {
   );
 
   await page.click('[data-action="start"]');
+  await check('tutorial(fix)から始まる（Issue #98）', async () => page.getAttribute('#stage', 'data-step'), 'tutorial');
+  await skipTutorialButton(page);
   await check('playの区分チップ「うごかす 1/3」（複数ステージ構成。Issue #104）', async () => page.textContent('#step-kind-chip'), 'うごかす 1/3');
-  await check('playへ即座に入る（よそうは全廃。Issue #104）', async () => page.getAttribute('#stage', 'data-step'), 'play');
+  await check('よそうは全廃。Issue #104', async () => page.getAttribute('#stage', 'data-step'), 'play');
   // cmd-03-naosuのp1はinitialCommands(3個)がmaxCommands(3)と同数のため、パレットは
   // 最初から満杯でdisabled。チップの取り消しで最初の操作を行う。
   await page.click('[data-remove-index="2"]');
@@ -67,9 +76,9 @@ export default async function run({ page, check }) {
   // 確認ダイアログではなく命令列の下書き保持で行う（c6-tactile-ui.mjsで検証。Issue #95） ---
   await check('確認ダイアログは存在しない', async () => (await page.$$('.confirm-dialog')).length, 0);
   await page.click('#back-btn');
-  await check('確認無しで1つ前のintroへ戻る', async () => page.getAttribute('#stage', 'data-step'), 'intro');
+  // p1の直前はtutorial(fix)のため、← もどるはtutorialへ戻る（もう一度見られる。Issue #98）。
+  await check('確認無しで1つ前のtutorialへ戻る', async () => page.getAttribute('#stage', 'data-step'), 'tutorial');
 
-  await page.click('[data-action="start"]');
   await page.click('#home-btn');
   await check('えらぶ がめんへ も確認無しで即座に遷移する', async () => page.url().endsWith('/index.html?view=map'));
 
@@ -149,6 +158,7 @@ export default async function run({ page, check }) {
   await page.setViewportSize({ width: 375, height: 667 });
   await page.goto('/index.html?lesson=cmd-03-naosu');
   await page.click('[data-action="start"]');
+  await skipTutorialButton(page);
   await check('mobile: playへ即座に入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
   await check('mobile: じっこうボタンの下端が画面内', async () => {
     const box = await page.locator('[data-action="run"]').boundingBox();
@@ -193,6 +203,7 @@ export default async function run({ page, check }) {
   // --- なおす系（cmd-03）は「もういちど」で初期の「ずれた」列に戻る ---
   await page.goto('/index.html?lesson=cmd-03-naosu');
   await page.click('[data-action="start"]');
+  await skipTutorialButton(page);
   await check('なおすp1は初期状態で3個のチップ', async () => (await page.$$('.command-chip')).length, 3);
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="retry"]', { timeout: 8000 });
@@ -267,9 +278,11 @@ export default async function run({ page, check }) {
   await check('最終レッスンでも「ほかのレッスンへ」は出る', async () => (await page.$$('[data-action="back-to-picker"]')).length, 1);
   await check('「しま クリア！」という表現は出ない', async () => !(await page.textContent('#stage')).includes('しま クリア'));
 
-  // --- 単元ぜんぶクリア：cmd-02・cmd-03も片付けて「めいれいでうごかす」を全クリアする ---
+  // --- 単元ぜんぶクリア：cmd-02・cmd-03も片付けて「めいれいでうごかす」を全クリアする
+  // （tutorial(group/fix)はとばす。Issue #98） ---
   await page.goto('/index.html?lesson=cmd-02-mijikaku');
   await page.click('[data-action="start"]');
+  await skipTutorialButton(page);
   await clearStage(page, ['down', 'down', 'down', 'left', 'left']); // p1(2チップ)
   await clearStage(page, ['down', 'down', 'down', 'down', 'down', 'right', 'right']); // p2(2チップ)
   await clearStage(page, ['right', 'right', 'down', 'down', 'down', 'down', 'right']); // p3(3チップ)
@@ -277,6 +290,7 @@ export default async function run({ page, check }) {
 
   await page.goto('/index.html?lesson=cmd-03-naosu');
   await page.click('[data-action="start"]');
+  await skipTutorialButton(page);
   await page.click('[data-remove-index="1"]'); // p1: 誤ったdownを消す
   await clearStage(page, []);
   await page.click('[data-remove-index="2"]'); // p2: 誤ったupを消す

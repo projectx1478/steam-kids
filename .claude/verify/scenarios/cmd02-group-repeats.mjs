@@ -3,6 +3,7 @@ export const name = 'cmd-02-mijikaku: 同方向連続タップがまとめられ
 export default async function run({ page, check }) {
   await page.goto('/index.html?lesson=cmd-02-mijikaku');
   await page.click('[data-action="start"]');
+  await page.click('[data-action="skip-tutorial"]');
   await check('play(p1)ステップに入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
   // p1（2チップ・maxCommands2）をクリアしてp2（この検証対象。down×5+right×2の2チップ・
   // maxCommands3）へ進む（よそうはIssue #104で全廃）。

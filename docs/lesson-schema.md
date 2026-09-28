@@ -101,9 +101,12 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 
 ### `tutorial`（なぞり操作型チュートリアル）
 
-各単元1本目のみ・`intro`直後かつ最初の`play`より前に0〜1個置く（新ルール初登場時のガイド）。
-`grid`/`start`/`goal`/`walls`/`items`（任意）/`allowedCommands`は`play`と同じ形状の自前の盤面を持つ。
-`maxCommands`は持たない（`script`の手数がそのまま操作対象になるため）。
+各レッスンで新しい操作が初登場する時、`intro`直後かつ最初の`play`より前に0〜1個置く
+（Issue #81・#98）。`grid`/`start`/`goal`/`walls`/`items`（任意）/`allowedCommands`は`play`と
+同じ形状の自前の盤面を持つ。`maxCommands`は持たない（`script`の手数がそのまま操作対象になるため）。
+`groupRepeats`（任意・boolean）・`initialCommands`（任意・方向文字列の配列）は`play`と同じ意味
+（同方向連続タップを1チップへまとめる／誤った命令列を最初から積む）を持ち、指定した場合は
+`script`の再生・積んだチップの表示にも反映される（Issue #98）。
 
 ```json
 {
@@ -118,12 +121,16 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 }
 ```
 
-`script`は`{ tap }`の配列（`tap`は`up`/`down`/`left`/`right`/`run`）。**`script[]`要素に`text`は
-持たない**（文字を読ませない方針。Issue #81）。最後の要素は必ず`run`で、それより前は方向のみ。
+`script`は`{ tap }`の配列。`tap`は`up`/`down`/`left`/`right`/`run`に加え、`remove`
+（`{ "tap": "remove", "index": N }`。積んだ命令列のN番目のチップをタップして消す。`initialCommands`
+付きの「なおす」れんしゅう用。Issue #98）を取り得る。**`script[]`要素に`text`は持たない**
+（文字を読ませない方針。Issue #81）。最後の要素は必ず`run`で、それより前は方向または`remove`。
 盤面上部の「お手本列」（実物ボタンと同じ見た目のミニボタン列）とパレット・じっこうボタンが、
-現在の`tap`対象だけ有効化・点灯し、他は無効化される。子どもは光っている箇所を順にタップするだけで
-進む。`tutorial`自体の`text`（任意）は視覚だけでは伝えられないルールがある時だけ書く
-（例: どんぐり単元1本目は「どんぐりを とって ゴール」。方向操作のみのcmd単元1本目は`text`無し）。
+現在の`tap`対象だけ有効化・点灯し、他は無効化される。`tap`が`remove`の時はパレット・じっこうを
+すべて無効化し、積んだ命令列の対象チップだけを光らせてタップを許可する。子どもは光っている箇所を
+順にタップするだけで進む。`tutorial`自体の`text`（任意）は視覚だけでは伝えられないルールがある時
+だけ書く（例: どんぐり単元1本目は「どんぐりを とって ゴール」。方向操作のみのcmd単元1本目は
+`text`無し）。
 
 チュートリアル中は`run`/`undo`/`retry`/`clear`の学習イベントを記録しない（`step_enter`/
 `step_leave`は通常どおり記録する）。これらを記録すると、チュートリアル完走だけでレッスンが
@@ -200,10 +207,14 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 - 各レッスンで使われている漢字の最大配当学年（`kanjiMaxGrade`）を算出し、使用があれば
   `INFO`行で表示する（失敗にはしない情報表示）
 - `tutorial`は0〜1個であること。ある場合は直前が`intro`かつ最初の`play`より前の位置にあること
-- `tutorial.script`が非空配列であること、各`tap`が`allowedCommands`∪`run`のいずれかであること、
-  `script`要素に`text`キーを持たないこと、`run`は最後の要素のみであること
-- `tutorial.script`から`run`を除いた方向列を実行すると、壁にぶつからずゴール到達＋全item回収に
-  なること（Issue #81）
+- `tutorial.groupRepeats`はboolean、`tutorial.initialCommands`は方向文字列の配列であること。
+  `initialCommands`はそのまま実行してもゴールに到達しないこと（なおす不要判定。Issue #98）
+- `tutorial.script`が非空配列であること、各`tap`が`allowedCommands`∪`run`∪`remove`のいずれかで
+  あること、`script`要素に`text`キーを持たないこと、`run`は最後の要素のみであること、
+  `remove`の`index`が整数であること
+- `tutorial.initialCommands`→`script`（`remove`は範囲外なら消し過ぎとしてNG、方向は
+  `groupRepeats`を考慮してチップへ反映）の順に逐次再生し、最終的な命令列が壁にぶつからず
+  ゴール到達＋全item回収になること（Issue #81・#98）
 - **検証NGの場合は再生成する。手で通さない**
 - `lessons/index.json`: 参照する `lessonId` が実在すること、レッスン本体の `unitId` と一致すること、
   同一 `lessonId` を複数の `unit` から参照しないこと
