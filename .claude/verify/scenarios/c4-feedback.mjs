@@ -94,10 +94,24 @@ export default async function run({ page, check }) {
   await assertNoNegativeWords(page, check, 'play壁ヒント');
   await check('壁ヒントではdata-resultが付かない', async () => (await page.$$('#stage [data-result]')).length, 0);
 
-  await page.click('[data-action="remove-last"]');
-  await check('編集で[data-action="run"]に戻る', async () => (await page.$$('[data-action="run"]')).length, 1);
-  await check('編集でヒント表示が消える', async () => (await page.$$('[data-hint]')).length, 0);
-  await check('ひとつ けすでチップが0個に戻る', async () => (await page.$$('.command-chip')).length, 0);
+  // --- 不正解後は「もういちど」以外の操作をロックする（Issue #106）。編集ではなく
+  //     もういちどのみで復帰させる ---
+  await check('不正解後: ひとつ けすがdisabled', () => page.$eval('[data-action="remove-last"]', (b) => b.disabled), true);
+  await check('不正解後: ぜんぶ けすがdisabled', () => page.$eval('[data-action="clear-all"]', (b) => b.disabled), true);
+  await check('不正解後: 命令パレットが全てdisabled', async () => (await page.$$('[data-command]:not([disabled])')).length, 0);
+  // このシナリオはreduced-motion既定（config.mjs）のため、ゆれる代わりに盤面へ0.5秒の
+  // 静止リングが付く（Issue #106のreduced-motion分岐。ゆれ自体はc8-fail-lock.mjsで検証）。
+  await check('不正解後: reduced-motionでは盤面に静止リングが付く', async () => (await page.$$('.board-area.ring-amber-400')).length, 1);
+  await check('不正解後: tryAgain音が鳴る', () => page.evaluate(() => window.__sfxLog.includes('tryAgain')));
+  // ロック中はチップ×を押しても何も起きない（pointer-events-noneで受け付けない）
+  await page.click('[data-remove-index="0"]', { force: true });
+  await check('ロック中のチップ×は無反応', async () => (await page.$$('.command-chip')).length, 1);
+
+  await page.click('[data-action="retry"]');
+  await check('もういちどで[data-action="run"]に戻る', async () => (await page.$$('[data-action="run"]')).length, 1);
+  await check('もういちどでヒント表示が消える', async () => (await page.$$('[data-hint]')).length, 0);
+  await check('もういちどでチップが0個に戻る', async () => (await page.$$('.command-chip')).length, 0);
+  await check('もういちどでロックが解除される（命令パレットが押せる）', () => page.$eval('[data-command="up"]', (b) => b.disabled), false);
 
   // --- 未到達ヒント ---
   await page.click('[data-command="up"]'); // start(0,3)->(0,2)。壁にもゴールにも届かない。
@@ -182,6 +196,8 @@ export default async function run({ page, check }) {
   await check('なおすp1は初期状態で3個のチップ', async () => (await page.$$('.command-chip')).length, 3);
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="retry"]', { timeout: 8000 });
+  // 不正解直後は編集がロックされるため、もういちどを押してから直す（Issue #106）。
+  await page.click('[data-action="retry"]');
   await page.click('[data-remove-index="1"]');
   await check('編集後は2個', async () => (await page.$$('.command-chip')).length, 2);
   await page.click('[data-action="run"]');
