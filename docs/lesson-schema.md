@@ -84,12 +84,7 @@
 を置く。クリア条件は「ゴール到達」から「ゴール到達 **かつ** 全item回収」に変わる（items未指定時
 は従来通りゴール到達のみ）。item同士・item-壁の座標重複は不可（`validate-lessons.mjs`が検証）。
 `maxCommands`はゴール到達と全item回収の両方を満たす最短経路の手数（`groupRepeats`時はチップ数）
-で判定される（Issue #60）。ギミックの詳細は`docs/gimmicks.md`。
-
-`play.solution`（任意）は検証ハーネス（`clearLesson`）が使う正解手順。方向文字列の配列
-（`initialCommands`の後ろへ積む命令）、または`{ "removeIndex": N, "commands": [...] }`
-（`initialCommands`のN番目を消してから`commands`を積む。なおす系）。`validate-lessons.mjs`が
-実行してクリア・`maxCommands`以内を検証する。
+で判定される（Issue #60）。
 
 `play.text`（任意・文字列。他stepの`text`と同じくルビ記法・20字制限の検証対象）を指定すると、
 playステップの指示文になる。未指定時の既定文言は`items`の有無で決まる（`js/ui-step.js`）：
