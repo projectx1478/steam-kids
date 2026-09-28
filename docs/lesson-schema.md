@@ -241,6 +241,9 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 `logEvent(type, payload)` で `js/storage.js` 経由の localStorage（キー `steamkids.events`）へ
 追記する。保存件数の上限は5000件で、超過時は古い順に破棄する（P2で実装）。
 
+`run`イベントの`payload`は`commandCount`に加え、「1コマ」ボタンで開始した場合のみ`mode: "step"`を
+持つ（じっこうの一括実行では`mode`キー無し。Issue #111）。
+
 ## 学習者プロファイル
 
 ```json
