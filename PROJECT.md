@@ -72,7 +72,13 @@ UI規則（受け入れ条件。すべて判定可能な数値条件とする）
   アニメーションで1回だけ自動再生し見せる（本番のplayとは別のstart/goalを使い、答えの
   ネタバレを避ける。reduced-motion時も1手0.6秒のコマ送りで動かし、静止画にはしない。
   レッスンで新しく出てくる要素（命令チップ・まとめ・なおす・item）へ焦点を当てる。
-  `lessons/*.json`の`intro.demo`・`js/ui-demo.js`のrenderGoalDemo。Issue #97・#104）
+  `lessons/*.json`の`intro.demo`・`js/ui-demo.js`のrenderGoalDemo。Issue #97・#104）。
+  初回自動再生の直前だけ盤面に「よーい…」を1秒表示し、`start`音の後に再生する
+  （「もういちど みる」は待たない。Issue #107）
+- 起動時（`?lesson=`・`?view=map`のどちらも無い時）のみタイトル画面（`js/ui-title.js`）を
+  1回はさむ。「STEAM KIDS」の文字はロゴ表記としてひらがな主体規則の例外とする（Issue #107）
+- レッスン選択画面のクリア済みボタンは色（`bg-emerald-500`）＋金色★バッジで示し、
+  重ねた赤チェックは使わない（単元進捗ドットの赤チェックはIssue #58のまま維持。Issue #107）
 - `grid-runtime`のplayは2〜4ステージ（p1, p2…）で構成し、後のステージほど最短手数
   （まとめ命令ありはチップ数）を非減少にして難易度を上げる。壁にぶつかった手が1つでも
   あれば結果としてゴールに着いても正解にしない。途中ステージのクリアは`stage_clear`
@@ -169,6 +175,7 @@ js/
   ui-grid.js # SVGグリッド描画とハイライト
   ui-commands.js # 命令パレット・命令列・個別削除・全消し
   ui-step.js # ステップ切替、ふりがなトグル
+  ui-title.js # タイトル画面（起動時のみ。Issue #107）
   sfx.js # 効果音（Web Audio API合成・単一API play(name)、BGMなし）
   events.js # logEvent() / getEvents()（storage.js経由で永続化）
   storage.js # localStorage読み書き（イベント・学習者プロファイル）
