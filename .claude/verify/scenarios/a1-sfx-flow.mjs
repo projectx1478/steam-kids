@@ -24,6 +24,8 @@ export default async function run({ page, check }) {
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="retry"]', { timeout: 4000 });
   await check('盤外へ進んでbumpが鳴る', async () => (await sfxLog(page)).includes('bump'));
+  // 不正解時は罰則音ではなくtryAgain（低音スイープ）を鳴らす（Issue #106）。
+  await check('不正解でtryAgainが鳴る', async () => (await sfxLog(page)).includes('tryAgain'));
 
   // retryは正解・不正解に関わらず命令列をリセットする（Issue #104）ため、ぜんぶ けすを
   // 試すには先に何か積み直す必要がある。

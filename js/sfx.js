@@ -12,6 +12,7 @@ export const DURATIONS_MS = {
   reset: 80,
   run: 300,
   step: 150,
+  tryAgain: 150,
   bump: 250,
   pickup: 200,
   reveal: 200,
@@ -145,6 +146,11 @@ const SOUND = {
   },
   run(ctx, now) {
     tone(ctx, now, { freq: 400, freqEnd: 900, duration: 0.3, type: 'triangle', peak: 0.8 });
+  },
+  // tryAgain: 未達成（壁・item未回収・未到達）で共通に鳴らす「首をかしげる」音。ブザーではなく
+  // 柔らかい低音スイープにし、罰則感を出さない（Issue #106）。
+  tryAgain(ctx, now) {
+    tone(ctx, now, { freq: 320, freqEnd: 160, duration: 0.15, type: 'triangle', peak: 0.5 });
   },
   step(ctx, now, opts) {
     const idx = opts.index ?? 0;

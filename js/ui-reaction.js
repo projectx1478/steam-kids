@@ -6,6 +6,7 @@
 import { play as playSfx } from './sfx.js';
 import { vibrate } from './ui-commands.js';
 import { showToast } from './ui-toast.js';
+import { shapeSvg } from './ui-grid.js';
 
 const STAGE_CONFETTI_COUNT = 60;
 const STAGE_CONFETTI_MS = 2000;
@@ -40,16 +41,26 @@ export function showSuccess(slotEl, { view, restore } = {}) {
 // showHint(slotEl, { kind, message, restore }): kindはdata-hintに入る種別（wall/items/goal/predict等）。
 // data-resultは付けない（cmd01-clear-reactionの「未達成時はdata-resultが付かない」を維持）。
 // 見出しとメッセージを別行にする（1行20字以内のUI規則を保つため。Issue #91のまま）。
+// 見出しの左に首をかしげたロボット＋「？」を添え、文字だけでなく非言語でも
+// 「もう一度」と伝わるようにする（失敗を責めない表現。Issue #106）。
 export function showHint(slotEl, { kind, message, restore }) {
   showToast(slotEl, {
     render: (el) => {
       const panel = document.createElement('div');
       panel.dataset.hint = kind;
       panel.className = 'hint-panel flex flex-col items-center';
+      const headingRow = document.createElement('div');
+      headingRow.className = 'flex items-center gap-1';
+      const icon = document.createElement('div');
+      icon.className = 'hint-icon relative w-8 h-8 shrink-0';
+      icon.innerHTML = `<div class="w-full h-full" style="transform: rotate(-14deg)">${shapeSvg('player')}</div>
+        <span class="absolute -top-1 -right-1 flex items-center justify-center w-4 h-4 rounded-full bg-slate-600 text-white text-[10px] font-bold" aria-hidden="true">？</span>`;
+      headingRow.appendChild(icon);
       const heading = document.createElement('p');
-      heading.className = 'text-sm font-bold text-slate-700';
+      heading.className = 'text-lg font-bold text-slate-700';
       heading.textContent = 'おしい！';
-      panel.appendChild(heading);
+      headingRow.appendChild(heading);
+      panel.appendChild(headingRow);
       const msg = document.createElement('p');
       msg.className = 'text-xs text-slate-600';
       msg.textContent = message;

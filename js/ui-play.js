@@ -3,7 +3,7 @@
 // 画面上部の問い文スロットは、実行結果（やったね／ヒント）を数秒だけトースト表示する場所も兼ねる。
 import { S } from './state.js';
 import { logEvent } from './events.js';
-import { renderGrid, shapeSvg, computeCellSize } from './ui-grid.js';
+import { renderGrid, shapeSvg, computeCellSize, prefersReducedMotion } from './ui-grid.js';
 import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, vibrate } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
 import { renderInto } from './text-render.js';
@@ -47,6 +47,9 @@ export function renderPlay(root, step) {
     running: false,
     view: null,
     resultShown: false,
+    // 不正解でtrueにし、「もういちど」以外の操作ボタン・命令チップの取り消しを封じる
+    // （思考フローが他ボタンで乱れないようにする。Issue #106）。「もういちど」押下でのみ解除。
+    locked: false,
     nudge: null,
     remaining: spec.items.length,
     // なおす系（initialCommandsあり）で最初の編集（×・追加・ぜんぶけす）をしたか。
@@ -130,16 +133,18 @@ export function renderPlay(root, step) {
   runBtn.className = 'btn-tactile px-4 bg-emerald-500 text-white text-lg font-bold break-keep disabled:opacity-40';
 
   // 実行が失敗したらrunBtn自体を橙色の「もういちど」に変える（目線を動かさずに押せる。Issue #91）。
+  // 他のボタンをロックする間、押せるのはこれだけなのでパルス枠で目立たせる（Issue #106）。
+  const RETRY_EMPHASIS_CLASSES = ['ring-4', 'ring-amber-300', 'ring-offset-2', 'motion-safe:animate-pulse'];
   function setRunButtonMode(mode) {
     if (mode === 'retry') {
       runBtn.dataset.action = 'retry';
       runBtn.textContent = '↺ もういちど';
       runBtn.classList.remove('bg-emerald-500');
-      runBtn.classList.add('bg-amber-500');
+      runBtn.classList.add('bg-amber-500', ...RETRY_EMPHASIS_CLASSES);
     } else {
       runBtn.dataset.action = 'run';
       runBtn.textContent = '▶ じっこう';
-      runBtn.classList.remove('bg-amber-500');
+      runBtn.classList.remove('bg-amber-500', ...RETRY_EMPHASIS_CLASSES);
       runBtn.classList.add('bg-emerald-500');
     }
   }
@@ -158,21 +163,26 @@ export function renderPlay(root, step) {
     buttons.forEach((b) => actionsEl.appendChild(b));
   }
 
-  // 失敗後にrunBtnが「もういちど」化した状態で、もういちどを押さず直接キューを編集した場合
-  // （例: cmd03のなおす操作）でも[data-action="run"]に戻す。次のrunで盤面はどのみち
-  // drawBoard(spec.start)からやり直すため、機能上は編集時に静かに戻すだけでよい。
-  function revertRunButtonIfRetrying() {
-    if (runBtn.dataset.action !== 'retry') return;
-    setRunButtonMode('run');
-    // ヒントの表示は次に命令を編集したら消える（Issue #91）。盤面側の印も消す。
-    local.view?.clearHints();
-    clearToast(statusBar);
+  // triggerFailFeedback(): 不正解時の視覚・聴覚フィードバック。派手な✕・警告音ではなく、
+  // 盤面をやさしくゆらすアニメーションと低音スイープの音で気づかせる（Issue #106）。
+  // reduced-motion時はゆらさず、盤面に0.5秒だけ枠を光らせて静止のまま気づけるようにする。
+  function triggerFailFeedback() {
+    playSfx('tryAgain');
+    if (prefersReducedMotion()) {
+      boardArea.classList.add('ring-4', 'ring-amber-400', 'rounded-2xl');
+      setTimeout(() => boardArea.classList.remove('ring-4', 'ring-amber-400', 'rounded-2xl'), 500);
+    } else {
+      boardArea.classList.add('wobble-soft');
+      boardArea.addEventListener('animationend', () => boardArea.classList.remove('wobble-soft'), { once: true });
+    }
   }
 
   // やりかた帯・無操作促しの対象を決める段階（Issue #89）。0=強調なし（実行中・結果表示中）、
   // 1=けす/おす、3=じっこう。なおす系は編集済みか否かのみで1↔3を決める（②は経由しない）。
+  // ロック中（不正解でもういちど待ち）は常に3（じっこうボタン＝もういちど）を対象にする（Issue #106）。
   function currentPhase() {
     if (local.running || local.resultShown) return 0;
+    if (local.locked) return 3;
     if (isFix) return local.fixOpened ? 3 : 1;
     return local.commands.length === 0 ? 1 : 3;
   }
@@ -210,6 +220,7 @@ export function renderPlay(root, step) {
     freshCommands.forEach((c) => local.commands.push({ ...c }));
     S.drafts[step.stepId] = local.commands;
     local.fixOpened = false;
+    local.locked = false;
   }
 
   function drawQueue() {
@@ -218,8 +229,7 @@ export function renderPlay(root, step) {
       activeIndex: local.activeIndex,
       removable: true,
       onRemove: (i) => {
-        if (local.running) return;
-        revertRunButtonIfRetrying();
+        if (local.running || local.locked) return;
         if (isFix) local.fixOpened = true;
         local.commands.splice(i, 1);
         logEvent('undo', { index: i });
@@ -234,20 +244,22 @@ export function renderPlay(root, step) {
   function updateControls() {
     const atMax = local.commands.length >= step.maxCommands;
     paletteEl.querySelectorAll('button').forEach((b) => {
-      b.disabled = atMax || local.running;
+      b.disabled = atMax || local.running || local.locked;
     });
     const isRetry = runBtn.dataset.action === 'retry';
     runBtn.disabled = local.running || (!isRetry && local.commands.length === 0);
-    clearBtn.disabled = local.commands.length === 0 || local.running;
-    removeLastBtn.disabled = local.commands.length === 0 || local.running;
+    clearBtn.disabled = local.commands.length === 0 || local.running || local.locked;
+    removeLastBtn.disabled = local.commands.length === 0 || local.running || local.locked;
+    // ロック中は命令列自体もぼかし、タップを受け付けないようにする（チップ×の誤タップ防止。Issue #106）。
+    queueEl.classList.toggle('opacity-50', local.locked);
+    queueEl.classList.toggle('pointer-events-none', local.locked);
   }
 
   renderCommandPalette(paletteEl, {
     dropTarget: () => queueEl.getBoundingClientRect(),
     onDragOver: (active) => toggleGhostSlot(queueEl, active),
     onAdd: (dir, { via } = {}) => {
-      if (local.running) return;
-      revertRunButtonIfRetrying();
+      if (local.running || local.locked) return;
       const last = local.commands.at(-1);
       if (step.groupRepeats && last && last.dir === dir) {
         last.times += 1;
@@ -269,9 +281,8 @@ export function renderPlay(root, step) {
   });
 
   removeLastBtn.addEventListener('click', () => {
-    if (local.running || local.commands.length === 0) return;
+    if (local.running || local.locked || local.commands.length === 0) return;
     vibrate();
-    revertRunButtonIfRetrying();
     if (isFix) local.fixOpened = true;
     const i = local.commands.length - 1;
     const last = local.commands[i];
@@ -286,9 +297,8 @@ export function renderPlay(root, step) {
   });
 
   clearBtn.addEventListener('click', () => {
-    if (local.running || local.commands.length === 0) return;
+    if (local.running || local.locked || local.commands.length === 0) return;
     vibrate();
-    revertRunButtonIfRetrying();
     if (isFix) local.fixOpened = true;
     logEvent('undo', { all: true, commandCount: local.commands.length });
     // 参照を維持したまま空にする（S.drafts[step.stepId]との共有を切らないため。Issue #95）。
@@ -368,7 +378,9 @@ export function renderPlay(root, step) {
           }
         } else {
           setRunButtonMode('retry');
+          local.locked = true;
           updateControls();
+          triggerFailFeedback();
           const info = diagnose(result, local.commands, spec);
           if (info.reason === 'wall') {
             queueEl.querySelector(`[data-index="${info.cmdIndex}"]`)?.classList.add('ring-4', 'ring-amber-400');
