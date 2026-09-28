@@ -26,7 +26,7 @@ export default async function run({ page, check }) {
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize(viewport);
     await page.goto('/index.html?lesson=cmd-01-susumu');
-    await page.evaluate(() => localStorage.removeItem('steamkids.tutorialDone.commands'));
+    await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('steamkids.tutorialDone.')).forEach((k) => localStorage.removeItem(k)));
     await page.click('[data-action="start"]');
     for (const dir of ['up', 'up', 'right', 'right']) await page.click(`[data-command="${dir}"]`);
     await page.click('[data-action="run"]');
@@ -125,9 +125,11 @@ export default async function run({ page, check }) {
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="next"]', { timeout: 15000 });
 
-  // --- 3. 未クリアレッスンのplay初回(p1)、指ガイドが出て最初の操作で消える ---
+  // --- 3. 未クリアレッスンのplay初回(p1)、指ガイドが出て最初の操作で消える（tutorial(group)は
+  // とばす。Issue #98） ---
   await page.goto('/index.html?lesson=cmd-02-mijikaku');
   await page.click('[data-action="start"]');
+  await page.click('[data-action="skip-tutorial"]');
   await check('未クリアplay初回(p1)で指ガイドが出る', async () => (await page.$$('.hand-hint')).length, 1);
   await page.click('[data-command="down"]');
   await check('最初の操作で指ガイドが消える', async () => (await page.$$('.hand-hint')).length, 0);
@@ -161,7 +163,7 @@ export default async function run({ page, check }) {
 
   // --- 7. チュートリアルでも指ガイドが出る ---
   await page.goto('/index.html?lesson=cmd-01-susumu');
-  await page.evaluate(() => localStorage.removeItem('steamkids.tutorialDone.commands'));
+  await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('steamkids.tutorialDone.')).forEach((k) => localStorage.removeItem(k)));
   await page.click('[data-action="start"]');
   await check('tutorialから始まる', async () => page.getAttribute('#stage', 'data-step'), 'tutorial');
   await check('tutorialでも指ガイドが出る', async () => (await page.$$('.hand-hint')).length, 1);

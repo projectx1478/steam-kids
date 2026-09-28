@@ -312,10 +312,37 @@ function validateLesson(fileName, data) {
 
     checkBoard(tutorial, add, `stepId="${tutorial.stepId}" の`);
 
+    if ('groupRepeats' in tutorial && typeof tutorial.groupRepeats !== 'boolean') {
+      add('groupRepeatsの型', `stepId="${tutorial.stepId}" のgroupRepeats=${JSON.stringify(tutorial.groupRepeats)} はboolean以外`);
+    }
+    if ('initialCommands' in tutorial) {
+      const initial = tutorial.initialCommands;
+      if (!Array.isArray(initial) || initial.some((c) => !COMMANDS.includes(c))) {
+        add('命令語彙', `stepId="${tutorial.stepId}" のinitialCommands=${JSON.stringify(initial)} が不正`);
+      } else if (
+        initial.every((c) => COMMANDS.includes(c)) &&
+        tutorial.start &&
+        tutorial.goal
+      ) {
+        const freshResult = simulate(initial, {
+          grid: tutorial.grid,
+          start: tutorial.start,
+          goal: tutorial.goal,
+          walls: Array.isArray(tutorial.walls) ? tutorial.walls : [],
+          items: Array.isArray(tutorial.items) ? tutorial.items : [],
+        });
+        if (freshResult.reachedGoal && freshResult.remainingItems.length === 0 && freshResult.blockedAt.length === 0) {
+          add('なおすの初期状態', `stepId="${tutorial.stepId}" のinitialCommandsがそのまま実行してもゴールに到達してしまう（直す必要が無い）`);
+        }
+      }
+    }
+
     if (!Array.isArray(tutorial.script) || tutorial.script.length === 0) {
       add('チュートリアルのscript', `stepId="${tutorial.stepId}" のscriptが空`);
     } else {
-      const tapVocab = [...(Array.isArray(tutorial.allowedCommands) ? tutorial.allowedCommands : []), 'run'];
+      // tap語彙: allowedCommandsの方向・'run'（最後のみ）・'remove'（積んだチップのindexを消す。
+      // initialCommands付きの「なおす」れんしゅう用。Issue #98）。
+      const tapVocab = [...(Array.isArray(tutorial.allowedCommands) ? tutorial.allowedCommands : []), 'run', 'remove'];
       tutorial.script.forEach((entry, i) => {
         if (entry && 'text' in entry) {
           add(
@@ -329,14 +356,43 @@ function validateLesson(fileName, data) {
         if (entry?.tap === 'run' && i !== tutorial.script.length - 1) {
           add('チュートリアルのscript', `stepId="${tutorial.stepId}" のscript[${i}]がrunだが最後ではない`);
         }
+        if (entry?.tap === 'remove' && !Number.isInteger(entry.index)) {
+          add('チュートリアルのscript', `stepId="${tutorial.stepId}" のscript[${i}].index=${JSON.stringify(entry?.index)} が不正`);
+        }
       });
       if (tutorial.script.at(-1)?.tap !== 'run') {
         add('チュートリアルのscript', `stepId="${tutorial.stepId}" のscriptの最後がrunでない`);
       }
 
-      const dirs = tutorial.script.filter((e) => e?.tap !== 'run').map((e) => e.tap);
-      if (dirs.every((d) => COMMANDS.includes(d)) && tutorial.start && tutorial.goal) {
-        const result = simulate(dirs, {
+      // script（initialCommands→remove/tap（groupRepeats考慮）→run）を逐次再生し、最終的な
+      // 命令列がゴール到達＋全item回収になるか確認する。removeのindexが範囲外なら消し過ぎとして
+      // NGにする（Issue #98）。
+      const initial = Array.isArray(tutorial.initialCommands) ? tutorial.initialCommands : [];
+      let chips = initial.every((c) => COMMANDS.includes(c)) ? initial.map((dir) => ({ dir, times: 1 })) : null;
+      let replayOk = chips !== null;
+      if (replayOk) {
+        for (const entry of tutorial.script) {
+          if (entry?.tap === 'run') continue;
+          if (entry?.tap === 'remove') {
+            if (!Number.isInteger(entry.index) || entry.index < 0 || entry.index >= chips.length) {
+              add(
+                'チュートリアルのscript',
+                `stepId="${tutorial.stepId}" のscriptのremove.index=${entry.index} が範囲外（チップ${chips.length}個・消し過ぎ）`
+              );
+              replayOk = false;
+              break;
+            }
+            chips.splice(entry.index, 1);
+          } else if (COMMANDS.includes(entry?.tap)) {
+            const last = chips.at(-1);
+            if (tutorial.groupRepeats && last && last.dir === entry.tap) last.times += 1;
+            else chips.push({ dir: entry.tap, times: 1 });
+          }
+        }
+      }
+
+      if (replayOk && tutorial.start && tutorial.goal) {
+        const result = simulate(chips, {
           grid: tutorial.grid,
           start: tutorial.start,
           goal: tutorial.goal,

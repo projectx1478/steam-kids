@@ -27,6 +27,7 @@ async function clearStage(page, commands) {
 async function clearLesson2(page) {
   await page.goto('/index.html?lesson=cmd-02-mijikaku');
   await page.click('[data-action="start"]');
+  await page.click('[data-action="skip-tutorial"]'); // tutorial(group)。Issue #98
   await clearStage(page, ['down', 'down', 'down', 'left', 'left']); // p1
   await clearStage(page, ['down', 'down', 'down', 'down', 'down', 'right', 'right']); // p2
   await clearStage(page, ['right', 'right', 'down', 'down', 'down', 'down', 'right']); // p3
@@ -35,6 +36,7 @@ async function clearLesson2(page) {
 async function clearLesson3(page) {
   await page.goto('/index.html?lesson=cmd-03-naosu');
   await page.click('[data-action="start"]');
+  await page.click('[data-action="skip-tutorial"]'); // tutorial(fix)。Issue #98
   await page.click('[data-remove-index="1"]');
   await clearStage(page, []); // p1
   await page.click('[data-remove-index="2"]');

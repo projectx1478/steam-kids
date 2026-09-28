@@ -14,31 +14,42 @@ const GUIDE_GLOW_CLASSES = ['ring-4', 'ring-amber-400', 'ring-offset-2', 'motion
 const TUTORIAL_DONE_PREFIX = 'steamkids.tutorialDone.';
 const TUTORIAL_CELL_MAX = 56; // 「小さな盤面」。問題のplay/predict(最大64px)より一回り小さくする
 
-// isTutorialDone/markTutorialDone: 単元単位の完了・スキップ記録（端末内のみ・同期しない）。
-export function isTutorialDone(unitId) {
+// isTutorialDone/markTutorialDone: レッスン単位の完了・スキップ記録（端末内のみ・同期しない。
+// 旧仕様は単元単位だったが、同一単元内の2本目以降のレッスンにもtutorialを置くようになった
+// ため、1本目の完了で2本目以降まで自動スキップされないようレッスン単位に変更した。Issue #98）。
+export function isTutorialDone(lessonId) {
   try {
-    return localStorage.getItem(TUTORIAL_DONE_PREFIX + unitId) === 'true';
+    return localStorage.getItem(TUTORIAL_DONE_PREFIX + lessonId) === 'true';
   } catch {
     return false;
   }
 }
 
-export function markTutorialDone(unitId) {
+export function markTutorialDone(lessonId) {
   try {
-    localStorage.setItem(TUTORIAL_DONE_PREFIX + unitId, 'true');
+    localStorage.setItem(TUTORIAL_DONE_PREFIX + lessonId, 'true');
   } catch {
     // 容量超過等は無視（チュートリアル表示が続くだけで機能上は問題ない）
   }
 }
 
-// guide: [{tap: 'up'|'down'|'left'|'right'|'run'}]。指定された順にしか操作できない
-// （なぞり操作型チュートリアル。Issue #81）。文字を読ませない方針のため指示文は
+// guide: [{tap: 'up'|'down'|'left'|'right'|'run'}]、または{tap: 'remove', index: N}
+// （積んだ命令列のN番目のチップを消す。なおす系のれんしゅう用。Issue #98）。指定された順にしか
+// 操作できない（なぞり操作型チュートリアル。Issue #81）。文字を読ませない方針のため指示文は
 // step.textがある時のみ表示（既定文言へのフォールバックはしない）。
 // run/undo/retry/clearのlogEventは行わない（チュートリアル完走で単元スタンプが付くのを防ぐ）。
+// step.groupRepeats（同方向連続タップを1チップへまとめる。playと同挙動）・
+// step.initialCommands（誤った命令列を最初から積む。なおす系用）は任意（Issue #98）。
 export function renderTutorial(root, step) {
   const spec = { grid: step.grid, start: step.start, goal: step.goal, walls: step.walls, items: step.items ?? [] };
   const guide = step.script;
-  const local = { commands: [], guideIndex: 0, running: false, view: null, cellSize: TUTORIAL_CELL_MAX };
+  const local = {
+    commands: (step.initialCommands ?? []).map((dir) => ({ dir, times: 1 })),
+    guideIndex: 0,
+    running: false,
+    view: null,
+    cellSize: TUTORIAL_CELL_MAX,
+  };
 
   const panel = document.createElement('div');
   panel.className = 'tutorial-screen flex flex-col flex-1 min-h-0 gap-2 bg-amber-50 rounded-xl p-2';
@@ -81,10 +92,12 @@ export function renderTutorial(root, step) {
     el.dataset.guideIndex = String(i);
     el.dataset.state = 'todo';
     const isRun = entry.tap === 'run';
+    const isRemove = entry.tap === 'remove';
     el.className = `guide-step relative inline-flex items-center justify-center h-10 rounded-lg pointer-events-none ${
-      isRun ? 'px-3 bg-emerald-500 text-white text-sm font-bold' : 'w-10 bg-sky-500 text-white'
+      isRun ? 'px-3 bg-emerald-500 text-white text-sm font-bold' : isRemove ? 'w-10 bg-rose-500 text-white text-lg font-bold' : 'w-10 bg-sky-500 text-white'
     }`;
     if (isRun) el.textContent = 'じっこう';
+    else if (isRemove) el.textContent = '×';
     else {
       const rotate = { up: 0, right: 90, down: 180, left: 270 }[entry.tap];
       el.innerHTML = `<svg viewBox="0 0 24 24" class="w-6 h-6" style="transform:rotate(${rotate}deg)" aria-hidden="true"><path d="M12 2 L20 14 L14 14 L14 22 L10 22 L10 14 L4 14 Z" fill="currentColor" /></svg>`;
@@ -155,12 +168,18 @@ export function renderTutorial(root, step) {
     renderCommandQueue(queueEl, { commands: local.commands, activeIndex: -1, removable: false });
   }
 
+  function guideEntry() {
+    return guide[local.guideIndex] ?? null;
+  }
+
   function guideTarget() {
-    return guide[local.guideIndex]?.tap ?? null;
+    return guideEntry()?.tap ?? null;
   }
 
   // お手本通りに積んだ命令の予定経路をゴースト矢印＋番号で示す（実行前のプレビュー。Issue #93）。
-  function updateGhostPreview() {
+  // showCaption=falseの時はキャプション文言を出さない（remove後は「◯に すすむ よてい」が
+  // 直前に消したチップの説明のように誤読されるため。Issue #98）。
+  function updateGhostPreview(showCaption = true) {
     local.view.clearHints();
     if (local.commands.length === 0) {
       captionEl.textContent = '';
@@ -176,14 +195,33 @@ export function renderTutorial(root, step) {
       local.view.markCell(cur, 'ghost', { order });
       prev = cur;
     }
-    const lastDir = local.commands.at(-1).dir;
-    captionEl.textContent = `${COMMAND_LABELS[lastDir]}に 1ます すすむ よてい`;
+    if (showCaption) {
+      const lastDir = local.commands.at(-1).dir;
+      captionEl.textContent = `${COMMAND_LABELS[lastDir]}に 1ます すすむ よてい`;
+    } else {
+      captionEl.textContent = '';
+    }
+  }
+
+  // handleRemoveTap(index): なおす系のれんしゅうで、guideが指すチップ（お手本列と対応した
+  // 実チップ）をタップして消す。guideTarget()が'remove'かつindexが一致する時だけ有効（Issue #98）。
+  function handleRemoveTap(index) {
+    if (local.running || guideTarget() !== 'remove' || guideEntry()?.index !== index) return;
+    vibrate();
+    local.commands.splice(index, 1);
+    playSfx('remove');
+    local.guideIndex += 1;
+    drawQueue();
+    updateGhostPreview(false);
+    applyGuide();
   }
 
   // 現在のtap対象だけ有効化して光らせ、他は無効化する。お手本列は済み(done)/現在(current)/
-  // 未(todo)を色・チェックで示す（Issue #81）。
+  // 未(todo)を色・チェックで示す（Issue #81）。targetが'remove'の時はパレット・じっこうを
+  // すべて無効化し、積んだ命令列の対象チップだけを光らせてタップ許可する（Issue #98）。
   function applyGuide() {
-    const target = guideTarget();
+    const entry = guideEntry();
+    const target = entry?.tap ?? null;
     paletteEl.querySelectorAll('button').forEach((b) => {
       const isTarget = b.dataset.command === target;
       b.disabled = local.running || !isTarget;
@@ -204,6 +242,26 @@ export function renderTutorial(root, step) {
       delete runBtn.dataset.guide;
       runBtn.classList.remove(...GUIDE_GLOW_CLASSES);
     }
+    queueEl.querySelectorAll('.command-chip').forEach((chip) => {
+      const isRemoveTarget = target === 'remove' && Number(chip.dataset.index) === entry.index;
+      chip.classList.remove(...GUIDE_GLOW_CLASSES);
+      chip.classList.toggle('cursor-pointer', isRemoveTarget);
+      if (isRemoveTarget) {
+        chip.classList.add(...GUIDE_GLOW_CLASSES);
+        if (!chip.querySelector('.tutorial-remove-badge')) {
+          const badge = document.createElement('span');
+          badge.className =
+            "tutorial-remove-badge absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-4 text-center";
+          badge.textContent = '×';
+          badge.setAttribute('aria-hidden', 'true');
+          chip.appendChild(badge);
+        }
+        chip.onclick = () => handleRemoveTap(entry.index);
+      } else {
+        chip.querySelector('.tutorial-remove-badge')?.remove();
+        chip.onclick = null;
+      }
+    });
     guideRowEl.querySelectorAll('[data-guide-index]').forEach((el) => {
       const i = Number(el.dataset.guideIndex);
       const state = i < local.guideIndex ? 'done' : i === local.guideIndex ? 'current' : 'todo';
@@ -213,18 +271,23 @@ export function renderTutorial(root, step) {
       if (state === 'current') el.classList.add(...GUIDE_GLOW_CLASSES);
       if (state === 'done') el.classList.add('opacity-40');
     });
-    updateHandHint(target);
+    updateHandHint(target, entry);
   }
 
   // 光るボタンに加え、次に押す方向へ指ガイドを重ねて示す（runは実行ボタン上でタップ動作。
-  // Issue #95）。実行中・案内対象が無い時は消す。
-  function updateHandHint(target) {
+  // removeは対象チップ上でタップ動作。Issue #95・#98）。実行中・案内対象が無い時は消す。
+  function updateHandHint(target, entry) {
     if (local.running || !target) {
       setActiveHandHint(null);
       return;
     }
     if (target === 'run') {
       setActiveHandHint(showHandHint({ from: runBtn, mode: 'tap' }));
+      return;
+    }
+    if (target === 'remove') {
+      const chip = queueEl.querySelector(`[data-index="${entry.index}"]`);
+      setActiveHandHint(chip ? showHandHint({ from: chip, mode: 'tap' }) : null);
       return;
     }
     const btn = paletteEl.querySelector(`[data-command="${target}"]`);
@@ -236,13 +299,21 @@ export function renderTutorial(root, step) {
     onDragOver: (active) => toggleGhostSlot(queueEl, active),
     onAdd: (dir, { via } = {}) => {
       if (local.running || dir !== guideTarget()) return;
-      local.commands.push({ dir, times: 1 });
-      playSfx(via === 'drag' ? 'snap' : 'tap');
+      // groupRepeats: playと同様、直前と同方向なら新しいチップを作らずまとめる（Issue #98）。
+      const last = local.commands.at(-1);
+      const merged = step.groupRepeats && last && last.dir === dir;
+      if (merged) {
+        last.times += 1;
+        playSfx('stack', { count: last.times });
+      } else {
+        local.commands.push({ dir, times: 1 });
+        playSfx(via === 'drag' ? 'snap' : 'tap');
+      }
       local.guideIndex += 1;
       drawQueue();
       // 命令列は横スクロールのため、追加のたびに右端へスクロールし最新チップを見せる（Issue #102）。
       queueEl.scrollLeft = queueEl.scrollWidth;
-      if (via === 'drag') queueEl.lastElementChild?.classList.add('spring-in');
+      if (via === 'drag' && !merged) queueEl.lastElementChild?.classList.add('spring-in');
       updateGhostPreview();
       applyGuide();
     },
@@ -284,7 +355,7 @@ export function renderTutorial(root, step) {
       },
       onDone: () => {
         local.running = false;
-        markTutorialDone(S.lesson.unitId);
+        markTutorialDone(S.lesson.lessonId);
         renderDivider();
       },
     });
@@ -292,7 +363,7 @@ export function renderTutorial(root, step) {
 
   skipBtn.addEventListener('click', () => {
     vibrate();
-    markTutorialDone(S.lesson.unitId);
+    markTutorialDone(S.lesson.lessonId);
     goToStep(S.stepIndex + 1);
   });
 

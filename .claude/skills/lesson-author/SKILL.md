@@ -28,8 +28,8 @@ description: 単元名からgrid-runtimeレッスンJSONを生成し、npm run v
    - `play.groupRepeats: true` を使う場合、同方向連続をまとめた最小チップ数が
      `maxCommands` 以内であること（`tools/validate-lessons.mjs` が自動判定する。
      Issue #48）
-   - 新しい単元の1本目には、`intro`直後・`predict`より前に`kind: "tutorial"`を置く
-     （`docs/lesson-schema.md`「`tutorial`」参照。既存単元の2本目以降には置かない。Issue #81）
+   - 新しい操作が初登場するレッスンには、`intro`直後・`predict`より前に`kind: "tutorial"`を置く
+     （`docs/lesson-schema.md`「`tutorial`」参照。Issue #81・#98）
    - `intro.demo`（任意だが付ける）にロボットがゴールへ到達する完成イメージの経路を書く。
      `start`/`goal`は本番`play`と別の組にする（答えのネタバレ防止。`validate-lessons.mjs`が
      機械チェックする。`docs/lesson-schema.md`「`intro.demo`」参照。Issue #97）

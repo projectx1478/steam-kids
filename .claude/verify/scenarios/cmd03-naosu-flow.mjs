@@ -4,8 +4,10 @@ export default async function run({ page, check }) {
   await page.goto('/index.html?lesson=cmd-03-naosu');
   await check('初期ステップはintro', async () => page.getAttribute('#stage', 'data-step'), 'intro');
 
-  // よそう（predict）はIssue #104で全廃。introの「はじめる」から直接play(p1)へ入る。
+  // よそう（predict）はIssue #104で全廃。introの「はじめる」からtutorial(fix)を経てplay(p1)へ入る
+  // （Issue #98）。
   await page.click('[data-action="start"]');
+  await page.click('[data-action="skip-tutorial"]');
   await check('playへ遷移', async () => page.getAttribute('#stage', 'data-step'), 'play');
 
   await check('p1: 初期状態で3個のチップが積まれている', async () => (await page.$$('.command-chip')).length, 3);

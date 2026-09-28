@@ -19,6 +19,20 @@
       }
     },
     {
+      "stepId": "t1",
+      "kind": "tutorial",
+      "grid": { "cols": 3, "rows": 3 },
+      "start": { "x": 0, "y": 0 },
+      "goal": { "x": 0, "y": 2 },
+      "walls": [],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "initialCommands": ["down", "right", "down"],
+      "script": [
+        { "tap": "remove", "index": 1 },
+        { "tap": "run" }
+      ]
+    },
+    {
       "stepId": "p1",
       "kind": "play",
       "text": "めいれいを なおして ゴールへ",

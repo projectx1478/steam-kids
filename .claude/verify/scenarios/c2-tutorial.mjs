@@ -138,8 +138,10 @@ export default async function run({ page, check }) {
     () => !donguriEvents.includes('run') && !donguriEvents.includes('clear')
   );
 
-  // --- tutorialは各単元1本目のみ（cmd-02/cmd-03/donguri-02には無い） ---
-  for (const id of ['cmd-02-mijikaku', 'cmd-03-naosu', 'donguri-02-mawarimichi']) {
+  // --- tutorialは新しい操作が初登場するレッスンに置く。donguri-02は追加操作が無いため無し
+  // （cmd-02/cmd-03のtutorial(group/fixモード)はc9-tutorial-group.mjs・c9-tutorial-fix.mjsで
+  // 検証。Issue #98） ---
+  for (const id of ['donguri-02-mawarimichi']) {
     const kinds = await page.evaluate(async (lessonId) => {
       const res = await fetch(`/lessons/${lessonId}.json`);
       const data = await res.json();

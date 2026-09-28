@@ -143,11 +143,12 @@ export function initSteps() {
   renderStep();
 }
 
-// tutorialが完了・スキップ済みの単元では、前進時のみ自動でその先へ進める。ただしrenderIntroの
+// tutorialが完了・スキップ済みのレッスンでは、前進時のみ自動でその先へ進める。ただしrenderIntroの
 // 「れんしゅう する」で明示的に入る場合（S.forceTutorial）は飛ばさない（Issue #93）。
 // 後退時（← もどる）はスキップしない。よそう全廃でtutorialの直後がplayになった結果
 // （Issue #104）、完了直後にplayから← もどるを押すと自動スキップでplayへ押し戻され、
 // ボタンが効かないように見えてしまうため（もう一度れんしゅうを見られるようにする）。
+// 完了記録はレッスン単位（同一単元内の2本目以降にもtutorialを置くようになったため。Issue #98）。
 function resolveStepIndex(index, forward) {
   const step = S.lesson.steps[index];
   if (step?.kind !== 'tutorial') return index;
@@ -156,7 +157,7 @@ function resolveStepIndex(index, forward) {
     return index;
   }
   if (!forward) return index;
-  return isTutorialDone(S.lesson.unitId) ? index + 1 : index;
+  return isTutorialDone(S.lesson.lessonId) ? index + 1 : index;
 }
 
 export function goToStep(nextIndex) {
@@ -378,9 +379,9 @@ function renderIntro(root, step) {
   if (step.demo) renderGoalDemo(root, step.demo);
   root.appendChild(createPrimaryButton('はじめる', () => goToStep(S.stepIndex + 1), 'start'));
 
-  // tutorialが完了・スキップ済み（自動で飛ばされる）の単元だけ、やり直す入口を小さく出す（Issue #93）。
+  // tutorialが完了・スキップ済み（自動で飛ばされる）のレッスンだけ、やり直す入口を小さく出す（Issue #93）。
   const tutorialIndex = S.lesson.steps.findIndex((s) => s.kind === 'tutorial');
-  if (tutorialIndex !== -1 && isTutorialDone(S.lesson.unitId)) {
+  if (tutorialIndex !== -1 && isTutorialDone(S.lesson.lessonId)) {
     const redoBtn = document.createElement('button');
     redoBtn.type = 'button';
     redoBtn.dataset.action = 'redo-tutorial';
