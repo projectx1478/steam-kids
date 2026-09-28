@@ -172,6 +172,18 @@ ES Modules（`<script type="module">` / `import`/`export`）でファイル間�
 
 影響範囲確認：レッスンJSONやDOM契約（`data-action`等）を変更するときは、`grep -lE '<lessonId|data-action名>' .claude/verify/scenarios/*`で影響シナリオを列挙する。`.claude/verify/config.mjs`の凍結fixture（cmd-01・donguri-01）の対象かも確認する。
 
+- ギミック追加手順：`js/gimmicks/<name>.js`＋登録1行＋`docs/gimmicks.md`に1節＋`g-<name>-*.mjs`シナリオ
+- シナリオ命名：`g-<gimmick>-*`・`les-<lessonId>-*`（新規のみ。既存はリネームしない）
+- 設計Issueの引継ぎには「読むファイル（行範囲）／読まなくてよいファイル」を書く
+
+### ギミックの追加手順・検証規則
+
+- 盤面ギミックの追加：`js/gimmicks/<name>.js`＋登録1行＋`docs/gimmicks.md`に1節＋`g-<name>-*.mjs`シナリオ（Issue #123以降）
+- ギミックのシナリオは`routeLesson`（`.claude/verify/helpers.mjs`）のインライン最小盤面で書き、実レッスンに依存させない
+- 新規シナリオの命名は`g-<gimmick>-*`・`les-<lessonId>-*`。`node .claude/verify/run.mjs <名前>`で部分実行できる
+- playステージに`solution`（正解手順）を必ず書く。`clearLesson`が読み、検証ツールがクリアを確認する
+- 設計Issueの引継ぎには「読むファイル（行範囲）／読まなくてよいファイル」を書く（実装者の探索を減らす）
+
 ### コーディング規則
 
 - **ファイル名**: 小文字統一
@@ -228,8 +240,10 @@ Issueには理由ではなく**判定可能な数値条件**を書く（0.6秒�
 ## 7. 関連ドキュメント（docs/）
 
 - `docs/ui-rules.md` — 子ども画面のUI規則（受け入れ条件）。子ども画面のUIを変更するとき読む
+- `docs/gimmicks.md` — 盤面ギミック（items等）の仕様。ギミックの追加・変更時に読む
 - `docs/learning-spec.md` — 教材型5種・`grid-runtime`仕様・初回単元。教材実装・レッスン追加時に読む
 - `docs/lesson-schema.md` — レッスンJSON・イベント・学習者プロファイルのスキーマ。教材・イベント追加時に読む
+- `docs/gimmicks.md` — 盤面ギミック（items等）の仕様。ギミック追加・改修時に読む
 - `docs/authoring-rules.md` — 教材の文言・表現の禁止事項と使用可能な文字。レッスン文言を書く・生成する時に読む
 - `docs/dashboard.md` — ダッシュボードの表示内容と詰まりアラートの判定条件。P2着手時に読む
 - `docs/design-sync.md` — 同期方式、バックエンド選定（未決）、秘密情報の扱い。P3着手時に読む
