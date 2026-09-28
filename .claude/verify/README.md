@@ -73,6 +73,7 @@ await check('カードがviewport幅に収まる', async () => box.x + box.width
 - 1シナリオ＝1つのユーザーフロー（画面遷移1つ、フォーム送信1つ、等）
 - ファイル名は`kebab-case`で機能を表す名前にする（例: `login-success.mjs`, `form-validation-error.mjs`）
 - ユーザー担当（人でなければ判定できない項目）はシナリオ化せず、実行結果の報告でスクリーンショットとともに確認を依頼する
+- 複数シナリオに共通する画面遷移・状態クリア手順は`.claude/verify/helpers.mjs`（配布対象外。`scenarios/`内に置くとシナリオとして実行されるため外に置く）に集約し、シナリオから`import ... from '../helpers.mjs'`で使う。シナリオへ手書きコピーしない（構造変更時の修正を1ファイルに閉じるため）
 
 ## 拡張フック（`.claude/verify/config.mjs`）
 
