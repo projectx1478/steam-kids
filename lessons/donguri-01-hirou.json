@@ -44,6 +44,7 @@
       "walls": [],
       "items": [{ "x": 1, "y": 2 }],
       "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["right", "right", "up", "up"],
       "maxCommands": 6
     },
     {
@@ -58,6 +59,7 @@
         { "x": 2, "y": 3 }
       ],
       "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["right", "right", "right", "up", "up", "up"],
       "maxCommands": 8
     },
     {
@@ -73,6 +75,7 @@
         { "x": 4, "y": 2 }
       ],
       "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["right", "right", "right", "right", "up", "up", "up", "up"],
       "maxCommands": 10
     },
     { "stepId": "s2", "kind": "summary", "text": "どんぐりを ぜんぶ とったら ゴール" }

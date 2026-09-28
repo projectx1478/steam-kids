@@ -32,6 +32,7 @@
         { "x": 2, "y": 3 }
       ],
       "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["right", "right", "right", "up", "up", "up"],
       "maxCommands": 8
     },
     { "stepId": "s4", "kind": "summary", "text": "どんぐりを ぜんぶ とったら ゴール" }

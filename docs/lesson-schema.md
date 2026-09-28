@@ -75,6 +75,11 @@
 必要なら追加してから実行する、という従来通りの操作で直せる（Issue #31）。
 `initialCommands`はそのまま実行してもゴールに到達しない内容にする（直す必要が無いと検証NG）。
 
+`play.solution`（検証ハーネス用の正解手順。実行時は使わない）は、方向文字列の配列（`initialCommands`
+の後ろへ積む命令）か`{ "removeIndex": N, "commands": [...] }`（`initialCommands`のN番目を消してから
+`commands`を積む。なおす系）。`.claude/verify/helpers.mjs`の`clearLesson`が読む。盤面ギミックの
+仕様は`docs/gimmicks.md`。
+
 `play.items`（任意・マス座標`{x, y}`の配列・既定`[]`）を指定すると、盤面に回収対象（どんぐり）
 を置く。クリア条件は「ゴール到達」から「ゴール到達 **かつ** 全item回収」に変わる（items未指定時
 は従来通りゴール到達のみ）。item同士・item-壁の座標重複は不可（`validate-lessons.mjs`が検証）。
@@ -188,6 +193,8 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 - `groupRepeats` を持つ場合はboolean型であること
 - `initialCommands` を持つ場合は語彙が正しく、長さが `maxCommands` 以内であり、そのまま実行
   してもゴールに到達しないこと（`items` がある場合は全回収も満たしていないこと）
+- `solution` を持つ場合は形式が正しく、実行するとクリアし（ゴール到達・全item回収・壁や盤外に
+  当たらない）、手数（`groupRepeats`時はチップ数）が `maxCommands` 以内であること
 - `start` `goal` `walls` `optionCells` `items` の座標が盤内であること
 - `start` と `goal` が重ならず、`walls` が `start` `goal` を含まないこと
 - `items` が `walls` と重ならず、`items` 同士も座標重複しないこと

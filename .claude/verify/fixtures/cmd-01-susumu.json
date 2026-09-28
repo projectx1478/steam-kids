@@ -28,6 +28,7 @@
       "goal": { "x": 3, "y": 0 },
       "walls": [{ "x": 2, "y": 2 }],
       "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["up", "up", "up", "right", "right", "right"],
       "maxCommands": 8
     },
     { "stepId": "s4", "kind": "summary", "text": "めいれいの じゅんばんが だいじ" }

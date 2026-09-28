@@ -46,52 +46,30 @@ export async function clearStage(page, commands) {
   await page.click(NEXT_SEL);
 }
 
-// 各ステージの正解手順。{ commands } は命令を積んで実行、{ remove } はなおす系で
-// 指定インデックスのチップを消してから実行する。
-const STAGES = {
-  'cmd-01-susumu': [
-    { commands: ['up', 'up', 'left', 'left'] },
-    { commands: ['up', 'up', 'up', 'right', 'right', 'right'] },
-    { commands: ['up', 'up', 'right', 'right', 'right', 'right', 'up', 'up'] },
-  ],
-  'cmd-02-mijikaku': [
-    { commands: ['down', 'down', 'down', 'left', 'left'] },
-    { commands: ['down', 'down', 'down', 'down', 'down', 'right', 'right'] },
-    { commands: ['right', 'right', 'down', 'down', 'down', 'down', 'right'] },
-  ],
-  'cmd-03-naosu': [{ remove: 1 }, { remove: 2 }, { remove: 6 }],
-  'donguri-01-hirou': [
-    { commands: ['right', 'right', 'up', 'up'] },
-    { commands: ['right', 'right', 'right', 'up', 'up', 'up'] },
-    { commands: ['right', 'right', 'right', 'right', 'up', 'up', 'up', 'up'] },
-  ],
-  'donguri-02-mawarimichi': [
-    { commands: ['right', 'down', 'down', 'down', 'up', 'up', 'up', 'right'] },
-    { commands: ['down', 'down', 'down', 'down', 'right', 'right', 'up', 'up', 'up', 'up', 'right'] },
-    {
-      commands: [
-        'down', 'down', 'down', 'down', 'down',
-        'right', 'right', 'right', 'right',
-        'up', 'up', 'up', 'up', 'up',
-      ],
-    },
-  ],
-};
+// レッスンJSON（solutionを持つplayステージ）を、ページが実際に読むのと同じ経路（fetch。
+// page.routeの差し替えも効く）で取得する。
+async function fetchLesson(page, lessonId) {
+  return page.evaluate((id) => fetch(`./lessons/${id}.json`).then((r) => r.json()), lessonId);
+}
 
-// 凍結fixture（predict＋play1ステージ構成）の正解手順。predict経由で入った時だけ使う。
-const FROZEN_STAGES = {
-  'cmd-01-susumu': [{ commands: ['up', 'up', 'up', 'right', 'right', 'right'] }],
-  'donguri-01-hirou': [{ commands: ['right', 'right', 'right', 'up', 'up', 'up'] }],
-};
+// インラインのレッスンJSONをlessons/<lessonId>.jsonとして返すようroute登録する。ギミックのシナリオは
+// 実レッスンに依存しない最小盤面で書く（レッスン改訂で壊れない。page.goto前に呼ぶ）。
+export async function routeLesson(page, lessonObj) {
+  await page.route(`**/lessons/${lessonObj.lessonId}.json`, (route) => route.fulfill({ json: lessonObj }));
+}
 
-// レッスンを最初から最後までクリアし、まとめ（summary）画面で止まる。
+// レッスンを最初から最後までクリアし、まとめ（summary）画面で止まる。各playステージのsolution
+// （docs/lesson-schema.md）を使う。{ removeIndex }はなおす系で、そのチップを消してから
+// commandsを積む。凍結fixture経由（predict構成）でもJSONの内容に従う。
 export async function clearLesson(page, lessonId) {
-  const first = await enterPlay(page, lessonId);
-  const stages = (first === 'predict' ? FROZEN_STAGES : STAGES)[lessonId];
-  if (!stages) throw new Error(`clearLesson: 手順が未定義のレッスン ${lessonId}`);
-  for (const stage of stages) {
-    if (stage.remove !== undefined) await page.click(`[data-remove-index="${stage.remove}"]`);
-    await clearStage(page, stage.commands ?? []);
+  await enterPlay(page, lessonId);
+  const lesson = await fetchLesson(page, lessonId);
+  const plays = lesson.steps.filter((s) => s.kind === 'play');
+  for (const play of plays) {
+    if (play.solution === undefined) throw new Error(`clearLesson: ${lessonId}/${play.stepId} にsolutionが無い`);
+    const sol = Array.isArray(play.solution) ? { commands: play.solution } : play.solution;
+    if (sol.removeIndex !== undefined) await page.click(`[data-remove-index="${sol.removeIndex}"]`);
+    await clearStage(page, sol.commands ?? []);
   }
 }
 
