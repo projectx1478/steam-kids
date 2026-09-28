@@ -28,6 +28,7 @@
       "walls": [],
       "items": [{ "x": 1, "y": 3 }],
       "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["right", "down", "down", "down", "up", "up", "up", "right"],
       "maxCommands": 10
     },
     {
@@ -40,6 +41,7 @@
       "walls": [],
       "items": [{ "x": 2, "y": 4 }],
       "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["down", "down", "down", "down", "right", "right", "up", "up", "up", "up", "right"],
       "maxCommands": 13
     },
     {
@@ -52,6 +54,7 @@
       "walls": [],
       "items": [{ "x": 3, "y": 5 }],
       "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["down", "down", "down", "down", "down", "right", "right", "right", "right", "up", "up", "up", "up", "up"],
       "maxCommands": 16
     },
     { "stepId": "s2", "kind": "summary", "text": "とおまわりでも ぜんぶ ひろおう" }

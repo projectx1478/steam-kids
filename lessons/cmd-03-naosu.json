@@ -41,6 +41,7 @@
       "goal": { "x": 2, "y": 0 },
       "walls": [],
       "allowedCommands": ["up", "down", "left", "right"],
+      "solution": { "removeIndex": 1 },
       "maxCommands": 3,
       "initialCommands": ["right", "down", "right"]
     },
@@ -53,6 +54,7 @@
       "goal": { "x": 3, "y": 3 },
       "walls": [],
       "allowedCommands": ["up", "down", "left", "right"],
+      "solution": { "removeIndex": 2 },
       "maxCommands": 4,
       "initialCommands": ["right", "right", "up", "right"]
     },
@@ -65,6 +67,7 @@
       "goal": { "x": 4, "y": 4 },
       "walls": [],
       "allowedCommands": ["up", "down", "left", "right"],
+      "solution": { "removeIndex": 6 },
       "maxCommands": 9,
       "initialCommands": [
         "right", "right", "right", "right",

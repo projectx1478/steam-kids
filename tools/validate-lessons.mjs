@@ -155,6 +155,48 @@ function checkDemo(intro, playSteps, add) {
   }
 }
 
+// play.solution（任意。検証ハーネスが正解手順として使う）の検証。
+// 形式: 方向文字列の配列（initialCommandsの後ろへ積む命令）、または{ removeIndex?, commands? }
+// （initialCommandsのremoveIndex番目を消してからcommandsを積む）。最終キューがクリアすること。
+function checkSolution(play, add, label) {
+  if (!('solution' in play)) return;
+  const sol = play.solution;
+  const initial = Array.isArray(play.initialCommands) ? play.initialCommands : [];
+  const obj = Array.isArray(sol) ? { commands: sol } : sol;
+  const commands = obj && obj.commands !== undefined ? obj.commands : [];
+  const valid =
+    obj && typeof obj === 'object' && Array.isArray(commands) && commands.every((c) => COMMANDS.includes(c));
+  if (!valid || (obj.removeIndex !== undefined && !Number.isInteger(obj.removeIndex))) {
+    add('solutionの形式', `${label}solution=${JSON.stringify(sol)} が不正（方向文字列の配列か{removeIndex,commands}）`);
+    return;
+  }
+  const queue = [...initial];
+  if (obj.removeIndex !== undefined) {
+    if (obj.removeIndex < 0 || obj.removeIndex >= queue.length) {
+      add('solutionの形式', `${label}solution.removeIndex=${obj.removeIndex} がinitialCommandsの範囲外`);
+      return;
+    }
+    queue.splice(obj.removeIndex, 1);
+  }
+  queue.push(...commands);
+  if (!play.start || !play.goal || !play.grid) return;
+  const result = simulate(queue, {
+    grid: play.grid,
+    start: play.start,
+    goal: play.goal,
+    walls: Array.isArray(play.walls) ? play.walls : [],
+    items: Array.isArray(play.items) ? play.items : [],
+  });
+  if (!result.reachedGoal || result.remainingItems.length > 0 || result.blockedAt.length > 0) {
+    add('solutionのクリア', `${label}solutionを実行してもクリアしない（到達=${result.reachedGoal}、未回収=${result.remainingItems.length}、壁・盤外=${result.blockedAt.length}）`);
+  }
+  // groupRepeatsは同方向の連続が1チップにまとまる（ui-commands.js）ためチップ数で数える。
+  const chips = play.groupRepeats ? queue.filter((c, i) => c !== queue[i - 1]).length : queue.length;
+  if (typeof play.maxCommands === 'number' && chips > play.maxCommands) {
+    add('solutionの手数', `${label}solutionが${chips}${play.groupRepeats ? 'チップ' : '手'}でmaxCommands=${play.maxCommands}を超える`);
+  }
+}
+
 function validateLesson(fileName, data) {
   const errors = [];
   const add = (rule, detail) => errors.push(`${fileName}: ${rule}: ${detail}`);
@@ -251,6 +293,8 @@ function validateLesson(fileName, data) {
         add('なおすの初期状態', `${label}initialCommands.length=${initial.length} がmaxCommands=${play.maxCommands}を超える`);
       }
     }
+
+    checkSolution(play, add, label);
 
     let dist = null;
     if (play.start && play.goal && grid.cols && grid.rows) {

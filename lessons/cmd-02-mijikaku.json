@@ -47,6 +47,7 @@
       "goal": { "x": 0, "y": 3 },
       "walls": [],
       "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["down", "down", "down", "left", "left"],
       "maxCommands": 3,
       "groupRepeats": true
     },
@@ -59,6 +60,7 @@
       "goal": { "x": 2, "y": 5 },
       "walls": [],
       "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["down", "down", "down", "down", "down", "right", "right"],
       "maxCommands": 3,
       "groupRepeats": true
     },
@@ -74,6 +76,7 @@
         { "x": 0, "y": 4 }
       ],
       "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["right", "right", "down", "down", "down", "down", "right"],
       "maxCommands": 4,
       "groupRepeats": true
     },

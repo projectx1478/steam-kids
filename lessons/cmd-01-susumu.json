@@ -42,6 +42,7 @@
       "goal": { "x": 0, "y": 0 },
       "walls": [],
       "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["up", "up", "left", "left"],
       "maxCommands": 6
     },
     {
@@ -52,6 +53,7 @@
       "goal": { "x": 3, "y": 0 },
       "walls": [{ "x": 2, "y": 2 }],
       "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["up", "up", "up", "right", "right", "right"],
       "maxCommands": 8
     },
     {
@@ -67,6 +69,7 @@
         { "x": 2, "y": 4 }
       ],
       "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["up", "up", "right", "right", "right", "right", "up", "up"],
       "maxCommands": 10
     },
     { "stepId": "s2", "kind": "summary", "text": "めいれいの じゅんばんが だいじ" }
