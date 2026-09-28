@@ -32,6 +32,12 @@ emit_warning() {
   }'
 }
 
+# UTF-8の文字数をロケールに依存せず数える（wc -mはCロケール等の非UTF-8環境で
+# バイト数を返してしまうため、継続バイト0x80-0xBFを除いてからバイト数を数える）
+count_chars() {
+  LC_ALL=C tr -d '\200-\277' < "$1" 2>/dev/null | wc -c
+}
+
 check_read_size() {
   local offset limit
   offset=$(printf '%s' "$INPUT" | jq -r '.tool_input.offset // empty')
@@ -43,7 +49,7 @@ check_read_size() {
 
   local line_count char_count exceeded
   line_count=$(wc -l < "$FILE_PATH" 2>/dev/null || echo 0)
-  char_count=$(wc -m < "$FILE_PATH" 2>/dev/null || echo 0)
+  char_count=$(count_chars "$FILE_PATH")
 
   exceeded=""
   if [ "$line_count" -gt "$THRESHOLD_LINES" ]; then
@@ -78,7 +84,7 @@ check_doc_limit() {
   esac
 
   local char_count
-  char_count=$(wc -m < "$FILE_PATH" 2>/dev/null || echo 0)
+  char_count=$(count_chars "$FILE_PATH")
 
   if [ "$char_count" -gt "$limit" ]; then
     emit_warning "PostToolUse" "${base} は編集後 ${char_count}字（上限${limit}字）です。AGENTS.mdのドキュメント字数上限を超えています。内容を削るか置き換えを検討してください。"
