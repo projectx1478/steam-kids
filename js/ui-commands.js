@@ -192,7 +192,12 @@ export function renderCommandQueue(container, { commands, activeIndex, onRemove,
     }`;
     chip.dataset.index = String(i);
     chip.dataset.order = String(i + 1);
-    if (i === activeIndex) chip.dataset.active = 'true';
+    // 今動いている命令のチップを黄色の強調で示す。じっこうの自動実行・1コマ実行の
+    // どちらもactiveIndexをここに渡す経路を通るため、強調スタイルはこの1か所にまとめる（Issue #111）。
+    if (i === activeIndex) {
+      chip.dataset.active = 'true';
+      chip.classList.add('ring-4', 'ring-yellow-400');
+    }
 
     chip.insertAdjacentHTML('beforeend', arrowSvg(dir));
     const icon = chip.lastElementChild;

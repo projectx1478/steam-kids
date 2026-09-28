@@ -105,8 +105,9 @@ function renderHeader() {
   back.style.display = S.stepIndex === 0 ? 'none' : '';
 }
 
-// 実行アニメーション中はもどる・えらぶ がめんへを操作させない（playAnimationの開始・終了で呼ぶ）。
-function setBackDisabled(disabled) {
+// 実行アニメーション中はもどる・えらぶ がめんへを操作させない（playAnimationの開始・終了、
+// および1コマ実行の開始時にui-play.jsから呼ぶ。Issue #111）。
+export function setBackDisabled(disabled) {
   const { back, home } = headerEls();
   back.disabled = disabled;
   home.disabled = disabled;
@@ -276,56 +277,76 @@ function dirAt(commands, idx) {
   return typeof entry === 'string' ? entry : entry.dir;
 }
 
-// 命令列を1手600msで再生する。engine-gridの純粋計算結果(simulate)を時間軸に沿って見せるだけ。
-// まとめ命令（times>=2）は複数コマ分の時間をかけて再生し、その間onTickには元の命令
-// （チップ）のインデックスをstepOwner経由で渡し続ける。
-// viewはui-grid.jsのrenderGridが返す差分更新API（プレイヤー駒の移動・バウンス・足あと）。
-// 第5引数{lockHeader = true}: trueの間はもどる・えらぶ がめんへを操作できなくする（play/predict/
+// createStepper(commands, spec, view, {onTick, onPickup}): 命令列の1手分を進める最小単位。
+// engine-gridの純粋計算結果(simulate)を保持し、advance()を呼ぶたびに1手だけ時間軸に沿って見せる。
+// まとめ命令（times>=2）は1コマ=1手として進み、その間onTickには元の命令（チップ）のインデックスを
+// stepOwner経由で渡し続ける。viewはui-grid.jsのrenderGridが返す差分更新API。
+// autoAdvance（じっこう）・ui-play.jsの「1コマ」ボタン（タップごとにadvance()を呼ぶ）の
+// 両方から共通で使う（Issue #111）。
+export function createStepper(commands, spec, view, { onTick, onPickup }) {
+  const result = simulate(commands, spec);
+  let i = 0;
+  let finished = false;
+  return {
+    result,
+    isDone: () => finished,
+    advance() {
+      if (finished) return;
+      const from = result.path[i];
+      const to = result.path[i + 1];
+      const bumped = from.x === to.x && from.y === to.y;
+      playSfx(bumped ? 'bump' : 'step', { index: i });
+      if (bumped) {
+        view.bounce(dirAt(commands, result.stepOwner[i]));
+      } else {
+        view.footprint(from);
+        view.moveTo(to);
+      }
+      result.pickups[i].forEach((idx) => {
+        view.collectItem(spec.items[idx]);
+        playSfx('pickup');
+        onPickup?.(idx);
+      });
+      onTick(result.stepOwner[i], to);
+      if (i === result.path.length - 2) {
+        finished = true;
+      } else {
+        i += 1;
+      }
+    },
+  };
+}
+
+// autoAdvance(stepper, {onDone}, {lockHeader = true}): stepperを1手600msで最後まで自動再生する。
+// 第3引数{lockHeader = true}: trueの間はもどる・えらぶ がめんへを操作できなくする（play/predict/
 // tutorialの実行中と同じ挙動）。js/ui-demo.jsのデモ再生はfalseを渡し、再生中もヘッダー操作を
 // 塞がない（Issue #104）。戻り値{cancel()}は保留中のタイマーを止め、以後の効果音・onDoneを
 // 発火させない（ステップ離脱後も裏で音が鳴り続ける事故を防ぐ。js/ui-step.jsのsetActiveAnimation経由）。
-export function playAnimation(commands, spec, view, { onTick, onDone, onPickup }, { lockHeader = true } = {}) {
-  const result = simulate(commands, spec);
-  playSfx('run');
+// ui-play.jsの「1コマ実行の途中でじっこう」でも、進行中のstepperをそのまま渡して残りを続行する
+// （Issue #111）。
+export function autoAdvance(stepper, { onDone }, { lockHeader = true } = {}) {
   if (lockHeader) setBackDisabled(true);
-  let i = 0;
   let cancelled = false;
   let timer = null;
-  const step = () => {
+  const tick = () => {
     if (cancelled) return;
-    const from = result.path[i];
-    const to = result.path[i + 1];
-    const bumped = from.x === to.x && from.y === to.y;
-    playSfx(bumped ? 'bump' : 'step', { index: i });
-    if (bumped) {
-      view.bounce(dirAt(commands, result.stepOwner[i]));
-    } else {
-      view.footprint(from);
-      view.moveTo(to);
-    }
-    result.pickups[i].forEach((idx) => {
-      view.collectItem(spec.items[idx]);
-      playSfx('pickup');
-      onPickup?.(idx);
-    });
-    onTick(result.stepOwner[i], to);
-    if (i === result.path.length - 2) {
+    stepper.advance();
+    if (stepper.isDone()) {
       timer = setTimeout(() => {
         timer = null;
         if (cancelled) return;
         if (lockHeader) setBackDisabled(false);
-        onDone(result);
+        onDone(stepper.result);
       }, STEP_DELAY_MS);
       return;
     }
     timer = setTimeout(() => {
       timer = null;
       if (cancelled) return;
-      i += 1;
-      step();
+      tick();
     }, STEP_DELAY_MS);
   };
-  step();
+  tick();
   return {
     cancel() {
       if (cancelled) return;
@@ -337,6 +358,14 @@ export function playAnimation(commands, spec, view, { onTick, onDone, onPickup }
       if (lockHeader) setBackDisabled(false);
     },
   };
+}
+
+// playAnimation(commands, spec, view, {onTick, onDone, onPickup}, opts): createStepper +
+// autoAdvanceを組み合わせた従来通りの一括実行（新規stepperを作って最初から最後まで自動再生する）。
+export function playAnimation(commands, spec, view, { onTick, onDone, onPickup }, opts = {}) {
+  playSfx('run');
+  const stepper = createStepper(commands, spec, view, { onTick, onPickup });
+  return autoAdvance(stepper, { onDone }, opts);
 }
 
 function renderIntro(root, step) {

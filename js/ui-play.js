@@ -10,7 +10,17 @@ import { renderInto } from './text-render.js';
 import { createIdleNudge } from './ui-guide.js';
 import { showHandHint } from './ui-hand.js';
 import { isLessonCleared } from './ui-picker.js';
-import { goToStep, createPrimaryButton, playAnimation, setActiveNudge, setActiveHandHint, markLessonCleared } from './ui-step.js';
+import {
+  goToStep,
+  createPrimaryButton,
+  playAnimation,
+  createStepper,
+  autoAdvance,
+  setBackDisabled,
+  setActiveNudge,
+  setActiveHandHint,
+  markLessonCleared,
+} from './ui-step.js';
 import { showSuccess, showHint, diagnose } from './ui-reaction.js';
 import { clearToast, showToast } from './ui-toast.js';
 
@@ -45,6 +55,10 @@ export function renderPlay(root, step) {
     commands,
     activeIndex: -1,
     running: false,
+    // 「1コマ」ボタンでの手動実行中。running(自動実行)とは別に持ち、じっこう途中合流で
+    // running=trueへ切り替える（Issue #111）。
+    stepping: false,
+    stepper: null,
     view: null,
     resultShown: false,
     // 不正解でtrueにし、「もういちど」以外の操作ボタン・命令チップの取り消しを封じる
@@ -175,16 +189,25 @@ export function renderPlay(root, step) {
   const removeLastBtn = document.createElement('button');
   removeLastBtn.type = 'button';
   removeLastBtn.dataset.action = 'remove-last';
-  removeLastBtn.textContent = '⌫ ひとつ けす';
+  // 360px幅で4ボタン（けす・ぜんぶ・1コマ・じっこう）を1行に収めるため短縮する（Issue #111）。
+  removeLastBtn.textContent = '⌫ けす';
   removeLastBtn.className =
     'min-w-[64px] min-h-[64px] px-2 rounded-lg bg-slate-200 text-sm whitespace-nowrap break-keep transition-transform duration-100 active:scale-95 disabled:opacity-40';
 
   const clearBtn = document.createElement('button');
   clearBtn.type = 'button';
   clearBtn.dataset.action = 'clear-all';
-  clearBtn.textContent = 'ぜんぶ けす';
+  clearBtn.textContent = 'ぜんぶ';
   clearBtn.className =
     'min-w-[64px] min-h-[64px] px-3 rounded-lg bg-slate-200 text-sm whitespace-nowrap break-keep transition-transform duration-100 active:scale-95 disabled:opacity-40';
+
+  // stepBtn: 1コマずつ実行（タップごとにstepper.advance()を1回呼ぶ。Issue #111）。
+  const stepBtn = document.createElement('button');
+  stepBtn.type = 'button';
+  stepBtn.dataset.action = 'step';
+  stepBtn.textContent = '👣 1コマ';
+  stepBtn.className =
+    'btn-tactile px-3 bg-sky-500 text-white text-sm font-bold whitespace-nowrap break-keep disabled:opacity-40';
 
   const runBtn = document.createElement('button');
   runBtn.type = 'button';
@@ -215,6 +238,7 @@ export function renderPlay(root, step) {
     actionsEl.innerHTML = '';
     actionsEl.appendChild(removeLastBtn);
     actionsEl.appendChild(clearBtn);
+    actionsEl.appendChild(stepBtn);
     actionsEl.appendChild(runBtn);
   }
 
@@ -266,7 +290,7 @@ export function renderPlay(root, step) {
   // 1=けす/おす、3=じっこう。なおす系は編集済みか否かのみで1↔3を決める（②は経由しない）。
   // ロック中（不正解でもういちど待ち）は常に3（じっこうボタン＝もういちど）を対象にする（Issue #106）。
   function currentPhase() {
-    if (local.running || local.resultShown) return 0;
+    if (local.running || local.stepping || local.resultShown) return 0;
     if (local.locked) return 3;
     if (isFix) return local.fixOpened ? 3 : 1;
     return local.commands.length === 0 ? 1 : 3;
@@ -316,7 +340,7 @@ export function renderPlay(root, step) {
       // 上限に達したら次の枠は出さない（Issue #110）。
       nextSlot: local.commands.length < step.maxCommands ? local.commands.length + 1 : null,
       onRemove: (i) => {
-        if (local.running || local.locked) return;
+        if (local.running || local.stepping || local.locked) return;
         if (isFix) local.fixOpened = true;
         local.commands.splice(i, 1);
         logEvent('undo', { index: i });
@@ -331,12 +355,14 @@ export function renderPlay(root, step) {
   function updateControls() {
     const atMax = local.commands.length >= step.maxCommands;
     paletteEl.querySelectorAll('button').forEach((b) => {
-      b.disabled = atMax || local.running || local.locked;
+      b.disabled = atMax || local.running || local.stepping || local.locked;
     });
     const isRetry = runBtn.dataset.action === 'retry';
     runBtn.disabled = local.running || (!isRetry && local.commands.length === 0);
-    clearBtn.disabled = local.commands.length === 0 || local.running || local.locked;
-    removeLastBtn.disabled = local.commands.length === 0 || local.running || local.locked;
+    clearBtn.disabled = local.commands.length === 0 || local.running || local.stepping || local.locked;
+    removeLastBtn.disabled = local.commands.length === 0 || local.running || local.stepping || local.locked;
+    // 1コマ実行中はタップを続けられるよう有効のままにする。開始条件のみ命令0件で無効化する（Issue #111）。
+    stepBtn.disabled = local.running || local.locked || (!local.stepping && local.commands.length === 0);
     // ロック中は命令列自体もぼかし、タップを受け付けないようにする（チップ×の誤タップ防止。Issue #106）。
     queueEl.classList.toggle('opacity-50', local.locked);
     queueEl.classList.toggle('pointer-events-none', local.locked);
@@ -346,7 +372,7 @@ export function renderPlay(root, step) {
     dropTarget: () => queueEl.getBoundingClientRect(),
     onDragOver: (active) => toggleGhostSlot(queueEl, active),
     onAdd: (dir, { via } = {}) => {
-      if (local.running || local.locked) return;
+      if (local.running || local.stepping || local.locked) return;
       const last = local.commands.at(-1);
       if (step.groupRepeats && last && last.dir === dir) {
         last.times += 1;
@@ -369,7 +395,7 @@ export function renderPlay(root, step) {
   });
 
   removeLastBtn.addEventListener('click', () => {
-    if (local.running || local.locked || local.commands.length === 0) return;
+    if (local.running || local.stepping || local.locked || local.commands.length === 0) return;
     vibrate();
     if (isFix) local.fixOpened = true;
     const i = local.commands.length - 1;
@@ -385,7 +411,7 @@ export function renderPlay(root, step) {
   });
 
   clearBtn.addEventListener('click', () => {
-    if (local.running || local.locked || local.commands.length === 0) return;
+    if (local.running || local.stepping || local.locked || local.commands.length === 0) return;
     vibrate();
     if (isFix) local.fixOpened = true;
     logEvent('undo', { all: true, commandCount: local.commands.length });
@@ -409,6 +435,58 @@ export function renderPlay(root, step) {
     local.nudge?.poke();
   }
 
+  // finishRun(result): じっこう（自動実行）・1コマ実行のどちらが最後の手まで進めても同じ判定を通す
+  // （Issue #111）。simulateの結果から成否を判定し、盤面・トースト・つぎへ/もういちどボタンを描く。
+  function finishRun(result) {
+    local.running = false;
+    local.stepping = false;
+    local.stepper = null;
+    setBackDisabled(false);
+    local.activeIndex = -1;
+    drawQueue();
+    updateControls();
+    // 壁にぶつかった手が1つでもあれば、結果としてゴールに着いても正解にしない（Issue #104）。
+    if (result.reachedGoal && result.remainingItems.length === 0 && result.blockedAt.length === 0) {
+      delete S.drafts[step.stepId];
+      local.resultShown = true;
+      showSuccess(statusBar, { view: local.view, restore: clearResult });
+      if (isFinalStage) {
+        logEvent('clear', {});
+        markLessonCleared();
+        showResultActions([
+          createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'),
+          createPrimaryButton('もういちど', replay, 'replay'),
+        ]);
+      } else {
+        // 途中ステージのクリアはstage_clearのみを記録し、レッスン全体のクリア（clear）や
+        // 単元スタンプの対象にはしない（Issue #104）。
+        logEvent('stage_clear', { stage: stageIndex + 1 });
+        showResultActions([
+          createPrimaryButton('つぎの ステージ', () => goToStep(S.stepIndex + 1), 'next-stage'),
+          createPrimaryButton('もういちど', replay, 'replay'),
+        ]);
+      }
+    } else {
+      setRunButtonMode('retry');
+      local.locked = true;
+      updateControls();
+      triggerFailFeedback();
+      const info = diagnose(result, local.commands, spec);
+      if (info.reason === 'wall') {
+        queueEl.querySelector(`[data-index="${info.cmdIndex}"]`)?.classList.add('ring-4', 'ring-amber-400');
+        local.view.markCell(info.cell, 'wall');
+      } else if (info.reason === 'items') {
+        local.view.hintItems(info.remainingItems);
+      } else {
+        local.view.markCell(info.cell, 'stopped');
+        local.view.markCell(spec.goal, 'goal-hint');
+      }
+      local.view.shrug();
+      local.resultShown = true;
+      showHint(statusBar, { kind: info.reason, message: HINT_MESSAGE[info.reason], restore: clearResult });
+    }
+  }
+
   runBtn.addEventListener('click', () => {
     if (runBtn.dataset.action === 'retry') {
       vibrate();
@@ -424,7 +502,16 @@ export function renderPlay(root, step) {
       local.nudge?.poke();
       return;
     }
-    if (local.running || local.commands.length === 0) return;
+    if (local.running) return;
+    // 1コマ実行の途中でじっこうを押したら、進行中のstepperをそのまま残りだけ自動で進める（Issue #111）。
+    if (local.stepping && local.stepper) {
+      vibrate();
+      local.running = true;
+      updateControls();
+      autoAdvance(local.stepper, { onDone: finishRun });
+      return;
+    }
+    if (local.commands.length === 0) return;
     vibrate();
     local.running = true;
     local.nudge?.stop();
@@ -433,63 +520,54 @@ export function renderPlay(root, step) {
     updateControls();
     drawBoard(spec.start);
 
-    playAnimation(local.commands, spec, local.view, {
-      onTick: (i) => {
-        local.activeIndex = i;
-        drawQueue();
-      },
-      onPickup: () => {
-        local.remaining -= 1;
-        if (remainingEl) remainingEl.textContent = String(local.remaining);
-        fillNextAcornSlot();
-      },
-      onDone: (result) => {
-        local.running = false;
-        local.activeIndex = -1;
-        drawQueue();
-        updateControls();
-        // 壁にぶつかった手が1つでもあれば、結果としてゴールに着いても正解にしない（Issue #104）。
-        if (result.reachedGoal && result.remainingItems.length === 0 && result.blockedAt.length === 0) {
-          delete S.drafts[step.stepId];
-          local.resultShown = true;
-          showSuccess(statusBar, { view: local.view, restore: clearResult });
-          if (isFinalStage) {
-            logEvent('clear', {});
-            markLessonCleared();
-            showResultActions([
-              createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'),
-              createPrimaryButton('もういちど', replay, 'replay'),
-            ]);
-          } else {
-            // 途中ステージのクリアはstage_clearのみを記録し、レッスン全体のクリア（clear）や
-            // 単元スタンプの対象にはしない（Issue #104）。
-            logEvent('stage_clear', { stage: stageIndex + 1 });
-            showResultActions([
-              createPrimaryButton('つぎの ステージ', () => goToStep(S.stepIndex + 1), 'next-stage'),
-              createPrimaryButton('もういちど', replay, 'replay'),
-            ]);
-          }
-        } else {
-          setRunButtonMode('retry');
-          local.locked = true;
-          updateControls();
-          triggerFailFeedback();
-          const info = diagnose(result, local.commands, spec);
-          if (info.reason === 'wall') {
-            queueEl.querySelector(`[data-index="${info.cmdIndex}"]`)?.classList.add('ring-4', 'ring-amber-400');
-            local.view.markCell(info.cell, 'wall');
-          } else if (info.reason === 'items') {
-            local.view.hintItems(info.remainingItems);
-          } else {
-            local.view.markCell(info.cell, 'stopped');
-            local.view.markCell(spec.goal, 'goal-hint');
-          }
-          local.view.shrug();
-          local.resultShown = true;
-          showHint(statusBar, { kind: info.reason, message: HINT_MESSAGE[info.reason], restore: clearResult });
-        }
-      },
-    });
+    playAnimation(
+      local.commands,
+      spec,
+      local.view,
+      {
+        onTick: (i) => {
+          local.activeIndex = i;
+          drawQueue();
+        },
+        onPickup: () => {
+          local.remaining -= 1;
+          if (remainingEl) remainingEl.textContent = String(local.remaining);
+          fillNextAcornSlot();
+        },
+        onDone: finishRun,
+      }
+    );
+  });
+
+  // stepBtn: 1コマずつ実行。タップごとにstepperを1手だけ進める。最初のタップでstepperを
+  // 作り、パレット・編集ボタン・←をロックする（じっこうと同じ扱い。Issue #111）。
+  stepBtn.addEventListener('click', () => {
+    if (local.running || local.locked) return;
+    if (!local.stepping && local.commands.length === 0) return;
+    vibrate();
+    if (!local.stepping) {
+      local.stepping = true;
+      local.nudge?.stop();
+      clearToast(statusBar);
+      logEvent('run', { commandCount: local.commands.length, mode: 'step' });
+      playSfx('run');
+      setBackDisabled(true);
+      updateControls();
+      drawBoard(spec.start);
+      local.stepper = createStepper(local.commands, spec, local.view, {
+        onTick: (i) => {
+          local.activeIndex = i;
+          drawQueue();
+        },
+        onPickup: () => {
+          local.remaining -= 1;
+          if (remainingEl) remainingEl.textContent = String(local.remaining);
+          fillNextAcornSlot();
+        },
+      });
+    }
+    local.stepper.advance();
+    if (local.stepper.isDone()) finishRun(local.stepper.result);
   });
 
   renderQuestion();
@@ -518,8 +596,8 @@ export function renderPlay(root, step) {
     }
   }
   new ResizeObserver(() => {
-    // 実行中・結果表示中は盤面状態を保つため再構築しない（Issue #93）。
-    if (local.running || local.resultShown) return;
+    // 実行中・結果表示中は盤面状態を保つため再構築しない（Issue #93）。1コマ実行中も同様（Issue #111）。
+    if (local.running || local.stepping || local.resultShown) return;
     const next = computeCellSize({
       cols: spec.grid.cols,
       rows: spec.grid.rows,
