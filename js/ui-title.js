@@ -14,7 +14,7 @@ export function renderTitle(stage, onStart) {
     'flex flex-col items-center justify-center gap-6 flex-1 bg-gradient-to-b from-sky-100 to-white rounded-2xl py-8';
 
   const heading = document.createElement('h1');
-  heading.className = 'text-4xl font-bold text-sky-700 tracking-wide';
+  heading.className = 'text-4xl font-bold text-sky-700 tracking-wide text-child-title';
   heading.textContent = 'STEAM KIDS';
   wrap.appendChild(heading);
 

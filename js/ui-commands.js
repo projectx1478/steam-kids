@@ -87,8 +87,15 @@ function attachTapOrDrag(el, { onTap, getDropTarget, onDragOver, onDrop }) {
   });
 }
 
-// toggleGhostSlot(listEl, active): ドラッグ中、命令列(<ul>)末尾に配置先の枠を出し入れする（Issue #95）。
+// toggleGhostSlot(listEl, active): ドラッグ中の配置先を示す。トレイの「次の枠」
+// （[data-tray-slot]。Issue #110）が既にあればそれを光らせ、無い画面（tutorial等）では
+// 従来どおり末尾に仮の枠を出し入れする。
 export function toggleGhostSlot(listEl, active) {
+  const traySlot = listEl.querySelector(':scope > [data-tray-slot]');
+  if (traySlot) {
+    traySlot.classList.toggle('ghost-slot', active);
+    return;
+  }
   let slot = listEl.querySelector(':scope > .ghost-slot');
   if (active) {
     if (!slot) {
@@ -130,7 +137,7 @@ export function renderCommandPalette(container, { onAdd, dropTarget, onDragOver 
     btn.dataset.command = dir;
     btn.className =
       'command-btn btn-tactile flex flex-col items-center justify-center gap-1 px-3 py-2 bg-sky-500 text-white touch-none disabled:opacity-40';
-    btn.innerHTML = `${arrowSvg(dir)}<span class="text-sm">${COMMAND_LABELS[dir]}</span>`;
+    btn.innerHTML = `${arrowSvg(dir)}<span class="text-sm whitespace-nowrap">${COMMAND_LABELS[dir]}</span>`;
     attachTapOrDrag(btn, {
       onTap: () => {
         vibrate();
@@ -162,13 +169,16 @@ export function renderOrderArrow(tag = 'li') {
   return arrow;
 }
 
-// renderCommandQueue(container, { commands, activeIndex, onRemove, removable = true })
+// renderCommandQueue(container, { commands, activeIndex, onRemove, removable = true, nextSlot })
 // commandsの各要素は{dir, times}。times>=2は「した ×5」のようにまとめて表示する。
 // removable:falseの時は取り消しを描かない（チュートリアルでは命令を消させない。Issue #81）。
 // removable時はチップ自体が取り消しボタン（data-remove-index・.command-remove。Issue #91）。
 // 横に並ぶ64px四角チップで、はみ出す分は横スクロールする（container側でoverflow-x-autoを付ける）。
 // チップ間には→区切り、各チップ左上に順番数字を重ねる（Issue #93）。
-export function renderCommandQueue(container, { commands, activeIndex, onRemove, removable = true }) {
+// nextSlot（数値）を渡すと、末尾に「次に置く」トレイ枠（.tray-slot・[data-tray-slot]）を1つ
+// 追加する。1個目なら←矢印、2個目以降は番号を表示する（トレイのアフォーダンス。Issue #110）。
+// 省略時（predict・tutorial等）は従来どおり枠を出さない。
+export function renderCommandQueue(container, { commands, activeIndex, onRemove, removable = true, nextSlot = null }) {
   container.innerHTML = '';
   commands.forEach(({ dir, times }, i) => {
     if (i > 0) container.appendChild(renderOrderArrow());
@@ -205,4 +215,19 @@ export function renderCommandQueue(container, { commands, activeIndex, onRemove,
 
     container.appendChild(chip);
   });
+
+  // 次に置く枠（トレイの空きスロット。→区切りは付けない。c5-layout-flowが「命令列の→区切り」を
+  // チップ間の数で厳密カウントしているため。Issue #110）。
+  if (nextSlot != null) {
+    const slot = document.createElement('li');
+    slot.className = 'tray-slot shrink-0';
+    slot.dataset.traySlot = 'true';
+    slot.dataset.order = String(nextSlot);
+    slot.setAttribute('aria-hidden', 'true');
+    slot.innerHTML =
+      nextSlot === 1
+        ? '<span class="text-lg text-slate-400">←</span>'
+        : `<span class="text-xs font-bold text-slate-400">${nextSlot}</span>`;
+    container.appendChild(slot);
+  }
 }

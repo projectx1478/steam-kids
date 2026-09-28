@@ -12,7 +12,7 @@ import { showHandHint } from './ui-hand.js';
 import { isLessonCleared } from './ui-picker.js';
 import { goToStep, createPrimaryButton, playAnimation, setActiveNudge, setActiveHandHint, markLessonCleared } from './ui-step.js';
 import { showSuccess, showHint, diagnose } from './ui-reaction.js';
-import { clearToast } from './ui-toast.js';
+import { clearToast, showToast } from './ui-toast.js';
 
 // diagnose()の原因ごとの文言（20字以内・否定語なし。Issue #91）。
 const HINT_MESSAGE = {
@@ -67,6 +67,34 @@ export function renderPlay(root, step) {
   opScreen.appendChild(statusBar);
 
   let remainingEl = null;
+  // renderAcornTray(): どんぐりの残数を「空き枠が埋まる絵」で示す（Issue #110）。
+  // data-remaining付きの数字は既存シナリオ（c1-goal-objective等）が読むためsr-onlyで残す
+  // （見た目には出さない。sr-onlyは非表示ではないためinnerText()は値を返す）。
+  function renderAcornTray() {
+    const tray = document.createElement('div');
+    tray.className = 'acorn-tray flex items-center justify-center gap-1';
+    const filled = spec.items.length - local.remaining;
+    for (let i = 0; i < spec.items.length; i += 1) {
+      const slot = document.createElement('span');
+      const isFilled = i < filled;
+      slot.className = `acorn-slot inline-flex items-center justify-center w-5 h-5 rounded-full border-2 ${
+        isFilled ? 'border-amber-500 bg-amber-50' : 'border-dashed border-amber-400/50'
+      }`;
+      if (isFilled) {
+        slot.dataset.filled = 'true';
+        slot.innerHTML = `<span class="w-3 h-3 inline-block">${shapeSvg('item')}</span>`;
+      }
+      tray.appendChild(slot);
+    }
+    statusBar.appendChild(tray);
+    const srRemaining = document.createElement('span');
+    srRemaining.className = 'sr-only';
+    srRemaining.dataset.remaining = 'true';
+    srRemaining.textContent = String(local.remaining);
+    statusBar.appendChild(srRemaining);
+    remainingEl = srRemaining;
+  }
+
   function renderQuestion() {
     statusBar.innerHTML = '';
     const q = document.createElement('p');
@@ -74,14 +102,46 @@ export function renderPlay(root, step) {
     renderInto(q, step.text ?? defaultText, S.readingLevel, S.furigana);
     statusBar.appendChild(q);
     if (spec.items.length > 0) {
-      const badge = document.createElement('p');
-      badge.className = 'flex items-center justify-center gap-1 text-xs text-slate-600';
-      badge.innerHTML = `<span class="inline-block w-4 h-4">${shapeSvg('item')}</span><span data-remaining>${local.remaining}</span>`;
-      statusBar.appendChild(badge);
-      remainingEl = badge.querySelector('[data-remaining]');
+      renderAcornTray();
     } else {
       remainingEl = null;
     }
+  }
+
+  // fillNextAcornSlot(): どんぐりを1個拾うたびに、次の空き枠を埋める（spring-inで弾む。
+  // reduced-motion時は演出なしで即座に埋まる。Issue #110）。
+  function fillNextAcornSlot() {
+    const slots = statusBar.querySelectorAll('.acorn-slot');
+    const filledCount = spec.items.length - local.remaining;
+    const slot = slots[filledCount - 1];
+    if (!slot) return;
+    slot.dataset.filled = 'true';
+    slot.classList.remove('border-dashed', 'border-amber-400/50');
+    slot.classList.add('border-amber-500', 'bg-amber-50');
+    slot.innerHTML = `<span class="w-3 h-3 inline-block ${prefersReducedMotion() ? '' : 'spring-in'}">${shapeSvg('item')}</span>`;
+  }
+
+  // syncAcornTray(): local.remainingの値に合わせて、既存のどんぐり枠を（演出無しで）一括同期する。
+  // drawBoard()のリセット時に使う（renderQuestion()が直前のlocal.remainingでトレイを作った後
+  // なので、リセット後の値へ描き直す必要がある。Issue #110）。
+  function syncAcornTray() {
+    if (!remainingEl) return;
+    remainingEl.textContent = String(local.remaining);
+    const filled = spec.items.length - local.remaining;
+    statusBar.querySelectorAll('.acorn-slot').forEach((slot, i) => {
+      const isFilled = i < filled;
+      if (isFilled) {
+        slot.dataset.filled = 'true';
+        slot.classList.add('border-amber-500', 'bg-amber-50');
+        slot.classList.remove('border-dashed', 'border-amber-400/50');
+        slot.innerHTML = `<span class="w-3 h-3 inline-block">${shapeSvg('item')}</span>`;
+      } else {
+        delete slot.dataset.filled;
+        slot.classList.remove('border-amber-500', 'bg-amber-50');
+        slot.classList.add('border-dashed', 'border-amber-400/50');
+        slot.innerHTML = '';
+      }
+    });
   }
 
   function clearResult() {
@@ -105,7 +165,7 @@ export function renderPlay(root, step) {
   controls.appendChild(paletteEl);
 
   const queueEl = document.createElement('ul');
-  queueEl.className = 'command-queue flex flex-nowrap items-center gap-2 overflow-x-auto min-h-[64px] py-1';
+  queueEl.className = 'command-queue command-tray flex flex-nowrap items-center gap-2 overflow-x-auto min-h-[64px] py-1';
   controls.appendChild(queueEl);
 
   const actionsEl = document.createElement('div');
@@ -117,20 +177,20 @@ export function renderPlay(root, step) {
   removeLastBtn.dataset.action = 'remove-last';
   removeLastBtn.textContent = '⌫ ひとつ けす';
   removeLastBtn.className =
-    'min-w-[64px] min-h-[64px] px-2 rounded-lg bg-slate-200 text-sm break-keep transition-transform duration-100 active:scale-95 disabled:opacity-40';
+    'min-w-[64px] min-h-[64px] px-2 rounded-lg bg-slate-200 text-sm whitespace-nowrap break-keep transition-transform duration-100 active:scale-95 disabled:opacity-40';
 
   const clearBtn = document.createElement('button');
   clearBtn.type = 'button';
   clearBtn.dataset.action = 'clear-all';
   clearBtn.textContent = 'ぜんぶ けす';
   clearBtn.className =
-    'min-w-[64px] min-h-[64px] px-3 rounded-lg bg-slate-200 text-sm break-keep transition-transform duration-100 active:scale-95 disabled:opacity-40';
+    'min-w-[64px] min-h-[64px] px-3 rounded-lg bg-slate-200 text-sm whitespace-nowrap break-keep transition-transform duration-100 active:scale-95 disabled:opacity-40';
 
   const runBtn = document.createElement('button');
   runBtn.type = 'button';
   runBtn.dataset.action = 'run';
   runBtn.textContent = '▶ じっこう';
-  runBtn.className = 'btn-tactile px-4 bg-emerald-500 text-white text-lg font-bold break-keep disabled:opacity-40';
+  runBtn.className = 'btn-tactile px-4 bg-emerald-500 text-white text-lg font-bold whitespace-nowrap break-keep disabled:opacity-40';
 
   // 実行が失敗したらrunBtn自体を橙色の「もういちど」に変える（目線を動かさずに押せる。Issue #91）。
   // 他のボタンをロックする間、押せるのはこれだけなのでパルス枠で目立たせる（Issue #106）。
@@ -166,8 +226,12 @@ export function renderPlay(root, step) {
   // triggerFailFeedback(): 不正解時の視覚・聴覚フィードバック。派手な✕・警告音ではなく、
   // 盤面をやさしくゆらすアニメーションと低音スイープの音で気づかせる（Issue #106）。
   // reduced-motion時はゆらさず、盤面に0.5秒だけ枠を光らせて静止のまま気づけるようにする。
+  // あわせて盤面のマスだけを暗くし（view.dim）、失敗リザルト状態を再スタート状態と
+  // 見た目で区別する（もういちどのdrawBoard()が新しいview（dimは初期値=暗くなし）を
+  // 作り直すため、明示的なdim(false)呼び出しは不要。Issue #110）。
   function triggerFailFeedback() {
     playSfx('tryAgain');
+    local.view.dim(true);
     if (prefersReducedMotion()) {
       boardArea.classList.add('ring-4', 'ring-amber-400', 'rounded-2xl');
       setTimeout(() => boardArea.classList.remove('ring-4', 'ring-amber-400', 'rounded-2xl'), 500);
@@ -175,6 +239,27 @@ export function renderPlay(root, step) {
       boardArea.classList.add('wobble-soft');
       boardArea.addEventListener('animationend', () => boardArea.classList.remove('wobble-soft'), { once: true });
     }
+  }
+
+  // showRestartCue(): 盤面を作り直した直後（もういちど＝失敗後のretry・クリア後のreplay共通）に
+  // 「スタート！」を1秒だけ問い文スロットへ表示し、再スタート状態を明確に伝える（Issue #110）。
+  function showRestartCue() {
+    playSfx('start');
+    local.resultShown = true;
+    showToast(statusBar, {
+      render: (el) => {
+        el.dataset.restart = 'true';
+        const p = document.createElement('p');
+        p.className = 'text-lg font-bold text-sky-700';
+        p.textContent = 'スタート！';
+        el.appendChild(p);
+      },
+      durationMs: 1000,
+      restore: (el) => {
+        delete el.dataset.restart;
+        clearResult();
+      },
+    });
   }
 
   // やりかた帯・無操作促しの対象を決める段階（Issue #89）。0=強調なし（実行中・結果表示中）、
@@ -209,7 +294,7 @@ export function renderPlay(root, step) {
     boardWrap.appendChild(el);
     local.view = view;
     local.remaining = spec.items.length;
-    if (remainingEl) remainingEl.textContent = String(local.remaining);
+    syncAcornTray();
   }
 
   // resetToFresh(): 命令列をfreshCommands（なおす系は初期の「ずれた」列、それ以外は空）へ戻す。
@@ -228,6 +313,8 @@ export function renderPlay(root, step) {
       commands: local.commands,
       activeIndex: local.activeIndex,
       removable: true,
+      // 上限に達したら次の枠は出さない（Issue #110）。
+      nextSlot: local.commands.length < step.maxCommands ? local.commands.length + 1 : null,
       onRemove: (i) => {
         if (local.running || local.locked) return;
         if (isFix) local.fixOpened = true;
@@ -274,7 +361,8 @@ export function renderPlay(root, step) {
       // 命令列は横スクロールのため、積みすぎると最新のチップが右にはみ出して見えなくなる。
       // 追加のたびに右端へスクロールし、常に最新チップが見える位置にする（Issue #102）。
       queueEl.scrollLeft = queueEl.scrollWidth;
-      if (via === 'drag') queueEl.lastElementChild?.classList.add('spring-in');
+      // lastElementChildは使わない（末尾にトレイの次枠(.tray-slot)が付くため。Issue #110）。
+      if (via === 'drag') queueEl.querySelectorAll('.command-chip')[local.commands.length - 1]?.classList.add('spring-in');
       updateControls();
       local.nudge?.poke();
     },
@@ -315,7 +403,9 @@ export function renderPlay(root, step) {
     resetToFresh();
     drawQueue();
     drawBoard(spec.start);
+    local.view.popIn();
     updateControls();
+    showRestartCue();
     local.nudge?.poke();
   }
 
@@ -328,7 +418,9 @@ export function renderPlay(root, step) {
       resetToFresh();
       drawQueue();
       drawBoard(spec.start);
+      local.view.popIn();
       updateControls();
+      showRestartCue();
       local.nudge?.poke();
       return;
     }
@@ -349,6 +441,7 @@ export function renderPlay(root, step) {
       onPickup: () => {
         local.remaining -= 1;
         if (remainingEl) remainingEl.textContent = String(local.remaining);
+        fillNextAcornSlot();
       },
       onDone: (result) => {
         local.running = false;
