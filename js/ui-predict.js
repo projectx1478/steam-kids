@@ -2,6 +2,7 @@
 // 操作画面に直接入る（Issue #97。旧仕様はIssue #93）。画面上部の問い文スロットは、実行結果
 // （やったね／ヒント）を数秒だけトースト表示する場所も兼ねる。
 import { S } from './state.js';
+import { boardSpec } from './engine-grid.js';
 import { logEvent } from './events.js';
 import { renderGrid, computeCellSize } from './ui-grid.js';
 import { COMMAND_LABELS, ORDER_BADGE_CLASS, renderOrderArrow } from './ui-commands.js';
@@ -16,13 +17,7 @@ const RETRY_HINT_MESSAGE = 'ロボットは ここで とまったよ';
 
 function getPlaySpec() {
   const playStep = S.lesson.steps.find((s) => s.kind === 'play');
-  return {
-    grid: playStep.grid,
-    start: playStep.start,
-    goal: playStep.goal,
-    walls: playStep.walls,
-    items: playStep.items ?? [],
-  };
+  return boardSpec(playStep);
 }
 
 export function renderPredict(root, step) {
