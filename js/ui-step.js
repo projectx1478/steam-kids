@@ -299,7 +299,7 @@ export function createStepper(commands, spec, view, { onTick, onPickup }) {
       const cushioned = !bumped && from.x === to.x && from.y === to.y;
       playSfx(bumped ? 'bump' : cushioned ? 'cushion' : result.slid[i] ? 'slide' : 'step', { index: i });
       if (bumped || cushioned) {
-        view.bounce(dirAt(commands, result.stepOwner[i]));
+        view.bounce(dirAt(commands, result.stepOwner[i]), cushioned ? 'cushion' : 'wall');
       } else {
         view.footprint(from);
         view.moveTo(to);
