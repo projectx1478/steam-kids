@@ -52,6 +52,8 @@
 - 無操作タイマー等の時間検証は`page.clock.install()`＋`fastForward`（Playwright 1.63）
 - E2E全件は`npm run verify:e2e`をフォアグラウンドで実行する（タイムアウト600000ms）。
   バックグラウンドで全件を回すとこの端末ではメモリ不足で停止する（#87・#90・#91）
+- シナリオ内で`browser.newContext()`を呼ぶときは`{ serviceWorkers: 'block' }`を必ず付ける。
+  無いとSW登録→`controllerchange`→`location.reload()`が操作中に割り込み間欠失敗する（#128）
 - `.claude/verify/run.mjs`のWindows ESM修正は配布元project-template側に正式反映され、
   テンプレート同期PR #85で取り込み済み（2026-09-26。project-template#93対応）。以後は
   ローカルでの一時当ては不要

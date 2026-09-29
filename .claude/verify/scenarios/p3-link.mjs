@@ -60,7 +60,7 @@ async function unlock(page) {
 }
 
 async function redeemAttempt(browser, origin, { learnerId, code, routeRedeem }) {
-  const context = await browser.newContext();
+  const context = await browser.newContext({ serviceWorkers: 'block' });
   const p = await context.newPage();
   await p.goto(`${origin}/dashboard.html`);
   await seed(p, { sync: syncState(), profile: { learnerId, label: null, createdAt: 0 }, events: [] });
@@ -117,7 +117,7 @@ export default async function run({ page, check }) {
   // デバイスB: 別ブラウザコンテキスト（＝別端末。localStorageは分離される）
   const browser = page.context().browser();
   const origin = new URL(page.url()).origin;
-  const contextB = await browser.newContext();
+  const contextB = await browser.newContext({ serviceWorkers: 'block' });
   const pageB = await contextB.newPage();
   const autoFailsB = [];
   pageB.on('console', (msg) => {
@@ -249,7 +249,7 @@ export default async function run({ page, check }) {
   const switchServerEvents = [ev('switch-a-e1', 'step_enter', 1000, 's1', LEARNER_A)];
   const pushedBodies = [];
   const getSinceValues = [];
-  const contextF = await browser.newContext();
+  const contextF = await browser.newContext({ serviceWorkers: 'block' });
   const pageF = await contextF.newPage();
   await pageF.goto(`${origin}/dashboard.html`);
   await seed(pageF, {
@@ -313,7 +313,7 @@ export default async function run({ page, check }) {
   await contextF.close();
 
   // 子ども画面(index.html)からダッシュボードへの目立たないリンク
-  const contextChild = await browser.newContext();
+  const contextChild = await browser.newContext({ serviceWorkers: 'block' });
   const pageChild = await contextChild.newPage();
   await pageChild.goto(`${origin}/index.html`);
   await check('子ども画面にダッシュボードへのリンクがある', async () =>
