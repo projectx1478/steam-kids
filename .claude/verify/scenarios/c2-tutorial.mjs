@@ -88,8 +88,27 @@ export default async function run({ page, check }) {
   await check('4回タップ後、runボタンが光る', async () => page.getAttribute('[data-action="run"]', 'data-guide'), 'true');
 
   await page.click('[data-action="run"]');
+  // ゴール演出（本番と同じshowSuccess）が先に出て、カードは約1.5秒後に盤面へ重なる（Issue #132）
+  await page.waitForSelector('.tutorial-result [data-result="clear"], [data-result="clear"]', { timeout: 8000 });
+  await check('ゴール時にfanfareが鳴る', async () => page.evaluate(() => window.__sfxLog.includes('fanfare')));
+  await check('ゴール時にdata-result="clear"が出る', async () => (await page.$$('[data-result="clear"]')).length, 1);
   await page.waitForSelector('[data-action="continue-to-task"]', { timeout: 8000 });
   await check('区切り画面が出る', async () => (await page.$$('.tutorial-divider')).length, 1);
+  await check('オーバーレイが画面全体を覆う', async () => {
+    const b = await page.evaluate(() => {
+      const r = document.querySelector('.tutorial-divider').getBoundingClientRect();
+      return { w: r.width, h: r.height, vw: innerWidth, vh: innerHeight };
+    });
+    return b.w >= b.vw && b.h >= b.vh;
+  });
+  await check('オーバーレイ表示後も盤面が残る', async () => (await page.$$('.grid-player')).length >= 1);
+  await check('カードが画面内に収まる', async () => {
+    const b = await page.evaluate(() => {
+      const r = document.querySelector('.tutorial-divider > div').getBoundingClientRect();
+      return { l: r.left, t: r.top, r: r.right, b: r.bottom, vw: innerWidth, vh: innerHeight };
+    });
+    return b.l >= 0 && b.t >= 0 && b.r <= b.vw && b.b <= b.vh;
+  });
   await check('区切り画面に「れんしゅう おしまい」がある', async () => (await page.textContent('.tutorial-divider')).includes('れんしゅう おしまい'));
   await check('区切り画面に「じゅんばんに うごいたね」がある', async () => (await page.textContent('.tutorial-divider')).includes('じゅんばんに うごいたね'));
 

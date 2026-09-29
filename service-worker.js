@@ -5,7 +5,7 @@
 // steam-kids固有の追加: GitHub Pages配信（Cache-Control: max-age=600）のため、
 // アプリシェル取得に cache: "no-cache" を指定しHTTPキャッシュを迂回する（kids-playerはVercel
 // 配信のためこの指定が無い）。CACHE_NAMEはjs/config.jsのAPP_VERSIONと同値にする（docs/caching.md）。
-const CACHE_NAME = "steam-kids-cache-v14";
+const CACHE_NAME = "steam-kids-cache-v15";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -82,7 +82,7 @@ self.addEventListener("fetch", (event) => {
   // レッスンJSONは常に最新を取りに行く(オフライン時のみキャッシュにフォールバック)
   if (url.includes("/lessons/")) {
     event.respondWith(
-      fetch(event.request)
+      fetch(event.request, { cache: "no-cache" })
         .then((response) => {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone).catch(() => {}));

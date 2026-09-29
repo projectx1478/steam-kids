@@ -9,9 +9,11 @@ import { play as playSfx } from './sfx.js';
 import { renderInto } from './text-render.js';
 import { showHandHint } from './ui-hand.js';
 import { goToStep, createPrimaryButton, playAnimation, setActiveHandHint } from './ui-step.js';
+import { showSuccess } from './ui-reaction.js';
 
 const GUIDE_GLOW_CLASSES = ['ring-4', 'ring-amber-400', 'ring-offset-2', 'motion-safe:animate-pulse'];
 const TUTORIAL_DONE_PREFIX = 'steamkids.tutorialDone.';
+const DIVIDER_DELAY_MS = 1500; // ゴール演出（ジャンプ）が終わる頃にカードを出す
 const TUTORIAL_CELL_MAX = 56; // 「小さな盤面」。問題のplay/predict(最大64px)より一回り小さくする
 
 // isTutorialDone/markTutorialDone: レッスン単位の完了・スキップ記録（端末内のみ・同期しない。
@@ -117,6 +119,11 @@ export function renderTutorial(root, step) {
   panel.appendChild(boardArea);
   const boardWrap = document.createElement('div');
   boardArea.appendChild(boardWrap);
+
+  // 「やったね！」の表示先。盤面に重ねて配置し、レイアウトを動かさない。
+  const resultSlot = document.createElement('div');
+  resultSlot.className = 'tutorial-result absolute top-1 inset-x-0 z-10 flex justify-center pointer-events-none';
+  boardArea.appendChild(resultSlot);
 
   let remainingEl = null;
   if (spec.items.length > 0) {
@@ -319,23 +326,28 @@ export function renderTutorial(root, step) {
     },
   });
 
+  // 盤面を残したまま半透明の背景＋中央カードを重ねる。背景が全面を覆うため背後は操作不可（Issue #132）。
   function renderDivider() {
     setActiveHandHint(null);
-    panel.innerHTML = '';
-    panel.className = 'tutorial-divider flex flex-col items-center justify-center gap-2 flex-1 min-h-0 py-8 bg-amber-50 rounded-xl p-3';
+    const overlay = document.createElement('div');
+    overlay.className = 'tutorial-divider fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4';
+    const card = document.createElement('div');
+    card.className = 'flex flex-col items-center gap-2 bg-amber-50 rounded-2xl shadow-xl px-6 py-6 max-w-full';
     const doneHeading = document.createElement('h2');
     doneHeading.className = 'text-lg font-bold text-emerald-700';
     doneHeading.textContent = 'れんしゅう おしまい';
-    panel.appendChild(doneHeading);
+    card.appendChild(doneHeading);
     const doneCaption = document.createElement('p');
     doneCaption.className = 'text-sm text-slate-600';
     doneCaption.textContent = 'じゅんばんに うごいたね';
-    panel.appendChild(doneCaption);
+    card.appendChild(doneCaption);
     const nextText = document.createElement('p');
     nextText.className = 'text-base';
     nextText.textContent = 'ここから もんだい';
-    panel.appendChild(nextText);
-    panel.appendChild(createPrimaryButton('もんだいへ', () => goToStep(S.stepIndex + 1), 'continue-to-task'));
+    card.appendChild(nextText);
+    card.appendChild(createPrimaryButton('もんだいへ', () => goToStep(S.stepIndex + 1), 'continue-to-task'));
+    overlay.appendChild(card);
+    panel.appendChild(overlay);
   }
 
   runBtn.addEventListener('click', () => {
@@ -356,7 +368,13 @@ export function renderTutorial(root, step) {
       onDone: () => {
         local.running = false;
         markTutorialDone(S.lesson.lessonId);
-        renderDivider();
+        const result = simulate(local.commands, spec);
+        if (result.reachedGoal && result.remainingItems.length === 0 && result.blockedAt.length === 0) {
+          showSuccess(resultSlot, { view: local.view, restore: (el) => { el.innerHTML = ''; } });
+          setTimeout(() => { if (panel.isConnected) renderDivider(); }, DIVIDER_DELAY_MS);
+        } else {
+          renderDivider();
+        }
       },
     });
   });

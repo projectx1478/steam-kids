@@ -23,7 +23,7 @@ kids-player（出典コミット`74adf54`）の`service-worker.js`から移植�
 | --- | --- |
 | GET以外(POST等) | 即return（`respondWith`を呼ばない）。Cache APIはGET以外のRequestを受け付けず`TypeError`になるため |
 | クロスオリジン(同期API) | 即return（`respondWith`を呼ばない）。SWから再発行せずブラウザに任せる。古い同期結果を誤って返さないため |
-| `lessons/*.json` | ネットワーク優先、失敗時のみキャッシュへフォールバック |
+| `lessons/*.json` | ネットワーク優先（`cache: "no-cache"`でHTTPキャッシュ迂回）、失敗時のみキャッシュへフォールバック |
 | 同一オリジンのアプリシェル | ネットワーク優先。`fetch(request, { cache: "no-cache" })` |
 | オフライン・未キャッシュ | `caches.match()`の結果を`cached \|\| Response.error()`で返す（`undefined`を`respondWith`に渡さない） |
 
