@@ -1,0 +1,31 @@
+{
+  "lessonId": "cmd-06-practice",
+  "unitId": "commands",
+  "title": "れんしゅう",
+  "type": "grid-runtime",
+  "estimatedMinutes": 5,
+  "steps": [
+    {
+      "stepId": "s1",
+      "kind": "seedPick",
+      "text": "えを 4つ えらぼう"
+    },
+    {
+      "stepId": "p1",
+      "kind": "play",
+      "text": "ゴールへ いこう",
+      "generator": {
+        "grid": { "cols": 5, "rows": 5 },
+        "walls": { "min": 3, "max": 6 },
+        "shortestPath": { "min": 6, "max": 10 },
+        "minTurns": 2,
+        "wallsMustMatter": true,
+        "maxCommandsSlack": 2
+      }
+    },
+    {
+      "stepId": "s2",
+      "kind": "summary"
+    }
+  ]
+}

@@ -27,6 +27,10 @@ export const S = {
   // ←で戻って再びそのplayへ進んだ時に命令列を復元する。レッスン内のみ・メモリのみで保持し、
   // クリア時またはレッスンを開始し直すと消える（Issue #95）。
   drafts: {},
+  // 「れんしゅう」のたねコード（'0417'形式。Issue #69）。seedPickで確定するまでnull。設定中は
+  // 全イベントのpayload.seedに付く（js/events.js）。seedDraftは次のseedPick表示時の初期コード。
+  seed: null,
+  seedDraft: null,
 };
 
 export function initState(lesson) {
@@ -35,6 +39,8 @@ export function initState(lesson) {
   S.unit = null;
   S.forceTutorial = false;
   S.drafts = {};
+  S.seed = null;
+  S.seedDraft = null;
 }
 
 export function currentStep() {
