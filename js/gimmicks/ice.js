@@ -9,11 +9,10 @@ const DELTA = {
 };
 
 const ICE_SVG = `<svg viewBox="0 0 64 64" class="grid-ice-svg absolute inset-0 w-full h-full pointer-events-none" aria-hidden="true">
-      <rect x="2" y="2" width="60" height="60" rx="10" fill="#bae6fd" />
-      <rect x="2" y="2" width="60" height="60" rx="10" fill="none" stroke="#7dd3fc" stroke-width="3" />
-      <path d="M14 22 L28 12" stroke="#f0f9ff" stroke-width="4" stroke-linecap="round" />
-      <path d="M38 50 L52 40" stroke="#f0f9ff" stroke-width="4" stroke-linecap="round" />
-      <path d="M44 18 L50 14" stroke="#f0f9ff" stroke-width="3" stroke-linecap="round" />
+      <rect x="3" y="7" width="58" height="55" rx="10" fill="#7dd3fc" />
+      <rect x="3" y="3" width="58" height="55" rx="10" fill="#bae6fd" />
+      <path d="M8 20 L20 8 L30 8 L8 30Z" fill="#f0f9ff" opacity="0.8" />
+      <path d="M38 52 L56 34 L56 40 L44 52Z" fill="#f0f9ff" opacity="0.6" />
     </svg>`;
 
 export const ice = {

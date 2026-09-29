@@ -3,33 +3,64 @@
 // 色は色覚に配慮して形でも区別する（red=まる、blue=さんかく。かぎ・ドア両方）。
 export const KEY_COLORS = ['red', 'blue'];
 
-const COLOR_HEX = { red: '#ef4444', blue: '#3b82f6' };
-const SHAPE_PATH = {
-  red: '<circle cx="32" cy="32" r="14" />',
-  blue: '<path d="M32 16 L48 46 L16 46 Z" stroke-linejoin="round" />',
+// main=本体色、dark=影・縁、light=ハイライト。
+const COLOR_HEX = {
+  red: { main: '#ef4444', dark: '#b91c1c', light: '#fca5a5' },
+  blue: { main: '#3b82f6', dark: '#1e40af', light: '#93c5fd' },
 };
-
 const keyOf = (p) => `${p.x},${p.y}`;
 const ids = (list) => (Array.isArray(list) ? list : []);
 
-function shape(color, attrs) {
-  return `<g ${attrs}>${SHAPE_PATH[color]}</g>`;
+// 形の印（かぎの持ち手の中・ドアの飾り板の中）。中心(cx,cy)・大きさrで描く。
+function mark(color, cx, cy, r, fill) {
+  return color === 'red'
+    ? `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${fill}" />`
+    : `<path d="M${cx} ${cy - r} L${cx + r} ${cy + r * 0.8} L${cx - r} ${cy + r * 0.8} Z" fill="${fill}" stroke="${fill}" stroke-width="1.5" stroke-linejoin="round" />`;
 }
 
+// 古典的な金色のかぎ（持ち手の輪・軸・歯）を斜めに置く。持ち手の中に形の印（Issue #146）。
 function keySvg(color) {
+  const c = COLOR_HEX[color];
   return `<svg viewBox="0 0 64 64" class="grid-key-svg absolute inset-0 w-full h-full pointer-events-none" aria-hidden="true">
-      <circle cx="32" cy="32" r="26" fill="#fefce8" stroke="${COLOR_HEX[color]}" stroke-width="4" />
-      ${shape(color, `fill="${COLOR_HEX[color]}" stroke="${COLOR_HEX[color]}" stroke-width="3"`)}
-      <path d="M32 48 L32 56 M32 52 L38 52" stroke="${COLOR_HEX[color]}" stroke-width="4" stroke-linecap="round" fill="none" />
+      <ellipse cx="34" cy="56" rx="20" ry="3.5" fill="#1e293b" opacity="0.25" />
+      <g transform="rotate(-35 32 32)">
+        <rect x="30" y="8" width="7" height="44" rx="3" fill="#a16207" transform="translate(1.5,2)" />
+        <circle cx="33.5" cy="14" r="12" fill="#a16207" transform="translate(1.5,2)" />
+        <rect x="30" y="8" width="7" height="44" rx="3" fill="#facc15" />
+        <rect x="37" y="40" width="9" height="5" rx="1" fill="#facc15" />
+        <rect x="37" y="47" width="6" height="5" rx="1" fill="#facc15" />
+        <circle cx="33.5" cy="14" r="12" fill="#facc15" />
+        ${mark(color, 33.5, 14, 7.5, c.main)}
+        <rect x="31.5" y="22" width="2" height="26" rx="1" fill="#fef9c3" opacity="0.8" />
+      </g>
     </svg>`;
 }
 
+// 四角い板張りの扉。しまっている時は色付きの扉＋中央の飾り板に大きな形の印、あいた時は扉が脇に
+// 開いて床が見える（Issue #146）。開閉はdata-door-open（keys.jsのonStep）で切り替える。
 function doorSvg(color, open) {
-  const hex = COLOR_HEX[color];
-  return `<svg viewBox="0 0 64 64" class="grid-door-svg absolute inset-0 w-full h-full pointer-events-none" style="opacity:${open ? 0.3 : 1}" aria-hidden="true">
-      <rect x="4" y="4" width="56" height="56" rx="8" fill="${open ? 'none' : hex}" stroke="${hex}" stroke-width="4" />
-      <rect x="10" y="10" width="44" height="44" rx="5" fill="none" stroke="#ffffff" stroke-width="3" stroke-dasharray="${open ? '4 4' : '0'}" />
-      ${shape(color, `fill="${open ? hex : '#ffffff'}" stroke="${open ? hex : '#ffffff'}" stroke-width="3"`)}
+  const c = COLOR_HEX[color];
+  const ledge = '<rect x="4" y="10" width="56" height="52" rx="4" fill="#44403c" />';
+  const frame = open
+    ? '<path fill-rule="evenodd" d="M4 3 h56 v52 h-56z M9 7 h46 v48 h-46z" fill="#78716c" />'
+    : '<rect x="4" y="3" width="56" height="52" rx="4" fill="#78716c" />';
+  const inner = open
+    ? `<rect x="9" y="7" width="46" height="5" fill="#0f172a" opacity="0.12" />
+      <path d="M9 7 L18 10 L18 58 L9 55Z" fill="${c.main}" stroke="${c.dark}" stroke-width="1.5" stroke-linejoin="round" />
+      <path d="M11 12 L16 13 L16 30 L11 29Z" fill="none" stroke="${c.dark}" stroke-width="1.2" />`
+    : `<rect x="9" y="7" width="46" height="48" rx="2" fill="${c.main}" stroke="${c.dark}" stroke-width="2" />
+      <rect x="14" y="11" width="16" height="18" rx="2" fill="none" stroke="${c.dark}" stroke-width="2" />
+      <rect x="34" y="11" width="16" height="18" rx="2" fill="none" stroke="${c.dark}" stroke-width="2" />
+      <rect x="14" y="33" width="16" height="18" rx="2" fill="none" stroke="${c.dark}" stroke-width="2" />
+      <rect x="34" y="33" width="16" height="18" rx="2" fill="none" stroke="${c.dark}" stroke-width="2" />
+      <rect x="11" y="8" width="42" height="3" fill="${c.light}" opacity="0.7" />
+      <g>
+        <circle cx="32" cy="31" r="10" fill="#fef3c7" stroke="#a16207" stroke-width="1.5" />
+        ${mark(color, 32, 31, 6, c.main)}
+      </g>
+      <circle cx="49" cy="33" r="3" fill="#fbbf24" stroke="#a16207" stroke-width="1" />`;
+  return `<svg viewBox="0 0 64 64" class="grid-door-svg absolute inset-0 w-full h-full pointer-events-none" aria-hidden="true">
+      ${ledge}${frame}${inner}
     </svg>`;
 }
 
