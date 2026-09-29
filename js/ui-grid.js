@@ -31,67 +31,129 @@ const DIM_MS = 200;
 const FLAG_MARKUP = `<rect x="18" y="8" width="4" height="42" rx="2" fill="#475569" />
       <path d="M22 10 L46 18 L22 26 Z" fill="#f87171" stroke="#dc2626" stroke-width="1.5" stroke-linejoin="round" />`;
 
-// MOUTH_PATH: ロボットの口の形（setMoodで切り替え。Issue #110）。
+// MOUTH_PATH: ロボットの口の形（setMoodで切り替え。Issue #110）。front=正面、side=横顔（Issue #146）。
 const MOUTH_PATH = {
-  normal: 'M26 41 Q32 41 38 41',
-  happy: 'M25 40 Q32 48 39 40',
-  puzzled: 'M26 42 Q32 37 38 42',
+  front: {
+    normal: 'M26 38 Q32 38 38 38',
+    happy: 'M25 37 Q32 45 39 37',
+    puzzled: 'M26 39 Q32 34 38 39',
+  },
+  side: {
+    normal: 'M39 38 Q44 38 48 38',
+    happy: 'M38 37 Q44 45 49 37',
+    puzzled: 'M39 40 Q44 35 48 40',
+  },
+};
+
+// ロボットの向きごとの絵（Issue #146）。光は左上から。頭の上面を明るく・下に厚み・足元に影。
+// 向き=最後に進んだ方向（見た目のみ）。leftはrightの左右反転。
+const ROBOT_SHADOW = '<ellipse cx="32" cy="58" rx="17" ry="4.5" fill="#1e293b" opacity="0.28" />';
+const ROBOT_FRONT = `${ROBOT_SHADOW}
+      <rect x="17" y="49" width="10" height="8" rx="3" fill="#334155" />
+      <rect x="37" y="49" width="10" height="8" rx="3" fill="#334155" />
+      <rect x="30" y="4" width="4" height="10" fill="#0284c7" />
+      <circle cx="32" cy="5" r="4" fill="#fbbf24" />
+      <rect x="11" y="18" width="42" height="34" rx="11" fill="#0369a1" />
+      <rect x="11" y="12" width="42" height="34" rx="11" fill="#38bdf8" stroke="#0284c7" stroke-width="2.5" />
+      <rect x="16" y="14" width="32" height="7" rx="4" fill="#bae6fd" opacity="0.7" />
+      <circle cx="19" cy="37" r="3" fill="#f472b6" opacity="0.5" />
+      <circle cx="45" cy="37" r="3" fill="#f472b6" opacity="0.5" />
+      <circle cx="24" cy="28" r="6" fill="#f0f9ff" />
+      <circle cx="40" cy="28" r="6" fill="#f0f9ff" />
+      <circle cx="24" cy="30" r="2.6" fill="#0f172a" />
+      <circle cx="40" cy="30" r="2.6" fill="#0f172a" />
+      <rect data-eyelid x="18" y="22" width="12" height="12" fill="#38bdf8"
+        style="transform-box:fill-box;transform-origin:center;transform:scaleY(0)" />
+      <rect data-eyelid x="34" y="22" width="12" height="12" fill="#38bdf8"
+        style="transform-box:fill-box;transform-origin:center;transform:scaleY(0)" />
+      <path data-mouth="front" d="${MOUTH_PATH.front.normal}" fill="none" stroke="#0f172a" stroke-width="2" stroke-linecap="round" />`;
+const ROBOT_SIDE = `${ROBOT_SHADOW}
+      <rect x="22" y="49" width="14" height="8" rx="3" fill="#334155" />
+      <rect x="24" y="4" width="4" height="10" fill="#0284c7" />
+      <circle cx="26" cy="5" r="4" fill="#fbbf24" />
+      <rect x="12" y="18" width="38" height="34" rx="11" fill="#0369a1" />
+      <rect x="12" y="12" width="38" height="34" rx="11" fill="#38bdf8" stroke="#0284c7" stroke-width="2.5" />
+      <rect x="12" y="12" width="14" height="34" rx="9" fill="#0ea5e9" />
+      <rect x="16" y="14" width="30" height="7" rx="4" fill="#bae6fd" opacity="0.7" />
+      <rect x="46" y="24" width="8" height="14" rx="4" fill="#0284c7" />
+      <circle cx="40" cy="36" r="3" fill="#f472b6" opacity="0.5" />
+      <circle cx="40" cy="28" r="6" fill="#f0f9ff" />
+      <circle cx="42.4" cy="28" r="2.6" fill="#0f172a" />
+      <rect data-eyelid x="34" y="22" width="12" height="12" fill="#38bdf8"
+        style="transform-box:fill-box;transform-origin:center;transform:scaleY(0)" />
+      <path data-mouth="side" d="${MOUTH_PATH.side.normal}" fill="none" stroke="#0f172a" stroke-width="2" stroke-linecap="round" />`;
+const ROBOT_BACK = `${ROBOT_SHADOW}
+      <rect x="17" y="49" width="10" height="8" rx="3" fill="#334155" />
+      <rect x="37" y="49" width="10" height="8" rx="3" fill="#334155" />
+      <rect x="30" y="4" width="4" height="10" fill="#0284c7" />
+      <circle cx="32" cy="5" r="4" fill="#fbbf24" />
+      <rect x="11" y="18" width="42" height="34" rx="11" fill="#075985" />
+      <rect x="11" y="12" width="42" height="34" rx="11" fill="#0ea5e9" stroke="#0284c7" stroke-width="2.5" />
+      <rect x="16" y="14" width="32" height="7" rx="4" fill="#7dd3fc" opacity="0.6" />
+      <rect x="20" y="24" width="24" height="15" rx="4" fill="#0284c7" />
+      <path d="M24 28H40M24 32H40M24 36H40" stroke="#7dd3fc" stroke-width="2" stroke-linecap="round" />`;
+const ROBOT_FACINGS = {
+  down: ROBOT_FRONT,
+  right: ROBOT_SIDE,
+  left: `<g transform="translate(64,0) scale(-1,1)">${ROBOT_SIDE}</g>`,
+  up: ROBOT_BACK,
 };
 
 function shapeSvg(kind) {
   if (kind === 'wall') {
-    // 上の面（明）＋側面（暗）の2色で疑似立体にする（アイソメトリックは座標計算が崩れるため
-    // 採らない。真上から見たまま影だけ付ける。Issue #110）。
+    // 一段高い台。上の面（明）＋手前の側面（暗）＋足元の影で疑似立体にする（アイソメトリックは
+    // 座標計算が崩れるため採らない。Issue #110→#146）。
     return `<svg viewBox="0 0 64 64" class="w-full h-full" aria-hidden="true">
-      <rect x="4" y="10" width="56" height="50" rx="8" fill="#64748b" />
-      <rect x="4" y="4" width="56" height="50" rx="8" fill="#94a3b8" />
+      <rect x="2" y="12" width="60" height="50" rx="8" fill="#1e293b" opacity="0.18" />
+      <rect x="3" y="10" width="58" height="50" rx="8" fill="#57534e" />
+      <rect x="3" y="3" width="58" height="48" rx="8" fill="#a8a29e" />
+      <rect x="7" y="6" width="50" height="40" rx="6" fill="#d6d3d1" />
+      <path d="M11 10 H30" stroke="#f5f5f4" stroke-width="3" stroke-linecap="round" />
     </svg>`;
   }
   if (kind === 'flag') {
     return `<svg viewBox="0 0 64 64" class="w-full h-full" aria-hidden="true">${FLAG_MARKUP}</svg>`;
   }
   if (kind === 'goal') {
-    // 台座の影＋キラキラ（reduced-motion時はgoal-sparkleのanimationが掛からず静止表示。Issue #110）。
+    // 土台と光沢のある旗＋接地影＋キラキラ（reduced-motion時はgoal-sparkleのanimationが掛からず
+    // 静止表示。Issue #110→#146）。「ゴール」の文字は土台と重ならないよう右下へ寄せる。
     return `<svg viewBox="0 0 64 64" class="w-full h-full" aria-hidden="true">
-      <ellipse cx="30" cy="54" rx="16" ry="4" fill="#92400e" opacity="0.35" />
-      ${FLAG_MARKUP}
+      <ellipse cx="30" cy="55" rx="17" ry="5" fill="#1e293b" opacity="0.25" />
+      <ellipse cx="20" cy="52" rx="10" ry="4" fill="#78350f" />
+      <rect x="10" y="47" width="20" height="5" fill="#92400e" />
+      <ellipse cx="20" cy="47" rx="10" ry="4" fill="#d97706" />
+      <rect x="18" y="6" width="4" height="42" rx="2" fill="#475569" />
+      <rect x="18" y="6" width="1.5" height="42" fill="#94a3b8" />
+      <path d="M22 8 Q34 10 46 16 Q34 20 22 24 Z" fill="#ef4444" />
+      <path d="M22 8 Q30 10 36 13 Q30 15 22 16 Z" fill="#fca5a5" />
+      <circle cx="20" cy="6" r="3" fill="#fbbf24" />
       <circle class="goal-sparkle" cx="10" cy="16" r="2" fill="#fde68a" style="animation-delay:0s" />
-      <circle class="goal-sparkle" cx="50" cy="22" r="1.6" fill="#fef9c3" style="animation-delay:0.4s" />
-      <circle class="goal-sparkle" cx="14" cy="40" r="1.4" fill="#fde68a" style="animation-delay:0.8s" />
-      <text x="32" y="59" text-anchor="middle" font-size="12" font-weight="bold" fill="#0f172a">ゴール</text>
+      <circle class="goal-sparkle" cx="52" cy="26" r="1.6" fill="#fef9c3" style="animation-delay:0.4s" />
+      <circle class="goal-sparkle" cx="8" cy="36" r="1.4" fill="#fde68a" style="animation-delay:0.8s" />
+      <text x="47" y="60" text-anchor="middle" font-size="10" font-weight="bold" fill="#0f172a">ゴール</text>
     </svg>`;
   }
   if (kind === 'item') {
     return `<svg viewBox="0 0 64 64" class="w-full h-full" aria-hidden="true">
-      <ellipse cx="32" cy="40" rx="14" ry="16" fill="#b45309" />
-      <path d="M18 30 Q32 14 46 30 Q32 24 18 30Z" fill="#78350f" />
-      <rect x="29" y="10" width="6" height="8" rx="2" fill="#78350f" />
+      <ellipse cx="32" cy="56" rx="12" ry="4" fill="#1e293b" opacity="0.25" />
+      <ellipse cx="32" cy="40" rx="14" ry="16" fill="#92400e" />
+      <ellipse cx="28" cy="38" rx="10" ry="13" fill="#b45309" />
+      <ellipse cx="25" cy="36" rx="3" ry="6" fill="#fbbf24" opacity="0.55" />
+      <path d="M17 30 Q32 12 47 30 Q32 25 17 30Z" fill="#78350f" />
+      <path d="M20 27 Q32 16 42 24" fill="none" stroke="#a16207" stroke-width="2" />
+      <rect x="29" y="9" width="6" height="8" rx="2" fill="#78350f" />
     </svg>`;
   }
   if (kind === 'player') {
-    // 光沢帯・ほお・口を追加した表情付きロボット（口はdata-mouthでsetMoodにより切り替える。Issue #110）。
-    return `<svg viewBox="0 0 64 64" class="w-full h-full" aria-hidden="true">
-      <rect x="12" y="16" width="40" height="34" rx="12" fill="#38bdf8" stroke="#0284c7" stroke-width="3" />
-      <rect x="16" y="18" width="32" height="9" rx="5" fill="#7dd3fc" opacity="0.6" />
-      <rect x="29" y="6" width="4" height="12" fill="#0284c7" />
-      <circle cx="31" cy="6" r="4" fill="#fbbf24" />
-      <circle cx="20" cy="41" r="3" fill="#f472b6" opacity="0.5" />
-      <circle cx="44" cy="41" r="3" fill="#f472b6" opacity="0.5" />
-      <circle cx="24" cy="32" r="6" fill="#f0f9ff" />
-      <circle cx="40" cy="32" r="6" fill="#f0f9ff" />
-      <circle data-pupil cx="24" cy="32" r="2.6" fill="#0f172a" />
-      <circle data-pupil cx="40" cy="32" r="2.6" fill="#0f172a" />
-      <rect data-eyelid x="18" y="26" width="12" height="12" fill="#38bdf8"
-        style="transform-box:fill-box;transform-origin:center;transform:scaleY(0)" />
-      <rect data-eyelid x="34" y="26" width="12" height="12" fill="#38bdf8"
-        style="transform-box:fill-box;transform-origin:center;transform:scaleY(0)" />
-      <path data-mouth d="${MOUTH_PATH.normal}" fill="none" stroke="#0f172a" stroke-width="2" stroke-linecap="round" />
-    </svg>`;
+    // 向きを持つ立体ロボット（Issue #146）。4つの向きを<g data-facing>で持ち、setFacingで表示を切り替える。
+    // 口はdata-mouth（front/side）でsetMoodにより切り替える。初期は正面。
+    const groups = Object.entries(ROBOT_FACINGS)
+      .map(([dir, markup]) => `<g data-facing="${dir}"${dir === 'down' ? '' : ' style="display:none"'}>${markup}</g>`)
+      .join('');
+    return `<svg viewBox="0 0 64 64" class="w-full h-full" aria-hidden="true">${groups}</svg>`;
   }
   return '';
 }
-
-const GAZE_OFFSET = { up: [0, -2.4], down: [0, 2.4], left: [-2.4, 0], right: [2.4, 0] };
 
 function dirFromDelta(dx, dy) {
   if (dx > 0) return 'right';
@@ -148,7 +210,7 @@ export function renderGrid(opts) {
   const pixelFor = (pos) => ({ x: PAD_PX + pos.x * (CELL + GAP_PX), y: PAD_PX + pos.y * (CELL + GAP_PX) });
   const wallSet = new Set(walls.map((w) => `${w.x},${w.y}`));
   const board = document.createElement('div');
-  board.className = 'grid-board relative inline-grid gap-1 bg-sky-100 p-1 rounded-xl';
+  board.className = 'grid-board relative inline-grid gap-1 wood-frame p-1 rounded-xl';
   board.style.gridTemplateColumns = `repeat(${grid.cols}, ${CELL}px)`;
   board.style.gridTemplateRows = `repeat(${grid.rows}, ${CELL}px)`;
   // gap-1/p-1はrem単位のため、端末の文字サイズ拡大でpixelFor()・computeCellSize()の前提
@@ -219,19 +281,22 @@ export function renderGrid(opts) {
   token.style.transform = `translate(${start.x}px, ${start.y}px)`;
   board.appendChild(token);
 
-  const pupils = token.querySelectorAll('[data-pupil]');
+  const facings = token.querySelectorAll('[data-facing]');
   const eyelids = token.querySelectorAll('[data-eyelid]');
-  const mouth = token.querySelector('[data-mouth]');
+  const mouths = token.querySelectorAll('[data-mouth]');
 
-  function setGaze(dir) {
+  // setFacing(dir): 'up'|'down'|'left'|'right'。向きは見た目のみ（命令の意味は変わらない。Issue #146）。
+  function setFacing(dir) {
     if (!dir) return;
-    const [gx, gy] = GAZE_OFFSET[dir] ?? [0, 0];
-    pupils.forEach((p) => p.setAttribute('transform', `translate(${gx}, ${gy})`));
+    facings.forEach((g) => (g.style.display = g.dataset.facing === dir ? '' : 'none'));
   }
 
   // setMood(mood): 'normal'|'happy'|'puzzled'。口の形だけを切り替える（Issue #110）。
   function setMood(mood) {
-    mouth?.setAttribute('d', MOUTH_PATH[mood] ?? MOUTH_PATH.normal);
+    mouths.forEach((m) => {
+      const set = MOUTH_PATH[m.dataset.mouth];
+      m.setAttribute('d', set[mood] ?? set.normal);
+    });
   }
 
   // まぶたの自己再スケジュール。token.isConnectedが外れたら自然に止まる
@@ -258,7 +323,7 @@ export function renderGrid(opts) {
     moveTo(nextPos) {
       const prevPos = pos;
       pos = { ...nextPos };
-      setGaze(dirFromDelta(pos.x - prevPos.x, pos.y - prevPos.y));
+      setFacing(dirFromDelta(pos.x - prevPos.x, pos.y - prevPos.y));
       const reduce = prefersReducedMotion();
       const px = pixelFor(pos);
       token.style.transition = reduce ? 'none' : `transform ${MOVE_MS}ms ease`;
@@ -268,8 +333,8 @@ export function renderGrid(opts) {
     // bounce(dir, kind): 'wall'は痛そうに震えて星が弾ける（口は困り顔のまま）、'cushion'はクッションが
     // 凹んでふわっと押し返し、ロボットがばねのように戻る（口はにっこり）。
     bounce(dir, kind = 'wall') {
+      setFacing(dir);
       if (prefersReducedMotion()) return;
-      setGaze(dir);
       const base = pixelFor(pos);
       const [nx, ny] = NUDGE_BY_DIR[dir] ?? [0, 0];
       const at = (k) => `translate(${base.x + nx * k}px, ${base.y + ny * k}px)`;
@@ -487,6 +552,7 @@ export function renderGrid(opts) {
     // 何もしない）。回転は加えない（キャラ本体のtransformに回転成分を持たせないテスト
     // 前提=a3-goal-confetti.mjsを維持するため。Issue #104→#110）。
     celebrateDance() {
+      setFacing('down'); // 背中向きのままだと喜ぶ顔が見えないため正面へ向き直す（Issue #146）
       if (prefersReducedMotion()) return;
       const base = token.style.transform;
       token.animate(

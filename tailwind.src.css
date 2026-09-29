@@ -27,16 +27,42 @@
     filter: drop-shadow(0 2px 0 rgba(15, 23, 42, 0.25));
   }
 
+  /* 木目調の装飾（Issue #144）。画像は使わずグラデーションのみで描く。枠はborderではなく
+     box-shadowで描き、盤面エリアからはみ出さないようinsetにする（c7-board-fit）。 */
+  .wood-bg {
+    background-color: #e8c99b;
+    background-image: repeating-linear-gradient(90deg, rgba(120, 72, 30, 0.1) 0 2px, transparent 2px 38px),
+      repeating-linear-gradient(90deg, rgba(255, 240, 210, 0.25) 0 1px, transparent 1px 13px),
+      linear-gradient(90deg, #e3bf8c, #edd2a8 40%, #e0b986 70%, #ecd0a4);
+  }
+  .wood-frame {
+    background-color: #8a5a2b;
+    background-image: repeating-linear-gradient(0deg, rgba(60, 30, 10, 0.25) 0 2px, transparent 2px 9px),
+      linear-gradient(180deg, #9a6634, #7d4f24);
+    box-shadow: inset 0 0 0 2px #6b421d, inset 0 -3px 0 1px #4e2f13;
+  }
+  .wood-panel {
+    background-color: #f0dcb8;
+    background-image: repeating-linear-gradient(0deg, rgba(150, 100, 50, 0.08) 0 1px, transparent 1px 10px),
+      linear-gradient(180deg, #f5e6c8, #ead0a4);
+    box-shadow: inset 0 0 0 3px #c89560, inset 0 -4px 0 3px #a8743f;
+  }
+
   /* 命令を並べるトレイ（凹み風。Issue #110）。枠は実borderではなくbox-shadowで描く
      （borderはbox-sizing:border-boxでも内容(64pxチップ+padding)を圧迫し、文字拡大＋狭い
      viewportの組み合わせで盤面がエリアより大きくなる事故があったため。c7-board-fit）。 */
   .command-tray {
-    @apply bg-slate-200/80 rounded-2xl shadow-[inset_0_3px_6px_rgba(0,0,0,0.12),0_0_0_2px_rgba(148,163,184,0.7)];
+    @apply rounded-2xl;
+    background-color: #f3e2c4;
+    background-image: repeating-linear-gradient(0deg, rgba(150, 100, 50, 0.08) 0 1px, transparent 1px 8px);
+    box-shadow: inset 0 3px 6px rgba(90, 50, 15, 0.25), 0 0 0 2px #a8743f;
   }
 
   /* トレイの「次に置く」空きスロット。番号か←矢印を薄く表示する（Issue #110）。 */
   .tray-slot {
-    @apply border-2 border-dashed border-slate-400 bg-slate-100/50 rounded-xl w-16 h-16 flex items-center justify-center shrink-0;
+    @apply border-2 border-dashed rounded-xl w-16 h-16 flex items-center justify-center shrink-0;
+    border-color: #b98a55;
+    background-color: rgba(255, 248, 235, 0.6);
   }
 
   /* 疑似立体の床マス（Issue #110）。borderは使わない（大きさが変わりpixelForの前提とずれるため）。 */
@@ -57,7 +83,11 @@
 
   /* 操作エリア（パレット・命令列・じっこう）の背景。盤面(board-area)と視覚的に分離する（Issue #95）。 */
   .controller-panel {
-    @apply bg-slate-100 border-t-2 border-slate-300 rounded-2xl p-3;
+    @apply rounded-2xl p-3;
+    background-color: #c89560;
+    background-image: repeating-linear-gradient(0deg, rgba(110, 62, 24, 0.14) 0 2px, transparent 2px 11px),
+      linear-gradient(180deg, #d4a36e, #bf8a55);
+    box-shadow: inset 0 0 0 2px #8a5a2b, inset 0 -4px 0 2px #8a5a2b;
   }
 
   /* ドラッグ中に配置先を示す枠。指ガイド・実際のドラッグ操作の両方で使う（Issue #95）。 */

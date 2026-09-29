@@ -2,11 +2,19 @@
 // （歩き・こおりの滑走とも。命令1つは無駄になる）。soft: trueをmakeMover（engine-grid.js）が
 // 参照して「失敗しない衝突」と判定する。
 const CUSHION_SVG = `<svg viewBox="0 0 64 64" class="grid-cushion-svg absolute inset-0 w-full h-full pointer-events-none" aria-hidden="true">
-      <ellipse cx="32" cy="54" rx="24" ry="5" fill="#be185d" opacity="0.25" />
-      <circle cx="32" cy="32" r="26" fill="#f9a8d4" />
-      <circle cx="32" cy="32" r="26" fill="none" stroke="#f472b6" stroke-width="3" />
-      <circle cx="32" cy="32" r="16" fill="#fbcfe8" />
-      <circle cx="26" cy="26" r="4" fill="#fdf2f8" />
+      <g fill="#cbd5e1" transform="translate(0,6)">
+        <circle cx="18" cy="36" r="14" /><circle cx="32" cy="28" r="18" /><circle cx="47" cy="36" r="13" />
+        <rect x="10" y="36" width="44" height="16" rx="8" />
+      </g>
+      <g fill="#ffffff">
+        <circle cx="18" cy="34" r="14" /><circle cx="32" cy="26" r="18" /><circle cx="47" cy="34" r="13" />
+        <rect x="10" y="34" width="44" height="14" rx="7" />
+      </g>
+      <circle cx="26" cy="32" r="2" fill="#475569" />
+      <circle cx="38" cy="32" r="2" fill="#475569" />
+      <path d="M29 38 Q32 41 35 38" stroke="#475569" stroke-width="1.8" fill="none" stroke-linecap="round" />
+      <circle cx="22" cy="37" r="2.5" fill="#f9a8d4" opacity="0.7" />
+      <circle cx="42" cy="37" r="2.5" fill="#f9a8d4" opacity="0.7" />
     </svg>`;
 
 const keyOf = (p) => `${p.x},${p.y}`;
