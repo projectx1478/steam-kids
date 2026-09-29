@@ -110,7 +110,7 @@ function lessonIconSvg(lesson) {
 // data-lesson-idを持つボタンはアイコン(aria-hidden)＋data-titleのタイトル文字列を持つ
 // （既存シナリオlesson-picker.mjsはdata-title側のtextContentで完全一致を見る。Issue #107）。
 // スタンプはボタン外のsiblingとして重ねる（既存シナリオa5-unit-stamp.mjsのクラス名互換）。
-async function createLessonStop(lessonId, cleared, onPick) {
+async function createLessonStop(lessonId, cleared, onPick, practice = false) {
   const wrap = document.createElement('div');
   wrap.className = 'relative inline-block';
 
@@ -118,7 +118,7 @@ async function createLessonStop(lessonId, cleared, onPick) {
   btn.type = 'button';
   btn.dataset.lessonId = lessonId;
   btn.className = `lesson-pick-btn btn-tactile flex items-center justify-center gap-1.5 px-4 text-lg text-white ${
-    cleared ? 'bg-emerald-500' : 'bg-sky-500'
+    practice ? 'bg-amber-500' : cleared ? 'bg-emerald-500' : 'bg-sky-500'
   }`;
 
   let title = lessonId;
@@ -144,7 +144,16 @@ async function createLessonStop(lessonId, cleared, onPick) {
   btn.addEventListener('click', () => onPick(lessonId));
   wrap.appendChild(btn);
 
-  if (cleared) {
+  // れんしゅう（Issue #69）：スタンプ・旗の対象にせず、クリアした回数だけを出す（比較・順位は出さない）。
+  if (practice) {
+    const count = getEvents().filter((e) => e.lessonId === lessonId && e.type === 'clear').length;
+    if (count > 0) {
+      const badge = document.createElement('p');
+      badge.className = 'practice-count text-center text-sm text-amber-700';
+      badge.textContent = `${count} かい`;
+      wrap.appendChild(badge);
+    }
+  } else if (cleared) {
     const stamp = document.createElement('span');
     stamp.className = 'lesson-stamp absolute -top-2 -right-2 w-6 h-6';
     stamp.setAttribute('aria-label', 'たっせい');
@@ -157,7 +166,7 @@ async function createLessonStop(lessonId, cleared, onPick) {
 
 async function createUnitIsland(unit, lessonStatus, onPick) {
   const island = document.createElement('div');
-  island.className = 'relative rounded-3xl p-4 mb-4 overflow-hidden bg-white shadow-xl';
+  island.className = 'relative rounded-3xl p-4 mb-4 overflow-hidden wood-panel';
   island.dataset.unitId = unit.unitId;
   island.innerHTML = islandSvg();
 
@@ -189,6 +198,9 @@ async function createUnitIsland(unit, lessonStatus, onPick) {
   list.className = 'flex flex-wrap justify-center gap-3';
   for (const lessonId of unit.lessonIds) {
     list.appendChild(await createLessonStop(lessonId, isCleared(lessonStatus, lessonId), onPick));
+  }
+  for (const lessonId of unit.practiceIds ?? []) {
+    list.appendChild(await createLessonStop(lessonId, false, onPick, true));
   }
   island.appendChild(list);
 

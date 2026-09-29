@@ -13,6 +13,9 @@ import { renderPlay } from './ui-play.js';
 import { renderPredict } from './ui-predict.js';
 import { renderTutorial, isTutorialDone } from './ui-tutorial.js';
 import { renderSummary } from './ui-summary.js';
+import { renderSeedPick } from './ui-seedpick.js';
+import { generateMap } from './engine-generate.js';
+import { codeToSeed } from './seed-code.js';
 import { isLessonCleared } from './ui-picker.js';
 
 const STEP_DELAY_MS = 600;
@@ -25,6 +28,7 @@ const KIND_CHIP_LABEL = {
   predict: 'よそう',
   play: 'うごかす',
   summary: 'まとめ',
+  seedPick: 'たね',
 };
 
 // clear到達後は離脱してもabandonを記録しない。1セッションにつき1回だけ記録する。
@@ -152,6 +156,8 @@ export function initSteps() {
 // 完了記録はレッスン単位（同一単元内の2本目以降にもtutorialを置くようになったため。Issue #98）。
 function resolveStepIndex(index, forward) {
   const step = S.lesson.steps[index];
+  // たね未確定でgenerator付きplayへは入れない（盤面が無い）。たね入力へ戻す（Issue #69）。
+  if (step?.generator && S.seed == null) return S.lesson.steps.findIndex((s) => s.kind === 'seedPick');
   if (step?.kind !== 'tutorial') return index;
   if (S.forceTutorial) {
     S.forceTutorial = false;
@@ -176,6 +182,7 @@ function stepGlyph(step, stageIdx) {
   if (step.kind === 'tutorial') return '✎';
   if (step.kind === 'play') return stageIdx === null ? '▶' : String(stageIdx + 1);
   if (step.kind === 'summary') return '★';
+  if (step.kind === 'seedPick') return '✿';
   return '';
 }
 
@@ -246,6 +253,8 @@ function renderStep() {
   activeAnimation?.cancel();
   activeAnimation = null;
   const step = currentStep();
+  // generator付きplay：確定したたねから盤面を作ってステップへ差し込む（同じたね→同じ盤面。Issue #69）。
+  if (step.generator && S.seed != null) Object.assign(step, generateMap(step.generator, codeToSeed(S.seed)));
   const root = stage();
   root.innerHTML = '';
   root.dataset.step = step.kind;
@@ -258,6 +267,7 @@ function renderStep() {
   else if (step.kind === 'play') renderPlay(root, step);
   else if (step.kind === 'tutorial') renderTutorial(root, step);
   else if (step.kind === 'summary') renderSummary(root);
+  else if (step.kind === 'seedPick') renderSeedPick(root, step);
   applyStepTransition(root);
 }
 

@@ -3,6 +3,8 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { generateMap } from '../js/engine-generate.js';
+import { isValidCode, codeToSeed } from '../js/seed-code.js';
 import { simulate, shortestSteps, shortestChips, boardSpec, chipCount } from '../js/engine-grid.js';
 import { GIMMICKS } from '../js/gimmicks/index.js';
 import { plainSegmentsText, plainReading, parseSegments, rubyGrade, textKanjiMaxGrade, KANJI_RE } from '../js/text-render.js';
@@ -13,7 +15,7 @@ const ROOT = path.resolve(__dirname, '..');
 const LESSONS_DIR = process.env.LESSONS_DIR || path.join(ROOT, 'lessons');
 
 const REQUIRED_KEYS = ['lessonId', 'unitId', 'title', 'type', 'estimatedMinutes', 'steps'];
-const KINDS = ['intro', 'predict', 'play', 'tutorial', 'summary'];
+const KINDS = ['intro', 'predict', 'play', 'tutorial', 'summary', 'seedPick'];
 const COMMANDS = ['up', 'down', 'left', 'right'];
 const MIN_STEPS = 4;
 const MAX_STEPS = 7;
@@ -231,6 +233,31 @@ function checkSolution(play, add, label) {
   return chips;
 }
 
+// 「れんしゅう」レッスン（seedPickとgenerator付きplayを持つ。Issue #69）の検証。盤面はシードから
+// 生成されるためcheckBoard等は使わず、generatorが実際に盤面を作れることをサンプルのたねで確かめる。
+const PRACTICE_SAMPLE_SEEDS = 40;
+function validatePractice(steps, add) {
+  const kinds = steps.map((s) => s.kind).join(',');
+  if (kinds !== 'seedPick,play,summary') {
+    add('れんしゅうの構成', `steps=${kinds}（seedPick,play,summaryの順である必要がある）`);
+    return;
+  }
+  const play = steps[1];
+  if (!play.generator || typeof play.generator !== 'object') {
+    add('generator', 'playにgeneratorがない');
+    return;
+  }
+  for (let n = 0; n < PRACTICE_SAMPLE_SEEDS; n += 1) {
+    const code = n.toString(8).padStart(4, '0');
+    if (!isValidCode(code)) continue;
+    const map = generateMap(play.generator, codeToSeed(code));
+    if (map.fallback) add('generatorの生成失敗', `たね${code}で制約を満たす盤面が作れず予備盤面になる`);
+    if (map.solution.length > map.maxCommands) add('generatorの手数', `たね${code}でsolution(${map.solution.length}手)がmaxCommands=${map.maxCommands}を超える`);
+    const result = simulate(map.solution, boardSpec(map));
+    if (!result.reachedGoal) add('generatorのsolution', `たね${code}でsolutionがゴールに届かない`);
+  }
+}
+
 function validateLesson(fileName, data) {
   const errors = [];
   const add = (rule, detail) => errors.push(`${fileName}: ${rule}: ${detail}`);
@@ -250,6 +277,10 @@ function validateLesson(fileName, data) {
   }
 
   const steps = Array.isArray(data.steps) ? data.steps : [];
+  if (steps.some((s) => s.kind === 'seedPick')) {
+    validatePractice(steps, add);
+    return errors;
+  }
   if (steps.length < MIN_STEPS || steps.length > MAX_STEPS) {
     add('ステップ数', `steps.length=${steps.length}（${MIN_STEPS}〜${MAX_STEPS}である必要がある）`);
   }
@@ -606,7 +637,8 @@ function validateIndex(data, lessonById) {
     }
     if (!Array.isArray(unit.lessonIds)) continue;
 
-    for (const lessonId of unit.lessonIds) {
+    // practiceIds＝れんしゅう（スタンプ・旗の対象外。Issue #69）。実在とunitIdの一致だけ確認する。
+    for (const lessonId of [...unit.lessonIds, ...(unit.practiceIds ?? [])]) {
       if (seenLessonIds.has(lessonId)) {
         add('重複', `lessonId="${lessonId}" が複数のunitから参照されている`);
       }

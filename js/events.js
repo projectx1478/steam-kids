@@ -10,7 +10,8 @@ export function logEvent(type, payload = {}) {
     stepId: step ? step.stepId : null,
     type,
     ts: Date.now(),
-    payload,
+    // れんしゅう（seedPick確定後）は全イベントにseedを付ける。lessonIdは固定のまま（Issue #69）。
+    payload: S.seed == null ? payload : { ...payload, seed: S.seed },
   });
 }
 
