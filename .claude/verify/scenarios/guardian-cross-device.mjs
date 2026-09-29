@@ -106,7 +106,7 @@ export default async function run({ page, check }) {
   await check('ローカル照合に切り替わっても同じ合言葉で解錠できる', async () => page.isVisible('#dashboard-app'));
 
   // 5: サーバー側に未設定(exists:false)の場合は、従来どおり「設定」画面が出る（真の初回端末）
-  const contextFirst = await page.context().browser().newContext();
+  const contextFirst = await page.context().browser().newContext({ serviceWorkers: 'block' });
   const pageFirst = await contextFirst.newPage();
   await pageFirst.goto(new URL('/dashboard.html', page.url()).toString());
   await pageFirst.evaluate(
@@ -124,7 +124,7 @@ export default async function run({ page, check }) {
   await contextFirst.close();
 
   // 6: サーバーへ到達できない場合は、従来どおり「設定」画面にフォールバックする
-  const contextOffline = await page.context().browser().newContext();
+  const contextOffline = await page.context().browser().newContext({ serviceWorkers: 'block' });
   const pageOffline = await contextOffline.newPage();
   await pageOffline.addInitScript((endpoint) => {
     const realFetch = window.fetch.bind(window);
@@ -153,7 +153,7 @@ export default async function run({ page, check }) {
   // (#gate-setup-link-*)から接続し、以後は#guardian/existsの判定でログイン画面に切り替わる
   // ことを確認する（今回の実機不具合の実際の再現経路）。
   const ISSUE_CODE = 'ABCD23';
-  const contextNew = await page.context().browser().newContext();
+  const contextNew = await page.context().browser().newContext({ serviceWorkers: 'block' });
   const pageNew = await contextNew.newPage();
   await installGuardianAuthMock(pageNew);
   await pageNew.goto(new URL('/dashboard.html', page.url()).toString());
