@@ -320,6 +320,7 @@ export function renderPlay(root, step) {
       cushion: spec.cushion,
       keys: spec.keys,
       doors: spec.doors,
+      switches: spec.switches,
       playerPos,
       labels: [],
       cellSize: local.cellSize,

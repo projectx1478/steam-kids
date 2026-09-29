@@ -45,6 +45,7 @@ MVP実装対象は `grid-runtime`。予想ステップ（`kind: "predict"`）は
   `pickups`/`remainingItems`（Issue #60。詳細は`docs/lesson-schema.md`）
 - `play.keys` / `play.doors`（`[{x,y,color}]`、color=`red`/`blue`）がある盤面では、かぎのマスへ入ると同色のドアが開き通れる
   （`pickup`効果音。未所持の色のドアは壁と同じ失敗）。仕様は`docs/gimmicks.md`「keys」。
+- `play.switches`（`[{x,y,targets:[{x,y}]}]`）がある盤面では、スイッチを踏むと`targets`の壁が消える（1回で固定）。仕様は`docs/gimmicks.md`「switches」。
 - `predict`ステップの盤面はゴールを描かない（`goal: null`。itemsは経路に関わるため描く）。
   ゴール自体の見た目は星ではなく旗＋「ゴール」の文字（`shapeSvg('goal')`）。星はクリア演出・
   単元スタンプ専用で、ゴールと紛らわしくしない（Issue #80。予想ステップで星をゴール/答えと
