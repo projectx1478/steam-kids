@@ -149,7 +149,7 @@ async function createLessonStop(lessonId, cleared, onPick) {
 
 async function createUnitIsland(unit, lessonStatus, onPick) {
   const island = document.createElement('div');
-  island.className = 'relative rounded-3xl p-4 mb-4 overflow-hidden bg-white shadow-xl';
+  island.className = 'relative rounded-3xl p-4 mb-4 overflow-hidden wood-panel';
   island.dataset.unitId = unit.unitId;
   island.innerHTML = islandSvg();
 
