@@ -53,7 +53,7 @@
 }
 ```
 
-`kind` は `intro` / `predict` / `play` / `tutorial` / `summary`。座標は y が下向きに増加する。
+`kind` は `intro` / `predict` / `play` / `tutorial` / `summary`（れんしゅう専用に`seedPick`。後述の`generator`）。座標は y が下向きに増加する。
 `grid-runtime`の`play`は2〜4個（`p1`, `p2`…と番号付きのstepIdにする）で構成し、だんだん
 難易度を上げる（後のステージほど最短手数・`groupRepeats`時はチップ数が非減少であること。
 `tools/validate-lessons.mjs`が機械チェック）。`predict`は将来の教材型向けに語彙のみ残し、
@@ -166,7 +166,9 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 
 ## `generator`（シード生成の制約。Issue #68）
 
-`js/engine-generate.js`の`generateMap(generator, seed)`へ渡す制約。同じシードなら同じ盤面。UI（れんしゅう）はR2。
+`js/engine-generate.js`の`generateMap(generator, seed)`へ渡す制約。同じシードなら同じ盤面。れんしゅう（Issue #69）は`steps`が`seedPick`（`text`のみ）→`generator`付き`play`（盤面フィールドを持たない）→`summary`で、
+`lessons/index.json`の単元`practiceIds`に載せる。たね入力で確定したコードから`play`の盤面をその都度生成して差し込む
+（`js/seed-code.js`・`js/ui-seedpick.js`・`js/ui-step.js`）。検証は`tools/validate-lessons.mjs`が40個のたねで生成できることを確認する。
 
 | フィールド | 意味 |
 | --- | --- |
