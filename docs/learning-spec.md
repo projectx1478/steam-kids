@@ -31,6 +31,8 @@ MVP実装対象は `grid-runtime`。予想ステップ（`kind: "predict"`）は
   直前のチップへ回数をまとめる（「した ×5」表示）。タップ操作自体は通常のレッスンと同一で、
   新しいジェスチャーは増やさない。`maxCommands` はまとめ後のチップ数で判定するため、
   まとめないと手数制限に収まらない構成にできる（Issue #48。詳細は `docs/lesson-schema.md`）
+- `play.repeatBox: true` のレッスンでは、「はこ」→方向タップ→回数ボタン→「とじる」の順にタップして
+  くりかえしの箱を作る（箱を開いている間、操作行は けす・かいすう・とじる になる。Issue #66）
 - `play.initialCommands` のレッスンでは、`play` 開始時にキューへ指定した命令列を最初から
   積んでおく。誤った命令列を提示し、個別削除（×）と追加で直させるレッスン（例: なおす）で使う
   （Issue #31。詳細は `docs/lesson-schema.md`）
@@ -186,6 +188,13 @@ MVP実装対象は `grid-runtime`。予想ステップ（`kind: "predict"`）は
 `lessons/cmd-03-naosu.json`。`p1`は3×3で1手のズレ、`p2`は4×4で1手のズレ（P0からの継続）、
 `p3`は5×5で1手のズレ（9手中）を直す。`intro.demo`は`fixFrom`（誤った命令列を実行して失敗）→
 `commands`（正しい命令列で再実行しゴール）の2段構えで「なおす」を見せる。
+
+### レッスン4・5「くりかえす」「はこで どんぐり」
+
+`lessons/cmd-04-kurikaeshi.json`・`lessons/cmd-05-kurikaeshi-donguri.json`（Issue #66）。
+`repeatBox: true`。箱に入れた方向の並びを回数ボタン（2〜4）で繰り返す（概念：ループ。問い「なんかい？」）。
+cmd-04は`p1`が箱1個（2チップ）、`p2`が箱に2方向（3チップ）、`p3`が箱2個（5チップ）。cmd-05は
+どんぐりを箱で集める2ステージ。`intro.demo`は箱の完成イメージ（`showCommands`）。
 
 ## 効果音（`js/sfx.js`、Issue #54）
 

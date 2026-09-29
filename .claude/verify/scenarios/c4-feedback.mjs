@@ -1,7 +1,7 @@
 export const name =
   'C4 実機フィードバック一括対応: ヘッダー(もどる・えらぶ がめんへ)・反応統一・ヒント・もういちど・まとめ(Issue #91/#93/#104)';
 
-import { enterPlay, clearStage, clickRetry } from '../helpers.mjs';
+import { enterPlay, clearStage, clickRetry, clearLesson } from '../helpers.mjs';
 
 async function noLongLine(page) {
   const text = await page.locator('body').innerText();
@@ -207,7 +207,7 @@ export default async function run({ page, check }) {
   await check('「3つの ステージを クリア！」が表示される', async () =>
     (await page.locator('.achievement-cards').innerText()).includes('3つの ステージを クリア！')
   );
-  await check('単元スタンプがlessonIds数(3)だけ表示される', async () => (await page.$$('.unit-progress [data-stamp]')).length, 3);
+  await check('単元スタンプがlessonIds数(5)だけ表示される', async () => (await page.$$('.unit-progress [data-stamp]')).length, 5);
   await check('つぎの レッスンへボタンが出る', async () => (await page.$$('[data-action="next-lesson"]')).length, 1);
   await check('summaryは20字以内', () => noLongLine(page));
   await assertNoNegativeWords(page, check, 'summary');
@@ -261,6 +261,9 @@ export default async function run({ page, check }) {
   await clearStage(page, []);
   await page.click('[data-remove-index="6"]'); // p3: 誤ったupを消す
   await clearStage(page, []);
+  // cmd-04・cmd-05（くりかえしの箱。Issue #66）を片付けて単元を完走する（cmd-05が最終レッスン）。
+  await clearLesson(page, 'cmd-04-kurikaeshi');
+  await clearLesson(page, 'cmd-05-kurikaeshi-donguri');
   await check('単元ぜんぶクリアで単元名を含む文言が出る（Issue #104）', async () =>
     (await page.textContent('#stage')).includes('めいれいでうごかす ぜんぶ クリア！')
   );

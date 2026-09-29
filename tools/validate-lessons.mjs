@@ -3,13 +3,14 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { simulate, shortestSteps, shortestChips, boardSpec } from '../js/engine-grid.js';
+import { simulate, shortestSteps, shortestChips, boardSpec, chipCount } from '../js/engine-grid.js';
 import { GIMMICKS } from '../js/gimmicks/index.js';
 import { plainSegmentsText, plainReading, parseSegments, rubyGrade, textKanjiMaxGrade, KANJI_RE } from '../js/text-render.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
-const LESSONS_DIR = path.join(ROOT, 'lessons');
+// LESSONS_DIR環境変数は検証シナリオ（NG例の検出確認。repeat-box-validate）用の差し替え口。
+const LESSONS_DIR = process.env.LESSONS_DIR || path.join(ROOT, 'lessons');
 
 const REQUIRED_KEYS = ['lessonId', 'unitId', 'title', 'type', 'estimatedMinutes', 'steps'];
 const KINDS = ['intro', 'predict', 'play', 'tutorial', 'summary'];
@@ -67,11 +68,32 @@ function checkBoard(board, add, label) {
 }
 
 // demo.commands/demo.fixFromの各要素は方向文字列、または{dir, times}（cmd-02のまとめ表示。Issue #104）。
+// くりかえしの箱{box:[dir…], times}も許可する（Issue #66）。
 function demoEntryDir(entry) {
-  return typeof entry === 'string' ? entry : entry?.dir;
+  if (typeof entry === 'string') return entry;
+  if (Array.isArray(entry?.box)) return entry.box.length > 0 && entry.box.every((d) => COMMANDS.includes(d)) ? COMMANDS[0] : undefined;
+  return entry?.dir;
 }
 function demoEntryTimes(entry) {
   return typeof entry === 'string' ? 1 : entry?.times;
+}
+
+// くりかえしの箱の形式検証。問題があれば[rule, 詳細]の配列を返す（空なら正常）。
+// 箱の中は方向のみ（入れ子なし）・空の箱不可・回数は2〜4の整数（Issue #66）。
+const BOX_TIMES_MIN = 2;
+const BOX_TIMES_MAX = 4;
+function boxProblems(entry) {
+  const problems = [];
+  if (!Array.isArray(entry.box) || entry.box.length === 0) {
+    problems.push(['空の箱', `box=${JSON.stringify(entry.box)} が空、または配列でない`]);
+  } else if (entry.box.some((d) => typeof d !== 'string' || !COMMANDS.includes(d))) {
+    const nested = entry.box.some((d) => d && typeof d === 'object');
+    problems.push([nested ? '箱の入れ子' : '命令語彙', `box=${JSON.stringify(entry.box)} の中は方向文字列のみ（入れ子不可）`]);
+  }
+  if (!Number.isInteger(entry.times) || entry.times < BOX_TIMES_MIN || entry.times > BOX_TIMES_MAX) {
+    problems.push(['箱の回数', `times=${JSON.stringify(entry.times)} が${BOX_TIMES_MIN}〜${BOX_TIMES_MAX}の整数でない`]);
+  }
+  return problems;
 }
 
 // introのdemo（Issue #97:「はじめに」画面でロボットがゴールへ到達する完成イメージ。本番playとは
@@ -121,6 +143,9 @@ function checkDemo(intro, playSteps, add) {
     if (list.some((c) => !COMMANDS.includes(demoEntryDir(c)))) {
       add('命令語彙', `${label} ${key}=${JSON.stringify(list)} が不正`);
       vocabOk = false;
+    } else if (list.some((c) => typeof c === 'object' && c.box && boxProblems(c).length > 0)) {
+      add('命令語彙', `${label} ${key}の箱が不正（${list.flatMap((c) => (c.box ? boxProblems(c).map((p) => p[0]) : [])).join('・')}）`);
+      vocabOk = false;
     } else if (list.some((c) => !Number.isInteger(demoEntryTimes(c)) || demoEntryTimes(c) < 1)) {
       add('命令語彙', `${label} ${key}のtimesが不正`);
       vocabOk = false;
@@ -165,12 +190,19 @@ function checkSolution(play, add, label) {
   const initial = Array.isArray(play.initialCommands) ? play.initialCommands : [];
   const obj = Array.isArray(sol) ? { commands: sol } : sol;
   const commands = obj && obj.commands !== undefined ? obj.commands : [];
+  const isBox = (c) => c && typeof c === 'object' && 'box' in c;
   const valid =
-    obj && typeof obj === 'object' && Array.isArray(commands) && commands.every((c) => COMMANDS.includes(c));
+    obj &&
+    typeof obj === 'object' &&
+    Array.isArray(commands) &&
+    commands.every((c) => COMMANDS.includes(c) || (play.repeatBox === true && isBox(c)));
   if (!valid || (obj.removeIndex !== undefined && !Number.isInteger(obj.removeIndex))) {
-    add('solutionの形式', `${label}solution=${JSON.stringify(sol)} が不正（方向文字列の配列か{removeIndex,commands}）`);
+    add('solutionの形式', `${label}solution=${JSON.stringify(sol)} が不正（方向文字列の配列か{removeIndex,commands}。箱{box,times}はrepeatBox時のみ）`);
     return;
   }
+  const boxes = commands.filter(isBox);
+  for (const b of boxes) for (const [rule, detail] of boxProblems(b)) add(rule, `${label}solution ${detail}`);
+  if (boxes.some((b) => boxProblems(b).length > 0)) return;
   const queue = [...initial];
   if (obj.removeIndex !== undefined) {
     if (obj.removeIndex < 0 || obj.removeIndex >= queue.length) {
@@ -186,10 +218,12 @@ function checkSolution(play, add, label) {
     add('solutionのクリア', `${label}solutionを実行してもクリアしない（到達=${result.reachedGoal}、未回収=${result.remainingItems.length}、壁・盤外=${result.blockedAt.length}）`);
   }
   // groupRepeatsは同方向の連続が1チップにまとまる（ui-commands.js）ためチップ数で数える。
-  const chips = play.groupRepeats ? queue.filter((c, i) => c !== queue[i - 1]).length : queue.length;
+  // repeatBoxは箱1＋中の命令数（chipCount）で数える（Issue #66）。
+  const chips = play.repeatBox ? chipCount(queue) : play.groupRepeats ? queue.filter((c, i) => c !== queue[i - 1]).length : queue.length;
   if (typeof play.maxCommands === 'number' && chips > play.maxCommands) {
-    add('solutionの手数', `${label}solutionが${chips}${play.groupRepeats ? 'チップ' : '手'}でmaxCommands=${play.maxCommands}を超える`);
+    add('solutionの手数', `${label}solutionが${chips}${play.groupRepeats || play.repeatBox ? 'チップ' : '手'}でmaxCommands=${play.maxCommands}を超える`);
   }
+  return chips;
 }
 
 function validateLesson(fileName, data) {
@@ -287,10 +321,28 @@ function validateLesson(fileName, data) {
       }
     }
 
-    checkSolution(play, add, label);
+    if ('repeatBox' in play && typeof play.repeatBox !== 'boolean') {
+      add('repeatBoxの型', `${label}repeatBox=${JSON.stringify(play.repeatBox)} はboolean以外`);
+    }
+    if (play.repeatBox === true && play.groupRepeats === true) {
+      add('repeatBoxとgroupRepeats', `${label}repeatBoxとgroupRepeatsは同時に指定できない`);
+    }
+
+    const solutionChips = checkSolution(play, add, label);
 
     let dist = null;
-    if (play.start && play.goal && grid.cols && grid.rows) {
+    if (play.repeatBox === true) {
+      // 箱ステージ：最短性はBFSで求めない。箱なしの最短手数がmaxCommandsを超える（箱が必須）ことと、
+      // solutionが必須であること（maxCommands判定の根拠）を検証する。難易度順序はsolutionのチップ数で比較。
+      if (!('solution' in play)) add('solutionの必須', `${label}repeatBoxにはsolutionが必要`);
+      if (play.start && play.goal && grid.cols && grid.rows) {
+        const noBox = shortestSteps(boardSpec(play));
+        if (noBox <= play.maxCommands) {
+          add('箱の必須性', `${label}箱なしでmaxCommands=${play.maxCommands}以内に解ける（最短${noBox}手）`);
+        }
+      }
+      dist = typeof solutionChips === 'number' ? solutionChips : null;
+    } else if (play.start && play.goal && grid.cols && grid.rows) {
       const spec = boardSpec(play);
       // groupRepeatsありのレッスンは、同方向連続をまとめた最小チップ数で判定する
       // （まとめないと手数制限に収まらないレッスンを正しく通すため）。

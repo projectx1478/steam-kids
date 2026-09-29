@@ -69,6 +69,14 @@
 作れる（Issue #48）。レッスンJSON自体の`commands`/`allowedCommands`は従来通り単発方向の配列で
 書く。まとめは実行時のみの挙動で、レッスンデータの書き方は変わらない。
 
+`play.repeatBox`（任意・boolean・既定false）を`true`にすると、パレットに「はこ」（くりかえしの箱）が
+出る。操作はタップのみ：はこ→（開いている間の方向タップは箱の中へ）→回数ボタン（2→3→4→2）→
+とじる。命令列の要素は`{box: [dir…], times}`（boxをtimes回繰り返す。Issue #66）。箱の中は方向のみ
+（入れ子なし）・空の箱不可・`times`は2〜4。`maxCommands`は**箱1＋中の命令数**のチップ数で判定する。
+`groupRepeats`とは併存し（同一stepで同時指定は検証NG）、`{dir, times}`は箱の1命令版の別表現として
+残す。`solution`は必須で、箱を`{box, times}`で書ける（`repeatBox`時のみ）。ループ込みの最短性は
+BFSで求めない（`js/ui-summary.js`は「いちばん みじかい」を出さない）。tutorialは非対応（Issue #139）。
+
 `play.initialCommands`（任意・方向文字列の配列・既定なし＝空キュー）を指定すると、`play`
 ステップ開始時に子どものキューへ最初からその命令列を積んでおく。「誤った命令列を提示し、
 誤りを見つけて直させる」レッスン（例: なおす）で使う。個別削除（×）で不要な命令を消し、
@@ -97,7 +105,7 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 自動再生は1回だけ（「もういちど みる」で再生し直せる）。`start`/`goal`の組は**本番の`play`の
 どのステージとも同一にしない**（答えのネタバレになるため。`validate-lessons.mjs`が機械チェックする）。
 `commands`は壁にぶつからずゴール到達・全item回収する内容にする（同じくチェック対象）。
-`commands`の各要素は方向文字列、または`{dir, times}`（まとめ表示。`cmd-02-mijikaku`で使用）。
+`commands`の各要素は方向文字列、`{dir, times}`（まとめ表示。`cmd-02-mijikaku`で使用）、または`{box, times}`（くりかえしの箱。`cmd-04-kurikaeshi`で使用）。
 `showCommands`（任意・boolean）を`true`にすると、盤面の上に命令チップ列を表示し実行中のチップを
 光らせる。`fixFrom`（任意・`commands`と同じ形状の配列）を指定すると、先にこの誤った命令列を
 実行して失敗させ、一呼吸おいてから正しい`commands`へ差し替えて再実行する（「なおす」のデモ。
@@ -191,6 +199,10 @@ playステップの指示文になる。未指定時の既定文言は`items`の
   一致すること
 - `commands` / `allowedCommands` が `up` `down` `left` `right` のみであること
 - `groupRepeats` を持つ場合はboolean型であること
+- `repeatBox` を持つ場合はboolean型で、`groupRepeats`と同時に`true`にしないこと。`true`の場合は
+  `solution`が必須で、箱は空でなく中が方向のみ（入れ子なし）・`times`が2〜4の整数であること、
+  `solution`のチップ数（箱1＋中の命令数）が`maxCommands`以内であること、箱を使わない最短手数が
+  `maxCommands`を超えること（箱が必須）。ステージ難度の比較は`solution`のチップ数で行う
 - `initialCommands` を持つ場合は語彙が正しく、長さが `maxCommands` 以内であり、そのまま実行
   してもゴールに到達しないこと（`items` がある場合は全回収も満たしていないこと）
 - `solution` を持つ場合は形式が正しく、実行するとクリアし（ゴール到達・全item回収・壁や盤外に

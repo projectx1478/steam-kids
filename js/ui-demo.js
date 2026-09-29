@@ -75,9 +75,9 @@ export function renderGoalDemo(container, demo) {
     if (remainingEl) remainingEl.textContent = String(spec.items.length);
   }
 
-  function setQueue(commands, activeIndex) {
+  function setQueue(commands, activeIndex, activeInner = -1) {
     if (!queueEl) return;
-    renderCommandQueue(queueEl, { commands: commands.map(toChip), activeIndex, removable: false });
+    renderCommandQueue(queueEl, { commands: commands.map(toChip), activeIndex, activeInner, removable: false });
   }
 
   let subAnim = null;
@@ -91,7 +91,7 @@ export function renderGoalDemo(container, demo) {
       spec,
       view,
       {
-        onTick: (i) => setQueue(commands, i),
+        onTick: (i, _to, inner) => setQueue(commands, i, inner),
         onPickup: () => {
           if (remainingEl) remainingEl.textContent = String(Number(remainingEl.textContent) - 1);
         },

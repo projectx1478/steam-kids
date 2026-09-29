@@ -178,9 +178,12 @@ export function renderOrderArrow(tag = 'li') {
 // nextSlot（数値）を渡すと、末尾に「次に置く」トレイ枠（.tray-slot・[data-tray-slot]）を1つ
 // 追加する。1個目なら←矢印、2個目以降は番号を表示する（トレイのアフォーダンス。Issue #110）。
 // 省略時（predict・tutorial等）は従来どおり枠を出さない。
-export function renderCommandQueue(container, { commands, activeIndex, onRemove, removable = true, nextSlot = null }) {
+// 箱（{box:[dir…], times}）は1チップに小さな矢印列と×回数を描く。activeInnerは実行中の箱内index、
+// openIndexは編集中（開いている）箱のindex（Issue #66）。
+export function renderCommandQueue(container, { commands, activeIndex, activeInner = -1, openIndex = -1, onRemove, removable = true, nextSlot = null }) {
   container.innerHTML = '';
-  commands.forEach(({ dir, times }, i) => {
+  commands.forEach((entry, i) => {
+    const { dir, times } = entry;
     if (i > 0) container.appendChild(renderOrderArrow());
     const chip = document.createElement('li');
     // ×バッジはCSS疑似要素(after:content)で描く。実DOMに<span>を増やすと、チップ内テキストを
@@ -197,6 +200,44 @@ export function renderCommandQueue(container, { commands, activeIndex, onRemove,
     if (i === activeIndex) {
       chip.dataset.active = 'true';
       chip.classList.add('ring-4', 'ring-yellow-400');
+    }
+
+    if (entry.box) {
+      chip.dataset.box = 'true';
+      chip.classList.replace('min-w-[64px]', 'min-w-[88px]');
+      if (i === openIndex) {
+        chip.dataset.open = 'true';
+        chip.classList.add('ring-4', 'ring-emerald-400');
+      }
+      const inner = document.createElement('span');
+      inner.className = 'box-inner flex items-center justify-center gap-0.5 flex-wrap';
+      if (entry.box.length === 0) inner.textContent = '…';
+      entry.box.forEach((d, j) => {
+        const cell = document.createElement('span');
+        cell.dataset.inner = String(j);
+        cell.className = 'inline-flex w-5 h-5 rounded text-sky-600';
+        if (i === activeIndex && j === activeInner) {
+          cell.dataset.active = 'true';
+          cell.classList.add('bg-yellow-300');
+        }
+        cell.innerHTML = arrowSvg(d);
+        cell.firstElementChild.setAttribute('class', 'w-5 h-5');
+        inner.appendChild(cell);
+      });
+      chip.appendChild(inner);
+      const boxLabel = document.createElement('span');
+      boxLabel.className = 'box-times text-[10px] font-bold leading-tight';
+      boxLabel.textContent = `はこ ×${times}`;
+      chip.appendChild(boxLabel);
+      if (removable) {
+        chip.dataset.removeIndex = String(i);
+        chip.addEventListener('click', () => {
+          vibrate();
+          onRemove(i);
+        });
+      }
+      container.appendChild(chip);
+      return;
     }
 
     chip.insertAdjacentHTML('beforeend', arrowSvg(dir));
