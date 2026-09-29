@@ -36,6 +36,37 @@
       }
     },
     {
+      "stepId": "t1",
+      "kind": "tutorial",
+      "grid": {
+        "cols": 4,
+        "rows": 1
+      },
+      "start": {
+        "x": 0,
+        "y": 0
+      },
+      "goal": {
+        "x": 3,
+        "y": 0
+      },
+      "walls": [],
+      "allowedCommands": [
+        "up",
+        "down",
+        "left",
+        "right"
+      ],
+      "repeatBox": true,
+      "script": [
+        { "tap": "box" },
+        { "tap": "right" },
+        { "tap": "times" },
+        { "tap": "close" },
+        { "tap": "run" }
+      ]
+    },
+    {
       "stepId": "p1",
       "kind": "play",
       "text": "はこで なんかい すすむ？",
