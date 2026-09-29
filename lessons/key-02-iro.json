@@ -1,0 +1,65 @@
+{
+  "lessonId": "key-02-iro",
+  "unitId": "keys",
+  "title": "いろを えらぶ",
+  "type": "grid-runtime",
+  "estimatedMinutes": 5,
+  "steps": [
+    {
+      "stepId": "s1",
+      "kind": "intro",
+      "text": "おなじ かたちの ドアが あくよ",
+      "demo": {
+        "grid": { "cols": 5, "rows": 2 },
+        "start": { "x": 0, "y": 0 },
+        "goal": { "x": 4, "y": 1 },
+        "walls": [{ "x": 0, "y": 1 }, { "x": 1, "y": 1 }, { "x": 3, "y": 0 }, { "x": 4, "y": 0 }],
+        "keys": [{ "x": 1, "y": 0, "color": "red" }, { "x": 2, "y": 0, "color": "blue" }],
+        "doors": [{ "x": 2, "y": 1, "color": "red" }, { "x": 3, "y": 1, "color": "blue" }],
+        "commands": ["right", "right", "down", "right", "right"]
+      }
+    },
+    {
+      "stepId": "t1",
+      "kind": "tutorial",
+      "text": "さんかくの かぎを とろう",
+      "grid": { "cols": 4, "rows": 2 },
+      "start": { "x": 0, "y": 0 },
+      "goal": { "x": 3, "y": 0 },
+      "walls": [{ "x": 1, "y": 1 }, { "x": 2, "y": 1 }, { "x": 3, "y": 1 }],
+      "keys": [{ "x": 1, "y": 0, "color": "blue" }],
+      "doors": [{ "x": 2, "y": 0, "color": "blue" }],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "script": [{ "tap": "right" }, { "tap": "right" }, { "tap": "right" }, { "tap": "run" }]
+    },
+    {
+      "stepId": "p1",
+      "kind": "play",
+      "text": "ドアは あく？ かぎを ふたつ とろう",
+      "grid": { "cols": 5, "rows": 3 },
+      "start": { "x": 0, "y": 1 },
+      "goal": { "x": 4, "y": 1 },
+      "walls": [{ "x": 2, "y": 0 }, { "x": 2, "y": 2 }, { "x": 3, "y": 0 }, { "x": 3, "y": 2 }],
+      "keys": [{ "x": 1, "y": 0, "color": "red" }, { "x": 1, "y": 2, "color": "blue" }],
+      "doors": [{ "x": 2, "y": 1, "color": "red" }, { "x": 3, "y": 1, "color": "blue" }],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["right", "up", "down", "down", "up", "right", "right", "right"],
+      "maxCommands": 10
+    },
+    {
+      "stepId": "p2",
+      "kind": "play",
+      "text": "ドアは あく？ じゅんばんは？",
+      "grid": { "cols": 4, "rows": 4 },
+      "start": { "x": 0, "y": 3 },
+      "goal": { "x": 0, "y": 0 },
+      "walls": [{ "x": 0, "y": 2 }, { "x": 1, "y": 2 }, { "x": 2, "y": 2 }, { "x": 0, "y": 1 }, { "x": 2, "y": 0 }, { "x": 3, "y": 0 }],
+      "keys": [{ "x": 2, "y": 3, "color": "red" }, { "x": 1, "y": 1, "color": "blue" }],
+      "doors": [{ "x": 3, "y": 2, "color": "red" }, { "x": 1, "y": 0, "color": "blue" }],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["right", "right", "right", "up", "up", "left", "left", "up", "left"],
+      "maxCommands": 10
+    },
+    { "stepId": "s2", "kind": "summary", "text": "じゅんばんを かんがえよう" }
+  ]
+}

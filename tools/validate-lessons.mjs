@@ -35,6 +35,8 @@ function checkBoard(board, add, label) {
   const items = Array.isArray(board.items) ? board.items : [];
   const ice = Array.isArray(board.ice) ? board.ice : [];
   const cushion = Array.isArray(board.cushion) ? board.cushion : [];
+  const keys = Array.isArray(board.keys) ? board.keys : [];
+  const doors = Array.isArray(board.doors) ? board.doors : [];
 
   if (!Array.isArray(board.allowedCommands) || board.allowedCommands.some((c) => !COMMANDS.includes(c))) {
     add('命令語彙', `${label}allowedCommands=${JSON.stringify(board.allowedCommands)} が不正`);
@@ -47,6 +49,8 @@ function checkBoard(board, add, label) {
     ...items.map((it, i) => [`items[${i}]`, it]),
     ...ice.map((c, i) => [`ice[${i}]`, c]),
     ...cushion.map((c, i) => [`cushion[${i}]`, c]),
+    ...keys.map((c, i) => [`keys[${i}]`, c]),
+    ...doors.map((c, i) => [`doors[${i}]`, c]),
   ];
   for (const [coordLabel, p] of coordChecks) {
     if (!p || !inGrid(grid, p)) add('座標範囲', `${label}${coordLabel}=${JSON.stringify(p)} が盤外`);
@@ -357,6 +361,14 @@ function validateLesson(fileName, data) {
         if (noIceDist <= play.maxCommands) {
           add('こおりの必須性', `${label}こおりを踏まずにmaxCommands=${play.maxCommands}以内でゴールできる（最短${noIceDist}）`);
         }
+      }
+    }
+    // ドアは壁扱いにしても到達できるなら、かぎを取らずにクリアできてしまう（ドアが飾り）。
+    if (dist !== null && Array.isArray(play.doors) && play.doors.length > 0) {
+      const noDoor = boardSpec({ ...play, walls: [...(play.walls || []), ...play.doors], doors: [], keys: [] });
+      const noDoorDist = play.groupRepeats ? shortestChips(noDoor) : shortestSteps(noDoor);
+      if (noDoorDist <= play.maxCommands) {
+        add('かぎの必須性', `${label}かぎを取らずにmaxCommands=${play.maxCommands}以内でゴールできる（最短${noDoorDist}）`);
       }
     }
     stageDistances.push(dist);

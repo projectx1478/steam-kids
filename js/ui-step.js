@@ -3,6 +3,7 @@
 import { S, currentStep } from './state.js';
 import { logEvent } from './events.js';
 import { simulate } from './engine-grid.js';
+import { GIMMICKS } from './gimmicks/index.js';
 import { prefersReducedMotion } from './ui-grid.js';
 import { vibrate } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
@@ -287,6 +288,8 @@ function dirAt(commands, idx, inner) {
 // 両方から共通で使う（Issue #111）。
 export function createStepper(commands, spec, view, { onTick, onPickup }) {
   const result = simulate(commands, spec);
+  // ギミックのonStep（開閉などUI更新）用の、実行1回ごとの作業領域（Issue #62）。
+  const runStates = {};
   let i = 0;
   let finished = false;
   return {
@@ -310,6 +313,12 @@ export function createStepper(commands, spec, view, { onTick, onPickup }) {
         playSfx('pickup');
         onPickup?.(idx);
       });
+      if (!bumped) {
+        for (const g of GIMMICKS) {
+          const sfx = g.onStep?.({ pos: to, spec, view, run: (runStates[g.key] ??= {}) });
+          if (sfx) playSfx(sfx);
+        }
+      }
       onTick(result.stepOwner[i], to, result.innerOwner[i]);
       // 壁・盤外にぶつかった手で実行を止める。残りの手は再生しない（Issue #136）。クッションは止まらない。
       if (bumped || i === result.path.length - 2) {

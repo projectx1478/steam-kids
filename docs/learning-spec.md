@@ -43,6 +43,8 @@ MVP実装対象は `grid-runtime`。予想ステップ（`kind: "predict"`）は
   （拡大→フェードの演出、`pickup`効果音）。クリア条件は「ゴール到達 かつ 全item回収」。
   実装は`js/ui-grid.js`の`view.collectItem()`と`js/engine-grid.js`の`simulate()`が返す
   `pickups`/`remainingItems`（Issue #60。詳細は`docs/lesson-schema.md`）
+- `play.keys` / `play.doors`（`[{x,y,color}]`、color=`red`/`blue`）がある盤面では、かぎのマスへ入ると同色のドアが開き通れる
+  （`pickup`効果音。未所持の色のドアは壁と同じ失敗）。仕様は`docs/gimmicks.md`「keys」。
 - `predict`ステップの盤面はゴールを描かない（`goal: null`。itemsは経路に関わるため描く）。
   ゴール自体の見た目は星ではなく旗＋「ゴール」の文字（`shapeSvg('goal')`）。星はクリア演出・
   単元スタンプ専用で、ゴールと紛らわしくしない（Issue #80。予想ステップで星をゴール/答えと
