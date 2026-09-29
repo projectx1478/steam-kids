@@ -25,8 +25,10 @@ export default async function run({ page, check }) {
 
   await clearLesson(page, 'cmd-02-mijikaku');
   await clearLesson(page, 'cmd-03-naosu');
+  await clearLesson(page, 'cmd-04-kurikaeshi');
+  await clearLesson(page, 'cmd-05-kurikaeshi-donguri');
 
   await page.goto('/index.html?view=map');
-  await check('3本ともスタンプが付く', async () => (await page.$$('.lesson-stamp')).length, 3);
+  await check('5本ともスタンプが付く', async () => (await page.$$('.lesson-stamp')).length, 5);
   await check('単元全クリアで旗が立つ', async () => (await page.$$('.unit-flag')).length, 1);
 }
