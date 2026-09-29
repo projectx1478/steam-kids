@@ -8,7 +8,8 @@ import { shortestSteps, shortestChips, boardSpec } from './engine-grid.js';
 import { stampSvg, flagSvg, medalSvg } from './ui-picker.js';
 import { play as playSfx } from './sfx.js';
 import { prefersReducedMotion, screenConfetti } from './ui-grid.js';
-import { createPrimaryButton } from './ui-step.js';
+import { createPrimaryButton, goToStep } from './ui-step.js';
+import { codeStripHtml, randomCode } from './seed-code.js';
 
 const MAX_CARDS = 3;
 const LESSON_CONFETTI = { count: 120, duration: 3000 };
@@ -86,6 +87,27 @@ export function renderSummary(root) {
     cardsWrap.className = 'achievement-cards flex flex-wrap justify-center gap-2 my-2';
     cards.slice(0, MAX_CARDS).forEach((text) => cardsWrap.appendChild(achievementCard(text)));
     root.appendChild(cardsWrap);
+  }
+
+  // れんしゅう：このマップのたね（絵のコード）を見せ、「ちがう マップ」でたね入力へ戻す（Issue #69）。
+  if (S.seed != null) {
+    const seedBox = document.createElement('div');
+    seedBox.className = 'seed-result flex flex-col items-center gap-1 my-2';
+    const seedLabel = document.createElement('p');
+    seedLabel.className = 'text-sm text-slate-600';
+    seedLabel.textContent = 'この マップの たね';
+    const seedStrip = document.createElement('div');
+    seedStrip.className = 'seed-strip flex gap-1';
+    seedStrip.dataset.seed = S.seed;
+    seedStrip.innerHTML = codeStripHtml(S.seed);
+    seedBox.append(seedLabel, seedStrip);
+    root.appendChild(seedBox);
+    root.appendChild(
+      createPrimaryButton('ちがう マップ', () => {
+        S.seedDraft = randomCode();
+        goToStep(S.lesson.steps.findIndex((s) => s.kind === 'seedPick'));
+      }, 'another-map')
+    );
   }
 
   if (S.unit) {
