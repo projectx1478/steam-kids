@@ -1,5 +1,6 @@
-// ice（こおり）ギミック：こおりのマスへ移動して入ると、同方向へ壁・盤端の手前まで滑り続ける
-// （途中の通常マス・ゴールでも止まらない。start上では滑らない）。状態は持たない（Issue #61）。
+// ice（こおり）ギミック：こおりのマスへ移動して入ると、同方向へ次のマスへ滑る。こおりが続く限り
+// 滑り続け、最初の通常マス（ゴール含む）か壁・盤端の手前で止まる。start上では滑らない。
+// 状態は持たない（Issue #61。止まり方の修正は本Issue）。
 const DELTA = {
   up: { x: 0, y: -1 },
   down: { x: 0, y: 1 },
@@ -34,11 +35,11 @@ export const ice = {
     return 'ice';
   },
 
-  // こおりへ入った手は、同方向へ壁・盤端の手前まで進み続ける。chained（滑走中に入ったマス）は
-  // 通常マス・ゴールでも止めない。
-  redirect(state, pos, dir, spec, chained) {
+  // いま入ったマスがこおりなら同方向へ進み続ける。通常マスなら止まる（返り先が壁・盤外なら
+  // makeMoverのisOpenで止まる）。
+  redirect(state, pos, dir, spec) {
     const list = spec.ice ?? [];
-    if (!chained && !list.some((c) => c.x === pos.x && c.y === pos.y)) return null;
+    if (!list.some((c) => c.x === pos.x && c.y === pos.y)) return null;
     const d = DELTA[dir];
     return { pos: { x: pos.x + d.x, y: pos.y + d.y }, dir };
   },

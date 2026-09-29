@@ -296,7 +296,7 @@ export function createStepper(commands, spec, view, { onTick, onPickup }) {
       const from = result.path[i];
       const to = result.path[i + 1];
       const bumped = from.x === to.x && from.y === to.y;
-      playSfx(bumped ? 'bump' : 'step', { index: i });
+      playSfx(bumped ? 'bump' : result.slid[i] ? 'slide' : 'step', { index: i });
       if (bumped) {
         view.bounce(dirAt(commands, result.stepOwner[i]));
       } else {

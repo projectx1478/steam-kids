@@ -12,7 +12,7 @@
       "demo": {
         "grid": { "cols": 4, "rows": 3 },
         "start": { "x": 0, "y": 0 },
-        "goal": { "x": 3, "y": 2 },
+        "goal": { "x": 2, "y": 2 },
         "walls": [],
         "items": [{ "x": 2, "y": 0 }],
         "ice": [{ "x": 1, "y": 0 }],
@@ -25,10 +25,10 @@
       "text": "すべって どこで とまる？",
       "grid": { "cols": 5, "rows": 4 },
       "start": { "x": 0, "y": 0 },
-      "goal": { "x": 4, "y": 3 },
+      "goal": { "x": 3, "y": 3 },
       "walls": [],
-      "items": [{ "x": 2, "y": 0 }],
-      "ice": [{ "x": 1, "y": 0 }],
+      "items": [{ "x": 3, "y": 0 }],
+      "ice": [{ "x": 1, "y": 0 }, { "x": 2, "y": 0 }],
       "allowedCommands": ["up", "down", "left", "right"],
       "solution": ["right", "down", "down", "down"],
       "maxCommands": 5
@@ -42,7 +42,7 @@
       "goal": { "x": 0, "y": 0 },
       "walls": [{ "x": 4, "y": 4 }],
       "items": [{ "x": 3, "y": 2 }],
-      "ice": [{ "x": 2, "y": 4 }],
+      "ice": [{ "x": 2, "y": 4 }, { "x": 3, "y": 4 }],
       "allowedCommands": ["up", "down", "left", "right"],
       "solution": ["right", "right", "up", "up", "up", "up", "left", "left", "left"],
       "maxCommands": 11
