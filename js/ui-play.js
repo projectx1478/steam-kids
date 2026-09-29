@@ -20,6 +20,7 @@ import {
   setBackDisabled,
   setActiveNudge,
   setActiveHandHint,
+  setActiveAnimation,
   markLessonCleared,
 } from './ui-step.js';
 import { showSuccess, showHint, diagnose } from './ui-reaction.js';
@@ -437,6 +438,42 @@ export function renderPlay(root, step) {
     local.nudge?.poke();
   }
 
+  // playRetryTransition(onDark, onDone): 失敗後のもういちどで全画面の黒幕を挟む（Issue #136）。
+  // 暗い間にonDark（盤面の作り直し）を行い、明けてからonDone（スタート！）を呼ぶ。暗転中は
+  // 黒幕がタップを遮る。ステップ離脱時はsetActiveAnimation経由のcancelで黒幕ごと消す。
+  function playRetryTransition(onDark, onDone) {
+    if (prefersReducedMotion()) {
+      onDark();
+      onDone();
+      return;
+    }
+    const curtain = document.createElement('div');
+    curtain.dataset.transition = 'retry';
+    curtain.className = 'fixed inset-0 z-40 bg-slate-900 pointer-events-auto';
+    curtain.style.opacity = '0';
+    curtain.style.transition = 'opacity 250ms ease-in-out';
+    document.body.appendChild(curtain);
+    void curtain.offsetWidth;
+    curtain.style.opacity = '0.85';
+    const timers = [];
+    const later = (fn, ms) => timers.push(setTimeout(fn, ms));
+    later(() => onDark(), 250);
+    later(() => {
+      curtain.style.opacity = '0';
+    }, 400);
+    later(() => {
+      curtain.remove();
+      setActiveAnimation(null);
+      onDone();
+    }, 650);
+    setActiveAnimation({
+      cancel() {
+        timers.forEach(clearTimeout);
+        curtain.remove();
+      },
+    });
+  }
+
   // finishRun(result): じっこう（自動実行）・1コマ実行のどちらが最後の手まで進めても同じ判定を通す
   // （Issue #111）。simulateの結果から成否を判定し、盤面・トースト・つぎへ/もういちどボタンを描く。
   function finishRun(result) {
@@ -493,15 +530,21 @@ export function renderPlay(root, step) {
     if (runBtn.dataset.action === 'retry') {
       vibrate();
       logEvent('retry', {});
-      clearToast(statusBar);
-      setRunButtonMode('run');
-      resetToFresh();
-      drawQueue();
-      drawBoard(spec.start);
-      local.view.popIn();
-      updateControls();
-      showRestartCue();
-      local.nudge?.poke();
+      playRetryTransition(
+        () => {
+          clearToast(statusBar);
+          setRunButtonMode('run');
+          resetToFresh();
+          drawQueue();
+          drawBoard(spec.start);
+          updateControls();
+        },
+        () => {
+          local.view.popIn();
+          showRestartCue();
+          local.nudge?.poke();
+        }
+      );
       return;
     }
     if (local.running) return;

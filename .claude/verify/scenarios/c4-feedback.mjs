@@ -1,7 +1,7 @@
 export const name =
   'C4 実機フィードバック一括対応: ヘッダー(もどる・えらぶ がめんへ)・反応統一・ヒント・もういちど・まとめ(Issue #91/#93/#104)';
 
-import { enterPlay, clearStage } from '../helpers.mjs';
+import { enterPlay, clearStage, clickRetry } from '../helpers.mjs';
 
 async function noLongLine(page) {
   const text = await page.locator('body').innerText();
@@ -95,7 +95,7 @@ export default async function run({ page, check }) {
   await page.click('[data-remove-index="0"]', { force: true });
   await check('ロック中のチップ×は無反応', async () => (await page.$$('.command-chip')).length, 1);
 
-  await page.click('[data-action="retry"]');
+  await clickRetry(page);
   await check('もういちどで[data-action="run"]に戻る', async () => (await page.$$('[data-action="run"]')).length, 1);
   await check('もういちどでヒント表示が消える', async () => (await page.$$('[data-hint]')).length, 0);
   await check('もういちどでチップが0個に戻る', async () => (await page.$$('.command-chip')).length, 0);
@@ -114,7 +114,7 @@ export default async function run({ page, check }) {
   await assertNoNegativeWords(page, check, 'play未到達ヒント');
 
   // --- もういちど（失敗後のretry）は正解・不正解に関わらず命令列をリセットする（Issue #104） ---
-  await page.click('[data-action="retry"]');
+  await clickRetry(page);
   await check('retryで命令列は0個に戻る（前回の命令を残さない）', async () => (await page.$$('.command-chip')).length, 0);
 
   // --- item未回収ヒント（donguri-01-hirou）。items(1,3)/(2,3)を持つp2で検証する ---
@@ -179,7 +179,7 @@ export default async function run({ page, check }) {
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="retry"]', { timeout: 8000 });
   // 不正解直後は編集がロックされるため、もういちどを押してから直す（Issue #106）。
-  await page.click('[data-action="retry"]');
+  await clickRetry(page);
   await page.click('[data-remove-index="1"]');
   await check('編集後は2個', async () => (await page.$$('.command-chip')).length, 2);
   await page.click('[data-action="run"]');
@@ -220,7 +220,7 @@ export default async function run({ page, check }) {
   await page.click('[data-command="down"]');
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="retry"]', { timeout: 8000 });
-  await page.click('[data-action="retry"]');
+  await clickRetry(page);
   for (const c of [
     'down', 'down', 'down', 'down', 'down',
     'right', 'left',

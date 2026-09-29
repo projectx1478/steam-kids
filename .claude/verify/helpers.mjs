@@ -46,6 +46,12 @@ export async function clearStage(page, commands) {
   await page.click(NEXT_SEL);
 }
 
+// 失敗後の「もういちど」を押し、画面暗転（[data-transition="retry"]。Issue #136）が明けるまで待つ。
+export async function clickRetry(page) {
+  await page.click('[data-action="retry"]');
+  await page.waitForFunction(() => !document.querySelector('[data-transition="retry"]'), null, { timeout: 4000 });
+}
+
 // レッスンJSON（solutionを持つplayステージ）を、ページが実際に読むのと同じ経路（fetch。
 // page.routeの差し替えも効く）で取得する。
 async function fetchLesson(page, lessonId) {

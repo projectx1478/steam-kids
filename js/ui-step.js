@@ -309,7 +309,8 @@ export function createStepper(commands, spec, view, { onTick, onPickup }) {
         onPickup?.(idx);
       });
       onTick(result.stepOwner[i], to);
-      if (i === result.path.length - 2) {
+      // 壁・盤外にぶつかった手で実行を止める。残りの手は再生しない（Issue #136）。
+      if (bumped || i === result.path.length - 2) {
         finished = true;
       } else {
         i += 1;

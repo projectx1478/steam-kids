@@ -1,5 +1,7 @@
 export const name = 'cmd-03-naosu: 誤った初期命令列を消して直すとゴールに到達する(Issue #31/#104)';
 
+import { clickRetry } from '../helpers.mjs';
+
 export default async function run({ page, check }) {
   await page.goto('/index.html?lesson=cmd-03-naosu');
   await check('初期ステップはintro', async () => page.getAttribute('#stage', 'data-step'), 'intro');
@@ -20,7 +22,7 @@ export default async function run({ page, check }) {
   // 不正解後は「もういちど」以外の操作をロックする（なおす系も含め全レッスン共通。Issue #106）。
   // 直接編集はできず、もういちどを押すと初期の「ずれた」列に戻ってから直す。
   await check('不正解後: チップの取り消しはロックされる', () => page.$eval('[data-action="remove-last"]', (b) => b.disabled), true);
-  await page.click('[data-action="retry"]');
+  await clickRetry(page);
   await check('もういちどで初期の「ずれた」列(3個)に戻る', async () => (await page.$$('.command-chip')).length, 3);
 
   await page.click('[data-remove-index="1"]');

@@ -4,6 +4,8 @@ async function sfxLog(page) {
   return page.evaluate(() => window.__sfxLog);
 }
 
+import { clickRetry } from '../helpers.mjs';
+
 export default async function run({ page, check }) {
   await page.goto('/index.html?lesson=donguri-01-hirou');
   await page.click('[data-action="start"]');
@@ -24,7 +26,7 @@ export default async function run({ page, check }) {
   await check('nextボタンは出ない', async () => (await page.$$('[data-action="next"]')).length, 0);
 
   // retryは正解・不正解に関わらず命令列をリセットする（Issue #104）ため、既に空になっている。
-  await page.click('[data-action="retry"]');
+  await clickRetry(page);
   for (const c of ['right', 'right', 'right', 'up', 'up', 'up']) {
     await page.click(`[data-command="${c}"]`);
   }

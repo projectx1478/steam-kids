@@ -1,5 +1,5 @@
 export const name = 'C1: 予想はゴール非表示・playはもくひょう行とテキスト(Issue #80)';
-import { enterPlay } from '../helpers.mjs';
+import { enterPlay, clickRetry } from '../helpers.mjs';
 
 async function noLongLine(page) {
   const text = await page.locator('body').innerText();
@@ -164,6 +164,6 @@ export default async function run({ page, check }) {
   await page.waitForSelector('[data-action="retry"]', { timeout: 8000 });
   await check('1個回収でのこりが1', async () => page.locator('[data-remaining]').innerText(), '1');
 
-  await page.click('[data-action="retry"]');
+  await clickRetry(page);
   await check('もういちどでのこりが2に戻る', async () => page.locator('[data-remaining]').innerText(), '2');
 }
