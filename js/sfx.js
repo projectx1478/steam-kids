@@ -13,7 +13,7 @@ export const DURATIONS_MS = {
   run: 300,
   step: 150,
   slide: 150,
-  tryAgain: 150,
+  tryAgain: 300,
   bump: 250,
   cushion: 200,
   pickup: 200,
@@ -150,10 +150,12 @@ const SOUND = {
   run(ctx, now) {
     tone(ctx, now, { freq: 400, freqEnd: 900, duration: 0.3, type: 'triangle', peak: 0.8 });
   },
-  // tryAgain: 未達成（壁・item未回収・未到達）で共通に鳴らす「首をかしげる」音。ブザーではなく
-  // 柔らかい低音スイープにし、罰則感を出さない（Issue #106）。
+  // tryAgain: 未達成（壁・item未回収・未到達）で共通に鳴らす「首をかしげる」2音の小さな山。
+  // ブザーではなく罰則感を出さない（Issue #106）。高めの音にしてbump（低域の下降）と聞き分け
+  // られるようにする（Issue #159）。〜300Hzはタブレットのスピーカーで鳴らないため高域にする。
   tryAgain(ctx, now) {
-    tone(ctx, now, { freq: 320, freqEnd: 160, duration: 0.15, type: 'triangle', peak: 0.5 });
+    tone(ctx, now, { freq: 660, freqEnd: 500, duration: 0.12, type: 'triangle', peak: 0.5 });
+    tone(ctx, now + 0.12, { freq: 500, freqEnd: 660, duration: 0.18, type: 'triangle', peak: 0.5 });
   },
   step(ctx, now, opts) {
     const idx = opts.index ?? 0;
