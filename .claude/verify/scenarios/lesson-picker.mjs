@@ -1,4 +1,4 @@
-export const name = 'レッスン選択画面: ?lesson無しで5本から選べる(Issue #31, #60)';
+export const name = 'レッスン選択画面: ?lesson無しで7本から選べる(Issue #31, #60)';
 
 async function boxesOk(page) {
   const boxes = [];
@@ -47,7 +47,7 @@ function title(id) {
 export default async function run({ page, check }) {
   await page.goto('/index.html?view=map');
 
-  await check('5本のレッスンボタンが表示される', async () => (await page.$$('.lesson-pick-btn')).length, 5);
+  await check('7本のレッスンボタンが表示される', async () => (await page.$$('.lesson-pick-btn')).length, 7);
   await check('レッスン1のタイトルが表示される', async () => title('cmd-01-susumu')(page), 'すすむ');
   await check('レッスン2のタイトルが表示される', async () => title('cmd-02-mijikaku')(page), 'みじかくする');
   await check('レッスン3のタイトルが表示される', async () => title('cmd-03-naosu')(page), 'なおす');

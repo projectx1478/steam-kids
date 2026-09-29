@@ -9,6 +9,11 @@
       "unitId": "donguri",
       "title": "どんぐりひろい",
       "lessonIds": ["donguri-01-hirou", "donguri-02-mawarimichi"]
+    },
+    {
+      "unitId": "ice",
+      "title": "こおりですべる",
+      "lessonIds": ["ice-01-suberu", "ice-02-kabe"]
     }
   ]
 }
