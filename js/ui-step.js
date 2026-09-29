@@ -273,9 +273,10 @@ export function createPrimaryButton(label, onClick, action) {
   return btn;
 }
 
-function dirAt(commands, idx) {
+function dirAt(commands, idx, inner) {
   const entry = commands[idx];
-  return typeof entry === 'string' ? entry : entry.dir;
+  if (typeof entry === 'string') return entry;
+  return entry.box ? entry.box[inner] : entry.dir;
 }
 
 // createStepper(commands, spec, view, {onTick, onPickup}): 命令列の1手分を進める最小単位。
@@ -299,7 +300,7 @@ export function createStepper(commands, spec, view, { onTick, onPickup }) {
       const cushioned = !bumped && from.x === to.x && from.y === to.y;
       playSfx(bumped ? 'bump' : cushioned ? 'cushion' : result.slid[i] ? 'slide' : 'step', { index: i });
       if (bumped || cushioned) {
-        view.bounce(dirAt(commands, result.stepOwner[i]), cushioned ? 'cushion' : 'wall');
+        view.bounce(dirAt(commands, result.stepOwner[i], result.innerOwner[i]), cushioned ? 'cushion' : 'wall');
       } else {
         view.footprint(from);
         view.moveTo(to);
@@ -309,7 +310,7 @@ export function createStepper(commands, spec, view, { onTick, onPickup }) {
         playSfx('pickup');
         onPickup?.(idx);
       });
-      onTick(result.stepOwner[i], to);
+      onTick(result.stepOwner[i], to, result.innerOwner[i]);
       // 壁・盤外にぶつかった手で実行を止める。残りの手は再生しない（Issue #136）。クッションは止まらない。
       if (bumped || i === result.path.length - 2) {
         finished = true;

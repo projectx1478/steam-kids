@@ -76,7 +76,8 @@ export function renderSummary(root) {
   let shortest;
   if (lastPlay) {
     const spec = playSpecOf(lastPlay);
-    shortest = lastPlay.groupRepeats ? shortestChips(spec) : shortestSteps(spec);
+    // repeatBoxはループ込みの最短性を求めない（shortest未定義＝「いちばん みじかい」を出さない。Issue #66）。
+    if (!lastPlay.repeatBox) shortest = lastPlay.groupRepeats ? shortestChips(spec) : shortestSteps(spec);
   }
   const sinceTs = currentAttemptSinceTs(events, lessonId);
   const cards = lessonAchievements(events, lessonId, sinceTs, { shortest, playStepIds });

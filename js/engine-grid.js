@@ -93,16 +93,34 @@ function makeMover(spec) {
   };
 }
 
-// simulate(commands, spec) -> { path, blockedAt, reachedGoal, stepOwner, pickups, slid, bumped, remainingItems }
+// simulate(commands, spec) -> { path, blockedAt, reachedGoal, stepOwner, innerOwner, pickups, slid, bumped, remainingItems }
 // spec: { grid: {cols, rows}, start: {x,y}, goal: {x,y}, walls: [{x,y}], items?: [{x,y}], … }
-// commandsの各要素は方向文字列、または{dir, times}（同方向をまとめた命令）。
+// commandsの各要素は方向文字列、{dir, times}（同方向をまとめた命令）、または{box:[dir…], times}
+// （くりかえしの箱。boxをtimes回繰り返す。Issue #66）。
 // 壁・盤外に進もうとした手（滑走の途中で当たった場合も）は、そこで止まり、blockedAtにその命令の元
 // インデックスを記録する（失敗）。クッションに当たった手はblockedAtに入れず止まるだけ（失敗ではない）。
 // どちらも衝突したstepはpathへ現在位置を重複で1つ積む。bumped[i]はpath[i+1]が失敗の衝突ならtrue。
 // stepOwnerはpath[i+1]がcommandsの何番目の要素に属するかを表す（まとめ命令の実行ハイライト用）。
+// innerOwner[i]はpath[i+1]が箱の中の何番目の方向か（箱の外なら-1。箱内ハイライト用）。
 // pickups[i]はpath[i+1]で新たに回収したitemsのインデックス配列（Issue #60。js/gimmicks/items.js）。
 // slid[i]はpath[i+1]が滑走（redirect）で進んだマスならtrue（効果音の切替用）。
 // remainingItemsは最終位置までに回収されなかったitem座標（reachedGoalとの併用でクリア判定に使う）。
+// entryを[方向, 箱内index]の列へ展開する（箱の外は箱内index=-1）。
+function expandEntry(entry) {
+  if (typeof entry === 'string') return [[entry, -1]];
+  if (entry.box) {
+    const seq = [];
+    for (let n = 0; n < entry.times; n += 1) entry.box.forEach((dir, j) => seq.push([dir, j]));
+    return seq;
+  }
+  return Array.from({ length: entry.times }, () => [entry.dir, -1]);
+}
+
+// 命令列のチップ数。箱は「箱1＋中の命令数」、それ以外は1要素=1チップ（Issue #66）。
+export function chipCount(commands) {
+  return commands.reduce((sum, e) => sum + (typeof e !== 'string' && e.box ? 1 + e.box.length : 1), 0);
+}
+
 export function simulate(commands, rawSpec) {
   const spec = boardSpec(rawSpec);
   const { start, goal } = spec;
@@ -111,6 +129,7 @@ export function simulate(commands, rawSpec) {
   const path = [{ ...start }];
   const blockedAt = [];
   const stepOwner = [];
+  const innerOwner = [];
   const pickups = [];
   const slid = [];
   const bumpedList = [];
@@ -118,8 +137,7 @@ export function simulate(commands, rawSpec) {
   let states = enterAll(initGimmickStates(spec), spec, pos);
 
   commands.forEach((entry, i) => {
-    const { dir, times } = typeof entry === 'string' ? { dir: entry, times: 1 } : entry;
-    for (let n = 0; n < times; n += 1) {
+    for (const [dir, inner] of expandEntry(entry)) {
       const { steps, bumped, cushioned } = move(pos, dir, states);
       // 滑走などで複数マス進んだ手は1マスずつpathへ展開する（同一stepOwner）。
       for (const step of steps) {
@@ -127,6 +145,7 @@ export function simulate(commands, rawSpec) {
         states = step.states;
         path.push({ ...pos });
         stepOwner.push(i);
+        innerOwner.push(inner);
         pickups.push(states.items?.collected ?? []);
         slid.push(step.slid);
         bumpedList.push(false);
@@ -135,6 +154,7 @@ export function simulate(commands, rawSpec) {
         if (bumped) blockedAt.push(i);
         path.push({ ...pos });
         stepOwner.push(i);
+        innerOwner.push(inner);
         states = enterAll(states, spec, pos);
         pickups.push(states.items?.collected ?? []);
         slid.push(false);
@@ -145,7 +165,7 @@ export function simulate(commands, rawSpec) {
 
   const reachedGoal = pos.x === goal.x && pos.y === goal.y;
   const remainingItems = [...(states.items?.remaining ?? [])].map((idx) => spec.items[idx]);
-  return { path, blockedAt, reachedGoal, stepOwner, pickups, slid, bumped: bumpedList, remainingItems };
+  return { path, blockedAt, reachedGoal, stepOwner, innerOwner, pickups, slid, bumped: bumpedList, remainingItems };
 }
 
 // BFSでstart→goal（かつ全ギミックisCleared）の最短手数を求める（到達不能ならInfinity）。

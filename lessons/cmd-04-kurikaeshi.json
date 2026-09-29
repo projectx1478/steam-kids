@@ -1,0 +1,154 @@
+{
+  "lessonId": "cmd-04-kurikaeshi",
+  "unitId": "commands",
+  "title": "くりかえす",
+  "type": "grid-runtime",
+  "estimatedMinutes": 5,
+  "steps": [
+    {
+      "stepId": "s1",
+      "kind": "intro",
+      "text": "おなじ うごきは はこに いれよう",
+      "demo": {
+        "grid": {
+          "cols": 4,
+          "rows": 2
+        },
+        "start": {
+          "x": 0,
+          "y": 1
+        },
+        "goal": {
+          "x": 3,
+          "y": 0
+        },
+        "walls": [],
+        "commands": [
+          {
+            "box": [
+              "right"
+            ],
+            "times": 3
+          },
+          "up"
+        ],
+        "showCommands": true
+      }
+    },
+    {
+      "stepId": "p1",
+      "kind": "play",
+      "text": "はこで なんかい すすむ？",
+      "grid": {
+        "cols": 5,
+        "rows": 2
+      },
+      "start": {
+        "x": 0,
+        "y": 0
+      },
+      "goal": {
+        "x": 4,
+        "y": 0
+      },
+      "walls": [],
+      "allowedCommands": [
+        "up",
+        "down",
+        "left",
+        "right"
+      ],
+      "solution": [
+        {
+          "box": [
+            "right"
+          ],
+          "times": 4
+        }
+      ],
+      "maxCommands": 3,
+      "repeatBox": true
+    },
+    {
+      "stepId": "p2",
+      "kind": "play",
+      "text": "はこで なんかい くりかえす？",
+      "grid": {
+        "cols": 5,
+        "rows": 5
+      },
+      "start": {
+        "x": 0,
+        "y": 0
+      },
+      "goal": {
+        "x": 4,
+        "y": 4
+      },
+      "walls": [],
+      "allowedCommands": [
+        "up",
+        "down",
+        "left",
+        "right"
+      ],
+      "solution": [
+        {
+          "box": [
+            "right",
+            "down"
+          ],
+          "times": 4
+        }
+      ],
+      "maxCommands": 4,
+      "repeatBox": true
+    },
+    {
+      "stepId": "p3",
+      "kind": "play",
+      "text": "はこを ふたつ つかおう",
+      "grid": {
+        "cols": 5,
+        "rows": 4
+      },
+      "start": {
+        "x": 0,
+        "y": 0
+      },
+      "goal": {
+        "x": 4,
+        "y": 3
+      },
+      "walls": [],
+      "allowedCommands": [
+        "up",
+        "down",
+        "left",
+        "right"
+      ],
+      "solution": [
+        {
+          "box": [
+            "right",
+            "right"
+          ],
+          "times": 2
+        },
+        {
+          "box": [
+            "down"
+          ],
+          "times": 3
+        }
+      ],
+      "maxCommands": 5,
+      "repeatBox": true
+    },
+    {
+      "stepId": "s2",
+      "kind": "summary",
+      "text": "くりかえしは はこで まとめよう"
+    }
+  ]
+}

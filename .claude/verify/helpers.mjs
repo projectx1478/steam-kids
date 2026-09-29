@@ -39,7 +39,17 @@ export async function enterPlay(page, lessonId) {
 // 現在のplayステージをcommandsで実行してクリアし、[data-action="next"]（最終）または
 // [data-action="next-stage"]（途中）を押して次へ進む。commandsが空ならなおす系（初期列のまま実行）。
 export async function clearStage(page, commands) {
-  for (const c of commands) await page.click(`[data-command="${c}"]`);
+  for (const c of commands) {
+    if (typeof c === 'string') {
+      await page.click(`[data-command="${c}"]`);
+      continue;
+    }
+    // くりかえしの箱{box, times}：はこ→方向→回数(2から1タップずつ)→とじる（Issue #66）。
+    await page.click('[data-action="box-open"]');
+    for (const d of c.box) await page.click(`[data-command="${d}"]`);
+    for (let t = 2; t < c.times; t += 1) await page.click('[data-action="box-times"]');
+    await page.click('[data-action="box-close"]');
+  }
   await page.click('[data-action="run"]');
   // 1手0.6秒のため、命令が多いステージ(最大16個)でも間に合う余裕を持たせる。
   await page.waitForSelector(NEXT_SEL, { timeout: 15000 });

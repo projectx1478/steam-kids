@@ -1,0 +1,148 @@
+{
+  "lessonId": "cmd-05-kurikaeshi-donguri",
+  "unitId": "commands",
+  "title": "はこで どんぐり",
+  "type": "grid-runtime",
+  "estimatedMinutes": 5,
+  "steps": [
+    {
+      "stepId": "s1",
+      "kind": "intro",
+      "text": "はこで どんぐりを とろう",
+      "demo": {
+        "grid": {
+          "cols": 4,
+          "rows": 3
+        },
+        "start": {
+          "x": 0,
+          "y": 2
+        },
+        "goal": {
+          "x": 3,
+          "y": 0
+        },
+        "walls": [],
+        "items": [
+          {
+            "x": 1,
+            "y": 1
+          },
+          {
+            "x": 2,
+            "y": 0
+          }
+        ],
+        "commands": [
+          {
+            "box": [
+              "right",
+              "up"
+            ],
+            "times": 2
+          },
+          "right"
+        ],
+        "showCommands": true
+      }
+    },
+    {
+      "stepId": "p1",
+      "kind": "play",
+      "text": "どんぐりを ぜんぶ とって ゴール",
+      "grid": {
+        "cols": 5,
+        "rows": 3
+      },
+      "start": {
+        "x": 0,
+        "y": 1
+      },
+      "goal": {
+        "x": 4,
+        "y": 1
+      },
+      "walls": [],
+      "allowedCommands": [
+        "up",
+        "down",
+        "left",
+        "right"
+      ],
+      "solution": [
+        {
+          "box": [
+            "right"
+          ],
+          "times": 4
+        }
+      ],
+      "maxCommands": 3,
+      "repeatBox": true,
+      "items": [
+        {
+          "x": 1,
+          "y": 1
+        },
+        {
+          "x": 2,
+          "y": 1
+        },
+        {
+          "x": 3,
+          "y": 1
+        }
+      ]
+    },
+    {
+      "stepId": "p2",
+      "kind": "play",
+      "text": "どんぐりを ぜんぶ とって ゴール",
+      "grid": {
+        "cols": 5,
+        "rows": 4
+      },
+      "start": {
+        "x": 0,
+        "y": 0
+      },
+      "goal": {
+        "x": 3,
+        "y": 3
+      },
+      "walls": [],
+      "allowedCommands": [
+        "up",
+        "down",
+        "left",
+        "right"
+      ],
+      "solution": [
+        {
+          "box": [
+            "right",
+            "down"
+          ],
+          "times": 3
+        }
+      ],
+      "maxCommands": 4,
+      "repeatBox": true,
+      "items": [
+        {
+          "x": 1,
+          "y": 1
+        },
+        {
+          "x": 2,
+          "y": 2
+        }
+      ]
+    },
+    {
+      "stepId": "s2",
+      "kind": "summary",
+      "text": "はこで どんぐりを あつめた"
+    }
+  ]
+}

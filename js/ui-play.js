@@ -2,7 +2,7 @@
 // 操作画面に直接入る。説明は「れんしゅう」画面と指ガイドで行う（Issue #97。旧仕様はIssue #93）。
 // 画面上部の問い文スロットは、実行結果（やったね／ヒント）を数秒だけトースト表示する場所も兼ねる。
 import { S } from './state.js';
-import { boardSpec } from './engine-grid.js';
+import { boardSpec, chipCount } from './engine-grid.js';
 import { logEvent } from './events.js';
 import { renderGrid, shapeSvg, computeCellSize, prefersReducedMotion } from './ui-grid.js';
 import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, vibrate } from './ui-commands.js';
@@ -56,6 +56,9 @@ export function renderPlay(root, step) {
   const local = {
     commands,
     activeIndex: -1,
+    activeInner: -1,
+    // 編集中（開いている）くりかえしの箱のindex。-1=閉じている（Issue #66）。
+    boxOpen: -1,
     running: false,
     // 「1コマ」ボタンでの手動実行中。running(自動実行)とは別に持ち、じっこう途中合流で
     // running=trueへ切り替える（Issue #111）。
@@ -331,6 +334,7 @@ export function renderPlay(root, step) {
   function resetToFresh() {
     local.commands.length = 0;
     freshCommands.forEach((c) => local.commands.push({ ...c }));
+    local.boxOpen = -1;
     S.drafts[step.stepId] = local.commands;
     local.fixOpened = false;
     local.locked = false;
@@ -340,13 +344,17 @@ export function renderPlay(root, step) {
     renderCommandQueue(queueEl, {
       commands: local.commands,
       activeIndex: local.activeIndex,
+      activeInner: local.activeInner,
+      openIndex: local.boxOpen,
       removable: true,
       // 上限に達したら次の枠は出さない（Issue #110）。
-      nextSlot: local.commands.length < step.maxCommands ? local.commands.length + 1 : null,
+      nextSlot: chipCount(local.commands) < step.maxCommands ? chipCount(local.commands) + 1 : null,
       onRemove: (i) => {
         if (local.running || local.stepping || local.locked) return;
         if (isFix) local.fixOpened = true;
         local.commands.splice(i, 1);
+        if (i === local.boxOpen) local.boxOpen = -1;
+        else if (i < local.boxOpen) local.boxOpen -= 1;
         logEvent('undo', { index: i });
         playSfx('remove');
         drawQueue();
@@ -357,12 +365,15 @@ export function renderPlay(root, step) {
   }
 
   function updateControls() {
-    const atMax = local.commands.length >= step.maxCommands;
+    const atMax = chipCount(local.commands) >= step.maxCommands;
     paletteEl.querySelectorAll('button').forEach((b) => {
       b.disabled = atMax || local.running || local.stepping || local.locked;
     });
     const isRetry = runBtn.dataset.action === 'retry';
-    runBtn.disabled = local.running || (!isRetry && local.commands.length === 0);
+    const hasEmptyBox = local.commands.some((c) => c.box && c.box.length === 0);
+    runBtn.disabled = local.running || (!isRetry && (local.commands.length === 0 || hasEmptyBox));
+    if (boxBtn) boxBtn.disabled = atMax || local.boxOpen >= 0 || local.running || local.stepping || local.locked;
+    drawBoxBar();
     clearBtn.disabled = local.commands.length === 0 || local.running || local.stepping || local.locked;
     removeLastBtn.disabled = local.commands.length === 0 || local.running || local.stepping || local.locked;
     // 1コマ実行中はタップを続けられるよう有効のままにする。開始条件のみ命令0件で無効化する（Issue #111）。
@@ -377,12 +388,22 @@ export function renderPlay(root, step) {
     onDragOver: (active) => toggleGhostSlot(queueEl, active),
     onAdd: (dir, { via } = {}) => {
       if (local.running || local.stepping || local.locked) return;
+      if (local.boxOpen >= 0) {
+        if (chipCount(local.commands) >= step.maxCommands) return;
+        local.commands[local.boxOpen].box.push(dir);
+        playSfx(via === 'drag' ? 'snap' : 'tap');
+        drawQueue();
+        queueEl.scrollLeft = queueEl.scrollWidth;
+        updateControls();
+        local.nudge?.poke();
+        return;
+      }
       const last = local.commands.at(-1);
       if (step.groupRepeats && last && last.dir === dir) {
         last.times += 1;
         playSfx('stack', { count: last.times });
       } else {
-        if (local.commands.length >= step.maxCommands) return;
+        if (chipCount(local.commands) >= step.maxCommands) return;
         local.commands.push({ dir, times: 1 });
         playSfx(via === 'drag' ? 'snap' : 'tap');
       }
@@ -398,12 +419,98 @@ export function renderPlay(root, step) {
     },
   });
 
+  // くりかえしの箱：はこ→方向タップで箱に入れる→回数ボタン(2→3→4→2)→とじる（Issue #66）。
+  function closeBox() {
+    if (local.boxOpen < 0) return;
+    // 空の箱は残さない。
+    if (local.commands[local.boxOpen].box.length === 0) local.commands.splice(local.boxOpen, 1);
+    local.boxOpen = -1;
+  }
+  let boxBtn = null;
+  let boxActionsShown = false;
+  // 箱を開いている間は、操作行を「けす・かいすう・とじる」に差し替える（盤面の高さを削らないため。
+  // ぜんぶ・1コマ・じっこうは箱を閉じるまで使えない）。
+  const timesBtn = document.createElement('button');
+  timesBtn.type = 'button';
+  timesBtn.dataset.action = 'box-times';
+  timesBtn.className =
+    'min-w-[64px] min-h-[64px] px-3 rounded-lg bg-amber-400 text-white text-sm font-bold whitespace-nowrap break-keep transition-transform duration-100 active:scale-95 disabled:opacity-40';
+  timesBtn.addEventListener('click', () => {
+    if (local.running || local.stepping || local.locked || local.boxOpen < 0) return;
+    vibrate();
+    const box = local.commands[local.boxOpen];
+    box.times = box.times >= 4 ? 2 : box.times + 1;
+    playSfx('tap');
+    drawQueue();
+    updateControls();
+  });
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.dataset.action = 'box-close';
+  closeBtn.textContent = 'とじる';
+  closeBtn.className =
+    'btn-tactile px-4 bg-emerald-500 text-white text-lg font-bold whitespace-nowrap break-keep disabled:opacity-40';
+  closeBtn.addEventListener('click', () => {
+    if (local.running || local.stepping || local.locked) return;
+    vibrate();
+    closeBox();
+    playSfx('tap');
+    drawQueue();
+    updateControls();
+  });
+  function drawBoxBar() {
+    if (local.boxOpen < 0) {
+      if (boxActionsShown) {
+        boxActionsShown = false;
+        showNormalActions();
+      }
+      return;
+    }
+    timesBtn.textContent = `かいすう ×${local.commands[local.boxOpen].times}`;
+    if (boxActionsShown) return;
+    boxActionsShown = true;
+    showResultActions([removeLastBtn, timesBtn, closeBtn]);
+  }
+  if (step.repeatBox) {
+    boxBtn = document.createElement('button');
+    boxBtn.type = 'button';
+    boxBtn.dataset.action = 'box-open';
+    boxBtn.className =
+      'command-btn btn-tactile flex flex-col items-center justify-center gap-1 px-3 py-2 bg-amber-500 text-white disabled:opacity-40';
+    boxBtn.innerHTML = '<span class="text-xl leading-none" aria-hidden="true">🔁</span><span class="text-sm whitespace-nowrap">はこ</span>';
+    boxBtn.addEventListener('click', () => {
+      if (local.running || local.stepping || local.locked || local.boxOpen >= 0) return;
+      if (chipCount(local.commands) >= step.maxCommands) return;
+      vibrate();
+      local.commands.push({ box: [], times: 2 });
+      local.boxOpen = local.commands.length - 1;
+      playSfx('tap');
+      drawQueue();
+      queueEl.scrollLeft = queueEl.scrollWidth;
+      updateControls();
+      local.nudge?.poke();
+    });
+    paletteEl.appendChild(boxBtn);
+  }
+
   removeLastBtn.addEventListener('click', () => {
     if (local.running || local.stepping || local.locked || local.commands.length === 0) return;
     vibrate();
     if (isFix) local.fixOpened = true;
     const i = local.commands.length - 1;
     const last = local.commands[i];
+    if (last.box) {
+      // 開いている箱は中の最後の1個、閉じた箱は箱ごと消す。空になった箱も消す。
+      if (local.boxOpen === i && last.box.length > 0) last.box.pop();
+      else local.commands.splice(i, 1);
+      if (local.boxOpen === i && !local.commands[i]) local.boxOpen = -1;
+      logEvent('undo', { index: i });
+      playSfx('remove');
+      drawQueue();
+      updateControls();
+      local.nudge?.poke();
+      return;
+    }
     // まとめられたチップ（times>1）は1回分だけ減らす。1の時だけチップごと消す（Issue #97）。
     if (last.times > 1) last.times -= 1;
     else local.commands.splice(i, 1);
@@ -421,6 +528,7 @@ export function renderPlay(root, step) {
     logEvent('undo', { all: true, commandCount: local.commands.length });
     // 参照を維持したまま空にする（S.drafts[step.stepId]との共有を切らないため。Issue #95）。
     local.commands.length = 0;
+    local.boxOpen = -1;
     playSfx('reset');
     drawQueue();
     updateControls();
@@ -483,6 +591,7 @@ export function renderPlay(root, step) {
     local.stepper = null;
     setBackDisabled(false);
     local.activeIndex = -1;
+    local.activeInner = -1;
     drawQueue();
     updateControls();
     // 壁にぶつかった手が1つでもあれば、結果としてゴールに着いても正解にしない（Issue #104）。
@@ -559,6 +668,8 @@ export function renderPlay(root, step) {
     }
     if (local.commands.length === 0) return;
     vibrate();
+    closeBox();
+    if (local.commands.length === 0) return;
     local.running = true;
     local.nudge?.stop();
     clearToast(statusBar);
@@ -571,8 +682,9 @@ export function renderPlay(root, step) {
       spec,
       local.view,
       {
-        onTick: (i) => {
+        onTick: (i, _to, inner) => {
           local.activeIndex = i;
+          local.activeInner = inner;
           drawQueue();
         },
         onPickup: () => {
@@ -592,6 +704,8 @@ export function renderPlay(root, step) {
     if (!local.stepping && local.commands.length === 0) return;
     vibrate();
     if (!local.stepping) {
+      closeBox();
+      if (local.commands.length === 0) return;
       local.stepping = true;
       local.nudge?.stop();
       clearToast(statusBar);
@@ -601,8 +715,9 @@ export function renderPlay(root, step) {
       updateControls();
       drawBoard(spec.start);
       local.stepper = createStepper(local.commands, spec, local.view, {
-        onTick: (i) => {
+        onTick: (i, _to, inner) => {
           local.activeIndex = i;
+          local.activeInner = inner;
           drawQueue();
         },
         onPickup: () => {
