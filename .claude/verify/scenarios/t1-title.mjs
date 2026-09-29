@@ -13,7 +13,7 @@ export default async function run({ page, check }) {
 
   await page.click('[data-action="title-start"]');
   await check('スタート後は選択画面へ遷移する', async () => page.getAttribute('#stage', 'data-screen'), 'picker');
-  await check('選択画面のレッスンボタンが表示される', async () => (await page.$$('.lesson-pick-btn')).length, 13);
+  await check('選択画面のレッスンボタンが表示される', async () => (await page.$$('.lesson-pick-btn')).length, 14);
 
   // ?view=map / ?lesson=はタイトルを経由しない
   await page.goto('/index.html?view=map');
