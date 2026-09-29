@@ -2,5 +2,6 @@
 // フックIFは docs/gimmicks.md、追加手順は PROJECT.md「ギミックの追加手順」。Issue #123）。
 import { items } from './items.js';
 import { ice } from './ice.js';
+import { cushion } from './cushion.js';
 
-export const GIMMICKS = [items, ice];
+export const GIMMICKS = [items, ice, cushion];

@@ -4,6 +4,8 @@ async function animLog(page) {
   return page.evaluate(() => window.__gridAnimLog);
 }
 
+import { clickRetry } from '../helpers.mjs';
+
 export default async function run({ page, check }) {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto('/index.html?lesson=cmd-01-susumu');
@@ -25,7 +27,7 @@ export default async function run({ page, check }) {
   await check('壁で250msのbounceが記録される', () => bounceLog.some((e) => e.type === 'bounce' && e.ms === 250));
 
   // retryは正解・不正解に関わらず命令列をリセットする（Issue #104）ため、既に空になっている。
-  await page.click('[data-action="retry"]');
+  await clickRetry(page);
   const commands = ['up', 'up', 'up', 'right', 'right', 'right'];
   for (const c of commands) await page.click(`[data-command="${c}"]`);
   await page.click('[data-action="run"]');

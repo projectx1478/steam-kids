@@ -21,10 +21,11 @@ export default async function run({ page, check }) {
   await check('盤端での滑走停止はblockedAtに入らない', async () => edge.blockedAt.length, 0);
   await check('滑走後の位置がゴールならreachedGoal', async () => edge.reachedGoal, true);
 
-  // 壁の手前で止まる
+  // 壁の手前で止まり、失敗になる（Issue #136）
   const wall = await sim(['right'], { ...base, walls: [{ x: 3, y: 1 }], ice: [{ x: 1, y: 1 }, { x: 2, y: 1 }] });
   await check('壁の手前で停止する', async () => JSON.stringify(last(wall)), JSON.stringify({ x: 2, y: 1 }));
-  await check('壁での滑走停止はblockedAtに入らない', async () => wall.blockedAt.length, 0);
+  await check('滑走中に壁へ当たるとblockedAtに入る', async () => JSON.stringify(wall.blockedAt), JSON.stringify([0]));
+  await check('滑走で壁に当たった最後のpathだけbumped', async () => JSON.stringify(wall.bumped), JSON.stringify([false, false, true]));
 
   // 通常マスのゴールで止まる
   const pass = await sim(['right'], { ...base, goal: { x: 2, y: 1 }, ice: [{ x: 1, y: 1 }] });

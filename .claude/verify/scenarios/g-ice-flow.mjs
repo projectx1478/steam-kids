@@ -1,4 +1,4 @@
-import { routeLesson, enterPlay } from '../helpers.mjs';
+import { routeLesson, enterPlay, clickRetry } from '../helpers.mjs';
 
 export const name = 'ice: 実行後のロボット位置・data-ice描画・クリア(Issue #61)';
 
@@ -46,7 +46,7 @@ export default async function run({ page, check }) {
   await check('rightだけでロボットが右端(4,1)まで滑る', async () => pos.dx < 2 && pos.dy < 2, true);
   await check('ゴール(4,0)へ届かないためクリア表示にならない', async () => (await page.$$('[data-result="clear"]')).length, 0);
 
-  await page.click('[data-action="retry"]');
+  await clickRetry(page);
   await page.click('[data-command="right"]');
   await page.click('[data-command="up"]');
   await page.click('[data-action="run"]');

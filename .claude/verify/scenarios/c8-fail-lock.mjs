@@ -1,5 +1,5 @@
 export const name = 'C8 不正解時の操作ロック: 盤面のゆれ・tryAgain音・もういちど以外の無効化(Issue #106)';
-import { enterPlay, clearStage } from '../helpers.mjs';
+import { enterPlay, clearStage, clickRetry } from '../helpers.mjs';
 
 export default async function run({ page, check }) {
   // config.mjsが凍結しているcmd-01-susumuは現行構造(3ステージ・tutorial)で検証する（c4等と同じ）。
@@ -36,7 +36,7 @@ export default async function run({ page, check }) {
   await check('ロック中: チップ×は無反応', async () => (await page.$$('.command-chip')).length, chipsBefore);
 
   // --- もういちどでロック解除 ---
-  await page.click('[data-action="retry"]');
+  await clickRetry(page);
   await check('もういちど後: パレットが押せる', () => page.$eval('[data-command="up"]', (b) => b.disabled), false);
   await check(
     'もういちど後: 強調枠が消える',

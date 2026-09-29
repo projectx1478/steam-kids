@@ -4,6 +4,8 @@ async function sfxLog(page) {
   return page.evaluate(() => window.__sfxLog);
 }
 
+import { clickRetry } from '../helpers.mjs';
+
 export default async function run({ page, check }) {
   await page.goto('/index.html?lesson=cmd-01-susumu');
   await page.click('[data-action="start"]');
@@ -29,7 +31,7 @@ export default async function run({ page, check }) {
 
   // retryは正解・不正解に関わらず命令列をリセットする（Issue #104）ため、ぜんぶ けすを
   // 試すには先に何か積み直す必要がある。
-  await page.click('[data-action="retry"]');
+  await clickRetry(page);
   await page.click('[data-command="up"]');
   await page.click('[data-action="clear-all"]');
   // ぜんぶけすは個別削除(remove)と区別するため専用のreset音を鳴らす（Issue #95）。
