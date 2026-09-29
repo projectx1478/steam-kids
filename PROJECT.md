@@ -122,6 +122,7 @@ js/
   state.js # 状態管理（Sオブジェクト）
   lesson-cmd-01.js # P0のレッスンデータ（レッスンJSONと同形状）
   engine-grid.js # grid-runtimeの純粋関数（命令列→経路・到達判定）
+  engine-generate.js # シードからgrid-runtime盤面を生成する純粋関数（PRNG・制約判定・予備盤面。Issue #68）
   ui-grid.js # SVGグリッド描画とハイライト
   ui-commands.js # 命令パレット・命令列・個別削除・全消し
   ui-step.js # ステップ切替、ふりがなトグル

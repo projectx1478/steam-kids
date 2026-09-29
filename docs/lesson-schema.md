@@ -162,6 +162,21 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 それ以外はひらがな表示に自動で落ちる。解析・表示・検証は `js/text-render.js` の純粋関数
 （`parseSegments` / `plainReading` / `rubyGrade` 等）に集約する（Issue #59）。
 
+## `generator`（シード生成の制約。Issue #68）
+
+`js/engine-generate.js`の`generateMap(generator, seed)`へ渡す制約。同じシードなら同じ盤面。UI（れんしゅう）はR2。
+
+| フィールド | 意味 |
+| --- | --- |
+| `grid` | `{cols, rows}` |
+| `walls` | `{min, max}` 壁の数 |
+| `shortestPath` | `{min, max}` 最短手数の範囲 |
+| `minTurns` | 最短解の曲がり角（方向転換）数の下限 |
+| `wallsMustMatter` | true＝壁を全部外すと最短手数が短くなること（飾りの壁を防ぐ） |
+| `maxCommandsSlack` | `maxCommands`＝最短手数＋この値 |
+
+返り値は`play`相当`{grid, start, goal, walls, items: [], allowedCommands, solution, maxCommands, fallback}`。乱数を進めて200回再試行し、満たせなければ手作りの予備盤面（`fallback: true`）を返す。`items`は0固定（ギミック対応はR3）。予想ステップは自動生成しない（#104で全廃）。
+
 ## `lessons/index.json`（単元マップ）
 
 レッスン選択画面（単元マップ＝「しま」）の一覧ファイル。レッスン本体ではない（Issue #58）。
