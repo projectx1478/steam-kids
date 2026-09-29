@@ -1,0 +1,61 @@
+{
+  "lessonId": "ice-01-suberu",
+  "unitId": "ice",
+  "title": "すべる",
+  "type": "grid-runtime",
+  "estimatedMinutes": 5,
+  "steps": [
+    {
+      "stepId": "s1",
+      "kind": "intro",
+      "text": "こおりの うえは すべるよ",
+      "demo": {
+        "grid": { "cols": 4, "rows": 3 },
+        "start": { "x": 0, "y": 2 },
+        "goal": { "x": 3, "y": 0 },
+        "walls": [],
+        "ice": [{ "x": 1, "y": 2 }],
+        "commands": ["right", "up", "up"]
+      }
+    },
+    {
+      "stepId": "t1",
+      "kind": "tutorial",
+      "text": "こおりに のると すべるよ",
+      "grid": { "cols": 4, "rows": 3 },
+      "start": { "x": 0, "y": 1 },
+      "goal": { "x": 3, "y": 1 },
+      "walls": [],
+      "ice": [{ "x": 1, "y": 1 }],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "script": [{ "tap": "right" }, { "tap": "run" }]
+    },
+    {
+      "stepId": "p1",
+      "kind": "play",
+      "text": "すべって どこで とまる？",
+      "grid": { "cols": 5, "rows": 3 },
+      "start": { "x": 0, "y": 2 },
+      "goal": { "x": 4, "y": 0 },
+      "walls": [],
+      "ice": [{ "x": 2, "y": 2 }],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["right", "right", "up", "up"],
+      "maxCommands": 6
+    },
+    {
+      "stepId": "p2",
+      "kind": "play",
+      "text": "すべって どこで とまる？",
+      "grid": { "cols": 5, "rows": 4 },
+      "start": { "x": 0, "y": 3 },
+      "goal": { "x": 3, "y": 0 },
+      "walls": [{ "x": 4, "y": 3 }],
+      "ice": [{ "x": 1, "y": 3 }],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["right", "up", "up", "up"],
+      "maxCommands": 6
+    },
+    { "stepId": "s2", "kind": "summary", "text": "こおりの うえは まっすぐ すべるよ" }
+  ]
+}

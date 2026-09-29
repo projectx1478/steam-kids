@@ -9,7 +9,7 @@ const MOVES = {
 };
 const COMMANDS = Object.keys(MOVES);
 
-// step（play/tutorial/intro.demo相当のオブジェクト）から盤面specを組み立てる。grid/walls/items
+// step（play/tutorial/intro.demo相当のオブジェクト）から盤面specを組み立てる。grid/walls/items/ice
 // を既定値で補う。未知のフィールド（将来のギミック用データ）もそのまま通す（Issue #123）。
 export function boardSpec(step) {
   return {
@@ -17,6 +17,7 @@ export function boardSpec(step) {
     grid: step.grid || {},
     walls: Array.isArray(step.walls) ? step.walls : [],
     items: Array.isArray(step.items) ? step.items : [],
+    ice: Array.isArray(step.ice) ? step.ice : [],
   };
 }
 
@@ -44,6 +45,46 @@ function gimmicksKey(states) {
   return GIMMICKS.map((g) => g.stateKey(states[g.key])).join('|');
 }
 
+// 移動1手（方向1つ）を解決するmoverをspecから作る。返り値の関数 move(pos, dir, states) は
+// 通過した各マスの[{pos, states}]を返す（空配列＝最初の1マスが壁・盤外・blocksで動けない）。
+// 最初の1マスへ入った後、ギミックのredirect（こおりの滑り・将来のワープ）が返す先が空いていれば
+// 続けて1マスずつ進める（同一の1手として扱う。redirectの第5引数chainedは2マス目以降でtrue）。redirectの連鎖はcols*rows回で打ち切る
+// （Issue #61。フックIFはdocs/gimmicks.md）。
+function makeMover(spec) {
+  const { grid, walls } = spec;
+  const wallSet = new Set(walls.map((w) => `${w.x},${w.y}`));
+  const limit = grid.cols * grid.rows;
+  const isOpen = (p, states) =>
+    p.x >= 0 &&
+    p.x < grid.cols &&
+    p.y >= 0 &&
+    p.y < grid.rows &&
+    !wallSet.has(`${p.x},${p.y}`) &&
+    !GIMMICKS.some((g) => g.blocks?.(states[g.key], p, spec));
+
+  return (pos, dir, states) => {
+    const steps = [];
+    let next = MOVES[dir](pos);
+    let curDir = dir;
+    let cur = states;
+    let chained = false;
+    for (let n = 0; n <= limit && isOpen(next, cur); n += 1) {
+      cur = enterAll(cur, spec, next);
+      steps.push({ pos: next, states: cur });
+      let redirect = null;
+      for (const g of GIMMICKS) {
+        redirect = g.redirect?.(cur[g.key], next, curDir, spec, chained) ?? null;
+        if (redirect) break;
+      }
+      if (!redirect) break;
+      next = redirect.pos;
+      curDir = redirect.dir;
+      chained = true;
+    }
+    return steps;
+  };
+}
+
 // simulate(commands, spec) -> { path, blockedAt, reachedGoal, stepOwner, pickups, remainingItems }
 // spec: { grid: {cols, rows}, start: {x,y}, goal: {x,y}, walls: [{x,y}], items?: [{x,y}], … }
 // commandsの各要素は方向文字列、または{dir, times}（同方向をまとめた命令）。
@@ -53,8 +94,8 @@ function gimmicksKey(states) {
 // remainingItemsは最終位置までに回収されなかったitem座標（reachedGoalとの併用でクリア判定に使う）。
 export function simulate(commands, rawSpec) {
   const spec = boardSpec(rawSpec);
-  const { grid, start, goal, walls } = spec;
-  const wallSet = new Set(walls.map((w) => `${w.x},${w.y}`));
+  const { start, goal } = spec;
+  const move = makeMover(spec);
 
   const path = [{ ...start }];
   const blockedAt = [];
@@ -66,32 +107,29 @@ export function simulate(commands, rawSpec) {
   commands.forEach((entry, i) => {
     const { dir, times } = typeof entry === 'string' ? { dir: entry, times: 1 } : entry;
     for (let n = 0; n < times; n += 1) {
-      const next = MOVES[dir](pos);
-      const inBounds = next.x >= 0 && next.x < grid.cols && next.y >= 0 && next.y < grid.rows;
-      const hitsWall = wallSet.has(`${next.x},${next.y}`);
-      if (inBounds && !hitsWall) {
-        pos = next;
-      } else {
+      const steps = move(pos, dir, states);
+      if (steps.length === 0) {
         blockedAt.push(i);
+        path.push({ ...pos });
+        stepOwner.push(i);
+        states = enterAll(states, spec, pos);
+        pickups.push(states.items?.collected ?? []);
+        continue;
       }
-      path.push({ ...pos });
-      stepOwner.push(i);
-      states = enterAll(states, spec, pos);
-      pickups.push(states.items?.collected ?? []);
+      // 滑走などで複数マス進んだ手は1マスずつpathへ展開する（同一stepOwner）。
+      for (const step of steps) {
+        pos = step.pos;
+        states = step.states;
+        path.push({ ...pos });
+        stepOwner.push(i);
+        pickups.push(states.items?.collected ?? []);
+      }
     }
   });
 
   const reachedGoal = pos.x === goal.x && pos.y === goal.y;
   const remainingItems = [...(states.items?.remaining ?? [])].map((idx) => spec.items[idx]);
   return { path, blockedAt, reachedGoal, stepOwner, pickups, remainingItems };
-}
-
-// simulateを1手ずつ呼ぶことで、探索の移動ロジックを二重に持たない（ギミックの状態はBFS側
-// （shortestSteps/shortestChips）が別途enterAllで追う。simulateの1回使い切り呼び出しでは
-// 状態を持ち越さないため、ここでの回収判定は捨てる）。
-function stepOnce(pos, cmd, spec) {
-  const result = simulate([cmd], { ...spec, start: pos });
-  return result.blockedAt.length > 0 ? null : result.path[result.path.length - 1];
 }
 
 // BFSでstart→goal（かつ全ギミックisCleared）の最短手数を求める（到達不能ならInfinity）。
@@ -101,6 +139,7 @@ function stepOnce(pos, cmd, spec) {
 export function shortestSteps(rawSpec) {
   const spec = boardSpec(rawSpec);
   const key = (p, states) => `${p.x},${p.y}|${gimmicksKey(states)}`;
+  const move = makeMover(spec);
   const startStates = enterAll(initGimmickStates(spec), spec, spec.start);
   const queue = [{ pos: spec.start, states: startStates, dist: 0 }];
   const seen = new Set([key(spec.start, startStates)]);
@@ -108,9 +147,9 @@ export function shortestSteps(rawSpec) {
     const cur = queue.shift();
     if (cur.pos.x === spec.goal.x && cur.pos.y === spec.goal.y && allCleared(cur.states)) return cur.dist;
     for (const cmd of COMMANDS) {
-      const next = stepOnce(cur.pos, cmd, spec);
-      if (!next) continue;
-      const nextStates = enterAll(cur.states, spec, next);
+      const steps = move(cur.pos, cmd, cur.states);
+      if (steps.length === 0) continue;
+      const { pos: next, states: nextStates } = steps[steps.length - 1];
       const k = key(next, nextStates);
       if (seen.has(k)) continue;
       seen.add(k);
@@ -126,6 +165,7 @@ export function shortestSteps(rawSpec) {
 export function shortestChips(rawSpec) {
   const spec = boardSpec(rawSpec);
   const key = (p, dir, states) => `${p.x},${p.y}|${dir ?? '-'}|${gimmicksKey(states)}`;
+  const move = makeMover(spec);
   const startStates = enterAll(initGimmickStates(spec), spec, spec.start);
   // dist: key -> { d: チップ数, states }。最終スキャンでのクリア判定にstatesを使う（Issue #123）。
   const dist = new Map([[key(spec.start, null, startStates), { d: 0, states: startStates }]]);
@@ -134,9 +174,9 @@ export function shortestChips(rawSpec) {
     const cur = deque.shift();
     const curDist = dist.get(key(cur.pos, cur.dir, cur.states)).d;
     for (const cmd of COMMANDS) {
-      const next = stepOnce(cur.pos, cmd, spec);
-      if (!next) continue;
-      const nextStates = enterAll(cur.states, spec, next);
+      const steps = move(cur.pos, cmd, cur.states);
+      if (steps.length === 0) continue;
+      const { pos: next, states: nextStates } = steps[steps.length - 1];
       const cost = cmd === cur.dir ? 0 : 1;
       const nextDist = curDist + cost;
       const nk = key(next, cmd, nextStates);

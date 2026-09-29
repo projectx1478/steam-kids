@@ -159,7 +159,7 @@ export function renderTutorial(root, step) {
       computeCellSize({ cols: spec.grid.cols, rows: spec.grid.rows, width: boardArea.clientWidth, height: boardArea.clientHeight })
     );
     boardWrap.innerHTML = '';
-    const { el, view } = renderGrid({ grid: spec.grid, walls: spec.walls, goal: spec.goal, items: spec.items, playerPos: spec.start, labels: [], cellSize: local.cellSize });
+    const { el, view } = renderGrid({ grid: spec.grid, walls: spec.walls, goal: spec.goal, items: spec.items, ice: spec.ice, playerPos: spec.start, labels: [], cellSize: local.cellSize });
     boardWrap.appendChild(el);
     local.view = view;
   }

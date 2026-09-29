@@ -1,5 +1,5 @@
 // SVGグリッド描画。すべて自作SVG（<img>・background-imageは使わない）。
-import { items as itemsGimmick } from './gimmicks/items.js';
+import { GIMMICKS } from './gimmicks/index.js';
 
 const DEFAULT_CELL = 64;
 const MIN_CELL = 8;
@@ -118,7 +118,7 @@ export function computeCellSize({ cols, rows, width, height, gap = GAP_PX }) {
 
 window.__gridAnimLog = window.__gridAnimLog || [];
 
-// renderGrid({grid, walls, goal, items, playerPos, labels, cellSize}) -> { el, view }
+// renderGrid({grid, walls, goal, items, ice, playerPos, labels, cellSize}) -> { el, view }
 // cellSize省略時はDEFAULT_CELL(64px)。呼び出し側がcomputeCellSize()で盤面エリアの実寸から算出する（Issue #93）。
 // items: [{x, y}] どんぐり等の回収対象（Issue #60）。壁・ゴールと違い回収で個別に消えるため、
 // board全再構築とは別にitemEls（座標キー）で個体管理する
@@ -136,7 +136,8 @@ window.__gridAnimLog = window.__gridAnimLog || [];
 //   view.celebrateDance(): クリア時にロボットが弾み跳ね、星が舞う（reduced-motion時は何もしない。Issue #110）
 //   view.dim(on): 盤面のマスだけを暗くする（失敗リザルト状態の表示。Issue #110）
 //   view.popIn(): もういちど直後、ロボットがポンと現れる演出（reduced-motion時は何もしない。Issue #110）
-export function renderGrid({ grid, walls, goal, items = [], playerPos, labels = [], cellSize = DEFAULT_CELL }) {
+export function renderGrid(opts) {
+  const { grid, walls, goal, playerPos, cellSize = DEFAULT_CELL, labels = [] } = opts;
   const CELL = cellSize;
   const pixelFor = (pos) => ({ x: PAD_PX + pos.x * (CELL + GAP_PX), y: PAD_PX + pos.y * (CELL + GAP_PX) });
   const wallSet = new Set(walls.map((w) => `${w.x},${w.y}`));
@@ -190,8 +191,12 @@ export function renderGrid({ grid, walls, goal, items = [], playerPos, labels = 
   board.appendChild(dimLayer);
 
   // itemsはセルのinnerHTMLに焼き込まず、footprint同様に個別要素で持つ（回収時に個体を消すため）。
-  // 生成はitemsギミック（js/gimmicks/items.js）のrenderフックに委譲する（Issue #123）。
-  const itemEls = itemsGimmick.render({ board, pixelFor, CELL, shapeSvg, items });
+  // 生成は各ギミックのrenderフックに委譲する（Issue #123・#61）。ctxはrenderGridの引数＋描画補助。
+  // collectItem等のview APIはitemsギミックの戻り値（座標キー→要素のMap）を参照する。
+  const renderCtx = { ...opts, board, pixelFor, CELL, shapeSvg };
+  const gimmickEls = {};
+  for (const g of GIMMICKS) gimmickEls[g.key] = g.render?.(renderCtx);
+  const itemEls = gimmickEls.items;
 
   // プレイヤー駒はCSS Gridのセルに属さず、boardに対する絶対座標(transform)で位置を持つ。
   // セル間の移動をtransformのtransitionでなめらかにするため(Issue #55)。
