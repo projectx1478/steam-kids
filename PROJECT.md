@@ -177,6 +177,7 @@ ES Modules（`<script type="module">` / `import`/`export`）でファイル間�
 - 盤面ギミックの追加：`js/gimmicks/<name>.js`＋登録1行＋`docs/gimmicks.md`に1節＋`g-<name>-*.mjs`シナリオ（Issue #123以降）
 - ギミックのシナリオは`routeLesson`（`.claude/verify/helpers.mjs`）のインライン最小盤面で書き、実レッスンに依存させない
 - 新規シナリオの命名は`g-<gimmick>-*`・`les-<lessonId>-*`。`node .claude/verify/run.mjs <名前>`で部分実行できる
+- こおりを持つplayステージは、こおりを壁扱いにしてもmaxCommands以内に届かないこと（`validate:lessons`が検証。Issue #134）
 - playステージに`solution`（正解手順）を必ず書く。`clearLesson`が読み、検証ツールがクリアを確認する
 - 設計Issueの引継ぎには「読むファイル（行範囲）／読まなくてよいファイル」を書く（実装者の探索を減らす）
 

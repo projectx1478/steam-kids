@@ -296,6 +296,14 @@ function validateLesson(fileName, data) {
             `（maxCommands=${play.maxCommands}以内で到達できない）`
         );
       }
+      // 氷ステージは氷を壁扱いにしても到達できるなら、氷を踏まずにクリアできてしまう。
+      if (Array.isArray(play.ice) && play.ice.length > 0) {
+        const noIce = boardSpec({ ...play, walls: [...(play.walls || []), ...play.ice], ice: [] });
+        const noIceDist = play.groupRepeats ? shortestChips(noIce) : shortestSteps(noIce);
+        if (noIceDist <= play.maxCommands) {
+          add('こおりの必須性', `${label}こおりを踏まずにmaxCommands=${play.maxCommands}以内でゴールできる（最短${noIceDist}）`);
+        }
+      }
     }
     stageDistances.push(dist);
 

@@ -35,12 +35,12 @@
       "kind": "play",
       "text": "すべって どこで とまる？",
       "grid": { "cols": 5, "rows": 3 },
-      "start": { "x": 0, "y": 2 },
-      "goal": { "x": 4, "y": 0 },
-      "walls": [],
-      "ice": [{ "x": 2, "y": 2 }, { "x": 3, "y": 2 }],
+      "start": { "x": 0, "y": 1 },
+      "goal": { "x": 2, "y": 0 },
+      "walls": [{ "x": 0, "y": 0 }, { "x": 0, "y": 2 }, { "x": 2, "y": 2 }, { "x": 3, "y": 2 }],
+      "ice": [{ "x": 1, "y": 1 }, { "x": 2, "y": 1 }, { "x": 3, "y": 1 }],
       "allowedCommands": ["up", "down", "left", "right"],
-      "solution": ["right", "right", "up", "up"],
+      "solution": ["right", "up", "left", "left"],
       "maxCommands": 6
     },
     {
@@ -50,10 +50,10 @@
       "grid": { "cols": 5, "rows": 4 },
       "start": { "x": 0, "y": 3 },
       "goal": { "x": 3, "y": 0 },
-      "walls": [{ "x": 4, "y": 3 }],
-      "ice": [{ "x": 1, "y": 3 }, { "x": 2, "y": 3 }],
+      "walls": [{ "x": 0, "y": 1 }, { "x": 1, "y": 1 }, { "x": 3, "y": 1 }, { "x": 4, "y": 1 }],
+      "ice": [{ "x": 2, "y": 1 }, { "x": 2, "y": 2 }],
       "allowedCommands": ["up", "down", "left", "right"],
-      "solution": ["right", "up", "up", "up"],
+      "solution": ["right", "right", "up", "right"],
       "maxCommands": 6
     },
     { "stepId": "s2", "kind": "summary", "text": "こおりの うえは すべって とまらないよ" }
