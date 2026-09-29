@@ -197,6 +197,7 @@ Web Audio APIで合成する効果音のみ（音声ファイル・BGMなし）�
 | `reset` | ぜんぶ けす（`remove`より速いピッチダウン。Issue #95） | 80ms |
 | `run` | 実行開始（`playAnimation`の先頭で1回） | 300ms |
 | `step` | 1マス移動（`opts.index`で音階が進む） | 150ms |
+| `slide` | こおりの上を滑っている間の1マス（Issue #61。`step`と別音） | 150ms |
 | `bump` | 壁で停止（ブザー禁止・柔らかいsine） | 250ms |
 | `pickup` | アイテム取得（Issue #60） | 200ms |
 | `reveal` | 予想の答え合わせ（一致・不一致で同じ音） | 200ms |

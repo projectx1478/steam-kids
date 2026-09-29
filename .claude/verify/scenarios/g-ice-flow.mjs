@@ -18,7 +18,7 @@ const lesson = {
       start: { x: 0, y: 1 },
       goal: { x: 4, y: 0 },
       walls: [],
-      ice: [{ x: 1, y: 1 }],
+      ice: [{ x: 1, y: 1 }, { x: 2, y: 1 }, { x: 3, y: 1 }],
       allowedCommands: ['up', 'down', 'left', 'right'],
       solution: ['right', 'up'],
       maxCommands: 4,
@@ -30,13 +30,14 @@ const lesson = {
 export default async function run({ page, check }) {
   await routeLesson(page, lesson);
   await enterPlay(page, lesson.lessonId);
-  await check('こおりのマスにdata-iceが付く', async () => (await page.$$('.grid-cell[data-ice="true"]')).length, 1);
+  await check('こおりのマスにdata-iceが付く', async () => (await page.$$('.grid-cell[data-ice="true"]')).length, 3);
   await check('こおりは指定座標(1,1)', async () => page.getAttribute('.grid-cell[data-ice="true"]', 'data-x'), '1');
 
   await page.click('[data-command="right"]');
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="retry"]', { timeout: 8000 });
   await page.waitForTimeout(600);
+  await check('滑走中は効果音slideが鳴る', async () => (await page.evaluate(() => window.__sfxLog)).filter((n) => n === 'slide').length, 3);
   const pos = await page.evaluate(() => {
     const t = document.querySelector('.grid-player').getBoundingClientRect();
     const c = document.querySelector('.grid-cell[data-x="4"][data-y="1"]').getBoundingClientRect();

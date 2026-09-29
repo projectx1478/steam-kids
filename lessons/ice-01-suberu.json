@@ -14,7 +14,7 @@
         "start": { "x": 0, "y": 2 },
         "goal": { "x": 3, "y": 0 },
         "walls": [],
-        "ice": [{ "x": 1, "y": 2 }],
+        "ice": [{ "x": 1, "y": 2 }, { "x": 2, "y": 2 }],
         "commands": ["right", "up", "up"]
       }
     },
@@ -26,7 +26,7 @@
       "start": { "x": 0, "y": 1 },
       "goal": { "x": 3, "y": 1 },
       "walls": [],
-      "ice": [{ "x": 1, "y": 1 }],
+      "ice": [{ "x": 1, "y": 1 }, { "x": 2, "y": 1 }],
       "allowedCommands": ["up", "down", "left", "right"],
       "script": [{ "tap": "right" }, { "tap": "run" }]
     },
@@ -38,7 +38,7 @@
       "start": { "x": 0, "y": 2 },
       "goal": { "x": 4, "y": 0 },
       "walls": [],
-      "ice": [{ "x": 2, "y": 2 }],
+      "ice": [{ "x": 2, "y": 2 }, { "x": 3, "y": 2 }],
       "allowedCommands": ["up", "down", "left", "right"],
       "solution": ["right", "right", "up", "up"],
       "maxCommands": 6
@@ -51,11 +51,11 @@
       "start": { "x": 0, "y": 3 },
       "goal": { "x": 3, "y": 0 },
       "walls": [{ "x": 4, "y": 3 }],
-      "ice": [{ "x": 1, "y": 3 }],
+      "ice": [{ "x": 1, "y": 3 }, { "x": 2, "y": 3 }],
       "allowedCommands": ["up", "down", "left", "right"],
       "solution": ["right", "up", "up", "up"],
       "maxCommands": 6
     },
-    { "stepId": "s2", "kind": "summary", "text": "こおりの うえは まっすぐ すべるよ" }
+    { "stepId": "s2", "kind": "summary", "text": "こおりの うえは すべって とまらないよ" }
   ]
 }

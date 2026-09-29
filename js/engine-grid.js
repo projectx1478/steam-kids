@@ -48,8 +48,8 @@ function gimmicksKey(states) {
 // 移動1手（方向1つ）を解決するmoverをspecから作る。返り値の関数 move(pos, dir, states) は
 // 通過した各マスの[{pos, states}]を返す（空配列＝最初の1マスが壁・盤外・blocksで動けない）。
 // 最初の1マスへ入った後、ギミックのredirect（こおりの滑り・将来のワープ）が返す先が空いていれば
-// 続けて1マスずつ進める（同一の1手として扱う。redirectの第5引数chainedは2マス目以降でtrue）。redirectの連鎖はcols*rows回で打ち切る
-// （Issue #61。フックIFはdocs/gimmicks.md）。
+// 続けて1マスずつ進める（同一の1手として扱う。2マス目以降のstepはslid: true）。redirectの連鎖は
+// cols*rows回で打ち切る（Issue #61。フックIFはdocs/gimmicks.md）。
 function makeMover(spec) {
   const { grid, walls } = spec;
   const wallSet = new Set(walls.map((w) => `${w.x},${w.y}`));
@@ -67,30 +67,29 @@ function makeMover(spec) {
     let next = MOVES[dir](pos);
     let curDir = dir;
     let cur = states;
-    let chained = false;
     for (let n = 0; n <= limit && isOpen(next, cur); n += 1) {
       cur = enterAll(cur, spec, next);
-      steps.push({ pos: next, states: cur });
+      steps.push({ pos: next, states: cur, slid: steps.length > 0 });
       let redirect = null;
       for (const g of GIMMICKS) {
-        redirect = g.redirect?.(cur[g.key], next, curDir, spec, chained) ?? null;
+        redirect = g.redirect?.(cur[g.key], next, curDir, spec) ?? null;
         if (redirect) break;
       }
       if (!redirect) break;
       next = redirect.pos;
       curDir = redirect.dir;
-      chained = true;
     }
     return steps;
   };
 }
 
-// simulate(commands, spec) -> { path, blockedAt, reachedGoal, stepOwner, pickups, remainingItems }
+// simulate(commands, spec) -> { path, blockedAt, reachedGoal, stepOwner, pickups, slid, remainingItems }
 // spec: { grid: {cols, rows}, start: {x,y}, goal: {x,y}, walls: [{x,y}], items?: [{x,y}], … }
 // commandsの各要素は方向文字列、または{dir, times}（同方向をまとめた命令）。
 // 壁・盤外に進もうとした手はその場に留まり、blockedAtにその命令の元インデックスを記録する。
 // stepOwnerはpath[i+1]がcommandsの何番目の要素に属するかを表す（まとめ命令の実行ハイライト用）。
 // pickups[i]はpath[i+1]で新たに回収したitemsのインデックス配列（Issue #60。js/gimmicks/items.js）。
+// slid[i]はpath[i+1]が滑走（redirect）で進んだマスならtrue（効果音の切替用）。
 // remainingItemsは最終位置までに回収されなかったitem座標（reachedGoalとの併用でクリア判定に使う）。
 export function simulate(commands, rawSpec) {
   const spec = boardSpec(rawSpec);
@@ -101,6 +100,7 @@ export function simulate(commands, rawSpec) {
   const blockedAt = [];
   const stepOwner = [];
   const pickups = [];
+  const slid = [];
   let pos = { ...start };
   let states = enterAll(initGimmickStates(spec), spec, pos);
 
@@ -114,6 +114,7 @@ export function simulate(commands, rawSpec) {
         stepOwner.push(i);
         states = enterAll(states, spec, pos);
         pickups.push(states.items?.collected ?? []);
+        slid.push(false);
         continue;
       }
       // 滑走などで複数マス進んだ手は1マスずつpathへ展開する（同一stepOwner）。
@@ -123,13 +124,14 @@ export function simulate(commands, rawSpec) {
         path.push({ ...pos });
         stepOwner.push(i);
         pickups.push(states.items?.collected ?? []);
+        slid.push(step.slid);
       }
     }
   });
 
   const reachedGoal = pos.x === goal.x && pos.y === goal.y;
   const remainingItems = [...(states.items?.remaining ?? [])].map((idx) => spec.items[idx]);
-  return { path, blockedAt, reachedGoal, stepOwner, pickups, remainingItems };
+  return { path, blockedAt, reachedGoal, stepOwner, pickups, slid, remainingItems };
 }
 
 // BFSでstart→goal（かつ全ギミックisCleared）の最短手数を求める（到達不能ならInfinity）。

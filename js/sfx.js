@@ -12,6 +12,7 @@ export const DURATIONS_MS = {
   reset: 80,
   run: 300,
   step: 150,
+  slide: 150,
   tryAgain: 150,
   bump: 250,
   pickup: 200,
@@ -158,6 +159,10 @@ const SOUND = {
     const octave = Math.floor(idx / SCALE.length);
     const freq = SCALE[idx % SCALE.length] * 2 ** octave;
     tone(ctx, now, { freq, duration: 0.15, type: 'sine' });
+  },
+  // slide: こおりの上を滑っている間の1マス分の音。stepと区別できる高めの上昇スイープ。
+  slide(ctx, now) {
+    tone(ctx, now, { freq: 1200, freqEnd: 1800, duration: 0.15, type: 'triangle', peak: 0.6 });
   },
   bump(ctx, now) {
     // ブザー禁止: 矩形波・鋸波は使わず、柔らかいsineで下降させる
