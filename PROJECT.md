@@ -167,7 +167,7 @@ ES Modules（`<script type="module">` / `import`/`export`）でファイル間�
 | Lint | なし |
 | 型チェック | なし |
 | ビルド | `npx tailwindcss@3.4.17 -i tailwind.src.css -o style.css --minify` |
-| E2E/実機確認 | `node .claude/verify/run.mjs` |
+| E2E/実機確認 | `npm run verify:e2e`（部分実行は`node tools/verify-all.mjs <名前…>`） |
 | レッスンJSON検証 | `npm run validate:lessons` |
 
 影響範囲確認：レッスンJSONやDOM契約（`data-action`等）を変更するときは、`grep -lE '<lessonId|data-action名>' .claude/verify/scenarios/*`で影響シナリオを列挙する。`.claude/verify/config.mjs`の凍結fixture（cmd-01・donguri-01）の対象かも確認する。
@@ -211,6 +211,8 @@ Issueには理由ではなく**判定可能な数値条件**を書く（0.6秒�
 
 - **AIの責務**: コード実装・修正、仕様整理時の質問対応、技術判断の提案
 - **人間の責務**: 仕様確定、コードレビュー、Merge判定、実機での子どもの反応確認（AI代理不可）
+
+- PR作成の報告には「次は`/clear`してから」を添える（1 Issue = 1セッション。文脈を持ち越さないと1呼び出しあたりの消費が3〜4倍になる。#123で計測）
 
 ### モデル分担
 
