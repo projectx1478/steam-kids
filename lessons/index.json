@@ -19,6 +19,11 @@
       "unitId": "keys",
       "title": "かぎと ドア",
       "lessonIds": ["key-01-kagi", "key-02-iro"]
+    },
+    {
+      "unitId": "switches",
+      "title": "スイッチと かべ",
+      "lessonIds": ["switch-01-suicchi", "switch-02-futatsu"]
     }
   ]
 }
