@@ -75,7 +75,7 @@
 （入れ子なし）・空の箱不可・`times`は2〜4。`maxCommands`は**箱1＋中の命令数**のチップ数で判定する。
 `groupRepeats`とは併存し（同一stepで同時指定は検証NG）、`{dir, times}`は箱の1命令版の別表現として
 残す。`solution`は必須で、箱を`{box, times}`で書ける（`repeatBox`時のみ）。ループ込みの最短性は
-BFSで求めない（`js/ui-summary.js`は「いちばん みじかい」を出さない）。tutorialは非対応（Issue #139）。
+BFSで求めない（`js/ui-summary.js`は「いちばん みじかい」を出さない）。
 
 `play.initialCommands`（任意・方向文字列の配列・既定なし＝空キュー）を指定すると、`play`
 ステップ開始時に子どものキューへ最初からその命令列を積んでおく。「誤った命令列を提示し、
@@ -136,7 +136,9 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 
 `script`は`{ tap }`の配列。`tap`は`up`/`down`/`left`/`right`/`run`に加え、`remove`
 （`{ "tap": "remove", "index": N }`。積んだ命令列のN番目のチップをタップして消す。`initialCommands`
-付きの「なおす」れんしゅう用。Issue #98）を取り得る。**`script[]`要素に`text`は持たない**
+付きの「なおす」れんしゅう用。Issue #98）を取り得る。`tutorial.repeatBox: true`の時は
+箱の語彙`box`（はこを開く）・`times`（かいすう。1タップ＝1回、初期×2→3→4→2）・`close`（とじる）も使える
+（箱を開いている間の方向は箱へ入る。Issue #139）。**`script[]`要素に`text`は持たない**
 （文字を読ませない方針。Issue #81）。最後の要素は必ず`run`で、それより前は方向または`remove`。
 盤面上部の「お手本列」（実物ボタンと同じ見た目のミニボタン列）とパレット・じっこうボタンが、
 現在の`tap`対象だけ有効化・点灯し、他は無効化される。`tap`が`remove`の時はパレット・じっこうを
@@ -249,6 +251,9 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 - `tutorial.initialCommands`→`script`（`remove`は範囲外なら消し過ぎとしてNG、方向は
   `groupRepeats`を考慮してチップへ反映）の順に逐次再生し、最終的な命令列が壁にぶつからず
   ゴール到達＋全item回収になること（Issue #81・#98）
+- `tutorial.repeatBox`はboolean（`groupRepeats`と同時`true`は不可）。`box`/`times`/`close`は`repeatBox`時のみ。
+  `box`は開いている間に押せず、`times`/`close`は開いている間だけ、空の箱は`close`不可、
+  箱を開いたままの`run`・`remove`は不可（Issue #139）
 - **検証NGの場合は再生成する。手で通さない**
 - `lessons/index.json`: 参照する `lessonId` が実在すること、レッスン本体の `unitId` と一致すること、
   同一 `lessonId` を複数の `unit` から参照しないこと

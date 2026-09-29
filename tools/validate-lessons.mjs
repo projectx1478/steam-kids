@@ -419,6 +419,12 @@ function validateLesson(fileName, data) {
     if ('groupRepeats' in tutorial && typeof tutorial.groupRepeats !== 'boolean') {
       add('groupRepeatsの型', `stepId="${tutorial.stepId}" のgroupRepeats=${JSON.stringify(tutorial.groupRepeats)} はboolean以外`);
     }
+    if ('repeatBox' in tutorial && typeof tutorial.repeatBox !== 'boolean') {
+      add('repeatBoxの型', `stepId="${tutorial.stepId}" のrepeatBox=${JSON.stringify(tutorial.repeatBox)} はboolean以外`);
+    }
+    if (tutorial.repeatBox === true && tutorial.groupRepeats === true) {
+      add('repeatBoxの併用', `stepId="${tutorial.stepId}" のrepeatBoxとgroupRepeatsが同時にtrue`);
+    }
     if ('initialCommands' in tutorial) {
       const initial = tutorial.initialCommands;
       if (!Array.isArray(initial) || initial.some((c) => !COMMANDS.includes(c))) {
@@ -440,7 +446,8 @@ function validateLesson(fileName, data) {
     } else {
       // tap語彙: allowedCommandsの方向・'run'（最後のみ）・'remove'（積んだチップのindexを消す。
       // initialCommands付きの「なおす」れんしゅう用。Issue #98）。
-      const tapVocab = [...(Array.isArray(tutorial.allowedCommands) ? tutorial.allowedCommands : []), 'run', 'remove'];
+      // box/times/closeは箱のれんしゅう用（repeatBox時のみ。Issue #139）。
+      const tapVocab = [...(Array.isArray(tutorial.allowedCommands) ? tutorial.allowedCommands : []), 'run', 'remove', 'box', 'times', 'close'];
       tutorial.script.forEach((entry, i) => {
         if (entry && 'text' in entry) {
           add(
@@ -468,10 +475,36 @@ function validateLesson(fileName, data) {
       const initial = Array.isArray(tutorial.initialCommands) ? tutorial.initialCommands : [];
       let chips = initial.every((c) => COMMANDS.includes(c)) ? initial.map((dir) => ({ dir, times: 1 })) : null;
       let replayOk = chips !== null;
+      let boxOpen = -1;
+      const ngScript = (i, msg) => {
+        add('チュートリアルのscript', `stepId="${tutorial.stepId}" のscript[${i}] ${msg}`);
+        replayOk = false;
+      };
       if (replayOk) {
-        for (const entry of tutorial.script) {
-          if (entry?.tap === 'run') continue;
-          if (entry?.tap === 'remove') {
+        for (const [i, entry] of tutorial.script.entries()) {
+          const tap = entry?.tap;
+          if (['box', 'times', 'close'].includes(tap) && tutorial.repeatBox !== true) {
+            ngScript(i, `のtap=${tap}はrepeatBox無しでは使えない`);
+            break;
+          }
+          if (tap === 'run') {
+            if (boxOpen >= 0) ngScript(i, 'のrunの時点で箱が開いたまま');
+            break;
+          }
+          if (tap === 'box') {
+            if (boxOpen >= 0) { ngScript(i, 'のboxが箱を開いている間に押される'); break; }
+            chips.push({ box: [], times: 2 });
+            boxOpen = chips.length - 1;
+          } else if (tap === 'times') {
+            if (boxOpen < 0) { ngScript(i, 'のtimesが箱の閉じている時に押される'); break; }
+            const box = chips[boxOpen];
+            box.times = box.times >= 4 ? 2 : box.times + 1;
+          } else if (tap === 'close') {
+            if (boxOpen < 0) { ngScript(i, 'のcloseが箱の閉じている時に押される'); break; }
+            if (chips[boxOpen].box.length === 0) { ngScript(i, 'のcloseで空の箱を閉じている'); break; }
+            boxOpen = -1;
+          } else if (tap === 'remove') {
+            if (boxOpen >= 0) { ngScript(i, 'のremoveが箱を開いている間に使われている'); break; }
             if (!Number.isInteger(entry.index) || entry.index < 0 || entry.index >= chips.length) {
               add(
                 'チュートリアルのscript',
@@ -481,11 +514,16 @@ function validateLesson(fileName, data) {
               break;
             }
             chips.splice(entry.index, 1);
-          } else if (COMMANDS.includes(entry?.tap)) {
+          } else if (COMMANDS.includes(tap)) {
+            if (boxOpen >= 0) {
+              chips[boxOpen].box.push(tap);
+              continue;
+            }
             const last = chips.at(-1);
-            if (tutorial.groupRepeats && last && last.dir === entry.tap) last.times += 1;
-            else chips.push({ dir: entry.tap, times: 1 });
+            if (tutorial.groupRepeats && last && last.dir === tap) last.times += 1;
+            else chips.push({ dir: tap, times: 1 });
           }
+          if (!replayOk) break;
         }
       }
 

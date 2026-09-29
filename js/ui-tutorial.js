@@ -48,6 +48,7 @@ export function renderTutorial(root, step) {
   const local = {
     commands: (step.initialCommands ?? []).map((dir) => ({ dir, times: 1 })),
     guideIndex: 0,
+    boxOpen: -1,
     running: false,
     view: null,
     cellSize: TUTORIAL_CELL_MAX,
@@ -83,7 +84,11 @@ export function renderTutorial(root, step) {
   const guideRowEl = document.createElement('div');
   guideRowEl.className = 'guide-row flex justify-center items-center gap-1 shrink-0';
   guideRowEl.setAttribute('aria-hidden', 'true');
+  // 箱のお手本アイコンに出す回数（times=1タップ毎に2→3→4→2。playと同じ循環）。
+  let guideTimes = 2;
   guide.forEach((entry, i) => {
+    if (entry.tap === 'box') guideTimes = 2;
+    else if (entry.tap === 'times') guideTimes = guideTimes >= 4 ? 2 : guideTimes + 1;
     if (i > 0) {
       const arrow = document.createElement('span');
       arrow.className = 'text-slate-300 text-xs';
@@ -95,11 +100,23 @@ export function renderTutorial(root, step) {
     el.dataset.state = 'todo';
     const isRun = entry.tap === 'run';
     const isRemove = entry.tap === 'remove';
+    const isBox = entry.tap === 'box';
+    const isTimes = entry.tap === 'times';
+    const isClose = entry.tap === 'close';
     el.className = `guide-step relative inline-flex items-center justify-center h-10 rounded-lg pointer-events-none ${
-      isRun ? 'px-3 bg-emerald-500 text-white text-sm font-bold' : isRemove ? 'w-10 bg-rose-500 text-white text-lg font-bold' : 'w-10 bg-sky-500 text-white'
+      isRun || isClose
+        ? 'px-3 bg-emerald-500 text-white text-sm font-bold'
+        : isRemove
+          ? 'w-10 bg-rose-500 text-white text-lg font-bold'
+          : isBox || isTimes
+            ? 'px-2 bg-amber-500 text-white text-sm font-bold'
+            : 'w-10 bg-sky-500 text-white'
     }`;
     if (isRun) el.textContent = 'じっこう';
     else if (isRemove) el.textContent = '×';
+    else if (isBox) el.textContent = '🔁';
+    else if (isTimes) el.textContent = `×${guideTimes}`;
+    else if (isClose) el.textContent = 'とじる';
     else {
       const rotate = { up: 0, right: 90, down: 180, left: 270 }[entry.tap];
       el.innerHTML = `<svg viewBox="0 0 24 24" class="w-6 h-6" style="transform:rotate(${rotate}deg)" aria-hidden="true"><path d="M12 2 L20 14 L14 14 L14 22 L10 22 L10 14 L4 14 Z" fill="currentColor" /></svg>`;
@@ -160,6 +177,19 @@ export function renderTutorial(root, step) {
   runBtn.className = 'btn-tactile px-4 bg-emerald-500 text-white text-lg font-bold whitespace-nowrap disabled:opacity-40 shrink-0';
   queueRow.appendChild(runBtn);
 
+  let boxBtn = null;
+  const timesBtn = document.createElement('button');
+  timesBtn.type = 'button';
+  timesBtn.dataset.action = 'box-times';
+  timesBtn.textContent = 'かいすう ×2';
+  timesBtn.className =
+    'min-w-[64px] min-h-[64px] px-3 rounded-lg bg-amber-400 text-white text-sm font-bold whitespace-nowrap break-keep shrink-0 disabled:opacity-40';
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.dataset.action = 'box-close';
+  closeBtn.textContent = 'とじる';
+  closeBtn.className = 'btn-tactile px-4 bg-emerald-500 text-white text-lg font-bold whitespace-nowrap break-keep shrink-0 disabled:opacity-40';
+
   function drawBoard() {
     local.cellSize = Math.min(
       TUTORIAL_CELL_MAX,
@@ -172,7 +202,7 @@ export function renderTutorial(root, step) {
   }
 
   function drawQueue() {
-    renderCommandQueue(queueEl, { commands: local.commands, activeIndex: -1, removable: false });
+    renderCommandQueue(queueEl, { commands: local.commands, activeIndex: -1, openIndex: local.boxOpen, removable: false });
   }
 
   function guideEntry() {
@@ -203,8 +233,8 @@ export function renderTutorial(root, step) {
       prev = cur;
     }
     if (showCaption) {
-      const lastDir = local.commands.at(-1).dir;
-      captionEl.textContent = `${COMMAND_LABELS[lastDir]}に 1ます すすむ よてい`;
+      const last = local.commands.at(-1);
+      captionEl.textContent = last.box ? `はこ ×${last.times}` : `${COMMAND_LABELS[last.dir]}に 1ます すすむ よてい`;
     } else {
       captionEl.textContent = '';
     }
@@ -226,29 +256,26 @@ export function renderTutorial(root, step) {
   // 現在のtap対象だけ有効化して光らせ、他は無効化する。お手本列は済み(done)/現在(current)/
   // 未(todo)を色・チェックで示す（Issue #81）。targetが'remove'の時はパレット・じっこうを
   // すべて無効化し、積んだ命令列の対象チップだけを光らせてタップ許可する（Issue #98）。
+  function setGuideBtn(btn, isTarget) {
+    btn.disabled = local.running || !isTarget;
+    if (isTarget) {
+      btn.dataset.guide = 'true';
+      btn.classList.add(...GUIDE_GLOW_CLASSES);
+    } else {
+      delete btn.dataset.guide;
+      btn.classList.remove(...GUIDE_GLOW_CLASSES);
+    }
+  }
+
   function applyGuide() {
     const entry = guideEntry();
     const target = entry?.tap ?? null;
     paletteEl.querySelectorAll('button').forEach((b) => {
-      const isTarget = b.dataset.command === target;
-      b.disabled = local.running || !isTarget;
-      if (isTarget) {
-        b.dataset.guide = 'true';
-        b.classList.add(...GUIDE_GLOW_CLASSES);
-      } else {
-        delete b.dataset.guide;
-        b.classList.remove(...GUIDE_GLOW_CLASSES);
-      }
+      setGuideBtn(b, b === boxBtn ? target === 'box' : b.dataset.command === target);
     });
-    const runIsTarget = target === 'run';
-    runBtn.disabled = local.running || !runIsTarget;
-    if (runIsTarget) {
-      runBtn.dataset.guide = 'true';
-      runBtn.classList.add(...GUIDE_GLOW_CLASSES);
-    } else {
-      delete runBtn.dataset.guide;
-      runBtn.classList.remove(...GUIDE_GLOW_CLASSES);
-    }
+    setGuideBtn(runBtn, target === 'run');
+    setGuideBtn(timesBtn, target === 'times');
+    setGuideBtn(closeBtn, target === 'close');
     queueEl.querySelectorAll('.command-chip').forEach((chip) => {
       const isRemoveTarget = target === 'remove' && Number(chip.dataset.index) === entry.index;
       chip.classList.remove(...GUIDE_GLOW_CLASSES);
@@ -297,7 +324,11 @@ export function renderTutorial(root, step) {
       setActiveHandHint(chip ? showHandHint({ from: chip, mode: 'tap' }) : null);
       return;
     }
-    const btn = paletteEl.querySelector(`[data-command="${target}"]`);
+    if (target === 'times' || target === 'close') {
+      setActiveHandHint(showHandHint({ from: target === 'times' ? timesBtn : closeBtn, mode: 'tap' }));
+      return;
+    }
+    const btn = target === 'box' ? boxBtn : paletteEl.querySelector(`[data-command="${target}"]`);
     setActiveHandHint(btn ? showHandHint({ from: btn, to: queueEl, mode: 'drag' }) : null);
   }
 
@@ -306,6 +337,16 @@ export function renderTutorial(root, step) {
     onDragOver: (active) => toggleGhostSlot(queueEl, active),
     onAdd: (dir, { via } = {}) => {
       if (local.running || dir !== guideTarget()) return;
+      if (local.boxOpen >= 0) {
+        local.commands[local.boxOpen].box.push(dir);
+        playSfx(via === 'drag' ? 'snap' : 'tap');
+        local.guideIndex += 1;
+        drawQueue();
+        queueEl.scrollLeft = queueEl.scrollWidth;
+        updateGhostPreview();
+        applyGuide();
+        return;
+      }
       // groupRepeats: playと同様、直前と同方向なら新しいチップを作らずまとめる（Issue #98）。
       const last = local.commands.at(-1);
       const merged = step.groupRepeats && last && last.dir === dir;
@@ -324,6 +365,57 @@ export function renderTutorial(root, step) {
       updateGhostPreview();
       applyGuide();
     },
+  });
+
+  // くりかえしの箱（play.repeatBoxと同じ見た目・操作。Issue #139）。箱を開いている間は
+  // 「じっこう」を「かいすう・とじる」に差し替える（盤面の高さを変えないため）。
+  function drawQueueRow() {
+    queueRow.replaceChildren(queueEl, ...(local.boxOpen >= 0 ? [timesBtn, closeBtn] : [runBtn]));
+  }
+  if (step.repeatBox) {
+    boxBtn = document.createElement('button');
+    boxBtn.type = 'button';
+    boxBtn.dataset.action = 'box-open';
+    boxBtn.className =
+      'command-btn btn-tactile flex flex-col items-center justify-center gap-1 px-3 py-2 bg-amber-500 text-white disabled:opacity-40';
+    boxBtn.innerHTML = '<span class="text-xl leading-none" aria-hidden="true">🔁</span><span class="text-sm whitespace-nowrap">はこ</span>';
+    boxBtn.addEventListener('click', () => {
+      if (local.running || guideTarget() !== 'box') return;
+      vibrate();
+      playSfx('tap');
+      local.commands.push({ box: [], times: 2 });
+      local.boxOpen = local.commands.length - 1;
+      local.guideIndex += 1;
+      drawQueueRow();
+      drawQueue();
+      queueEl.scrollLeft = queueEl.scrollWidth;
+      updateGhostPreview();
+      applyGuide();
+    });
+    paletteEl.appendChild(boxBtn);
+  }
+  timesBtn.addEventListener('click', () => {
+    if (local.running || guideTarget() !== 'times' || local.boxOpen < 0) return;
+    vibrate();
+    playSfx('tap');
+    const box = local.commands[local.boxOpen];
+    box.times = box.times >= 4 ? 2 : box.times + 1;
+    timesBtn.textContent = `かいすう ×${box.times}`;
+    local.guideIndex += 1;
+    drawQueue();
+    updateGhostPreview();
+    applyGuide();
+  });
+  closeBtn.addEventListener('click', () => {
+    if (local.running || guideTarget() !== 'close' || local.boxOpen < 0) return;
+    vibrate();
+    playSfx('tap');
+    local.boxOpen = -1;
+    local.guideIndex += 1;
+    drawQueueRow();
+    drawQueue();
+    updateGhostPreview();
+    applyGuide();
   });
 
   // 盤面を残したまま半透明の背景＋中央カードを重ねる。背景が全面を覆うため背後は操作不可（Issue #132）。
