@@ -16,6 +16,7 @@ const APP_SHELL = [
   "./js/analytics.js",
   "./js/config.js",
   "./js/engine-grid.js",
+  "./js/engine-generate.js",
   "./js/events.js",
   "./js/gimmicks/cushion.js",
   "./js/gimmicks/ice.js",

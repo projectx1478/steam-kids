@@ -230,3 +230,39 @@ export function shortestChips(rawSpec) {
   }
   return best;
 }
+
+// start→goal（かつ全ギミックisCleared）の最短経路を命令（方向文字列）の配列で返す。到達不能ならnull。
+// 手数はshortestStepsと一致する。最短手数の経路のうち曲がり角（方向転換）が最少のものを返す（Issue #142）。
+// 状態は「位置＋ギミック状態＋直前の向き」で、手数の層ごとに曲がり角数の少ない到達を残す。
+// 生成（Issue #68）で曲がり角数・solutionの算出に使う。
+export function shortestPath(rawSpec) {
+  const spec = boardSpec(rawSpec);
+  const key = (p, dir, states) => `${p.x},${p.y}|${dir ?? '-'}|${gimmicksKey(states)}`;
+  const move = makeMover(spec);
+  const startStates = enterAll(initGimmickStates(spec), spec, spec.start);
+  const seen = new Set([key(spec.start, null, startStates)]);
+  let level = [{ pos: spec.start, dir: null, states: startStates, turns: 0, cmds: [] }];
+  while (level.length > 0) {
+    let best = null;
+    for (const cur of level) {
+      if (cur.pos.x === spec.goal.x && cur.pos.y === spec.goal.y && allCleared(cur.states) && (!best || cur.turns < best.turns)) best = cur;
+    }
+    if (best) return best.cmds;
+    const next = new Map();
+    for (const cur of level) {
+      for (const cmd of COMMANDS) {
+        const { steps, bumped } = move(cur.pos, cmd, cur.states);
+        if (bumped || steps.length === 0) continue;
+        const { pos, states } = steps[steps.length - 1];
+        const k = key(pos, cmd, states);
+        if (seen.has(k)) continue;
+        const turns = cur.turns + (cur.dir !== null && cmd !== cur.dir ? 1 : 0);
+        const prev = next.get(k);
+        if (!prev || turns < prev.turns) next.set(k, { pos, dir: cmd, states, turns, cmds: [...cur.cmds, cmd] });
+      }
+    }
+    for (const k of next.keys()) seen.add(k);
+    level = [...next.values()];
+  }
+  return null;
+}
