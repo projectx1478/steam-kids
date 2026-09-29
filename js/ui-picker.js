@@ -166,7 +166,8 @@ async function createLessonStop(lessonId, cleared, onPick, practice = false) {
 
 async function createUnitIsland(unit, lessonStatus, onPick) {
   const island = document.createElement('div');
-  island.className = 'relative rounded-3xl p-4 mb-4 overflow-hidden wood-panel';
+  // shrink-0: #stage（flex-col・overflow-y-auto）内で単元が増えた時に縮められて潰れるのを防ぐ（Issue #157）
+  island.className = 'relative shrink-0 rounded-3xl p-4 mb-4 overflow-hidden wood-panel';
   island.dataset.unitId = unit.unitId;
   island.innerHTML = islandSvg();
 
