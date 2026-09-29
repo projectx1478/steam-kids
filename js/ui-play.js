@@ -315,6 +315,8 @@ export function renderPlay(root, step) {
       items: spec.items,
       ice: spec.ice,
       cushion: spec.cushion,
+      keys: spec.keys,
+      doors: spec.doors,
       playerPos,
       labels: [],
       cellSize: local.cellSize,
