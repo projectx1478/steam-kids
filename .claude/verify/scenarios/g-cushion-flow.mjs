@@ -72,4 +72,18 @@ export default async function run({ page, check }) {
   await page.waitForTimeout(1200);
   await check('盤外へ滑るとbump音が鳴る', () => sfxCount(page, 'bump'), 1);
   await check('失敗後の手(right)は再生されない', async () => (await page.$$('.grid-footprint')).length, 3);
+
+  // --- 通常モーション：クッションはふわっと、壁は痛そうな演出（kindで区別） ---
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  const kinds = () => page.evaluate(() => window.__gridAnimLog.filter((e) => e.type === 'bounce').map((e) => e.kind));
+  await enterPlay(page, lesson.lessonId);
+  await page.click('[data-command="right"]');
+  await page.click('[data-action="run"]');
+  await page.waitForSelector('[data-action="retry"]', { timeout: 10000 });
+  await check('クッションに当たるとkind=cushionのbounce', async () => (await kinds()).includes('cushion'), true);
+  await enterPlay(page, lesson.lessonId);
+  for (const c of ['right', 'down', 'down']) await page.click(`[data-command="${c}"]`);
+  await page.click('[data-action="run"]');
+  await page.waitForSelector('[data-action="retry"]', { timeout: 10000 });
+  await check('盤外に当たるとkind=wallのbounce', async () => (await kinds()).includes('wall'), true);
 }

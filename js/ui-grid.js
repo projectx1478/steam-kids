@@ -10,6 +10,12 @@ const MOVE_MS = 450;
 const BOUNCE_MS = 250;
 const BOUNCE_NUDGE_PX = 10;
 const NUDGE_BY_DIR = { up: [0, -BOUNCE_NUDGE_PX], down: [0, BOUNCE_NUDGE_PX], left: [-BOUNCE_NUDGE_PX, 0], right: [BOUNCE_NUDGE_PX, 0] };
+const CUSHION_MS = 450;
+const BURST_MS = 350;
+// 壁に当たった時に弾ける星（ゴールの旗・クリアの星とは別の、黄色いギザギザ）。
+const BURST_SVG = `<svg viewBox="0 0 64 64" class="w-full h-full" aria-hidden="true">
+      <path d="M32 6 L38 24 L58 20 L44 34 L56 50 L36 44 L30 60 L26 42 L6 46 L20 32 L8 16 L28 22 Z" fill="#fde047" stroke="#f59e0b" stroke-width="3" stroke-linejoin="round" />
+    </svg>`;
 const CONFETTI_COUNT = 24;
 const CONFETTI_MS = 1500;
 const CONFETTI_COLORS = ['#f87171', '#fbbf24', '#34d399', '#38bdf8', '#a78bfa'];
@@ -125,7 +131,7 @@ window.__gridAnimLog = window.__gridAnimLog || [];
 // labels: [{id, x, y}] 予想ステップの選択肢ボタン
 // view: プレイヤー駒・足あとの差分更新API（アニメーション中はこちらのみ使う。draw全再構築はしない）
 //   view.moveTo(pos): 通常移動（450ms、reduced-motion時は即時）
-//   view.bounce(dir): 壁停止の演出（250ms、reduced-motion時は何もしない）
+//   view.bounce(dir, kind): 衝突の演出（kind='wall'|'cushion'、250ms〜、reduced-motion時は何もしない）
 //   view.footprint(pos): 通過マスに足あとを追加
 //   view.markCell(pos, kind): 盤面を再構築せず印を重ねる（予想の答え合わせ・playのヒント。Issue #91）
 //   view.hintItems(items) / view.clearHints(): 未回収itemの点滅とヒント表示の一括解除（Issue #91）
@@ -258,17 +264,51 @@ export function renderGrid(opts) {
       token.style.transform = `translate(${px.x}px, ${px.y}px)`;
       if (!reduce) window.__gridAnimLog.push({ type: 'move', ms: MOVE_MS });
     },
-    bounce(dir) {
+    // bounce(dir, kind): 'wall'は痛そうに震えて星が弾ける（口は困り顔のまま）、'cushion'はクッションが
+    // 凹んでふわっと押し返し、ロボットがばねのように戻る（口はにっこり）。
+    bounce(dir, kind = 'wall') {
       if (prefersReducedMotion()) return;
       setGaze(dir);
       const base = pixelFor(pos);
       const [nx, ny] = NUDGE_BY_DIR[dir] ?? [0, 0];
-      token.style.transition = `transform ${BOUNCE_MS / 2}ms ease`;
-      token.style.transform = `translate(${base.x + nx}px, ${base.y + ny}px)`;
-      setTimeout(() => {
-        token.style.transform = `translate(${base.x}px, ${base.y}px)`;
-      }, BOUNCE_MS / 2);
-      window.__gridAnimLog.push({ type: 'bounce', ms: BOUNCE_MS });
+      const at = (k) => `translate(${base.x + nx * k}px, ${base.y + ny * k}px)`;
+      window.__gridAnimLog.push({ type: 'bounce', ms: BOUNCE_MS, kind });
+      if (kind === 'cushion') {
+        const sx = nx !== 0 ? 0.7 : 1.15;
+        const sy = ny !== 0 ? 0.7 : 1.15;
+        const cell = board.querySelector(`.grid-cell[data-x="${pos.x + Math.sign(nx)}"][data-y="${pos.y + Math.sign(ny)}"]`);
+        cell?.querySelector('.grid-cushion-svg')?.animate(
+          [{ transform: 'scale(1)' }, { transform: `scale(${sx}, ${sy})`, offset: 0.25 }, { transform: 'scale(1.08)', offset: 0.6 }, { transform: 'scale(1)' }],
+          { duration: CUSHION_MS, easing: 'ease-out' }
+        );
+        token.style.transition = `transform ${BOUNCE_MS / 2}ms ease`;
+        token.style.transform = at(1);
+        setMood('happy');
+        setTimeout(() => {
+          token.style.transition = `transform ${CUSHION_MS - BOUNCE_MS / 2}ms cubic-bezier(0.34, 1.56, 0.64, 1)`;
+          token.style.transform = at(0);
+        }, BOUNCE_MS / 2);
+        setTimeout(() => {
+          if (token.isConnected) setMood('normal');
+        }, CUSHION_MS);
+        return;
+      }
+      token.animate(
+        [{ transform: at(0) }, { transform: at(1.4), offset: 0.2 }, { transform: at(-0.4), offset: 0.45 }, { transform: at(0.25), offset: 0.7 }, { transform: at(0) }],
+        { duration: BOUNCE_MS + 100, easing: 'ease-out' }
+      );
+      setMood('puzzled');
+      const burst = document.createElement('div');
+      burst.className = 'grid-burst absolute pointer-events-none';
+      burst.style.top = '0';
+      burst.style.left = '0';
+      burst.style.width = `${CELL}px`;
+      burst.style.height = `${CELL}px`;
+      burst.style.transform = `translate(${base.x + Math.sign(nx) * CELL * 0.45}px, ${base.y + Math.sign(ny) * CELL * 0.45}px)`;
+      burst.innerHTML = BURST_SVG;
+      board.appendChild(burst);
+      burst.animate([{ opacity: 1, scale: '0.4' }, { opacity: 1, scale: '1.1', offset: 0.4 }, { opacity: 0, scale: '1.3' }], { duration: BURST_MS });
+      setTimeout(() => burst.remove(), BURST_MS);
     },
     footprint(footprintPos) {
       const px = pixelFor(footprintPos);
