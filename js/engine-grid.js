@@ -46,7 +46,9 @@ function gimmicksKey(states) {
 }
 
 // 移動1手（方向1つ）を解決するmoverをspecから作る。返り値の関数 move(pos, dir, states) は
-// 通過した各マスの[{pos, states}]を返す（空配列＝最初の1マスが壁・盤外・blocksで動けない）。
+// {steps, bumped, cushioned}を返す。stepsは通過した各マスの[{pos, states}]（空配列＝最初の1マスが
+// 壁・盤外・blocksで動けない）。壁・盤外・soft以外のblocksで止まったらbumped（失敗）、
+// softなギミック（クッション）で止まったらcushioned（失敗ではない）。
 // 最初の1マスへ入った後、ギミックのredirect（こおりの滑り・将来のワープ）が返す先が空いていれば
 // 続けて1マスずつ進める（同一の1手として扱う。2マス目以降のstepはslid: true）。redirectの連鎖は
 // cols*rows回で打ち切る（Issue #61。フックIFはdocs/gimmicks.md）。
@@ -54,20 +56,28 @@ function makeMover(spec) {
   const { grid, walls } = spec;
   const wallSet = new Set(walls.map((w) => `${w.x},${w.y}`));
   const limit = grid.cols * grid.rows;
-  const isOpen = (p, states) =>
-    p.x >= 0 &&
-    p.x < grid.cols &&
-    p.y >= 0 &&
-    p.y < grid.rows &&
-    !wallSet.has(`${p.x},${p.y}`) &&
-    !GIMMICKS.some((g) => g.blocks?.(states[g.key], p, spec));
+  const inBoard = (p) => p.x >= 0 && p.x < grid.cols && p.y >= 0 && p.y < grid.rows;
+  const blockers = (p, states) => GIMMICKS.filter((g) => g.blocks?.(states[g.key], p, spec));
+  const isOpen = (p, states) => inBoard(p) && !wallSet.has(`${p.x},${p.y}`) && blockers(p, states).length === 0;
+  const isSoft = (p, states) => {
+    if (!inBoard(p) || wallSet.has(`${p.x},${p.y}`)) return false;
+    const list = blockers(p, states);
+    return list.length > 0 && list.every((g) => g.soft);
+  };
 
   return (pos, dir, states) => {
     const steps = [];
     let next = MOVES[dir](pos);
     let curDir = dir;
     let cur = states;
-    for (let n = 0; n <= limit && isOpen(next, cur); n += 1) {
+    let bumped = false;
+    let cushioned = false;
+    for (let n = 0; n <= limit; n += 1) {
+      if (!isOpen(next, cur)) {
+        cushioned = isSoft(next, cur);
+        bumped = !cushioned;
+        break;
+      }
       cur = enterAll(cur, spec, next);
       steps.push({ pos: next, states: cur, slid: steps.length > 0 });
       let redirect = null;
@@ -79,14 +89,16 @@ function makeMover(spec) {
       next = redirect.pos;
       curDir = redirect.dir;
     }
-    return steps;
+    return { steps, bumped, cushioned };
   };
 }
 
-// simulate(commands, spec) -> { path, blockedAt, reachedGoal, stepOwner, pickups, slid, remainingItems }
+// simulate(commands, spec) -> { path, blockedAt, reachedGoal, stepOwner, pickups, slid, bumped, remainingItems }
 // spec: { grid: {cols, rows}, start: {x,y}, goal: {x,y}, walls: [{x,y}], items?: [{x,y}], … }
 // commandsの各要素は方向文字列、または{dir, times}（同方向をまとめた命令）。
-// 壁・盤外に進もうとした手はその場に留まり、blockedAtにその命令の元インデックスを記録する。
+// 壁・盤外に進もうとした手（滑走の途中で当たった場合も）は、そこで止まり、blockedAtにその命令の元
+// インデックスを記録する（失敗）。クッションに当たった手はblockedAtに入れず止まるだけ（失敗ではない）。
+// どちらも衝突したstepはpathへ現在位置を重複で1つ積む。bumped[i]はpath[i+1]が失敗の衝突ならtrue。
 // stepOwnerはpath[i+1]がcommandsの何番目の要素に属するかを表す（まとめ命令の実行ハイライト用）。
 // pickups[i]はpath[i+1]で新たに回収したitemsのインデックス配列（Issue #60。js/gimmicks/items.js）。
 // slid[i]はpath[i+1]が滑走（redirect）で進んだマスならtrue（効果音の切替用）。
@@ -101,22 +113,14 @@ export function simulate(commands, rawSpec) {
   const stepOwner = [];
   const pickups = [];
   const slid = [];
+  const bumpedList = [];
   let pos = { ...start };
   let states = enterAll(initGimmickStates(spec), spec, pos);
 
   commands.forEach((entry, i) => {
     const { dir, times } = typeof entry === 'string' ? { dir: entry, times: 1 } : entry;
     for (let n = 0; n < times; n += 1) {
-      const steps = move(pos, dir, states);
-      if (steps.length === 0) {
-        blockedAt.push(i);
-        path.push({ ...pos });
-        stepOwner.push(i);
-        states = enterAll(states, spec, pos);
-        pickups.push(states.items?.collected ?? []);
-        slid.push(false);
-        continue;
-      }
+      const { steps, bumped, cushioned } = move(pos, dir, states);
       // 滑走などで複数マス進んだ手は1マスずつpathへ展開する（同一stepOwner）。
       for (const step of steps) {
         pos = step.pos;
@@ -125,13 +129,23 @@ export function simulate(commands, rawSpec) {
         stepOwner.push(i);
         pickups.push(states.items?.collected ?? []);
         slid.push(step.slid);
+        bumpedList.push(false);
+      }
+      if (bumped || cushioned) {
+        if (bumped) blockedAt.push(i);
+        path.push({ ...pos });
+        stepOwner.push(i);
+        states = enterAll(states, spec, pos);
+        pickups.push(states.items?.collected ?? []);
+        slid.push(false);
+        bumpedList.push(bumped);
       }
     }
   });
 
   const reachedGoal = pos.x === goal.x && pos.y === goal.y;
   const remainingItems = [...(states.items?.remaining ?? [])].map((idx) => spec.items[idx]);
-  return { path, blockedAt, reachedGoal, stepOwner, pickups, slid, remainingItems };
+  return { path, blockedAt, reachedGoal, stepOwner, pickups, slid, bumped: bumpedList, remainingItems };
 }
 
 // BFSでstart→goal（かつ全ギミックisCleared）の最短手数を求める（到達不能ならInfinity）。
@@ -149,8 +163,8 @@ export function shortestSteps(rawSpec) {
     const cur = queue.shift();
     if (cur.pos.x === spec.goal.x && cur.pos.y === spec.goal.y && allCleared(cur.states)) return cur.dist;
     for (const cmd of COMMANDS) {
-      const steps = move(cur.pos, cmd, cur.states);
-      if (steps.length === 0) continue;
+      const { steps, bumped } = move(cur.pos, cmd, cur.states);
+      if (bumped || steps.length === 0) continue;
       const { pos: next, states: nextStates } = steps[steps.length - 1];
       const k = key(next, nextStates);
       if (seen.has(k)) continue;
@@ -176,8 +190,8 @@ export function shortestChips(rawSpec) {
     const cur = deque.shift();
     const curDist = dist.get(key(cur.pos, cur.dir, cur.states)).d;
     for (const cmd of COMMANDS) {
-      const steps = move(cur.pos, cmd, cur.states);
-      if (steps.length === 0) continue;
+      const { steps, bumped } = move(cur.pos, cmd, cur.states);
+      if (bumped || steps.length === 0) continue;
       const { pos: next, states: nextStates } = steps[steps.length - 1];
       const cost = cmd === cur.dir ? 0 : 1;
       const nextDist = curDist + cost;

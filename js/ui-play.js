@@ -314,6 +314,7 @@ export function renderPlay(root, step) {
       goal: spec.goal,
       items: spec.items,
       ice: spec.ice,
+      cushion: spec.cushion,
       playerPos,
       labels: [],
       cellSize: local.cellSize,

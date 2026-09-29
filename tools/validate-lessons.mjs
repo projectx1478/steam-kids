@@ -33,6 +33,7 @@ function checkBoard(board, add, label) {
   const wallKeySet = new Set(walls.map((w) => `${w.x},${w.y}`));
   const items = Array.isArray(board.items) ? board.items : [];
   const ice = Array.isArray(board.ice) ? board.ice : [];
+  const cushion = Array.isArray(board.cushion) ? board.cushion : [];
 
   if (!Array.isArray(board.allowedCommands) || board.allowedCommands.some((c) => !COMMANDS.includes(c))) {
     add('命令語彙', `${label}allowedCommands=${JSON.stringify(board.allowedCommands)} が不正`);
@@ -44,6 +45,7 @@ function checkBoard(board, add, label) {
     ...walls.map((w, i) => [`walls[${i}]`, w]),
     ...items.map((it, i) => [`items[${i}]`, it]),
     ...ice.map((c, i) => [`ice[${i}]`, c]),
+    ...cushion.map((c, i) => [`cushion[${i}]`, c]),
   ];
   for (const [coordLabel, p] of coordChecks) {
     if (!p || !inGrid(grid, p)) add('座標範囲', `${label}${coordLabel}=${JSON.stringify(p)} が盤外`);

@@ -15,6 +15,7 @@ export const DURATIONS_MS = {
   slide: 150,
   tryAgain: 150,
   bump: 250,
+  cushion: 200,
   pickup: 200,
   reveal: 200,
   clear: 460,
@@ -167,6 +168,11 @@ const SOUND = {
   bump(ctx, now) {
     // ブザー禁止: 矩形波・鋸波は使わず、柔らかいsineで下降させる
     tone(ctx, now, { freq: 300, freqEnd: 200, duration: 0.25, type: 'sine', peak: 0.6 });
+  },
+  // cushion: クッションにぽよんと当たった音。失敗ではないので、bumpより高く軽い上下の丸い音。
+  cushion(ctx, now) {
+    tone(ctx, now, { freq: 420, freqEnd: 620, duration: 0.1, type: 'sine', peak: 0.6 });
+    tone(ctx, now + 0.1, { freq: 620, freqEnd: 400, duration: 0.1, type: 'sine', peak: 0.5 });
   },
   pickup(ctx, now) {
     tone(ctx, now, { freq: 900, duration: 0.08, type: 'sine' });

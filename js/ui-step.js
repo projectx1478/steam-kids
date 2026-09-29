@@ -295,9 +295,10 @@ export function createStepper(commands, spec, view, { onTick, onPickup }) {
       if (finished) return;
       const from = result.path[i];
       const to = result.path[i + 1];
-      const bumped = from.x === to.x && from.y === to.y;
-      playSfx(bumped ? 'bump' : result.slid[i] ? 'slide' : 'step', { index: i });
-      if (bumped) {
+      const bumped = result.bumped[i];
+      const cushioned = !bumped && from.x === to.x && from.y === to.y;
+      playSfx(bumped ? 'bump' : cushioned ? 'cushion' : result.slid[i] ? 'slide' : 'step', { index: i });
+      if (bumped || cushioned) {
         view.bounce(dirAt(commands, result.stepOwner[i]));
       } else {
         view.footprint(from);
@@ -309,7 +310,7 @@ export function createStepper(commands, spec, view, { onTick, onPickup }) {
         onPickup?.(idx);
       });
       onTick(result.stepOwner[i], to);
-      // 壁・盤外にぶつかった手で実行を止める。残りの手は再生しない（Issue #136）。
+      // 壁・盤外にぶつかった手で実行を止める。残りの手は再生しない（Issue #136）。クッションは止まらない。
       if (bumped || i === result.path.length - 2) {
         finished = true;
       } else {
