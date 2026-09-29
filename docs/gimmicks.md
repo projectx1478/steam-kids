@@ -22,6 +22,7 @@
 - `stateKey(state)`：BFS（shortestSteps/shortestChips）の重複排除キー用の文字列
 - `blocks?(state, pos, spec)`：（任意）posが通行不可なら真。壁と同様に動けない扱い（ドア・動く壁向け）。ギミックに`soft: true`があると、そのblocksに当たっても失敗（`blockedAt`）にならず手前で止まるだけ（クッション向け）
 - `redirect?(state, pos, dir, spec)`：（任意）posへ入った直後に続けて移動する先`{pos, dir}`かnull。返り先が盤内・非壁・非`blocks`なら1マスとして`path`へ積み（同一`stepOwner`。`simulate`の`slid[i]`が真）、再度問う。連鎖は`cols*rows`回で打ち切り（滑り・ワープ向け）
+- `onStep?({pos, spec, view, run})`：（任意）`createStepper`が1手進むたび（壁衝突を除く）に呼ぶUI更新用フック。`view.gimmickEls[key]`にrenderの戻り値が入る。`run`は実行1回ごとの作業領域。効果音名を返すと鳴らす（かぎ・ドアの開閉向け。Issue #62）
 - `validate(board, add, label)`：`tools/validate-lessons.mjs`のcheckBoardから呼ばれる盤面検証
 - `render(cellCtx)`：`js/ui-grid.js`のrenderGridから呼ばれる描画。`{board, pixelFor, CELL, shapeSvg, …}`を受け取る
 
@@ -45,3 +46,11 @@
 - 移動規則：通行不可のマス（`blocks`＋`soft: true`）。歩きでも滑走でも、当たったらその手前で止まり、失敗にしない（`blockedAt`に入れず実行も止めない。命令1つは無駄になる）。`path`へは現在位置を重複で1つ積み、`simulate`の`bumped[i]`は偽。BFS（最短手数）は動けない手を遷移に採らない。壁・盤外は失敗（Issue #136）
 - 描画：該当セルに丸い桃色のクッションSVGを重ね`data-cushion="true"`を付ける。当たると`view.bounce`＋効果音`cushion`（`docs/learning-spec.md`）で続行する
 - 数値条件：壁・start・goal・items・ice・cushion同士の重なり不可、盤外不可。こおりの必須性検証（Issue #134）ではクッションも壁扱い
+
+## keys（かぎとドア）
+
+- JSONフィールド：`keys`・`doors`（任意・`{x, y, color}`の配列・既定`[]`）。color=`red`（まる）／`blue`（さんかく）。`play`・`tutorial`・`intro.demo`で使える。ドアには同色のかぎが必要
+- 移動規則：かぎのマスへ入るとその色を持つ（消費しない）。未所持の色のドアは`blocks`で壁と同じ失敗（歩き・こおりの滑走とも`blockedAt`）。所持後は通れる。クリア条件は変えない。BFSは所持色を状態に含む
+- 描画：かぎ・ドアのセルにSVGを重ね`data-key` / `data-door`（色）を付ける。色に加え形（まる／さんかく）でも区別する。かぎを取ると消え、同色のドアは`data-door-open="true"`（半透明の点線枠）になり`pickup`音が鳴る
+- 数値条件：盤面は6×6以内。かぎ・ドアは壁・start・goal・items・ice・cushion・互いと重なり不可。対応するかぎの無いドア不可。ドアを壁扱い（かぎ無し）にして`maxCommands`以内に届くと検証NG（かぎの必須性）
+- ギミック間の重なり規則：盤面の1マスに置けるギミックは1つ（壁・start・goal含む）

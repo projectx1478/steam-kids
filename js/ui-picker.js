@@ -82,12 +82,20 @@ function fixIconSvg() {
   </svg>`;
 }
 
+function keyIconSvg() {
+  return `<svg viewBox="0 0 24 24" class="w-full h-full" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+    <circle cx="8" cy="12" r="4" />
+    <path d="M12 12h9M18 12v4M21 12v3" />
+  </svg>`;
+}
+
 function lessonIconSvg(lesson) {
   const playStep = lesson.steps?.find((s) => s.kind === 'play');
   if (!playStep) return '';
   if (playStep.initialCommands) return fixIconSvg();
   if (playStep.groupRepeats) return groupIconSvg();
   if (playStep.items?.length) return shapeSvg('item');
+  if (playStep.keys?.length) return keyIconSvg();
   return arrowIconSvg();
 }
 

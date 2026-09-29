@@ -254,6 +254,7 @@ export function renderGrid(opts) {
   scheduleBlink();
 
   const view = {
+    gimmickEls,
     moveTo(nextPos) {
       const prevPos = pos;
       pos = { ...nextPos };

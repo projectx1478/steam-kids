@@ -3,5 +3,6 @@
 import { items } from './items.js';
 import { ice } from './ice.js';
 import { cushion } from './cushion.js';
+import { keys } from './keys.js';
 
-export const GIMMICKS = [items, ice, cushion];
+export const GIMMICKS = [items, ice, cushion, keys];
