@@ -2,7 +2,7 @@
 // （背景色・見出し「れんしゅう」）も分ける。結果の見える化（番号付きゴースト矢印＋
 // 1行キャプション）・区切り画面・スキップを持つ（Issue #93。旧仕様はIssue #81）。
 import { S } from './state.js';
-import { simulate } from './engine-grid.js';
+import { simulate, boardSpec } from './engine-grid.js';
 import { renderGrid, computeCellSize } from './ui-grid.js';
 import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, COMMAND_LABELS, vibrate } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
@@ -41,7 +41,7 @@ export function markTutorialDone(lessonId) {
 // step.groupRepeats（同方向連続タップを1チップへまとめる。playと同挙動）・
 // step.initialCommands（誤った命令列を最初から積む。なおす系用）は任意（Issue #98）。
 export function renderTutorial(root, step) {
-  const spec = { grid: step.grid, start: step.start, goal: step.goal, walls: step.walls, items: step.items ?? [] };
+  const spec = boardSpec(step);
   const guide = step.script;
   const local = {
     commands: (step.initialCommands ?? []).map((dir) => ({ dir, times: 1 })),

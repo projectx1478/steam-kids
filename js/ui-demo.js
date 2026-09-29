@@ -10,6 +10,7 @@
 //   fixFrom: 先にこの誤った命令列を実行して失敗させ、一呼吸おいてから正しいcommandsへ
 //            差し替えて再実行する（「なおす」のデモ）
 // 初回自動再生の前だけ1秒の「よーい…」を挟む（Issue #107）。「▶ もういちど みる」は待たない。
+import { boardSpec } from './engine-grid.js';
 import { renderGrid, prefersReducedMotion } from './ui-grid.js';
 import { renderCommandQueue } from './ui-commands.js';
 import { playAnimation, setActiveAnimation } from './ui-step.js';
@@ -27,7 +28,7 @@ function toChip(entry) {
 // renderGoalDemo(container, demo) -> 追加したdemo-widget要素。
 // demo: { grid, start, goal, walls, items?, commands, showCommands?, fixFrom? }（lessons/*.jsonのintro.demo）。
 export function renderGoalDemo(container, demo) {
-  const spec = { grid: demo.grid, start: demo.start, goal: demo.goal, walls: demo.walls ?? [], items: demo.items ?? [] };
+  const spec = boardSpec(demo);
   const wrap = document.createElement('div');
   wrap.className = 'demo-widget flex flex-col items-center gap-2 my-2';
   wrap.dataset.demo = 'goal';

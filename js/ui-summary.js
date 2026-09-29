@@ -4,7 +4,7 @@
 import { S } from './state.js';
 import { getEvents } from './events.js';
 import { summarize, lessonAchievements } from './analytics.js';
-import { shortestSteps, shortestChips } from './engine-grid.js';
+import { shortestSteps, shortestChips, boardSpec } from './engine-grid.js';
 import { stampSvg, flagSvg, medalSvg } from './ui-picker.js';
 import { play as playSfx } from './sfx.js';
 import { prefersReducedMotion, screenConfetti } from './ui-grid.js';
@@ -38,7 +38,7 @@ function currentAttemptSinceTs(events, lessonId) {
 }
 
 function playSpecOf(playStep) {
-  return { grid: playStep.grid, start: playStep.start, goal: playStep.goal, walls: playStep.walls, items: playStep.items ?? [] };
+  return boardSpec(playStep);
 }
 
 export function renderSummary(root) {

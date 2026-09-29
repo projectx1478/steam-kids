@@ -3,7 +3,8 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { simulate, shortestSteps, shortestChips } from '../js/engine-grid.js';
+import { simulate, shortestSteps, shortestChips, boardSpec } from '../js/engine-grid.js';
+import { GIMMICKS } from '../js/gimmicks/index.js';
 import { plainSegmentsText, plainReading, parseSegments, rubyGrade, textKanjiMaxGrade, KANJI_RE } from '../js/text-render.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -54,15 +55,7 @@ function checkBoard(board, add, label) {
     if (wallKeySet.has(`${board.goal.x},${board.goal.y}`)) add('盤面の妥当性', `${label}goal が壁と重なる`);
   }
 
-  items.forEach((it, i) => {
-    if (wallKeySet.has(`${it.x},${it.y}`)) add('盤面の妥当性', `${label}items[${i}] が壁と重なる`);
-  });
-  const itemKeySet = new Set();
-  items.forEach((it, i) => {
-    const k = `${it.x},${it.y}`;
-    if (itemKeySet.has(k)) add('盤面の妥当性', `${label}items[${i}] が他のitemsと座標重複`);
-    itemKeySet.add(k);
-  });
+  for (const g of GIMMICKS) g.validate(board, add, label);
 }
 
 // demo.commands/demo.fixFromの各要素は方向文字列、または{dir, times}（cmd-02のまとめ表示。Issue #104）。
@@ -127,13 +120,13 @@ function checkDemo(intro, playSteps, add) {
   }
   if (!vocabOk || !demo.start || !demo.goal || !grid.cols || !grid.rows) return;
 
-  const result = simulate(demo.commands, { grid, start: demo.start, goal: demo.goal, walls, items });
+  const result = simulate(demo.commands, boardSpec(demo));
   if (!result.reachedGoal || result.remainingItems.length > 0 || result.blockedAt.length > 0) {
     add('デモの到達可能性', `${label} のcommandsを実行してもゴール到達＋全item回収にならない、または壁にぶつかる`);
   }
 
   if (demo.fixFrom) {
-    const fixResult = simulate(demo.fixFrom, { grid, start: demo.start, goal: demo.goal, walls, items });
+    const fixResult = simulate(demo.fixFrom, boardSpec(demo));
     if (fixResult.reachedGoal && fixResult.remainingItems.length === 0 && fixResult.blockedAt.length === 0) {
       add('デモの到達可能性', `${label} のfixFromがそのままゴールに到達してしまう（直す必要が無い）`);
     }
@@ -180,13 +173,7 @@ function checkSolution(play, add, label) {
   }
   queue.push(...commands);
   if (!play.start || !play.goal || !play.grid) return;
-  const result = simulate(queue, {
-    grid: play.grid,
-    start: play.start,
-    goal: play.goal,
-    walls: Array.isArray(play.walls) ? play.walls : [],
-    items: Array.isArray(play.items) ? play.items : [],
-  });
+  const result = simulate(queue, boardSpec(play));
   if (!result.reachedGoal || result.remainingItems.length > 0 || result.blockedAt.length > 0) {
     add('solutionのクリア', `${label}solutionを実行してもクリアしない（到達=${result.reachedGoal}、未回収=${result.remainingItems.length}、壁・盤外=${result.blockedAt.length}）`);
   }
@@ -275,8 +262,6 @@ function validateLesson(fileName, data) {
   const stageDistances = [];
   for (const play of playSteps) {
     const grid = play.grid || {};
-    const walls = Array.isArray(play.walls) ? play.walls : [];
-    const items = Array.isArray(play.items) ? play.items : [];
     const label = `stepId="${play.stepId}" の`;
 
     checkBoard(play, add, label);
@@ -298,7 +283,7 @@ function validateLesson(fileName, data) {
 
     let dist = null;
     if (play.start && play.goal && grid.cols && grid.rows) {
-      const spec = { grid, start: play.start, goal: play.goal, walls, items };
+      const spec = boardSpec(play);
       // groupRepeatsありのレッスンは、同方向連続をまとめた最小チップ数で判定する
       // （まとめないと手数制限に収まらないレッスンを正しく通すため）。
       dist = play.groupRepeats ? shortestChips(spec) : shortestSteps(spec);
@@ -318,7 +303,7 @@ function validateLesson(fileName, data) {
       play.start &&
       play.goal
     ) {
-      const result = simulate(play.initialCommands, { grid, start: play.start, goal: play.goal, walls, items });
+      const result = simulate(play.initialCommands, boardSpec(play));
       if (result.reachedGoal && result.remainingItems.length === 0 && result.blockedAt.length === 0) {
         add('なおすの初期状態', `${label}initialCommandsがそのまま実行してもゴールに到達してしまう（直す必要が無い）`);
       }
@@ -340,7 +325,6 @@ function validateLesson(fileName, data) {
   // 予想向けの検証は最初のplayステージの盤面を基準にする（predictは現行レッスンでは未使用。Issue #104）。
   const referencePlay = playSteps[0];
   const refGrid = referencePlay.grid || {};
-  const refWalls = Array.isArray(referencePlay.walls) ? referencePlay.walls : [];
 
   if (tutorialSteps.length === 1) {
     const tutorial = tutorialSteps[0];
@@ -368,13 +352,7 @@ function validateLesson(fileName, data) {
         tutorial.start &&
         tutorial.goal
       ) {
-        const freshResult = simulate(initial, {
-          grid: tutorial.grid,
-          start: tutorial.start,
-          goal: tutorial.goal,
-          walls: Array.isArray(tutorial.walls) ? tutorial.walls : [],
-          items: Array.isArray(tutorial.items) ? tutorial.items : [],
-        });
+        const freshResult = simulate(initial, boardSpec(tutorial));
         if (freshResult.reachedGoal && freshResult.remainingItems.length === 0 && freshResult.blockedAt.length === 0) {
           add('なおすの初期状態', `stepId="${tutorial.stepId}" のinitialCommandsがそのまま実行してもゴールに到達してしまう（直す必要が無い）`);
         }
@@ -436,13 +414,7 @@ function validateLesson(fileName, data) {
       }
 
       if (replayOk && tutorial.start && tutorial.goal) {
-        const result = simulate(chips, {
-          grid: tutorial.grid,
-          start: tutorial.start,
-          goal: tutorial.goal,
-          walls: Array.isArray(tutorial.walls) ? tutorial.walls : [],
-          items: Array.isArray(tutorial.items) ? tutorial.items : [],
-        });
+        const result = simulate(chips, boardSpec(tutorial));
         if (!result.reachedGoal || result.remainingItems.length > 0 || result.blockedAt.length > 0) {
           add(
             'チュートリアルの到達可能性',
@@ -473,7 +445,7 @@ function validateLesson(fileName, data) {
     if (predictCommands.some((c) => !COMMANDS.includes(c))) {
       add('命令語彙', `stepId="${predict.stepId}" の commands=${JSON.stringify(predictCommands)} が不正`);
     } else if (referencePlay?.start) {
-      const result = simulate(predictCommands, { grid: refGrid, start: referencePlay.start, goal: referencePlay.goal, walls: refWalls });
+      const result = simulate(predictCommands, boardSpec(referencePlay));
       const end = result.path[result.path.length - 1];
       const answerCell = optionCells.find((c) => c.id === predict.answer);
       if (answerCell && (end.x !== answerCell.x || end.y !== answerCell.y)) {

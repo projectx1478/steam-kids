@@ -1,4 +1,6 @@
 // SVGグリッド描画。すべて自作SVG（<img>・background-imageは使わない）。
+import { items as itemsGimmick } from './gimmicks/items.js';
+
 const DEFAULT_CELL = 64;
 const MIN_CELL = 8;
 const MAX_CELL = 64;
@@ -188,20 +190,8 @@ export function renderGrid({ grid, walls, goal, items = [], playerPos, labels = 
   board.appendChild(dimLayer);
 
   // itemsはセルのinnerHTMLに焼き込まず、footprint同様に個別要素で持つ（回収時に個体を消すため）。
-  const itemEls = new Map();
-  items.forEach((it) => {
-    const px = pixelFor(it);
-    const el = document.createElement('div');
-    el.className = 'grid-item absolute pointer-events-none';
-    el.style.top = '0';
-    el.style.left = '0';
-    el.style.width = `${CELL}px`;
-    el.style.height = `${CELL}px`;
-    el.style.transform = `translate(${px.x}px, ${px.y}px)`;
-    el.innerHTML = shapeSvg('item');
-    board.appendChild(el);
-    itemEls.set(`${it.x},${it.y}`, el);
-  });
+  // 生成はitemsギミック（js/gimmicks/items.js）のrenderフックに委譲する（Issue #123）。
+  const itemEls = itemsGimmick.render({ board, pixelFor, CELL, shapeSvg, items });
 
   // プレイヤー駒はCSS Gridのセルに属さず、boardに対する絶対座標(transform)で位置を持つ。
   // セル間の移動をtransformのtransitionでなめらかにするため(Issue #55)。

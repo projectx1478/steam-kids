@@ -2,6 +2,7 @@
 // 操作画面に直接入る。説明は「れんしゅう」画面と指ガイドで行う（Issue #97。旧仕様はIssue #93）。
 // 画面上部の問い文スロットは、実行結果（やったね／ヒント）を数秒だけトースト表示する場所も兼ねる。
 import { S } from './state.js';
+import { boardSpec } from './engine-grid.js';
 import { logEvent } from './events.js';
 import { renderGrid, shapeSvg, computeCellSize, prefersReducedMotion } from './ui-grid.js';
 import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, vibrate } from './ui-commands.js';
@@ -32,7 +33,7 @@ const HINT_MESSAGE = {
 };
 
 export function renderPlay(root, step) {
-  const spec = { grid: step.grid, start: step.start, goal: step.goal, walls: step.walls, items: step.items ?? [] };
+  const spec = boardSpec(step);
   const defaultText = spec.items.length > 0 ? 'どんぐりを ぜんぶ とって ゴール' : 'ロボットを ゴールへ うごかそう';
   const isFix = (step.initialCommands ?? []).length > 0;
 
