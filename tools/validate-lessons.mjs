@@ -39,6 +39,7 @@ function checkBoard(board, add, label) {
   const cushion = Array.isArray(board.cushion) ? board.cushion : [];
   const keys = Array.isArray(board.keys) ? board.keys : [];
   const doors = Array.isArray(board.doors) ? board.doors : [];
+  const switchList = Array.isArray(board.switches) ? board.switches : [];
 
   if (!Array.isArray(board.allowedCommands) || board.allowedCommands.some((c) => !COMMANDS.includes(c))) {
     add('命令語彙', `${label}allowedCommands=${JSON.stringify(board.allowedCommands)} が不正`);
@@ -53,6 +54,10 @@ function checkBoard(board, add, label) {
     ...cushion.map((c, i) => [`cushion[${i}]`, c]),
     ...keys.map((c, i) => [`keys[${i}]`, c]),
     ...doors.map((c, i) => [`doors[${i}]`, c]),
+    ...switchList.flatMap((s, i) => [
+      [`switches[${i}]`, s],
+      ...(Array.isArray(s?.targets) ? s.targets : []).map((t, j) => [`switches[${i}].targets[${j}]`, t]),
+    ]),
   ];
   for (const [coordLabel, p] of coordChecks) {
     if (!p || !inGrid(grid, p)) add('座標範囲', `${label}${coordLabel}=${JSON.stringify(p)} が盤外`);
@@ -400,6 +405,15 @@ function validateLesson(fileName, data) {
       const noDoorDist = play.groupRepeats ? shortestChips(noDoor) : shortestSteps(noDoor);
       if (noDoorDist <= play.maxCommands) {
         add('かぎの必須性', `${label}かぎを取らずにmaxCommands=${play.maxCommands}以内でゴールできる（最短${noDoorDist}）`);
+      }
+    }
+    // 切替壁を静的な壁のまま（スイッチ無し）にしても届くなら、スイッチが飾り。
+    if (dist !== null && Array.isArray(play.switches) && play.switches.length > 0) {
+      const targets = play.switches.flatMap((s) => (Array.isArray(s.targets) ? s.targets : []));
+      const noSwitch = boardSpec({ ...play, walls: [...(play.walls || []), ...targets], switches: [] });
+      const noSwitchDist = play.groupRepeats ? shortestChips(noSwitch) : shortestSteps(noSwitch);
+      if (noSwitchDist <= play.maxCommands) {
+        add('スイッチの必須性', `${label}スイッチを踏まずにmaxCommands=${play.maxCommands}以内でゴールできる（最短${noSwitchDist}）`);
       }
     }
     stageDistances.push(dist);

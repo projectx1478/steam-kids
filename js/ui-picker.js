@@ -89,6 +89,13 @@ function keyIconSvg() {
   </svg>`;
 }
 
+function switchIconSvg() {
+  return `<svg viewBox="0 0 24 24" class="w-full h-full" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="8" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>`;
+}
+
 function lessonIconSvg(lesson) {
   const playStep = lesson.steps?.find((s) => s.kind === 'play');
   if (!playStep) return '';
@@ -96,6 +103,7 @@ function lessonIconSvg(lesson) {
   if (playStep.groupRepeats) return groupIconSvg();
   if (playStep.items?.length) return shapeSvg('item');
   if (playStep.keys?.length) return keyIconSvg();
+  if (playStep.switches?.length) return switchIconSvg();
   return arrowIconSvg();
 }
 
