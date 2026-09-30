@@ -1,0 +1,59 @@
+name: E2E PR
+
+# PR ごとに「スモーク6本」＋「PR本文の E2E: 行に書いたシナリオ」を実行する。
+# 例（PR本文の任意の行）:  E2E: les-cmd-04-repeat-box repeat-box-engine --mobile
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  SMOKE: app-version sw-routing p3-offline lesson-picker cmd01-flow guardian-gate
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 実行するシナリオを決める
+        id: pick
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          REQ=$(printf '%s\n' "$PR_BODY" | tr -d '\r' | sed -n 's/^E2E:[[:space:]]*//p' | head -1)
+          ARGS=$(bash .github/scripts/pick-scenarios.sh "$REQ" $SMOKE)
+          echo "args=$ARGS" >> "$GITHUB_OUTPUT"
+          echo "### 実行シナリオ" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`$ARGS\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: ./.github/actions/setup-e2e
+
+      - name: レッスン検証
+        run: npm run validate:lessons
+
+      - name: E2E
+        env:
+          ARGS: ${{ steps.pick.outputs.args }}
+        run: npm run verify:e2e -- $ARGS
+
+      - name: ログ・スクリーンショットを保存
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-pr-log
+          path: .verify/
+          retention-days: 7
+          if-no-files-found: ignore
