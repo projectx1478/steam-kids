@@ -47,7 +47,7 @@ function title(id) {
 export default async function run({ page, check }) {
   await page.goto('/index.html?view=map');
 
-  await check('14本のレッスンボタンが表示される', async () => (await page.$$('.lesson-pick-btn')).length, 13);
+  await check('14本のレッスンボタンが表示される', async () => (await page.$$('.lesson-pick-btn')).length, 14);
   await check('レッスン1のタイトルが表示される', async () => title('cmd-01-susumu')(page), 'すすむ');
   await check('レッスン2のタイトルが表示される', async () => title('cmd-02-mijikaku')(page), 'みじかくする');
   await check('レッスン3のタイトルが表示される', async () => title('cmd-03-naosu')(page), 'なおす');
