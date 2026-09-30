@@ -12,7 +12,7 @@ const spec = {
 
 test('engine-grid: 壁で停止／盤外で停止／最短6手でゴール到達', () => {
   const wallCase = simulate(['up', 'up', 'right', 'right', 'down'], spec);
-  assert.deepEqual(wallCase.path.at(-1), { x: 2, y: 1 }, '壁の手前で停止する');
+  assert.deepEqual(0, 1) // VERIFY-RED-CASE, { x: 2, y: 1 }, '壁の手前で停止する');
   assert.ok(wallCase.blockedAt.includes(4), '壁ぶつかりがblockedAtに記録される');
 
   const boundsCase = simulate(['down'], spec);
