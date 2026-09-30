@@ -38,10 +38,6 @@ jobs:
       - uses: ./.github/actions/setup-e2e
         if: steps.gate.outputs.run == 'true'
 
-      - name: レッスン検証
-        if: steps.gate.outputs.run == 'true'
-        run: npm run validate:lessons
-
       - name: E2E 全件
         if: steps.gate.outputs.run == 'true'
         run: npm run verify:e2e
@@ -64,7 +60,7 @@ jobs:
           LABEL=e2e-nightly
           gh label create "$LABEL" --color B60205 --description "夜間E2Eの失敗" 2>/dev/null || true
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          TAIL=$( [ -f .verify/verify-all.log ] && tail -n 60 .verify/verify-all.log || echo "(ログなし。validate:lessons かセットアップで失敗)" )
+          TAIL=$( [ -f .verify/verify-all.log ] && tail -n 60 .verify/verify-all.log || echo "(ログなし。セットアップで失敗)" )
           COMMITS=$(git log --since='25 hours ago' --format='%h %s' | head -20)
           BODY=$(printf '夜間E2Eが失敗しました。\n\n- コミット: %s\n- 実行ログ: %s\n\n直近のコミット:\n```\n%s\n```\n\nログ末尾:\n```\n%s\n```\n' \
             "${{ github.sha }}" "$RUN_URL" "$COMMITS" "$TAIL")

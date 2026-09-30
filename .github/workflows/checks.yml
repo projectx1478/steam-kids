@@ -1,0 +1,56 @@
+name: Checks
+
+# ブラウザを使わない軽い検証（数十秒）。PR ごとに自動実行。
+# - 静的チェック（バージョン一致・APP_SHELL の過不足・外部読み込み禁止）
+# - 単体テスト（node --test）
+# - レッスン検証
+# - style.css のビルド忘れ
+
+on:
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 依存関係（ブラウザは入れない）
+        run: npm install --no-audit --no-fund
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+      - name: 静的チェック
+        run: npm run check:static
+
+      - name: 単体テスト
+        run: npm run test:unit
+
+      - name: レッスン検証
+        run: npm run validate:lessons
+
+      - name: style.css のビルド忘れ
+        run: |
+          npm run build:css
+          if ! git diff --quiet -- style.css; then
+            echo "::error::style.css がビルド結果と一致しません。npm run build:css を実行してコミットしてください。"
+            git diff --stat -- style.css
+            exit 1
+          fi
