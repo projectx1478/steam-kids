@@ -56,4 +56,5 @@ jobs:
           name: e2e-pr-log
           path: .verify/
           retention-days: 7
+          include-hidden-files: true
           if-no-files-found: ignore
