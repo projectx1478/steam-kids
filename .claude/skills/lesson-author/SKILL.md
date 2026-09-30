@@ -40,8 +40,9 @@ description: 単元名からgrid-runtimeレッスンJSONを生成し、npm run v
 5. `npm run validate:lessons` を実行する。**検証NGの場合は再生成する。手で通さない**
 6. `.claude/verify` にそのレッスン用のシナリオを作成する（`cmd01-ui-rules.mjs`
    `cmd02-ui-rules.mjs` を参考に、64px・20字・横スクロール無しを確認する内容）。
-   `node .claude/verify/run.mjs <シナリオ名>` と `--mobile` 付きの両方で実行する
-7. 既存シナリオを全再実行し、後方互換を確認する（`p3-link.mjs` の実行環境依存クラッシュは
+   E2Eは手元で実行しない。`e2e-run`で`<シナリオ名>`と`--mobile`付きの両方を実行する
+   （`docs/testing-guidelines.md`）
+7. PR本文の`E2E:`行に関連シナリオを列挙し、E2E PRで後方互換を確認する（`p3-link.mjs` の実行環境依存クラッシュは
    本スキルと無関係な既知の問題。Issue #43）
 
 ## 完了条件

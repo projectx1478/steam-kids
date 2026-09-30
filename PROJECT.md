@@ -131,7 +131,7 @@ MVP実装対象は `grid-runtime`。予想ステップ（`kind: "predict"`）は
 
 ### 検証コマンド
 
-コード変更後に必ず実行する。
+コード変更後、手元で実行するのは`validate:lessons`・ビルドのみ。E2Eは手元で実行せず（`tools/verify-all.mjs`のガードで止まる）GitHub Actionsで実行する。
 
 | 種別 | コマンド |
 | --- | --- |
@@ -139,10 +139,10 @@ MVP実装対象は `grid-runtime`。予想ステップ（`kind: "predict"`）は
 | Lint | なし |
 | 型チェック | なし |
 | ビルド | `npx tailwindcss@3.4.17 -i tailwind.src.css -o style.css --minify` |
-| E2E/実機確認 | `npm run verify:e2e`（部分実行は`node tools/verify-all.mjs <名前…>`） |
+| E2E/実機確認 | 手元では実行しない。実装中＝`gh workflow run e2e-run.yml --ref <ブランチ> -f scenarios="<名前…>"`、PR＝E2E PR（本文の`E2E:`行）、全件＝夜間 |
 | レッスンJSON検証 | `npm run validate:lessons` |
 
-実行範囲（省略／該当のみ／全実行）の判定は `docs/testing-guidelines.md` に従う。省略・部分実行した検証は報告に理由付きで書く。
+E2Eの実行方法・報告形式は `docs/testing-guidelines.md` に従う。
 
 影響範囲確認：レッスンJSONやDOM契約（`data-action`等）を変更するときは、`grep -lE '<lessonId|data-action名>' .claude/verify/scenarios/*`で影響シナリオを列挙する。`.claude/verify/config.mjs`の凍結fixture（cmd-01・donguri-01）の対象かも確認する。
 
@@ -208,7 +208,7 @@ P0（実機で到達）→P1（JSON外出し）→P2（ログ・ダッシュボ�
 - `docs/caching.md` — Service Workerの方式・版数管理。Issue #28着手時に読む
 - `docs/file-structure.md` — ファイル別の役割一覧。ファイルの新設・移動時に読む
 - `docs/roadmap.md` — 授業展開の制約とP0〜P5ロードマップ。フェーズ計画・授業展開を検討する時に読む
-- `docs/testing-guidelines.md` — 検証の実行範囲（省略／該当のみ／全実行）。検証コマンドを選ぶとき読む
+- `docs/testing-guidelines.md` — 検証の運用（E2EはGitHub Actionsのみ・手元ガード・夜間失敗の対応）。検証するとき読む
 
 ## 8. 未決事項
 

@@ -1,57 +1,87 @@
-# 検証の実行範囲ガイドライン（三段運用）
+# steam-kids テスト実行ガイドライン（E2E はすべて GitHub Actions）
 
-E2Eはヘッドレスブラウザで75本超を流すため重い。毎ステップの全件実行は開発時間と実行枠を消費するので、
-「何を・いつ・どこまで実行するか」を **省略／該当のみ／全実行** の三段で定める。
-途中を省く代わりに **節目では必ず全実行** し、省いた事実は **必ず報告に書く**。
+## 1. 方針
 
-## 1. 位置づけ
+- **E2E（`.claude/verify/run.mjs`・`npm run verify:e2e`）は、個別・全件を問わず手元で実行しない。すべて GitHub Actions で実行する。**
+  - 手元での実行は、ガード（§6）によって既定で止まる。
+- 手元で実行してよいのは、ブラウザを使わない軽い検証だけ：`npm run validate:lessons`、`npm run build:css`。
+- 「テストを通すための書き換え・skip・期待値の合わせ込み禁止」は従来どおり有効。
+- どの AI・人が開発しても、同じワークフローを使う。
+- AGENTS.md「検証フェーズ」の「全コマンド実行」「PR作成前は全件実行」は、本書の運用（E2E は CI）が優先する（project-template#106 で AGENTS.md に反映予定。反映まではこの注記が正）。
 
-- 原則はAGENTS.md「検証フェーズ」とPROJECT.md「検証コマンド」の全コマンド実行。本書はその例外範囲を定める
-- AGENTS.md側の例外規定はproject-template#104で追加予定。反映まではAGENTS.mdが優先し、報告前の全件実行を省かない
-- 迷ったら **一段重い方** を選ぶ。複数区分にまたがる変更は最も重い区分に合わせる
-- 「省略」は実行を見送る判断であり、テストの書き換え・skip・期待値の合わせ込み禁止は従来どおり
+| 目的 | ワークフロー | 起動 | 実行内容 |
+| --- | --- | --- | --- |
+| 実装中の確認 | `e2e-run.yml` | `gh workflow run`（手動） | 指定シナリオのみ（`all` で全件） |
+| PR の最低ライン | `e2e-pr.yml` | PR の作成・更新・本文編集で自動 | スモーク6本＋PR本文の `E2E:` 行 |
+| 回帰の網羅 | `e2e-nightly.yml` | 毎晩2時（コミットがあった日）／手動 | 全件 |
 
-## 2. 判定表
+## 2. 開発の流れ
 
-| 区分 | 変更内容 | 段 | 実行するもの |
-| :--- | :--- | :---: | :--- |
-| ドキュメント | `PROJECT.md` `SESSION.md` `docs/*.md` 等 | 省略 | なし |
-| 作業途中のステップ | 複数ステップで進む作業の最後の1つ前まで | 省略 | 必要ならビルドのみ（§3） |
-| レッスンJSON | `lessons/*.json`、`lessons/index.json` | 該当のみ | `validate:lessons` ＋ `grep -l <lessonId>` で出たシナリオ ＋ `lesson-picker` |
-| CSS・レイアウト | 配色・余白・フォント・配置 | 該当のみ | ビルド ＋ `*-layout*`・`*-ui-rules`・`c7-board-fit`・`c6-tactile-ui` |
-| ファイルの追加・削除 | 効果音・SVG・JSモジュール等 | 該当のみ | `app-version` ＋ `sw-routing`。`APP_SHELL` への追加と版数更新は目視確認（自動検査なし） |
-| 既存ファイル内の軽微な差替 | 音色定義1件、SVG差替（ファイル増減なし） | 省略 | 必要ならビルドのみ |
-| 検証ツール | `tools/validate-lessons.mjs` 等 | 該当のみ | `validate:lessons` を全レッスンで実行 ＋ NG例で検出されることを確認 |
-| アニメーション・タイミング | ステップ移動・トランジション時間・演出 | 全実行 | `cmd01-timing`（600ms±100ms）・`a2-*`・`a3-*` 等が依存するため |
-| コアロジック | `app.js` `js/state.js` `js/engine-*.js` `js/ui-*.js` `js/gimmicks/`、イベント、ルーティング | 全実行 | 全件 |
-| 新機能・新操作モデル | 新ギミック・新教材型・ゲート・同期 | 全実行 | 全件 ＋ 新機能用シナリオ追加 |
-| 大規模リファクタリング | ファイル構成・状態設計の変更 | 全実行 | 全件 ＋ `--mobile` |
-| 節目 | Issue完了・PR作成前 | 全実行 | §4 のゲート |
+1. 実装する。レッスンJSONを変えたら `npm run validate:lessons` を、CSS を変えたら `npm run build:css` を実行する。
+2. ブランチを push する。
+3. 途中で確かめたいシナリオがあれば、`e2e-run` で実行する。
 
-## 3. 各段の実行内容
+   ```
+   gh workflow run e2e-run.yml --ref <ブランチ> -f scenarios="<シナリオ名…>"
+   gh run watch "$(gh run list --workflow e2e-run.yml --branch <ブランチ> --limit 1 --json databaseId --jq '.[0].databaseId')" --exit-status
+   ```
 
-- **省略**：ビルドが要る変更のみ `npx tailwindcss@3.4.17 -i tailwind.src.css -o style.css --minify`。E2Eは流さず§5の形式で報告
-- **該当のみ**：`node tools/verify-all.mjs <名前> [<名前>...]`（名前は `.claude/verify/scenarios/` のファイル名から `.mjs` を除いたもの）。選んだシナリオと、それで足りる理由を報告に書く
-- **全実行**：`npm run verify:e2e`。画面幅に関わる変更は `node tools/verify-all.mjs --mobile` も1回
-- `run.mjs` を直接全件実行しない（`verify-all.mjs` の12本ずつのバッチ実行・失敗時リトライを迂回し、メモリ不足で止まりやすいため）
+4. PR を作る。本文に `E2E:` 行を書き、この変更に関係するシナリオを列挙する（最大12本）。
+   **このPRで追加・変更したシナリオは必ず含める。** 影響シナリオは `grep -lE '<lessonId|data-action名>' .claude/verify/scenarios/*` で列挙する。
 
-## 4. 節目（ゲート）
+   ```
+   E2E: les-cmd-04-repeat-box les-cmd-04-tutorial repeat-box-engine
+   ```
 
-次のタイミングでは、それまでの省略に関わらず全件実行を1回行う。ゲートでは `validate:lessons` とビルドも実行する。
+5. `gh pr checks --watch` で、**E2E PR が緑になるまで** 直す。
+6. 完了報告には次の形で書く。
 
-1. Issueの作業がすべて終わった最後のステップ
-2. PR作成の直前
-3. PR作成後にコードを変更した場合のみ、マージ依頼の直前（変更がなければ再実行しない）
+   ```
+   検証:
+   - 手元: validate:lessons / build:css（結果）
+   - CI: E2E PR（スモーク＋<E2E: 行のシナリオ>）結果 / e2e-run（実行した場合）
+   - 全件: 夜間実行に委ねる
+   ```
 
-ゲートで失敗したら、最後に変更したステップから順に切り分ける。切り分けに時間がかかりそうな全実行区分の変更は、途中でも1回流してよい。
+ドキュメントのみの変更は、手元検証も CI の E2E も不要（E2E PR の起動対象かは `e2e-pr.yml` に従う）。
 
-## 5. 報告に必ず書くこと
+## 3. 失敗したときの調べ方
 
-省略・該当のみを選んだ場合は次の形で書く（書かずに「AI確認済み」としない）。
+- 失敗したステップのログ：`gh run view <run-id> --log-failed`
+- ログとスクリーンショット（`--shot` 指定時）の取得：`gh run download <run-id>`
+  - 保存場所は `.verify/`。成果物名は `e2e-pr-log` / `e2e-run-log` / `e2e-nightly-log`
+- 画面の確認が必要なときは、`e2e-run` に `--shot` を付けて再実行する。
 
-```
-検証:
-- 実行済み: <コマンド／シナリオ名と結果>
-- 未実行: <省略した検証>（理由: <判定表の区分>）
-- ゲートで全実行予定: <Issue／PR>
-```
+## 4. スモーク6本の意味
+
+| シナリオ | 検出する致命的な問題 |
+| --- | --- |
+| `app-version` | キャッシュ更新漏れ（`APP_VERSION` と `CACHE_NAME` の不一致） |
+| `sw-routing` | Service Worker の配信経路の破損 |
+| `p3-offline` | オフラインで動かない |
+| `lesson-picker` | レッスンを選べない |
+| `cmd01-flow` | レッスンを最後まで進められない |
+| `guardian-gate` | 保護者ゲートが開かない |
+
+スモークに加える・外すときは Issue で決め、この表と `e2e-pr.yml` の `SMOKE` を同時に更新する。
+
+## 5. 夜間E2Eが失敗したとき
+
+1. セッション開始時に `gh issue list --label e2e-nightly --state open` を確認し、あれば最優先で対応する。
+2. 失敗したシナリオを `e2e-run` で再実行して再現させ、原因のコミットを特定して修正する（1 Issue = 1 PR）。
+3. 修正PRの `E2E:` 行に、失敗していたシナリオを含める。
+4. マージ後に `gh workflow run e2e-nightly.yml` を実行し、通れば Issue を閉じる。
+5. 再実行すると通る不安定な失敗は、テストを削らずに Issue に記録し、待ち方の見直しを別 Issue にする。
+
+## 6. 手元実行のガード
+
+- `tools/verify-all.mjs`（`npm run verify:e2e` 経由を含む）は、環境変数 `CI` も `E2E_LOCAL=1` も無い場合、`e2e-run` の案内を表示して終了する（終了コード2）。
+- `.claude/verify/run.mjs` はテンプレート配布物のため steam-kids ではガードを入れていない。直接実行もしない（ガード追加はテンプレート側で扱う）。
+- ユーザーが明示的に手元での実行を指示したときだけ、`E2E_LOCAL=1` を付けて実行してよい。
+
+## 7. 注意点
+
+- CI で1回実行するごとに、準備に1〜2分かかる。途中確認はシナリオをまとめて1回で投げる。
+- `e2e-run` は、ワークフローが main に入ってからでないと起動できない（GitHub の仕様）。
+- GitHub の定期実行は、リポジトリに60日間動きがないと自動停止する。
+- 公開リポジトリなので Actions は無料。プライベートに変える場合は、実行回数を見直す。
