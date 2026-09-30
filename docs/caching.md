@@ -35,6 +35,7 @@ kids-player（出典コミット`74adf54`）の`service-worker.js`から移植�
 
 `service-worker.js`の`CACHE_NAME`と`js/config.js`の`APP_VERSION`を同値にする。SWは`import`できず
 二重管理になるため、一致は`.claude/verify/scenarios/app-version.mjs`で機械チェックする。
+`APP_SHELL`とバージョンの整合は`npm run check:static`（`tools/check-static.mjs`）で機械的にチェックする。
 `APP_VERSION`はダッシュボードのフッタに表示され、実機でどの版が動いているかを判別できる。
 
 キャッシュの内容を変える変更（`APP_SHELL`に含まれるファイルの追加・削除、分岐規則の変更）を
