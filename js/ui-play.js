@@ -4,7 +4,7 @@
 import { S } from './state.js';
 import { boardSpec, chipCount } from './engine-grid.js';
 import { logEvent } from './events.js';
-import { renderGrid, shapeSvg, computeCellSize, prefersReducedMotion } from './ui-grid.js';
+import { renderGrid, shapeSvg, computeCellSize, splitMaxCell, prefersReducedMotion } from './ui-grid.js';
 import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, vibrate } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
 import { renderInto } from './text-render.js';
@@ -182,7 +182,7 @@ export function renderPlay(root, step) {
   opScreen.appendChild(controls);
 
   const paletteEl = document.createElement('div');
-  paletteEl.className = 'flex gap-2 justify-center';
+  paletteEl.className = 'palette-row flex gap-2 justify-center';
   controls.appendChild(paletteEl);
 
   const queueEl = document.createElement('ul');
@@ -190,7 +190,7 @@ export function renderPlay(root, step) {
   controls.appendChild(queueEl);
 
   const actionsEl = document.createElement('div');
-  actionsEl.className = 'flex gap-2 justify-center';
+  actionsEl.className = 'action-row flex gap-2 justify-center';
   controls.appendChild(actionsEl);
 
   const removeLastBtn = document.createElement('button');
@@ -311,6 +311,7 @@ export function renderPlay(root, step) {
       rows: spec.grid.rows,
       width: boardArea.clientWidth,
       height: boardArea.clientHeight,
+      maxCell: splitMaxCell(),
     });
     boardWrap.innerHTML = '';
     const { el, view } = renderGrid({
@@ -400,6 +401,7 @@ export function renderPlay(root, step) {
         playSfx(via === 'drag' ? 'snap' : 'tap');
         drawQueue();
         queueEl.scrollLeft = queueEl.scrollWidth;
+        queueEl.scrollTop = queueEl.scrollHeight;
         updateControls();
         local.nudge?.poke();
         return;
@@ -418,6 +420,7 @@ export function renderPlay(root, step) {
       // 命令列は横スクロールのため、積みすぎると最新のチップが右にはみ出して見えなくなる。
       // 追加のたびに右端へスクロールし、常に最新チップが見える位置にする（Issue #102）。
       queueEl.scrollLeft = queueEl.scrollWidth;
+      queueEl.scrollTop = queueEl.scrollHeight;
       // lastElementChildは使わない（末尾にトレイの次枠(.tray-slot)が付くため。Issue #110）。
       if (via === 'drag') queueEl.querySelectorAll('.command-chip')[local.commands.length - 1]?.classList.add('spring-in');
       updateControls();
@@ -493,6 +496,7 @@ export function renderPlay(root, step) {
       playSfx('tap');
       drawQueue();
       queueEl.scrollLeft = queueEl.scrollWidth;
+      queueEl.scrollTop = queueEl.scrollHeight;
       updateControls();
       local.nudge?.poke();
     });
@@ -781,6 +785,7 @@ export function renderPlay(root, step) {
       rows: spec.grid.rows,
       width: boardArea.clientWidth,
       height: boardArea.clientHeight,
+      maxCell: splitMaxCell(),
     });
     if (next !== local.cellSize) drawBoard(spec.start);
   }).observe(boardArea);

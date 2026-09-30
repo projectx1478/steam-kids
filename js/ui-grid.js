@@ -182,11 +182,17 @@ export function prefersReducedMotion() {
 // ロボットが隠れる事故が起きるため（Issue #99・#97）。盤面のマスはplay中はタップ対象では
 // ないため、この下限撤廃はタップ領域64px規則（PROJECT.md）と衝突しない。predict/tutorialの
 // 選択肢マスも操作パネル分の余白が無く、実運用でここまで縮む想定はしていない。
-export function computeCellSize({ cols, rows, width, height, gap = GAP_PX }) {
+export function computeCellSize({ cols, rows, width, height, gap = GAP_PX, maxCell = MAX_CELL }) {
   if (!cols || !rows || !width || !height) return DEFAULT_CELL;
   const fit = (size, n) => (size - PAD_PX * 2 - gap * (n - 1)) / n;
   const raw = Math.floor(Math.min(fit(width, cols), fit(height, rows)));
-  return Math.min(MAX_CELL, Math.max(MIN_CELL, raw));
+  return Math.min(maxCell, Math.max(MIN_CELL, raw));
+}
+
+// 横向きは盤面｜操作パネルの左右分割で盤面が広く取れるため、セル上限を引き上げる（Issue #156）。
+const SPLIT_MAX_CELL = 120;
+export function splitMaxCell(portraitMax = MAX_CELL) {
+  return window.matchMedia('(orientation: landscape)').matches ? SPLIT_MAX_CELL : portraitMax;
 }
 
 window.__gridAnimLog = window.__gridAnimLog || [];

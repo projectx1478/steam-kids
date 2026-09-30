@@ -267,3 +267,100 @@
   transform-box: fill-box;
   transform-origin: center;
 }
+
+/* 操作画面（play・れんしゅう）：横向きは「盤面｜操作パネル」の左右分割、縦向きは従来の縦積み（Issue #156）。 */
+.tutorial-main,
+.tutorial-side {
+  display: contents;
+}
+@media (orientation: landscape) {
+  #app:has(.play-screen, .tutorial-screen) {
+    max-width: none;
+  }
+
+  .play-screen.play-screen {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-rows: auto minmax(0, 1fr);
+    column-gap: 0.5rem;
+    row-gap: 0.5rem;
+  }
+  .play-screen > .status-bar {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .play-screen > .board-area {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .play-screen > .controller-panel {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .tutorial-screen.tutorial-screen {
+    flex-direction: row;
+  }
+  .tutorial-main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 0;
+  }
+  .tutorial-side {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex: 0 0 320px;
+    min-height: 0;
+    border-radius: 1rem;
+    padding: 0.75rem;
+    background-color: #c89560;
+    background-image: repeating-linear-gradient(0deg, rgba(110, 62, 24, 0.14) 0 2px, transparent 2px 11px),
+      linear-gradient(180deg, #d4a36e, #bf8a55);
+    box-shadow: inset 0 0 0 2px #8a5a2b, inset 0 -4px 0 2px #8a5a2b;
+  }
+
+  .controller-panel > .palette-row,
+  .tutorial-side > .palette-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+  .palette-row > [data-action='box-open'] {
+    grid-column: 1 / -1;
+  }
+  .controller-panel .command-tray,
+  .tutorial-side .command-queue {
+    flex: 1 1 0;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    overflow-x: hidden;
+    overflow-y: auto;
+    min-height: 64px;
+    min-width: 0;
+  }
+  .controller-panel > .action-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin-top: auto;
+  }
+  .tutorial-side > .tutorial-queue-row {
+    flex-direction: column;
+    align-items: stretch;
+    flex: 1 1 0;
+    min-height: 0;
+  }
+}
+
+/* 背の低い横向き（1024×600等）は、パレット・操作ボタンを1行4列にしてトレイの高さを確保する。 */
+@media (orientation: landscape) and (max-height: 700px) {
+  .controller-panel > .palette-row,
+  .controller-panel > .action-row,
+  .tutorial-side > .palette-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

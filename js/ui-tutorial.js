@@ -3,7 +3,7 @@
 // 1行キャプション）・区切り画面・スキップを持つ（Issue #93。旧仕様はIssue #81）。
 import { S } from './state.js';
 import { simulate, boardSpec } from './engine-grid.js';
-import { renderGrid, computeCellSize } from './ui-grid.js';
+import { renderGrid, computeCellSize, splitMaxCell } from './ui-grid.js';
 import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, COMMAND_LABELS, vibrate } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
 import { renderInto } from './text-render.js';
@@ -63,6 +63,14 @@ export function renderTutorial(root, step) {
   panel.className = 'tutorial-screen flex flex-col flex-1 min-h-0 gap-2 bg-amber-50 rounded-xl p-2';
   root.appendChild(panel);
 
+  // 縦向きはdisplay:contentsで従来どおりの縦積み、横向きは盤面｜操作パネルの左右分割（Issue #156）。
+  const mainCol = document.createElement('div');
+  mainCol.className = 'tutorial-main';
+  panel.appendChild(mainCol);
+  const sideCol = document.createElement('div');
+  sideCol.className = 'tutorial-side';
+  panel.appendChild(sideCol);
+
   const headerRow = document.createElement('div');
   headerRow.className = 'flex justify-between items-center shrink-0';
   const heading = document.createElement('h2');
@@ -75,13 +83,13 @@ export function renderTutorial(root, step) {
   skipBtn.textContent = 'れんしゅうを とばす';
   skipBtn.className = 'min-w-[64px] min-h-[64px] px-3 rounded-lg bg-white text-xs text-slate-600 shadow';
   headerRow.appendChild(skipBtn);
-  panel.appendChild(headerRow);
+  mainCol.appendChild(headerRow);
 
   if (step.text) {
     const prompt = document.createElement('p');
     prompt.className = 'tutorial-prompt text-lg text-center shrink-0';
     renderInto(prompt, step.text, S.readingLevel, S.furigana);
-    panel.appendChild(prompt);
+    mainCol.appendChild(prompt);
   }
 
   // お手本列。実物ボタンと同じ見た目（色・矢印SVG）で手順を示し、文言は使わない（Issue #81）。
@@ -134,11 +142,11 @@ export function renderTutorial(root, step) {
     el.appendChild(check);
     guideRowEl.appendChild(el);
   });
-  panel.appendChild(guideRowEl);
+  mainCol.appendChild(guideRowEl);
 
   const boardArea = document.createElement('div');
   boardArea.className = 'board-area relative flex-1 min-h-0 flex items-center justify-center overflow-hidden';
-  panel.appendChild(boardArea);
+  mainCol.appendChild(boardArea);
   const boardWrap = document.createElement('div');
   boardArea.appendChild(boardWrap);
 
@@ -160,16 +168,16 @@ export function renderTutorial(root, step) {
   // 結果の見える化：タップごとに番号付きゴースト矢印＋1行キャプションを出す（Issue #93）。
   const captionEl = document.createElement('p');
   captionEl.className = 'ghost-caption text-center text-sm text-slate-600 shrink-0 min-h-[1.25rem]';
-  panel.appendChild(captionEl);
+  mainCol.appendChild(captionEl);
 
   const paletteEl = document.createElement('div');
-  paletteEl.className = 'flex gap-2 justify-center shrink-0';
-  panel.appendChild(paletteEl);
+  paletteEl.className = 'palette-row flex gap-2 justify-center shrink-0';
+  sideCol.appendChild(paletteEl);
 
   // 命令列とじっこうを1行に並べる（行を分けるとスマホ縦で盤面の高さが残らないため。Issue #99）。
   const queueRow = document.createElement('div');
-  queueRow.className = 'flex items-center gap-2 shrink-0';
-  panel.appendChild(queueRow);
+  queueRow.className = 'tutorial-queue-row flex items-center gap-2 shrink-0';
+  sideCol.appendChild(queueRow);
 
   const queueEl = document.createElement('ul');
   queueEl.className = 'command-queue flex flex-nowrap items-center gap-2 overflow-x-auto min-h-[64px] py-1 flex-1 min-w-0';
@@ -197,8 +205,8 @@ export function renderTutorial(root, step) {
 
   function drawBoard() {
     local.cellSize = Math.min(
-      TUTORIAL_CELL_MAX,
-      computeCellSize({ cols: spec.grid.cols, rows: spec.grid.rows, width: boardArea.clientWidth, height: boardArea.clientHeight })
+      splitMaxCell(TUTORIAL_CELL_MAX),
+      computeCellSize({ cols: spec.grid.cols, rows: spec.grid.rows, width: boardArea.clientWidth, height: boardArea.clientHeight, maxCell: splitMaxCell() })
     );
     boardWrap.innerHTML = '';
     const { el, view } = renderGrid({ grid: spec.grid, walls: spec.walls, goal: spec.goal, items: spec.items, ice: spec.ice, cushion: spec.cushion, keys: spec.keys, doors: spec.doors, switches: spec.switches, playerPos: spec.start, labels: [], cellSize: local.cellSize });
@@ -355,6 +363,7 @@ export function renderTutorial(root, step) {
         local.guideIndex += 1;
         drawQueue();
         queueEl.scrollLeft = queueEl.scrollWidth;
+        queueEl.scrollTop = queueEl.scrollHeight;
         updateGhostPreview();
         applyGuide();
         return;
@@ -373,6 +382,7 @@ export function renderTutorial(root, step) {
       drawQueue();
       // 命令列は横スクロールのため、追加のたびに右端へスクロールし最新チップを見せる（Issue #102）。
       queueEl.scrollLeft = queueEl.scrollWidth;
+      queueEl.scrollTop = queueEl.scrollHeight;
       if (via === 'drag' && !merged) queueEl.lastElementChild?.classList.add('spring-in');
       updateGhostPreview();
       applyGuide();
@@ -401,6 +411,7 @@ export function renderTutorial(root, step) {
       drawQueueRow();
       drawQueue();
       queueEl.scrollLeft = queueEl.scrollWidth;
+      queueEl.scrollTop = queueEl.scrollHeight;
       updateGhostPreview();
       applyGuide();
     });
@@ -506,8 +517,8 @@ export function renderTutorial(root, step) {
   new ResizeObserver(() => {
     if (local.running) return;
     const next = Math.min(
-      TUTORIAL_CELL_MAX,
-      computeCellSize({ cols: spec.grid.cols, rows: spec.grid.rows, width: boardArea.clientWidth, height: boardArea.clientHeight })
+      splitMaxCell(TUTORIAL_CELL_MAX),
+      computeCellSize({ cols: spec.grid.cols, rows: spec.grid.rows, width: boardArea.clientWidth, height: boardArea.clientHeight, maxCell: splitMaxCell() })
     );
     if (next !== local.cellSize) {
       drawBoard();
