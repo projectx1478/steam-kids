@@ -1,0 +1,76 @@
+name: E2E nightly
+
+# 全件E2E。毎晩 2:00 JST（直近25時間に main へのコミットがあった日だけ）と手動実行。
+# 失敗したら e2e-nightly ラベルの Issue を1件起票（未解決があればコメント追記）。
+
+on:
+  schedule:
+    - cron: '0 17 * * *'   # UTC 17:00 = JST 2:00
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: e2e-nightly
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+
+      - name: 直近にコミットがなければスキップ（手動実行は常に実行）
+        id: gate
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || \
+             [ -n "$(git log --since='25 hours ago' --format=%H | head -1)" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"; echo "コミットなしのためスキップ"
+          fi
+
+      - uses: ./.github/actions/setup-e2e
+        if: steps.gate.outputs.run == 'true'
+
+      - name: レッスン検証
+        if: steps.gate.outputs.run == 'true'
+        run: npm run validate:lessons
+
+      - name: E2E 全件
+        if: steps.gate.outputs.run == 'true'
+        run: npm run verify:e2e
+
+      - name: ログを保存
+        if: always() && steps.gate.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-nightly-log
+          path: .verify/
+          retention-days: 14
+          include-hidden-files: true
+          if-no-files-found: ignore
+
+      - name: 失敗時に Issue を起票
+        if: failure() && steps.gate.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LABEL=e2e-nightly
+          gh label create "$LABEL" --color B60205 --description "夜間E2Eの失敗" 2>/dev/null || true
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          TAIL=$( [ -f .verify/verify-all.log ] && tail -n 60 .verify/verify-all.log || echo "(ログなし。validate:lessons かセットアップで失敗)" )
+          COMMITS=$(git log --since='25 hours ago' --format='%h %s' | head -20)
+          BODY=$(printf '夜間E2Eが失敗しました。\n\n- コミット: %s\n- 実行ログ: %s\n\n直近のコミット:\n```\n%s\n```\n\nログ末尾:\n```\n%s\n```\n' \
+            "${{ github.sha }}" "$RUN_URL" "$COMMITS" "$TAIL")
+          EXISTING=$(gh issue list --label "$LABEL" --state open --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "$BODY"
+          else
+            gh issue create --title "夜間E2E失敗 $(date -u +%Y-%m-%d)" --label "$LABEL" --body "$BODY"
+          fi
