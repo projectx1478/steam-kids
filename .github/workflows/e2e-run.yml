@@ -1,0 +1,65 @@
+name: E2E run
+
+# 実装中に、指定したシナリオだけを任意のブランチで実行する。
+#   gh workflow run e2e-run.yml --ref <ブランチ> -f scenarios="repeat-box-engine les-cmd-04-repeat-box"
+#   gh run watch "$(gh run list --workflow e2e-run.yml --branch <ブランチ> --limit 1 --json databaseId --jq '.[0].databaseId')" --exit-status
+# scenarios に all と書くと全件（夜間と同じ）。--mobile / --shot も書ける。
+
+on:
+  workflow_dispatch:
+    inputs:
+      scenarios:
+        description: 'シナリオ名（空白区切り）。all で全件。--mobile / --shot 可'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-run-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 実行するシナリオを決める
+        id: pick
+        env:
+          REQ: ${{ inputs.scenarios }}
+        run: |
+          if printf '%s\n' "$REQ" | tr -s ' ' '\n' | grep -qx all; then
+            ARGS=$(set -f; MAX_EXTRA=0 bash .github/scripts/pick-scenarios.sh "$(printf '%s\n' "$REQ" | tr -s ' ' '\n' | grep -E '^--(mobile|shot)$' | tr '\n' ' ')")
+            echo "args=$ARGS" >> "$GITHUB_OUTPUT"
+            echo "### 実行シナリオ" >> "$GITHUB_STEP_SUMMARY"
+            echo "全件 \`$ARGS\`" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          ARGS=$(MAX_EXTRA=30 bash .github/scripts/pick-scenarios.sh "$REQ")
+          if [ -z "$(echo "$ARGS" | sed 's/--[a-z]*//g' | xargs)" ]; then
+            echo "::error::有効なシナリオ名がありません: $REQ"; exit 1
+          fi
+          echo "args=$ARGS" >> "$GITHUB_OUTPUT"
+          echo "### 実行シナリオ" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`$ARGS\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: ./.github/actions/setup-e2e
+
+      - name: E2E
+        env:
+          ARGS: ${{ steps.pick.outputs.args }}
+        run: npm run verify:e2e -- $ARGS
+
+      - name: ログ・スクリーンショットを保存
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-run-log
+          path: .verify/
+          retention-days: 7
+          include-hidden-files: true
+          if-no-files-found: ignore
