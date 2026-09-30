@@ -1,0 +1,33 @@
+name: Setup E2E
+description: Node と Playwright(chromium) を用意する。ブラウザはキャッシュする。Playwright のバージョンは package.json の devDependencies が唯一の定義。
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
+
+    - name: 依存関係（tailwindcss・playwright）
+      shell: bash
+      run: npm install --no-audit --no-fund
+
+    - name: ブラウザのキャッシュキー
+      id: pw
+      shell: bash
+      run: echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+
+    - uses: actions/cache@v4
+      id: pwcache
+      with:
+        path: ~/.cache/ms-playwright
+        key: pw-${{ runner.os }}-${{ steps.pw.outputs.version }}
+
+    - name: ブラウザ（キャッシュなし）
+      if: steps.pwcache.outputs.cache-hit != 'true'
+      shell: bash
+      run: npx playwright install --with-deps chromium
+
+    - name: ブラウザ依存ライブラリ（キャッシュあり）
+      if: steps.pwcache.outputs.cache-hit == 'true'
+      shell: bash
+      run: npx playwright install-deps chromium
