@@ -364,3 +364,5 @@
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
+
+.verify-css-red { color: rgb(254, 0, 0); }
