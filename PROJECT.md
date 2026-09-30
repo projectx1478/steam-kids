@@ -131,11 +131,12 @@ MVP実装対象は `grid-runtime`。予想ステップ（`kind: "predict"`）は
 
 ### 検証コマンド
 
-コード変更後、手元で実行するのは`validate:lessons`・ビルドのみ。E2Eは手元で実行せず（`tools/verify-all.mjs`のガードで止まる）GitHub Actionsで実行する。
+コード変更後、手元で実行するのは軽量チェック（`check:static`・`test:unit`・`validate:lessons`・ビルド）のみ。E2Eは手元で実行せず（`tools/verify-all.mjs`のガードで止まる）GitHub Actionsで実行する。軽量チェックはPRごとにCI（`.github/workflows/checks.yml`）でも自動実行する。
 
 | 種別 | コマンド |
 | --- | --- |
-| テスト | なし |
+| 静的チェック | `npm run check:static` |
+| テスト | `npm run test:unit` |
 | Lint | なし |
 | 型チェック | なし |
 | ビルド | `npx tailwindcss@3.4.17 -i tailwind.src.css -o style.css --minify` |

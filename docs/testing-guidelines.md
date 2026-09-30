@@ -4,20 +4,23 @@
 
 - **E2E（`.claude/verify/run.mjs`・`npm run verify:e2e`）は、個別・全件を問わず手元で実行しない。すべて GitHub Actions で実行する。**
   - 手元での実行は、ガード（§6）によって既定で止まる。
-- 手元で実行してよいのは、ブラウザを使わない軽い検証だけ：`npm run validate:lessons`、`npm run build:css`。
+- 手元で実行してよいのは、ブラウザを使わない軽い検証だけ：`npm run check:static`、`npm run test:unit`、`npm run validate:lessons`、`npm run build:css`。
 - 「テストを通すための書き換え・skip・期待値の合わせ込み禁止」は従来どおり有効。
 - どの AI・人が開発しても、同じワークフローを使う。
 - AGENTS.md「検証フェーズ」の「全コマンド実行」「PR作成前は全件実行」は、本書の運用（E2E は CI）が優先する（project-template#106 で AGENTS.md に反映予定。反映まではこの注記が正）。
 
+検証は「軽量チェック（手元・CI）→ E2E（CI のみ）」の2段で行う。軽量チェックは手元でも CI（`checks.yml`）でも同じコマンドを使う。
+
 | 目的 | ワークフロー | 起動 | 実行内容 |
 | --- | --- | --- | --- |
+| PR の軽量チェック | `checks.yml` | PR の作成・更新で自動 | check:static・test:unit・validate:lessons・style.css のビルド忘れ |
 | 実装中の確認 | `e2e-run.yml` | `gh workflow run`（手動） | 指定シナリオのみ（`all` で全件） |
 | PR の最低ライン | `e2e-pr.yml` | PR の作成・更新・本文編集で自動 | スモーク6本＋PR本文の `E2E:` 行 |
 | 回帰の網羅 | `e2e-nightly.yml` | 毎晩2時（コミットがあった日）／手動 | 全件 |
 
 ## 2. 開発の流れ
 
-1. 実装する。レッスンJSONを変えたら `npm run validate:lessons` を、CSS を変えたら `npm run build:css` を実行する。
+1. 実装する。コードを変えたら `npm run check:static` と `npm run test:unit` を、レッスンJSONを変えたら `npm run validate:lessons` を、CSS を変えたら `npm run build:css` を実行する。
 2. ブランチを push する。
 3. 途中で確かめたいシナリオがあれば、`e2e-run` で実行する。
 
@@ -38,8 +41,8 @@
 
    ```
    検証:
-   - 手元: validate:lessons / build:css（結果）
-   - CI: E2E PR（スモーク＋<E2E: 行のシナリオ>）結果 / e2e-run（実行した場合）
+   - 手元: check:static / test:unit / validate:lessons / build:css（結果）
+   - CI: Checks 結果 / E2E PR（スモーク＋<E2E: 行のシナリオ>）結果 / e2e-run（実行した場合）
    - 全件: 夜間実行に委ねる
    ```
 
