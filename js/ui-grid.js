@@ -12,9 +12,14 @@ const BOUNCE_NUDGE_PX = 10;
 const NUDGE_BY_DIR = { up: [0, -BOUNCE_NUDGE_PX], down: [0, BOUNCE_NUDGE_PX], left: [-BOUNCE_NUDGE_PX, 0], right: [BOUNCE_NUDGE_PX, 0] };
 const CUSHION_MS = 450;
 const BURST_MS = 350;
+const DIZZY_MS = 1200;
 // 壁に当たった時に弾ける星（ゴールの旗・クリアの星とは別の、黄色いギザギザ）。
 const BURST_SVG = `<svg viewBox="0 0 64 64" class="w-full h-full" aria-hidden="true">
       <path d="M32 6 L38 24 L58 20 L44 34 L56 50 L36 44 L30 60 L26 42 L6 46 L20 32 L8 16 L28 22 Z" fill="#fde047" stroke="#f59e0b" stroke-width="3" stroke-linejoin="round" />
+    </svg>`;
+// 目を回すロボットの頭上で回る小さな星3つ（壁衝突の演出。Issue #168）。
+const DIZZY_SVG = `<svg viewBox="0 0 64 64" class="w-full h-full" aria-hidden="true">
+      ${[[32, 10], [10, 46], [54, 46]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="8" fill="#fde047" stroke="#f59e0b" stroke-width="3" />`).join('')}
     </svg>`;
 const CONFETTI_COUNT = 24;
 const CONFETTI_MS = 1500;
@@ -193,7 +198,7 @@ window.__gridAnimLog = window.__gridAnimLog || [];
 // labels: [{id, x, y}] 予想ステップの選択肢ボタン
 // view: プレイヤー駒・足あとの差分更新API（アニメーション中はこちらのみ使う。draw全再構築はしない）
 //   view.moveTo(pos): 通常移動（450ms、reduced-motion時は即時）
-//   view.bounce(dir, kind): 衝突の演出（kind='wall'|'cushion'、250ms〜、reduced-motion時は何もしない）
+//   view.bounce(dir, kind): 衝突の演出（kind='wall'|'cushion'、250ms〜、reduced-motion時は何もしない。'wall'は約1.2秒の目回し星を出し、reduced-motion時は静止表示。Issue #168）
 //   view.footprint(pos): 通過マスに足あとを追加
 //   view.markCell(pos, kind): 盤面を再構築せず印を重ねる（予想の答え合わせ・playのヒント。Issue #91）
 //   view.hintItems(items) / view.clearHints(): 未回収itemの点滅とヒント表示の一括解除（Issue #91）
@@ -318,6 +323,25 @@ export function renderGrid(opts) {
   }
   scheduleBlink();
 
+  // showDizzy(reduce): 壁衝突後、頭上で星が回りロボットが小さく揺れる（DIZZY_MS後に消える）。
+  // reduced-motion時は回転・揺れを止めて星を静止表示する（Issue #168）。
+  function showDizzy(reduce) {
+    token.querySelector('.grid-dizzy')?.remove();
+    const stars = document.createElement('div');
+    stars.className = 'grid-dizzy absolute pointer-events-none';
+    stars.style.width = `${CELL * 0.6}px`;
+    stars.style.height = `${CELL * 0.6}px`;
+    stars.style.left = `${CELL * 0.2}px`;
+    stars.style.top = `${-CELL * 0.2}px`;
+    stars.innerHTML = DIZZY_SVG;
+    token.appendChild(stars);
+    if (!reduce) {
+      stars.animate([{ rotate: '0deg' }, { rotate: '720deg' }], { duration: DIZZY_MS });
+      token.animate([{ rotate: '0deg' }, { rotate: '-5deg' }, { rotate: '5deg' }, { rotate: '-5deg' }, { rotate: '5deg' }, { rotate: '0deg' }], { duration: DIZZY_MS, easing: 'ease-in-out' });
+    }
+    setTimeout(() => stars.remove(), DIZZY_MS);
+  }
+
   const view = {
     gimmickEls,
     moveTo(nextPos) {
@@ -334,7 +358,9 @@ export function renderGrid(opts) {
     // 凹んでふわっと押し返し、ロボットがばねのように戻る（口はにっこり）。
     bounce(dir, kind = 'wall') {
       setFacing(dir);
-      if (prefersReducedMotion()) return;
+      const reduce = prefersReducedMotion();
+      if (kind === 'wall') showDizzy(reduce);
+      if (reduce) return;
       const base = pixelFor(pos);
       const [nx, ny] = NUDGE_BY_DIR[dir] ?? [0, 0];
       const at = (k) => `translate(${base.x + nx * k}px, ${base.y + ny * k}px)`;

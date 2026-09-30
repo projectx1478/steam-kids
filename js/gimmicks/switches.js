@@ -1,5 +1,5 @@
 // switches（スイッチ）ギミック：スイッチのマスへ入ると対応する切替壁が消えて通れる。
-// 1回で固定（戻らない）。踏む前の切替壁は壁と同じ通行不可（当たると失敗）。Issue #63。
+// 1回で固定（戻らない）。消える代わりに壁が沈み込んで床に埋まる（Issue #168）。踏む前の切替壁は壁と同じ通行不可（当たると失敗）。Issue #63。
 // 「壁が出る」は別Issue（#149）。スキーマの mode は "open"（既定）のみ許可して予約している。
 const keyOf = (p) => `${p.x},${p.y}`;
 const list = (v) => (Array.isArray(v) ? v : []);
@@ -11,11 +11,28 @@ function switchSvg(pressed) {
     </svg>`;
 }
 
+// off＝踏んだ後の埋まった床（フラット）。onの壁が沈み込んだ後にこの表示になる（Issue #168）。
 function wallSvg(on) {
-  return `<svg viewBox="0 0 64 64" class="grid-switch-wall-svg absolute inset-0 w-full h-full pointer-events-none" style="opacity:${on ? 1 : 0.3}" aria-hidden="true">
-      <rect x="4" y="4" width="56" height="56" rx="8" fill="${on ? '#f59e0b' : 'none'}" stroke="#d97706" stroke-width="4" stroke-dasharray="${on ? '0' : '6 5'}" />
-      <path d="M14 22 H50 M14 42 H50 M32 22 V42" stroke="${on ? '#ffffff' : '#d97706'}" stroke-width="3" fill="none" stroke-linecap="round" />
+  if (!on) {
+    return `<svg viewBox="0 0 64 64" class="grid-switch-wall-svg absolute inset-0 w-full h-full pointer-events-none" aria-hidden="true">
+      <rect x="6" y="6" width="52" height="52" rx="8" fill="#d6c4a5" stroke="#b8a37f" stroke-width="2" />
     </svg>`;
+  }
+  return `<svg viewBox="0 0 64 64" class="grid-switch-wall-svg absolute inset-0 w-full h-full pointer-events-none" aria-hidden="true">
+      <rect x="4" y="4" width="56" height="56" rx="8" fill="#f59e0b" stroke="#d97706" stroke-width="4" />
+      <path d="M14 22 H50 M14 42 H50 M32 22 V42" stroke="#ffffff" stroke-width="3" fill="none" stroke-linecap="round" />
+    </svg>`;
+}
+
+const SINK_MS = 500;
+
+// 壁を縮小＋暗くして沈ませ、埋まった床の表示へ差し替える。reduced-motion時は即時に差し替える。
+function sinkWall(cell) {
+  const svg = cell.querySelector('.grid-switch-wall-svg');
+  if (!svg) return;
+  const flat = () => svg.replaceWith(fromHtml(wallSvg(false)));
+  if (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) return flat();
+  svg.animate([{ transform: 'scale(1)', filter: 'brightness(1)' }, { transform: 'scale(0.85)', filter: 'brightness(0.6)' }], { duration: SINK_MS, easing: 'ease-in', fill: 'forwards' }).finished.then(flat, flat);
 }
 
 const fromHtml = (html) => Object.assign(document.createElement('template'), { innerHTML: html }).content.firstElementChild;
@@ -64,7 +81,7 @@ export const switches = {
       const cell = els?.wallCells.get(keyOf(t));
       if (!cell) return;
       cell.dataset.switchWall = 'off';
-      cell.querySelector('.grid-switch-wall-svg')?.replaceWith(fromHtml(wallSvg(false)));
+      sinkWall(cell);
     });
     return 'pickup';
   },
@@ -105,7 +122,7 @@ export const switches = {
   },
 
   // スイッチと切替壁のセルへSVGを重ねる。data-switch（番号）/ data-switch-pressed、
-  // 切替壁はdata-switch-wall="on|off"（踏むとoff＝消えた状態）。
+  // 切替壁はdata-switch-wall="on|off"（踏むとoff＝埋まった状態）。
   render({ board, switches: swList = [] }) {
     const switchCells = new Map();
     const wallCells = new Map();
