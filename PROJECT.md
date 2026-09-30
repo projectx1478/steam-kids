@@ -182,6 +182,8 @@ ES Modules（`<script type="module">` / `import`/`export`）でファイル間�
 | E2E/実機確認 | `npm run verify:e2e`（部分実行は`node tools/verify-all.mjs <名前…>`） |
 | レッスンJSON検証 | `npm run validate:lessons` |
 
+実行範囲（省略／該当のみ／全実行）の判定は `docs/testing-guidelines.md` に従う。省略・部分実行した検証は報告に理由付きで書く。
+
 影響範囲確認：レッスンJSONやDOM契約（`data-action`等）を変更するときは、`grep -lE '<lessonId|data-action名>' .claude/verify/scenarios/*`で影響シナリオを列挙する。`.claude/verify/config.mjs`の凍結fixture（cmd-01・donguri-01）の対象かも確認する。
 
 ### ギミックの追加手順・検証規則
@@ -258,6 +260,7 @@ Issueには理由ではなく**判定可能な数値条件**を書く（0.6秒�
 - `docs/dashboard.md` — ダッシュボードの表示内容と詰まりアラートの判定条件。P2着手時に読む
 - `docs/design-sync.md` — 同期方式、バックエンド選定（未決）、秘密情報の扱い。P3着手時に読む
 - `docs/caching.md` — Service Workerの方式・版数管理。Issue #28着手時に読む
+- `docs/testing-guidelines.md` — 検証の実行範囲（省略／該当のみ／全実行）。検証コマンドを選ぶとき読む
 
 ## 8. 未決事項
 
