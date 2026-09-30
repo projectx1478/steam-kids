@@ -8,7 +8,7 @@
 - 描画（SVG・演出・ふりがな不要の短文）
 - 数値条件（判定可能な数値。検証ツールで確認するもの）
 
-追加手順・命名規則はPROJECT.md「ギミックの追加手順」。
+追加手順・命名規則・検証規則は末尾「追加手順・検証規則」。
 
 ## フックIF（js/gimmicks/<name>.js）
 
@@ -61,3 +61,12 @@
 - 移動規則：スイッチのマスへ入ると、その`targets`が通れる（1回で固定・戻らない）。踏む前の対象は`blocks`で壁と同じ失敗（歩き・こおりの滑走とも`blockedAt`）。BFSは踏んだスイッチ番号を状態に含む
 - 描画：スイッチ・対象のセルにSVGを重ね`data-switch`（番号）/`data-switch-pressed`、対象は`data-switch-wall="on"`（消えると`"off"`＝半透明の点線枠）。踏むと`pickup`音
 - 数値条件：盤面は6×6以内。`targets`は空不可。スイッチ・対象は壁・start・goal・items・ice・cushion・keys・doors・互いと重なり不可。対象を壁のまま（スイッチ無し）にして`maxCommands`以内に届くと検証NG（スイッチの必須性）
+
+## 追加手順・検証規則
+
+- 盤面ギミックの追加：`js/gimmicks/<name>.js`＋登録1行＋本ファイルに1節＋`g-<name>-*.mjs`シナリオ（Issue #123以降）
+- ギミックのシナリオは`routeLesson`（`.claude/verify/helpers.mjs`）のインライン最小盤面で書き、実レッスンに依存させない
+- 新規シナリオの命名は`g-<gimmick>-*`・`les-<lessonId>-*`。`node .claude/verify/run.mjs <名前>`で部分実行できる
+- こおりを持つplayステージは、こおりを壁扱いにしてもmaxCommands以内に届かないこと（`validate:lessons`が検証。Issue #134）
+- playステージに`solution`（正解手順）を必ず書く。`clearLesson`が読み、検証ツールがクリアを確認する
+- 設計Issueの引継ぎには「読むファイル（行範囲）／読まなくてよいファイル」を書く（実装者の探索を減らす）
