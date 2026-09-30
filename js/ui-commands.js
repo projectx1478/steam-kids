@@ -155,7 +155,7 @@ export function renderCommandPalette(container, { onAdd, dropTarget, onDragOver 
 }
 
 // 順番数字（①②③）は::beforeで重ねる（実DOMにspanを増やすと、チップ内テキストをspanで
-// 厳密比較する既存シナリオ（cmd02-group-repeats・group-repeats-engine）が壊れるため。Issue #93）。
+// 厳密比較する既存シナリオ（cmd02-group-repeats・group-repeats-ui）が壊れるため。Issue #93）。
 export const ORDER_BADGE_CLASS =
   "before:content-[attr(data-order)] before:absolute before:-top-1.5 before:-left-1.5 before:w-4 before:h-4 before:rounded-full before:bg-sky-600 before:text-white before:text-[10px] before:font-bold before:leading-4 before:text-center";
 
@@ -191,7 +191,7 @@ export function renderCommandQueue(container, { commands, activeIndex, activeInn
     if (i > 0) container.appendChild(renderOrderArrow());
     const chip = document.createElement('li');
     // ×バッジはCSS疑似要素(after:content)で描く。実DOMに<span>を増やすと、チップ内テキストを
-    // spanで厳密比較する既存シナリオ（cmd02-group-repeats・group-repeats-engine）が壊れるため。
+    // spanで厳密比較する既存シナリオ（cmd02-group-repeats・group-repeats-ui）が壊れるため。
     chip.className = `command-chip relative flex flex-col items-center justify-center gap-0.5 min-w-[64px] min-h-[64px] px-1 rounded-lg bg-sky-100 shrink-0 ${ORDER_BADGE_CLASS} ${
       removable
         ? "command-remove cursor-pointer transition-transform duration-100 active:scale-95 after:content-['×'] after:absolute after:-top-1.5 after:-right-1.5 after:w-4 after:h-4 after:rounded-full after:bg-rose-500 after:text-white after:text-[10px] after:font-bold after:leading-4 after:text-center"
@@ -265,7 +265,7 @@ export function renderCommandQueue(container, { commands, activeIndex, activeInn
     const icon = chip.lastElementChild;
     icon.classList.add('w-5', 'h-5', 'text-sky-600');
 
-    // ラベルは既存シナリオ（cmd02-group-repeats・group-repeats-engine）がテキストを厳密比較するため
+    // ラベルは既存シナリオ（cmd02-group-repeats・group-repeats-ui）がテキストを厳密比較するため
     // 「した ×5」/「うえ」形式を維持する。チップ内で唯一の<span>にする。
     const label = document.createElement('span');
     label.className = 'text-[10px] leading-tight';

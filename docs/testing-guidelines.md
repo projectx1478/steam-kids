@@ -30,7 +30,7 @@
    **このPRで追加・変更したシナリオは必ず含める。** 影響シナリオは `grep -lE '<lessonId|data-action名>' .claude/verify/scenarios/*` で列挙する。
 
    ```
-   E2E: les-cmd-04-repeat-box les-cmd-04-tutorial repeat-box-engine
+   E2E: les-cmd-04-repeat-box les-cmd-04-tutorial group-repeats-ui
    ```
 
 5. `gh pr checks --watch` で、**E2E PR が緑になるまで** 直す。
