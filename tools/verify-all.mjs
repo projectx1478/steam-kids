@@ -14,6 +14,14 @@ import { appendFileSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// 手元実行ガード：E2EはGitHub Actionsで実行する（docs/testing-guidelines.md）。CIか E2E_LOCAL=1 のときだけ動く
+if (!process.env.CI && process.env.E2E_LOCAL !== '1') {
+  console.error('E2Eは手元で実行しない。GitHub Actionsで実行する:');
+  console.error('  gh workflow run e2e-run.yml --ref <ブランチ> -f scenarios="<シナリオ名…>"   （全件は all）');
+  console.error('詳細: docs/testing-guidelines.md。明示的に手元実行を指示された場合のみ E2E_LOCAL=1 を付ける');
+  process.exit(2);
+}
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const RUN = path.join(ROOT, '.claude', 'verify', 'run.mjs');
 const LOG = path.join(ROOT, '.verify', 'verify-all.log');
