@@ -52,6 +52,11 @@ export function renderTutorial(root, step) {
     running: false,
     view: null,
     cellSize: TUTORIAL_CELL_MAX,
+    // 実行中ハイライト（playと同じ契約。周回の点表示用。Issue #167）。
+    activeIndex: -1,
+    activeInner: -1,
+    activeRound: -1,
+    lastRound: -1,
   };
 
   const panel = document.createElement('div');
@@ -202,7 +207,14 @@ export function renderTutorial(root, step) {
   }
 
   function drawQueue() {
-    renderCommandQueue(queueEl, { commands: local.commands, activeIndex: -1, openIndex: local.boxOpen, removable: false });
+    renderCommandQueue(queueEl, {
+      commands: local.commands,
+      activeIndex: local.activeIndex,
+      activeInner: local.activeInner,
+      activeRound: local.activeRound,
+      openIndex: local.boxOpen,
+      removable: false,
+    });
   }
 
   function guideEntry() {
@@ -234,7 +246,7 @@ export function renderTutorial(root, step) {
     }
     if (showCaption) {
       const last = local.commands.at(-1);
-      captionEl.textContent = last.box ? `はこ ×${last.times}` : `${COMMAND_LABELS[last.dir]}に 1ます すすむ よてい`;
+      captionEl.textContent = last.box ? `はこの なかを ${last.times}かい` : `${COMMAND_LABELS[last.dir]}に 1ます すすむ よてい`;
     } else {
       captionEl.textContent = '';
     }
@@ -453,12 +465,26 @@ export function renderTutorial(root, step) {
     drawBoard();
 
     playAnimation(local.commands, spec, local.view, {
-      onTick: () => {},
+      onTick: (i, _to, inner, round) => {
+        // 実行中ハイライト（playと同じ。周回の点表示用。Issue #167）。
+        local.activeIndex = i;
+        local.activeInner = inner;
+        if (round !== local.lastRound) {
+          if (round >= 1) playSfx('stack', { count: round + 1 });
+          local.lastRound = round;
+        }
+        local.activeRound = round;
+        drawQueue();
+      },
       onPickup: () => {
         if (remainingEl) remainingEl.textContent = String(Number(remainingEl.textContent) - 1);
       },
       onDone: () => {
         local.running = false;
+        local.activeIndex = -1;
+        local.activeInner = -1;
+        local.activeRound = -1;
+        drawQueue();
         markTutorialDone(S.lesson.lessonId);
         const result = simulate(local.commands, spec);
         if (result.reachedGoal && result.remainingItems.length === 0 && result.blockedAt.length === 0) {

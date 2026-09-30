@@ -57,6 +57,8 @@ export function renderPlay(root, step) {
     commands,
     activeIndex: -1,
     activeInner: -1,
+    // 実行中の箱の周回（0始まり。-1＝実行外。周回の点表示用。Issue #167）。
+    activeRound: -1,
     // 編集中（開いている）くりかえしの箱のindex。-1=閉じている（Issue #66）。
     boxOpen: -1,
     running: false,
@@ -348,6 +350,7 @@ export function renderPlay(root, step) {
       commands: local.commands,
       activeIndex: local.activeIndex,
       activeInner: local.activeInner,
+      activeRound: local.activeRound,
       openIndex: local.boxOpen,
       removable: true,
       // 上限に達したら次の枠は出さない（Issue #110）。
@@ -595,6 +598,7 @@ export function renderPlay(root, step) {
     setBackDisabled(false);
     local.activeIndex = -1;
     local.activeInner = -1;
+    local.activeRound = -1;
     drawQueue();
     updateControls();
     // 壁にぶつかった手が1つでもあれば、結果としてゴールに着いても正解にしない（Issue #104）。
@@ -685,9 +689,14 @@ export function renderPlay(root, step) {
       spec,
       local.view,
       {
-        onTick: (i, _to, inner) => {
+        onTick: (i, _to, inner, round) => {
           local.activeIndex = i;
           local.activeInner = inner;
+          // 周が変わるたびにstack音を鳴らす（2周目以降のみ。1周目は開始音と重なるため。Issue #167）。
+          if (round !== local.activeRound) {
+            if (round >= 1) playSfx('stack', { count: round + 1 });
+            local.activeRound = round;
+          }
           drawQueue();
         },
         onPickup: () => {
@@ -718,9 +727,14 @@ export function renderPlay(root, step) {
       updateControls();
       drawBoard(spec.start);
       local.stepper = createStepper(local.commands, spec, local.view, {
-        onTick: (i, _to, inner) => {
+        onTick: (i, _to, inner, round) => {
           local.activeIndex = i;
           local.activeInner = inner;
+          // 周が変わるたびにstack音を鳴らす（2周目以降のみ。1周目は開始音と重なるため。Issue #167）。
+          if (round !== local.activeRound) {
+            if (round >= 1) playSfx('stack', { count: round + 1 });
+            local.activeRound = round;
+          }
           drawQueue();
         },
         onPickup: () => {

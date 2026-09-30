@@ -75,23 +75,32 @@ export function renderGoalDemo(container, demo) {
     if (remainingEl) remainingEl.textContent = String(spec.items.length);
   }
 
-  function setQueue(commands, activeIndex, activeInner = -1) {
+  function setQueue(commands, activeIndex, activeInner = -1, activeRound = -1) {
     if (!queueEl) return;
-    renderCommandQueue(queueEl, { commands: commands.map(toChip), activeIndex, activeInner, removable: false });
+    renderCommandQueue(queueEl, { commands: commands.map(toChip), activeIndex, activeInner, activeRound, removable: false });
   }
 
   let subAnim = null;
   let pendingTimer = null;
   let readyTimer = null;
+  // 直前に表示した周回。周が変わった時だけstack音を鳴らす（2周目以降のみ。Issue #167）。
+  let lastRound = -1;
 
   function runPhase(commands, onDone) {
+    lastRound = -1;
     setQueue(commands, -1);
     subAnim = playAnimation(
       commands,
       spec,
       view,
       {
-        onTick: (i, _to, inner) => setQueue(commands, i, inner),
+        onTick: (i, _to, inner, round) => {
+          if (round !== lastRound) {
+            if (round >= 1) playSfx('stack', { count: round + 1 });
+            lastRound = round;
+          }
+          setQueue(commands, i, inner, round);
+        },
         onPickup: () => {
           if (remainingEl) remainingEl.textContent = String(Number(remainingEl.textContent) - 1);
         },

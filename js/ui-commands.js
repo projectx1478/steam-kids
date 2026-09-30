@@ -169,7 +169,7 @@ export function renderOrderArrow(tag = 'li') {
   return arrow;
 }
 
-// renderCommandQueue(container, { commands, activeIndex, onRemove, removable = true, nextSlot })
+// renderCommandQueue(container, { commands, activeIndex, onRemove, removable = true, nextSlot, activeRound })
 // commandsの各要素は{dir, times}。times>=2は「した ×5」のようにまとめて表示する。
 // removable:falseの時は取り消しを描かない（チュートリアルでは命令を消させない。Issue #81）。
 // removable時はチップ自体が取り消しボタン（data-remove-index・.command-remove。Issue #91）。
@@ -180,7 +180,11 @@ export function renderOrderArrow(tag = 'li') {
 // 省略時（predict・tutorial等）は従来どおり枠を出さない。
 // 箱（{box:[dir…], times}）は1チップに小さな矢印列と×回数を描く。activeInnerは実行中の箱内index、
 // openIndexは編集中（開いている）箱のindex（Issue #66）。
-export function renderCommandQueue(container, { commands, activeIndex, activeInner = -1, openIndex = -1, onRemove, removable = true, nextSlot = null }) {
+// activeRoundは実行中の箱の周回（0始まり。既定-1＝実行外）。箱チップには「はこ ×N」ラベルの下に
+// 周回の点（.box-rounds・N個）を並べ、済みの周と実行中の周を塗りつぶす（実行中の点だけ強調）。
+// 実行外は点をすべて空で出し、点の数だけで回数が分かる。DOM判定用に箱チップへdata-round
+// （実行中の周。実行外は属性なし）を付ける（Issue #167）。「はこ ×N」ラベル文言は実行中も変えない。
+export function renderCommandQueue(container, { commands, activeIndex, activeInner = -1, activeRound = -1, openIndex = -1, onRemove, removable = true, nextSlot = null }) {
   container.innerHTML = '';
   commands.forEach((entry, i) => {
     const { dir, times } = entry;
@@ -229,6 +233,23 @@ export function renderCommandQueue(container, { commands, activeIndex, activeInn
       boxLabel.className = 'box-times text-[10px] font-bold leading-tight';
       boxLabel.textContent = `はこ ×${times}`;
       chip.appendChild(boxLabel);
+      // 周回の点：実行中は済みの周と実行中の周を塗り、実行中の点だけ強調する。実行外はすべて空。
+      // 点はspanの空要素なので、チップ内テキストの厳密比較（cmd02-group-repeats等）を壊さない。
+      const round = i === activeIndex ? activeRound : -1;
+      const roundsEl = document.createElement('span');
+      roundsEl.className = 'box-rounds flex items-center justify-center gap-0.5';
+      for (let r = 0; r < times; r += 1) {
+        const dot = document.createElement('span');
+        dot.className = `box-round-dot inline-block w-2 h-2 rounded-full ${round >= 0 && r <= round ? 'bg-amber-500' : 'bg-slate-300'}`;
+        if (round >= 0 && r <= round) dot.dataset.filled = 'true';
+        if (round >= 0 && r === round) {
+          dot.dataset.current = 'true';
+          dot.classList.add('ring-2', 'ring-amber-300');
+        }
+        roundsEl.appendChild(dot);
+      }
+      chip.appendChild(roundsEl);
+      if (round >= 0) chip.dataset.round = String(round);
       if (removable) {
         chip.dataset.removeIndex = String(i);
         chip.addEventListener('click', () => {

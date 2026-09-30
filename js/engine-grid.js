@@ -93,7 +93,8 @@ function makeMover(spec) {
   };
 }
 
-// simulate(commands, spec) -> { path, blockedAt, reachedGoal, stepOwner, innerOwner, pickups, slid, bumped, remainingItems }
+// simulate(commands, spec) -> { path, blockedAt, reachedGoal, stepOwner, innerOwner, roundOwner, pickups,
+// slid, bumped, remainingItems }
 // spec: { grid: {cols, rows}, start: {x,y}, goal: {x,y}, walls: [{x,y}], items?: [{x,y}], … }
 // commandsの各要素は方向文字列、{dir, times}（同方向をまとめた命令）、または{box:[dir…], times}
 // （くりかえしの箱。boxをtimes回繰り返す。Issue #66）。
@@ -105,15 +106,18 @@ function makeMover(spec) {
 // pickups[i]はpath[i+1]で新たに回収したitemsのインデックス配列（Issue #60。js/gimmicks/items.js）。
 // slid[i]はpath[i+1]が滑走（redirect）で進んだマスならtrue（効果音の切替用）。
 // remainingItemsは最終位置までに回収されなかったitem座標（reachedGoalとの併用でクリア判定に使う）。
-// entryを[方向, 箱内index]の列へ展開する（箱の外は箱内index=-1）。
+// roundOwner[i]はpath[i+1]が箱のくりかえしの何周目か（0始まり。箱の外は-1。周回の点表示用。Issue #167。
+// innerOwnerからの逆算は不可：氷の滑走・クッションで1命令が複数tick（または0+重複1tick）に展開され、
+// 同じ箱内indexが連続するため）。
+// entryを[方向, 箱内index, 周回]の列へ展開する（箱の外は箱内index=-1・周回=-1）。
 function expandEntry(entry) {
-  if (typeof entry === 'string') return [[entry, -1]];
+  if (typeof entry === 'string') return [[entry, -1, -1]];
   if (entry.box) {
     const seq = [];
-    for (let n = 0; n < entry.times; n += 1) entry.box.forEach((dir, j) => seq.push([dir, j]));
+    for (let n = 0; n < entry.times; n += 1) entry.box.forEach((dir, j) => seq.push([dir, j, n]));
     return seq;
   }
-  return Array.from({ length: entry.times }, () => [entry.dir, -1]);
+  return Array.from({ length: entry.times }, () => [entry.dir, -1, -1]);
 }
 
 // 命令列のチップ数。箱は「箱1＋中の命令数」、それ以外は1要素=1チップ（Issue #66）。
@@ -130,6 +134,7 @@ export function simulate(commands, rawSpec) {
   const blockedAt = [];
   const stepOwner = [];
   const innerOwner = [];
+  const roundOwner = [];
   const pickups = [];
   const slid = [];
   const bumpedList = [];
@@ -137,7 +142,7 @@ export function simulate(commands, rawSpec) {
   let states = enterAll(initGimmickStates(spec), spec, pos);
 
   commands.forEach((entry, i) => {
-    for (const [dir, inner] of expandEntry(entry)) {
+    for (const [dir, inner, round] of expandEntry(entry)) {
       const { steps, bumped, cushioned } = move(pos, dir, states);
       // 滑走などで複数マス進んだ手は1マスずつpathへ展開する（同一stepOwner）。
       for (const step of steps) {
@@ -146,6 +151,7 @@ export function simulate(commands, rawSpec) {
         path.push({ ...pos });
         stepOwner.push(i);
         innerOwner.push(inner);
+        roundOwner.push(round);
         pickups.push(states.items?.collected ?? []);
         slid.push(step.slid);
         bumpedList.push(false);
@@ -155,6 +161,7 @@ export function simulate(commands, rawSpec) {
         path.push({ ...pos });
         stepOwner.push(i);
         innerOwner.push(inner);
+        roundOwner.push(round);
         states = enterAll(states, spec, pos);
         pickups.push(states.items?.collected ?? []);
         slid.push(false);
@@ -165,7 +172,7 @@ export function simulate(commands, rawSpec) {
 
   const reachedGoal = pos.x === goal.x && pos.y === goal.y;
   const remainingItems = [...(states.items?.remaining ?? [])].map((idx) => spec.items[idx]);
-  return { path, blockedAt, reachedGoal, stepOwner, innerOwner, pickups, slid, bumped: bumpedList, remainingItems };
+  return { path, blockedAt, reachedGoal, stepOwner, innerOwner, roundOwner, pickups, slid, bumped: bumpedList, remainingItems };
 }
 
 // BFSでstart→goal（かつ全ギミックisCleared）の最短手数を求める（到達不能ならInfinity）。
