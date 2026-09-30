@@ -1,4 +1,4 @@
-export const name = 'cmd-04/05: くりかえしの箱の操作・箱内ハイライト・クリア・360x640レイアウト(Issue #66)';
+export const name = 'cmd-04/05: くりかえしの箱の操作・箱内ハイライト・クリア・360x640レイアウト(Issue #66・#167)';
 
 import { enterPlay, clearLesson } from '../helpers.mjs';
 
@@ -17,20 +17,26 @@ export default async function run({ page, check }) {
   await check('箱を開いている間はじっこうボタンが出ない(かいすう・とじるに差し替え)', async () => (await page.$('[data-action="run"]')) === null, true);
   await page.click('[data-command="right"]');
   await check('開いている間の方向タップは箱の中へ入る(チップは1個のまま)', async () => [await chips(page), await page.$$eval('.command-chip [data-inner]', (e) => e.length)], [1, 1]);
+  await page.click('[data-command="up"]');
+  await check('2個目も箱の中へ(実行外の周回の点は2個・すべて空)', async () =>
+    page.$$eval('.command-chip', (els) => {
+      const dots = els[0].querySelectorAll('.box-round-dot');
+      return [dots.length, els[0].querySelectorAll('.box-round-dot[data-filled]').length, els[0].dataset.round === undefined];
+    }), [2, 0, true]);
   await check('回数の初期値は×2', () => page.textContent('[data-action="box-times"]'), 'かいすう ×2');
   await page.click('[data-action="box-times"]');
   await page.click('[data-action="box-times"]');
   await check('回数ボタン2タップで×4', () => page.textContent('.box-times'), 'はこ ×4');
+  await check('×4の周回の点は4個', async () => page.$$eval('.box-rounds .box-round-dot', (e) => e.length), 4);
   await page.click('[data-action="box-times"]');
   await check('×4の次は×2へ戻る', () => page.textContent('.box-times'), 'はこ ×2');
-  await page.click('[data-action="box-times"]');
-  await page.click('[data-action="box-times"]');
 
-  // maxCommands=3: 箱1＋右1=2。あと1つだけ入る。
-  await page.click('[data-command="up"]');
-  await check('箱1+中2=3チップで上限、方向ボタンが無効', () => page.$eval('[data-command="up"]', (b) => b.disabled), true);
+  // maxCommands=3: 箱1＋中2=3。これ以上は入らない。
+  await check('箱1+中2=3チップで上限、方向ボタンが無効', () => page.$eval('[data-command="left"]', (b) => b.disabled), true);
   await page.click('[data-action="remove-last"]');
   await check('開いている間のけすは箱の中の最後の1個を消す', async () => page.$$eval('.command-chip [data-inner]', (e) => e.length), 1);
+  await page.click('[data-command="up"]');
+  await check('うえを入れ直すと2個', async () => page.$$eval('.command-chip [data-inner]', (e) => e.length), 2);
 
   await check('360x640で横スクロールが出ない', async () => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true);
   await check('全ボタンが48px以上', async () => {
@@ -49,8 +55,9 @@ export default async function run({ page, check }) {
   await page.click('[data-action="run"]');
   await page.waitForSelector('.command-chip [data-inner][data-active="true"]', { timeout: 4000 });
   await check('実行中、箱チップ(index0)の中の実行位置がハイライトされる', async () => page.$eval('.command-chip[data-active="true"]', (e) => e.dataset.index), '0');
+  await check('実行中もラベルは「はこ ×2」のまま', async () => page.textContent('.box-times'), 'はこ ×2');
   await page.waitForSelector('[data-action="next-stage"], [data-action="retry"]', { timeout: 12000 });
-  await check('箱[みぎ]×4でp1クリア', async () => (await page.$('[data-action="next-stage"]')) !== null, true);
+  await check('箱[みぎ,うえ]×2でp1クリア', async () => (await page.$('[data-action="next-stage"]')) !== null, true);
 
   // 全ステージをsolution(箱含む)でクリア。cmd-04・cmd-05とも。
   await clearLesson(page, 'cmd-04-kurikaeshi');
