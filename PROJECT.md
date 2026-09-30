@@ -108,53 +108,13 @@ MVP実装対象は `grid-runtime`。予想ステップ（`kind: "predict"`）は
 - 広告・解析タグを入れない
 - 外部共有は**単元単位の匿名集計のみ**。個人単位のデータを出さない
 
-### 授業展開に向けた制約
+### 授業展開に向けた制約・ロードマップ
 
-- 1レッスン5分固定。50分授業に4〜6本入る単位
-- URLで単元へ直接入れること（ログイン機構を作らない。共用端末を想定）
-- 実行時に外部APIを呼ばない
-- 教科書の図版・記述に寄せない
-- イベント拡張は `classId` 追加のみで対応（`docs/lesson-schema.md`）
+1レッスン5分固定、URLで単元へ直接入れる（ログイン機構なし）、実行時に外部APIを呼ばない等。制約とP0〜P5のロードマップは `docs/roadmap.md`。
 
 ### ファイル構成
 
-```
-index.html
-dashboard.html # 保護者・教師向けダッシュボード
-service-worker.js # オフライン対応・更新反映（docs/caching.md）
-style.css # Tailwind生成物（コミット対象・直接編集禁止）
-tailwind.src.css # Tailwindソース
-tailwind.config.js
-package.json # devDependency: tailwindcss / scripts.build:css
-app.js # エントリーポイント（初期化のみ）
-js/
-  state.js # 状態管理（Sオブジェクト）
-  lesson-cmd-01.js # P0のレッスンデータ（レッスンJSONと同形状）
-  engine-grid.js # grid-runtimeの純粋関数（命令列→経路・到達判定）
-  engine-generate.js # シードからgrid-runtime盤面を生成する純粋関数（PRNG・制約判定・予備盤面。Issue #68）
-  seed-code.js # れんしゅうの絵コード（8種×4マス）⇔シード変換・絵SVG（Issue #69）
-  ui-seedpick.js # れんしゅうのたねコード入力画面（Issue #69）
-  ui-grid.js # SVGグリッド描画とハイライト
-  ui-commands.js # 命令パレット・命令列・個別削除・全消し
-  ui-step.js # ステップ切替、ふりがなトグル
-  ui-title.js # タイトル画面（起動時のみ。Issue #107）
-  sfx.js # 効果音（Web Audio API合成・単一API play(name)、BGMなし）
-  events.js # logEvent() / getEvents()（storage.js経由で永続化）
-  storage.js # localStorage読み書き（イベント・学習者プロファイル）
-  analytics.js # 学習ログ集計・詰まりアラート判定（純粋関数）
-  guardian.js # 保護者ゲートの合言葉管理
-  ui-gate.js # dashboard.htmlのゲート描画
-  ui-dashboard.js # dashboard.htmlの描画（summarize結果の描画のみ）
-  register-sw.js # SW登録・更新時の自動リロード
-lessons/ # レッスンJSON（P1〜）
-tools/ # レッスンJSON検証ツール
-docs/ # 詳細ドキュメント（7章の索引を参照）
-workers/steam-kids-sync/ # 同期API（Cloudflare Workers + D1、P3〜）
-.claude/ # Claude Codeのフック・検証ハーネス・スクリプト
-.devcontainer/ # Codespaces/OpenCode Web用コンテナ設定
-```
-
-ES Modules（`<script type="module">` / `import`/`export`）でファイル間を接続する。
+`index.html`・`dashboard.html`・`app.js`・`js/`（ES Modules）・`lessons/`・`tools/`・`docs/`・`workers/`等。ファイル別の役割は `docs/file-structure.md`。
 
 ## 3. 開発ルール
 
@@ -188,12 +148,7 @@ ES Modules（`<script type="module">` / `import`/`export`）でファイル間�
 
 ### ギミックの追加手順・検証規則
 
-- 盤面ギミックの追加：`js/gimmicks/<name>.js`＋登録1行＋`docs/gimmicks.md`に1節＋`g-<name>-*.mjs`シナリオ（Issue #123以降）
-- ギミックのシナリオは`routeLesson`（`.claude/verify/helpers.mjs`）のインライン最小盤面で書き、実レッスンに依存させない
-- 新規シナリオの命名は`g-<gimmick>-*`・`les-<lessonId>-*`。`node .claude/verify/run.mjs <名前>`で部分実行できる
-- こおりを持つplayステージは、こおりを壁扱いにしてもmaxCommands以内に届かないこと（`validate:lessons`が検証。Issue #134）
-- playステージに`solution`（正解手順）を必ず書く。`clearLesson`が読み、検証ツールがクリアを確認する
-- 設計Issueの引継ぎには「読むファイル（行範囲）／読まなくてよいファイル」を書く（実装者の探索を減らす）
+追加手順・シナリオ命名・`solution`必須等は `docs/gimmicks.md`「追加手順・検証規則」。
 
 ### コーディング規則
 
@@ -239,16 +194,7 @@ Issueには理由ではなく**判定可能な数値条件**を書く（0.6秒�
 
 ## 6. ロードマップ
 
-| Phase | 内容 | 完了条件 |
-| --- | --- | --- |
-| P0 | grid-runtime をレッスン1ハードコードで動かす | 実機で子どもがゴールまで到達できる |
-| P1 | レッスンJSON外出し、スキーマと検証スクリプト | レッスン1が `lessons/cmd-01-susumu.json` から読み込まれ、検証が通る |
-| P2 | イベントログ + localStorage + ダッシュボード（単一端末） | 詰まりアラートが表示される |
-| P3 | 同期バックエンド決定、匿名認証、同期、リンクコード | 別端末でコード入力後、履歴が統合表示される |
-| P4 | Claude Code による教材生成フロー整備 | 単元名から検証済みJSONが生成される |
-| P5 | レッスン2・3の追加 | 単元として3本完走できる |
-
-**P0を実機で試すまで、以降を作り込まない。反応が想定と違えば設計から見直す。**
+P0（実機で到達）→P1（JSON外出し）→P2（ログ・ダッシュボード）→P3（同期）→P4（生成フロー）→P5（3本完走）。詳細は `docs/roadmap.md`。**P0を実機で試すまで、以降を作り込まない。**
 
 ## 7. 関連ドキュメント（docs/）
 
@@ -260,6 +206,8 @@ Issueには理由ではなく**判定可能な数値条件**を書く（0.6秒�
 - `docs/dashboard.md` — ダッシュボードの表示内容と詰まりアラートの判定条件。P2着手時に読む
 - `docs/design-sync.md` — 同期方式、バックエンド選定（未決）、秘密情報の扱い。P3着手時に読む
 - `docs/caching.md` — Service Workerの方式・版数管理。Issue #28着手時に読む
+- `docs/file-structure.md` — ファイル別の役割一覧。ファイルの新設・移動時に読む
+- `docs/roadmap.md` — 授業展開の制約とP0〜P5ロードマップ。フェーズ計画・授業展開を検討する時に読む
 - `docs/testing-guidelines.md` — 検証の実行範囲（省略／該当のみ／全実行）。検証コマンドを選ぶとき読む
 
 ## 8. 未決事項
