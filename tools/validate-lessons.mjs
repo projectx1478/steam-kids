@@ -11,7 +11,7 @@ import { plainSegmentsText, plainReading, parseSegments, rubyGrade, textKanjiMax
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
-// LESSONS_DIR環境変数は検証シナリオ（NG例の検出確認。repeat-box-validate）用の差し替え口。
+// LESSONS_DIR環境変数は検証シナリオ（NG例の検出確認。test/validate-repeat-box.test.mjs）用の差し替え口。
 const LESSONS_DIR = process.env.LESSONS_DIR || path.join(ROOT, 'lessons');
 
 const REQUIRED_KEYS = ['lessonId', 'unitId', 'title', 'type', 'estimatedMinutes', 'steps'];

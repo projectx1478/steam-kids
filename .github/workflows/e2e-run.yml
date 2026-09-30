@@ -1,7 +1,7 @@
 name: E2E run
 
 # 実装中に、指定したシナリオだけを任意のブランチで実行する。
-#   gh workflow run e2e-run.yml --ref <ブランチ> -f scenarios="repeat-box-engine les-cmd-04-repeat-box"
+#   gh workflow run e2e-run.yml --ref <ブランチ> -f scenarios="group-repeats-ui les-cmd-04-repeat-box"
 #   gh run watch "$(gh run list --workflow e2e-run.yml --branch <ブランチ> --limit 1 --json databaseId --jq '.[0].databaseId')" --exit-status
 # scenarios に all と書くと全件（夜間と同じ）。--mobile / --shot も書ける。
 

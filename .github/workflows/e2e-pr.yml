@@ -1,7 +1,7 @@
 name: E2E PR
 
 # PR ごとに「スモーク6本」＋「PR本文の E2E: 行に書いたシナリオ」を実行する。
-# 例（PR本文の任意の行）:  E2E: les-cmd-04-repeat-box repeat-box-engine --mobile
+# 例（PR本文の任意の行）:  E2E: les-cmd-04-repeat-box group-repeats-ui --mobile
 
 on:
   pull_request:
