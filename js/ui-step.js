@@ -294,6 +294,8 @@ function dirAt(commands, idx, inner) {
 // engine-gridの純粋計算結果(simulate)を保持し、advance()を呼ぶたびに1手だけ時間軸に沿って見せる。
 // まとめ命令（times>=2）は1コマ=1手として進み、その間onTickには元の命令（チップ）のインデックスを
 // stepOwner経由で渡し続ける。viewはui-grid.jsのrenderGridが返す差分更新API。
+// onTick(chipIndex, to, innerIndex, round)：roundは箱のくりかえしの周回（0始まり。箱の外は-1。
+// 周回の点表示用。Issue #167）。
 // autoAdvance（じっこう）・ui-play.jsの「1コマ」ボタン（タップごとにadvance()を呼ぶ）の
 // 両方から共通で使う（Issue #111）。
 export function createStepper(commands, spec, view, { onTick, onPickup }) {
@@ -329,7 +331,7 @@ export function createStepper(commands, spec, view, { onTick, onPickup }) {
           if (sfx) playSfx(sfx);
         }
       }
-      onTick(result.stepOwner[i], to, result.innerOwner[i]);
+      onTick(result.stepOwner[i], to, result.innerOwner[i], result.roundOwner[i]);
       // 壁・盤外にぶつかった手で実行を止める。残りの手は再生しない（Issue #136）。クッションは止まらない。
       if (bumped || i === result.path.length - 2) {
         finished = true;
