@@ -13,6 +13,7 @@ const NUDGE_BY_DIR = { up: [0, -BOUNCE_NUDGE_PX], down: [0, BOUNCE_NUDGE_PX], le
 const CUSHION_MS = 450;
 const BURST_MS = 350;
 const DIZZY_MS = 1200;
+const FALL_MS = 300;
 // 壁に当たった時に弾ける星（ゴールの旗・クリアの星とは別の、黄色いギザギザ）。
 const BURST_SVG = `<svg viewBox="0 0 64 64" class="w-full h-full" aria-hidden="true">
       <path d="M32 6 L38 24 L58 20 L44 34 L56 50 L36 44 L30 60 L26 42 L6 46 L20 32 L8 16 L28 22 Z" fill="#fde047" stroke="#f59e0b" stroke-width="3" stroke-linejoin="round" />
@@ -205,6 +206,7 @@ window.__gridAnimLog = window.__gridAnimLog || [];
 // view: プレイヤー駒・足あとの差分更新API（アニメーション中はこちらのみ使う。draw全再構築はしない）
 //   view.moveTo(pos): 通常移動（450ms、reduced-motion時は即時）
 //   view.bounce(dir, kind): 衝突の演出（kind='wall'|'cushion'、250ms〜、reduced-motion時は何もしない。'wall'は約1.2秒の目回し星を出し、reduced-motion時は静止表示。Issue #168）
+//   view.fallOver(): 壁衝突でロボットが横に倒れる（300ms ease-outで倒れ、倒れたまま保持。reduced-motion時は何もしない。Issue #214）
 //   view.footprint(pos): 通過マスに足あとを追加
 //   view.markCell(pos, kind): 盤面を再構築せず印を重ねる（予想の答え合わせ・playのヒント。Issue #91）
 //   view.hintItems(items) / view.clearHints(): 未回収itemの点滅とヒント表示の一括解除（Issue #91）
@@ -286,7 +288,12 @@ export function renderGrid(opts) {
   token.style.left = '0';
   token.style.width = `${CELL}px`;
   token.style.height = `${CELL}px`;
-  token.innerHTML = shapeSvg('player');
+  // 姿勢専用の内側要素。tokenのtransformはtranslate(位置)専用とし、倒れる等の姿勢変化は
+  // body側で行う（位置演出との合成でtranslateがずれないため。Issue #214）。
+  const body = document.createElement('div');
+  body.className = 'grid-player-body w-full h-full';
+  body.innerHTML = shapeSvg('player');
+  token.appendChild(body);
   token.style.transition = 'none';
   const start = pixelFor(pos);
   token.style.transform = `translate(${start.x}px, ${start.y}px)`;
@@ -409,6 +416,15 @@ export function renderGrid(opts) {
       board.appendChild(burst);
       burst.animate([{ opacity: 1, scale: '0.4' }, { opacity: 1, scale: '1.1', offset: 0.4 }, { opacity: 0, scale: '1.3' }], { duration: BURST_MS });
       setTimeout(() => burst.remove(), BURST_MS);
+    },
+    // fallOver(): 壁衝突でロボットが横に倒れる（FALL_MS ease-outで倒れ、倒れたまま保持。
+    // reduced-motion時は何もしない。Issue #214）。token(translate)ではなく内側の姿勢要素を
+    // 倒すため、bounceのnudge等の位置演出と重なってもマス位置はずれない。retryでdrawBoardが
+    // 駒を作り直すと姿勢は初期値に戻る（追加のリセット処理は不要）。
+    fallOver() {
+      if (prefersReducedMotion()) return;
+      body.style.transition = `transform ${FALL_MS}ms ease-out`;
+      body.style.transform = 'rotate(90deg) translateY(8px)';
     },
     footprint(footprintPos) {
       const px = pixelFor(footprintPos);
