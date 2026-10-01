@@ -20,9 +20,9 @@ const LESSON = {
       grid: { cols: 5, rows: 3 },
       start: { x: 0, y: 0 },
       goal: { x: 4, y: 2 },
-      walls: [{ x: 1, y: 0 }],
+      walls: [{ x: 1, y: 0 }, { x: 1, y: 1 }],
       allowedCommands: ['up', 'down', 'left', 'right'],
-      solution: ['down', 'down', 'right', 'right', 'right', 'right', 'up'],
+      solution: ['down', 'down', 'right', 'right', 'right', 'right'],
       maxCommands: 8,
     },
     { stepId: 's2', kind: 'summary', text: 'できたね' },
@@ -38,9 +38,10 @@ export default async function run({ page, check }) {
   // 既定のreduced-motion（config.mjs）では倒れもパルスも出ないため、通常モーションで確認する。
   await page.emulateMedia({ reducedMotion: 'no-preference' });
 
-  // --- じっこう: right(壁でぶつかる) ---
+  // --- じっこう: down,right(1つ目の壁でぶつかる) ---
   await enterPlay(page, 'wall-fallover-smoke');
   const startTransform = await playerTransform(page);
+  await page.click('[data-command="down"]');
   await page.click('[data-command="right"]');
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="retry"]', { timeout: 8000 });
