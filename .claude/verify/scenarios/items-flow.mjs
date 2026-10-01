@@ -27,6 +27,8 @@ export default async function run({ page, check }) {
 
   // retryは正解・不正解に関わらず命令列をリセットする（Issue #104）ため、既に空になっている。
   await clickRetry(page);
+  // introデモの回収分も__sfxLogに残るため、実行前にクリアしてから音を数える（Issue #158）。
+  await page.evaluate(() => (window.__sfxLog.length = 0));
   for (const c of ['right', 'right', 'right', 'up', 'up', 'up']) {
     await page.click(`[data-command="${c}"]`);
   }
