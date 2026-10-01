@@ -183,6 +183,22 @@
     animation: wobble-soft 0.5s ease-in-out;
   }
 
+  /* 壁衝突の失敗時、「もういちど」を2回パルス(scale 1→1.08→1)で強調する（Issue #214）。
+     強調は既存の motion-safe:animate-pulse(opacity点滅)に上書きさせるため、要素指定で
+     詳細度を上げている（Tailwind側のvariant規則がcustom CSSより後に生成されるため）。 */
+  @keyframes retry-pulse {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.08);
+    }
+  }
+  button.retry-pulse {
+    animation: retry-pulse 0.6s ease-in-out 2;
+  }
+
   /* クリア演出のポップイン（ステージ・レッスン・単元の3段階共通。Issue #104）。 */
   @keyframes success-pop {
     0% {
