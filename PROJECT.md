@@ -14,7 +14,6 @@
 
 - 実行時のLLM呼び出し（生成は開発時のみ。子どもが使う場面でAPIを呼ばない）
 - 学習者のログイン、メールアドレス、パスワード認証（保護者ゲートの合言葉は対象外）
-- 氏名・学校名・学年の同期データへの保存
 - 正誤採点、点数表示、ランキング（完了スタンプは可。数値比較・順位は出さない。Issue #58）
 - ネイティブアプリ化（Webのみ）
 
@@ -45,13 +44,10 @@
 | 直接操作型 | 1手動かす→盤面が即変化→行き詰まりから考え直す | 一筆書き、迷路、色ぬり、つなぐ |
 
 直接操作型は「1手もどる」「さいしょから」を常時置き、行き詰まり時は未達成部分をやさしく点滅させる（答えは見せない）。
-実装時のDO/DON'T判定表は `docs/ui-rules.md`「学習体験の判定表」。
-
-UI規則（受け入れ条件。すべて判定可能な数値条件）は `docs/ui-rules.md`。子ども画面のUIを変更するとき読む。
+DO/DON'T判定表とUI規則（判定可能な数値条件）は `docs/ui-rules.md`。子ども画面のUIを変更するとき読む。
 
 教材型5種の一覧と `grid-runtime` の詳細仕様、初回単元の内容は `docs/learning-spec.md`。
-MVP実装対象は `grid-runtime`。予想ステップ（`kind: "predict"`）は将来の教材型向けに語彙のみ残し、
-現行レッスンでは使わない（Issue #104）。
+MVP実装対象は `grid-runtime`。`kind: "predict"` は現行レッスンで使わない（#104）。
 
 ## 2. 技術設計
 
@@ -85,17 +81,10 @@ MVP実装対象は `grid-runtime`。予想ステップ（`kind: "predict"`）は
 
 - リポジトリ内の `lessons/*.json`
 - スキーマ・検証ルールは `docs/lesson-schema.md`
-- P0のみJSモジュールにハードコードする。JSONと同一形状で持ち、P1で
-  `lessons/cmd-01-susumu.json` へそのまま移す
 
-### 同期・バックエンド・機密情報管理
+### 同期・バックエンド・機密情報管理・保護者ゲート
 
-同期方式・バックエンド（Cloudflare Workers + D1）・秘密情報の扱いは `docs/design-sync.md`。
-
-### 保護者ゲート（ダッシュボード保護）
-
-`dashboard.html` は合言葉ゲートで保護する（Issue #37）。解錠は端末内PBKDF2照合のみでオフライン可。
-詳細は `docs/design-sync.md`。
+同期方式・バックエンド（Cloudflare Workers + D1）・秘密情報・保護者ゲート（`dashboard.html`の合言葉。端末内PBKDF2照合でオフライン可。#37）は `docs/design-sync.md`。
 
 ### プライバシー要件
 
@@ -110,7 +99,7 @@ MVP実装対象は `grid-runtime`。予想ステップ（`kind: "predict"`）は
 
 ### 授業展開に向けた制約・ロードマップ
 
-1レッスン5分固定、URLで単元へ直接入れる（ログイン機構なし）、実行時に外部APIを呼ばない等。制約とP0〜P5のロードマップは `docs/roadmap.md`。
+制約とP0〜P5のロードマップは `docs/roadmap.md`。
 
 ### ファイル構成
 
@@ -120,14 +109,7 @@ MVP実装対象は `grid-runtime`。予想ステップ（`kind: "predict"`）は
 
 ### Git ワークフロー
 
-- **Main ブランチ**: 本番環境。直接 push 禁止
-- **Feature ブランチ**: Claude Codeセッションは`claude/xxx`。人が作業する場合は`feature/XXX`または`fix/XXX`
-- **Commit**: 論理的に小さな単位（Small Commit）
-- **Pull Request**: 機能単位で作成
-
-本リポジトリは project-template の配布先。`CLAUDE.md` / `AGENTS.md` / `opencode.json` /
-`.claude/` 配下の同期対象ファイルは **project-template 側で編集する**。本リポジトリで編集しても
-テンプレート同期PRで上書きされる。プロジェクト固有の規則は本ファイルと `docs/` に置く。
+ブランチ・PR運用はAGENTS.md「GitHub運用」。人が作業するときのブランチ名は`feature/XXX`・`fix/XXX`。
 
 ### 検証コマンド
 
@@ -143,7 +125,7 @@ MVP実装対象は `grid-runtime`。予想ステップ（`kind: "predict"`）は
 | E2E/実機確認 | `npm run verify:e2e` | CI実行（実装中＝`e2e-run.yml`、PR＝`e2e-pr.yml`、全件＝`e2e-nightly.yml`） |
 | レッスンJSON検証 | `npm run validate:lessons` | 手元＋CI |
 
-実行場所の「CI実行」はAGENTS.md「検証フェーズ」の指定に対応する。夜間CI失敗ラベル：`e2e-nightly`。運用は`docs/testing-guidelines.md`、スモーク・固有の注意は`docs/testing-steam-kids.md`。
+夜間CI失敗ラベル：`e2e-nightly`。運用は`docs/testing-guidelines.md`、スモーク・固有の注意は`docs/testing-steam-kids.md`。
 
 影響範囲確認：レッスンJSONやDOM契約（`data-action`等）を変更するときは、`grep -lE '<lessonId|data-action名>' .claude/verify/scenarios/*`で影響シナリオを列挙する。`.claude/verify/config.mjs`の凍結fixture（cmd-01・donguri-01）の対象かも確認する。
 
@@ -158,8 +140,6 @@ MVP実装対象は `grid-runtime`。予想ステップ（`kind: "predict"`）は
 - **クラス**: PascalCase
 - **定数**: UPPER_SNAKE_CASE
 - **コメント**: 最小限（WHY が非自明な場合のみ）
-- **ファイルサイズ**: コードは1ファイル目安1000行以内、超えたら機能単位で分割
-- ドキュメントは字数基準（CLAUDE.md参照）
 
 ### 他プロジェクトからのコード再利用
 
@@ -180,18 +160,8 @@ Issueには理由ではなく**判定可能な数値条件**を書く（0.6秒�
 
 ## 5. AI 運用ルール（Claude Code）
 
-- **AIの責務**: コード実装・修正、仕様整理時の質問対応、技術判断の提案
 - **人間の責務**: 仕様確定、コードレビュー、Merge判定、実機での子どもの反応確認（AI代理不可）
-
-- PR作成の報告には「次は`/clear`してから」を添える（1 Issue = 1セッション。文脈を持ち越さないと1呼び出しあたりの消費が3〜4倍になる。#123で計測）
-
-### モデル分担
-
-設計・Issue起票・調査は Opus、実装は Sonnet。詳細は CLAUDE.md「モデル選択ルール」。
-
-### OpenCode
-
-`opencode.json` に `provider`・`model`・APIキーを書かない（詳細: project-template PROJECT.md）。
+- PR作成の報告には「次は`/clear`してから」を添える（1 Issue = 1セッション。#123）
 
 ## 6. ロードマップ
 
@@ -199,18 +169,18 @@ P0（実機で到達）→P1（JSON外出し）→P2（ログ・ダッシュボ�
 
 ## 7. 関連ドキュメント（docs/）
 
-- `docs/ui-rules.md` — 子ども画面のUI規則（受け入れ条件）。子ども画面のUIを変更するとき読む
-- `docs/gimmicks.md` — 盤面ギミック（items等）の仕様。ギミックの追加・変更時に読む
+- `docs/ui-rules.md` — 子ども画面のUI規則。UI変更時に読む
+- `docs/gimmicks.md` — 盤面ギミックの仕様。ギミック追加・変更時に読む
 - `docs/learning-spec.md` — 教材型5種・`grid-runtime`仕様・初回単元。教材実装・レッスン追加時に読む
-- `docs/lesson-schema.md` — レッスンJSON・イベント・学習者プロファイルのスキーマ。教材・イベント追加時に読む
-- `docs/authoring-rules.md` — 教材の文言・表現の禁止事項と使用可能な文字。レッスン文言を書く・生成する時に読む
-- `docs/dashboard.md` — ダッシュボードの表示内容と詰まりアラートの判定条件。P2着手時に読む
-- `docs/design-sync.md` — 同期方式、バックエンド選定（未決）、秘密情報の扱い。P3着手時に読む
-- `docs/caching.md` — Service Workerの方式・版数管理。Issue #28着手時に読む
-- `docs/file-structure.md` — ファイル別の役割一覧。ファイルの新設・移動時に読む
-- `docs/roadmap.md` — 授業展開の制約とP0〜P5ロードマップ。フェーズ計画・授業展開を検討する時に読む
-- `docs/testing-guidelines.md` — 検証の運用（E2EはGitHub Actionsのみ・手元ガード・夜間失敗の対応）。検証するとき読む
-- `docs/testing-steam-kids.md` — steam-kids固有の検証事項（スモーク・軽量チェック）。スモークを変える時に読む
+- `docs/lesson-schema.md` — レッスンJSON・イベント・プロファイルのスキーマ。教材・イベント追加時に読む
+- `docs/authoring-rules.md` — 教材文言の禁止事項と使用可能な文字。レッスン文言を書く時に読む
+- `docs/dashboard.md` — ダッシュボードの表示内容と詰まりアラート条件。ダッシュボード変更時に読む
+- `docs/design-sync.md` — 同期方式、バックエンド、秘密情報、保護者ゲート。同期・ゲート変更時に読む
+- `docs/caching.md` — Service Workerの方式・版数管理。SW・キャッシュ変更時に読む
+- `docs/file-structure.md` — ファイル別の役割。ファイルの新設・移動時に読む
+- `docs/roadmap.md` — 授業展開の制約とP0〜P5。フェーズ計画を検討する時に読む
+- `docs/testing-guidelines.md` — 検証の運用（E2EはCIのみ・手元ガード・夜間失敗対応）。検証時に読む
+- `docs/testing-steam-kids.md` — steam-kids固有の検証事項。スモークを変える時に読む
 
 ## 8. 未決事項
 
