@@ -76,7 +76,7 @@ export function renderSummary(root) {
   const playStepIds = S.lesson.steps.filter((s) => s.kind === 'play').map((s) => s.stepId);
   const lastPlay = S.lesson.steps.filter((s) => s.kind === 'play').at(-1);
   let shortest;
-  if (lastPlay) {
+  if (lastPlay && S.lesson.type !== 'predict-slider') {
     const spec = playSpecOf(lastPlay);
     // repeatBoxはループ込みの最短性を求めない（shortest未定義＝「いちばん みじかい」を出さない。Issue #66）。
     if (!lastPlay.repeatBox) shortest = lastPlay.groupRepeats ? shortestChips(spec) : shortestSteps(spec);

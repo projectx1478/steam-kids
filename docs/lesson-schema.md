@@ -115,6 +115,15 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 `fixFrom`はそのまま実行してもゴールに到達しない内容にする）。reduced-motion時も1手0.6秒の
 コマ送りで動かし、静止画にはしない。未指定の教材型は表示しない（Issue #97・#104）。
 
+### `predict-slider`の`play`（シーソー。Issue #150）
+
+`type: "predict-slider"`のレッスンは`kind: "play"`に`seesaw`と`solution`（整数）を持つ。`pos`・`start`は支点からの刻み数（1〜`notches`）。
+```json
+{ "stepId": "p1", "kind": "play", "text": "つりあう ところに おこう",
+  "seesaw": { "notches": 4, "left": [{ "robots": 2, "pos": 2 }], "mover": { "robots": 1, "start": 1 } },
+  "solution": 4 }
+```
+
 ### `tutorial`（なぞり操作型チュートリアル）
 
 各レッスンで新しい操作が初登場する時、`intro`直後かつ最初の`play`より前に0〜1個置く

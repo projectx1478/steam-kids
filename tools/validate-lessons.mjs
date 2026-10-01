@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { generateMap } from '../js/engine-generate.js';
 import { isValidCode, codeToSeed } from '../js/seed-code.js';
 import { simulate, shortestSteps, shortestChips, boardSpec, chipCount } from '../js/engine-grid.js';
+import { balance, solutions, difficulty } from '../js/engine-seesaw.js';
 import { GIMMICKS } from '../js/gimmicks/index.js';
 import { plainSegmentsText, plainReading, parseSegments, rubyGrade, textKanjiMaxGrade, KANJI_RE } from '../js/text-render.js';
 
@@ -258,6 +259,41 @@ function validatePractice(steps, add) {
   }
 }
 
+// predict-slider（シーソー）：playは2〜4個、座標が範囲内、solutionでつりあいstartでは傾く、
+// 解がちょうど1つ、難易度（左のおもさ合計）が非減少（Issue #150）。
+function validateSeesaw(playSteps, add) {
+  if (playSteps.length < MIN_PLAY || playSteps.length > MAX_PLAY) {
+    add('盤面の必須', `kind="play" が${playSteps.length}個（${MIN_PLAY}〜${MAX_PLAY}個である必要がある）`);
+  }
+  const isInt = (v) => Number.isInteger(v) && v >= 1;
+  let prevDifficulty = 0;
+  for (const play of playSteps) {
+    const label = `stepId="${play.stepId}"`;
+    const spec = play.seesaw;
+    const ok =
+      spec &&
+      isInt(spec.notches) &&
+      Array.isArray(spec.left) &&
+      spec.left.length > 0 &&
+      spec.left.every((w) => isInt(w.robots) && isInt(w.pos) && w.pos <= spec.notches) &&
+      spec.mover &&
+      isInt(spec.mover.robots) &&
+      isInt(spec.mover.start) &&
+      spec.mover.start <= spec.notches;
+    if (!ok) {
+      add('seesaw', `${label} のseesaw（notches・left・mover）が不正（robots・pos・startは1〜notchesの整数）`);
+      continue;
+    }
+    const found = solutions(spec);
+    if (found.length !== 1) add('解の個数', `${label} のつりあう位置が${found.length}個（ちょうど1つである必要がある）`);
+    if (play.solution !== found[0]) add('solution', `${label} のsolution=${play.solution} がつりあう位置と一致しない`);
+    if (balance(spec, spec.mover.start).tilt === 0) add('start', `${label} がstartの時点でつりあっている`);
+    const d = difficulty(spec);
+    if (d < prevDifficulty) add('難易度', `${label} の左のおもさ合計(${d})が前のステージ(${prevDifficulty})より小さい`);
+    prevDifficulty = d;
+  }
+}
+
 function validateLesson(fileName, data) {
   const errors = [];
   const add = (rule, detail) => errors.push(`${fileName}: ${rule}: ${detail}`);
@@ -331,6 +367,10 @@ function validateLesson(fileName, data) {
     add('チュートリアルの個数', `kind="tutorial" が${tutorialSteps.length}個（0〜1個である必要がある）`);
   }
 
+  if (data.type === 'predict-slider') {
+    validateSeesaw(playSteps, add);
+    return errors;
+  }
   if (data.type !== 'grid-runtime' || playSteps.length === 0) return errors;
 
   checkDemo(steps.find((s) => s.kind === 'intro'), playSteps, add);

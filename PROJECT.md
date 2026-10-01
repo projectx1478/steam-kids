@@ -47,7 +47,7 @@
 DO/DON'T判定表とUI規則（判定可能な数値条件）は `docs/ui-rules.md`。子ども画面のUIを変更するとき読む。
 
 教材型5種の一覧と `grid-runtime` の詳細仕様、初回単元の内容は `docs/learning-spec.md`。
-MVP実装対象は `grid-runtime`。`kind: "predict"` は現行レッスンで使わない（#104）。
+実装済みの教材型は `grid-runtime`・`predict-slider`（シーソー）。`kind: "predict"` は現行レッスンで使わない（#104）。
 
 ## 2. 技術設計
 

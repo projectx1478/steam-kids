@@ -10,6 +10,7 @@ import { play as playSfx } from './sfx.js';
 import { renderInto } from './text-render.js';
 import { renderGoalDemo } from './ui-demo.js';
 import { renderPlay } from './ui-play.js';
+import { renderSeesaw } from './ui-seesaw.js';
 import { renderPredict } from './ui-predict.js';
 import { renderTutorial, isTutorialDone } from './ui-tutorial.js';
 import { renderSummary } from './ui-summary.js';
@@ -265,7 +266,7 @@ function renderStep() {
   renderStepDots(root);
   if (step.kind === 'intro') renderIntro(root, step);
   else if (step.kind === 'predict') renderPredict(root, step);
-  else if (step.kind === 'play') renderPlay(root, step);
+  else if (step.kind === 'play') (S.lesson.type === 'predict-slider' ? renderSeesaw : renderPlay)(root, step);
   else if (step.kind === 'tutorial') renderTutorial(root, step);
   else if (step.kind === 'summary') renderSummary(root);
   else if (step.kind === 'seedPick') renderSeedPick(root, step);

@@ -171,6 +171,15 @@ function dirFromDelta(dx, dy) {
 
 export { shapeSvg };
 
+// setMoodIn(rootEl, mood): rootEl内のロボット（shapeSvg('player')）の口の形を切り替える。
+// renderGrid外（シーソー画面など）で表情を再利用するための入口（Issue #150）。
+export function setMoodIn(rootEl, mood) {
+  rootEl.querySelectorAll('[data-mouth]').forEach((m) => {
+    const set = MOUTH_PATH[m.dataset.mouth];
+    m.setAttribute('d', set[mood] ?? set.normal);
+  });
+}
+
 export function prefersReducedMotion() {
   return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
