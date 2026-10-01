@@ -1,5 +1,16 @@
 // ダッシュボード（/dashboard.html）の描画。summarize()の結果を描画するだけで、集計はしない。
-import { loadEvents, loadProfile, saveProfile, loadSyncState } from './storage.js';
+import {
+  loadEvents,
+  loadProfile,
+  saveProfile,
+  loadSyncState,
+  loadSlots,
+  readSlotSummary,
+  getActiveSlot,
+  SLOT_COUNT,
+} from './storage.js';
+import { applySlot, ensureActiveSlot } from './state.js';
+import { normalizeName, displayName } from './slot-utils.js';
 import { summarize } from './analytics.js';
 import { loadLesson } from './lesson-loader.js';
 import { renderSyncSection } from './ui-sync.js';
@@ -44,6 +55,29 @@ function newProfile() {
   return { learnerId: crypto.randomUUID(), label: null, readingLevel: 0, createdAt: Date.now() };
 }
 
+// スロットのタブ。切替は端末のアクティブスロット（次に遊ぶ人）を変えず、表示だけ切り替える（Issue #218）。
+function renderSlotTabs(root) {
+  root.innerHTML = '';
+  const { occupied } = loadSlots();
+  const active = getActiveSlot();
+  for (let i = 0; i < SLOT_COUNT; i++) {
+    const tab = document.createElement('button');
+    tab.type = 'button';
+    tab.dataset.slotTab = String(i);
+    tab.setAttribute('aria-pressed', String(i === active));
+    tab.disabled = !occupied[i];
+    tab.className = `min-h-[48px] flex-1 px-3 rounded-lg text-sm border ${
+      i === active ? 'bg-sky-600 text-white border-sky-600' : 'bg-white text-slate-700 border-slate-300'
+    } ${occupied[i] ? '' : 'opacity-50'}`;
+    tab.textContent = occupied[i] ? displayName(readSlotSummary(i).profile?.label, i) : 'あき';
+    tab.addEventListener('click', () => {
+      applySlot(i, { persist: false });
+      renderDashboard();
+    });
+    root.appendChild(tab);
+  }
+}
+
 function renderProfileSection(root) {
   root.innerHTML = '';
   root.appendChild(el('h2', 'text-lg font-bold text-slate-800 mb-2', '呼び名'));
@@ -52,12 +86,14 @@ function renderProfileSection(root) {
   input.type = 'text';
   input.id = 'label-input';
   input.placeholder = '呼び名を入力';
+  input.maxLength = 10;
   input.value = loadProfile()?.label ?? '';
   input.className = 'min-h-[48px] w-full px-3 rounded-lg border border-slate-300 text-base';
   input.addEventListener('change', () => {
     const profile = loadProfile() ?? newProfile();
-    profile.label = input.value.trim() === '' ? null : input.value.trim();
+    profile.label = normalizeName(input.value);
     saveProfile(profile);
+    renderSlotTabs(document.getElementById('slot-tabs'));
   });
   root.appendChild(input);
 
@@ -210,6 +246,7 @@ async function renderDashboard() {
   const result = summarize(events, Date.now());
 
   renderWorkerVersionBanner(document.getElementById('worker-version-banner'), loadSyncState().workerVersionMismatch);
+  renderSlotTabs(document.getElementById('slot-tabs'));
   renderProfileSection(document.getElementById('profile-section'));
   renderSyncSection(document.getElementById('sync-section'), { onChange: renderDashboard });
   renderRecentSection(document.getElementById('recent-section'), result.recentDays);
@@ -217,5 +254,6 @@ async function renderDashboard() {
   document.getElementById('version-footer').textContent = APP_VERSION;
 }
 
+ensureActiveSlot();
 initGate({ onUnlock: renderDashboard });
 registerServiceWorker();

@@ -60,7 +60,10 @@ P3着手時に読む。バックエンドは決定済み（下記）。
 
 - 端末初回に `syncSecret`（32バイト乱数、base64url）をクライアントで生成し端末内にのみ保存する。
   サーバーは **SHA-256ハッシュのみ**を `devices.secretHash` に保存し、生の値は保持しない
-- `learnerId` は既存の `steamkids.profile` のものを使う
+- `learnerId` はアクティブスロットのprofileのものを使う。同期状態（`syncSecret`等）もスロット単位
+  （`docs/lesson-schema.md`「セーブスロット」。Issue #218）。サーバー側の`guardians`は`learnerId`ごと
+  なので、同期登録（`register`）の成功直後に合言葉を伝播する（`registerServerPasscodeIfCached`）。
+  サーバートークンも`learnerId`に紐づけ、ダッシュボードのスロットタブ切替で流用しない
 - リクエストは `Authorization: Bearer <learnerId>.<syncSecret>` を送る。サーバーは
   `syncSecret` のハッシュから `devices` を引いて `learnerId` を解決し、
   **リクエストbody中の `learnerId` は信用しない**
