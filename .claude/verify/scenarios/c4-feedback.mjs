@@ -214,19 +214,20 @@ export default async function run({ page, check }) {
 
   // --- 不正解・複数回クリアでは別のカード文言になる（最短でもない） ---
   await enterPlay(page, 'donguri-02-mawarimichi');
-  await clearStage(page, ['right', 'down', 'down', 'down', 'up', 'up', 'up', 'right']); // p1(最短8)
-  await clearStage(page, ['down', 'down', 'down', 'down', 'right', 'right', 'up', 'up', 'up', 'up', 'right']); // p2(最短11)
-  // p3は1回失敗させてから、最短(14)ではない手数(16)でクリアする
+  await clearStage(page, ['right', 'down', 'right', 'right', 'up', 'right']); // p1(最短6)
+  await clearStage(page, ['down', 'down', 'right', 'right', 'right', 'up', 'up', 'right']); // p2(最短8)
+  // p3は1回失敗させてから、最短(9)ではない手数(11)でクリアする
   await page.click('[data-command="down"]');
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="retry"]', { timeout: 8000 });
   await clickRetry(page);
   for (const c of [
-    'down', 'down', 'down', 'down', 'down',
+    'up', 'up',
     'right', 'left',
     'right', 'right', 'right',
-    'up', 'up', 'up', 'up', 'up',
-    'right',
+    'down',
+    'right', 'right',
+    'down',
   ]) {
     await page.click(`[data-command="${c}"]`);
   }
@@ -239,7 +240,7 @@ export default async function run({ page, check }) {
     async () => (await page.locator('.achievement-cards').innerText()).includes('あきらめずに')
   );
   await check(
-    '最短カードは出ない（p3は最短14に対し16手でクリアしたため）',
+    '最短カードは出ない（p3は最短9に対し11手でクリアしたため）',
     async () => !(await page.locator('.achievement-cards').innerText()).includes('いちばん みじかい')
   );
   await check('最終レッスンでは「つぎの レッスンへ」が出ない', async () => (await page.$$('[data-action="next-lesson"]')).length, 0);
