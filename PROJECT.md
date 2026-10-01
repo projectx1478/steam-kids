@@ -139,7 +139,7 @@ MVP実装対象は `grid-runtime`。予想ステップ（`kind: "predict"`）は
 | テスト | `npm run test:unit` |
 | Lint | なし |
 | 型チェック | なし |
-| ビルド | `npx tailwindcss@3.4.17 -i tailwind.src.css -o style.css --minify` |
+| ビルド | `npx tailwindcss@3.4.19 -i tailwind.src.css -o style.css --minify` |
 | E2E/実機確認 | 手元では実行しない。実装中＝`gh workflow run e2e-run.yml --ref <ブランチ> -f scenarios="<名前…>"`、PR＝E2E PR（本文の`E2E:`行）、全件＝夜間 |
 | レッスンJSON検証 | `npm run validate:lessons` |
 
