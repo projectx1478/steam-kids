@@ -16,6 +16,8 @@ js/
   lesson-cmd-01.js # P0のレッスンデータ（レッスンJSONと同形状）
   engine-grid.js # grid-runtimeの純粋関数（命令列→経路・到達判定）
   engine-generate.js # シードからgrid-runtime盤面を生成する純粋関数（PRNG・制約判定・予備盤面。Issue #68）
+  engine-seesaw.js # predict-slider（シーソー）の純粋関数（おもさ×きょりの傾き判定。Issue #150）
+  ui-seesaw.js # シーソーplay画面の描画（Issue #150）
   seed-code.js # れんしゅうの絵コード（8種×4マス）⇔シード変換・絵SVG（Issue #69）
   ui-seedpick.js # れんしゅうのたねコード入力画面（Issue #69）
   ui-grid.js # SVGグリッド描画とハイライト

@@ -1,0 +1,44 @@
+{
+  "lessonId": "teko-01-tsuriai",
+  "unitId": "teko",
+  "title": "シーソーで つりあい",
+  "type": "predict-slider",
+  "estimatedMinutes": 5,
+  "steps": [
+    { "stepId": "s1", "kind": "intro", "text": "シーソーを つりあわせよう" },
+    {
+      "stepId": "p1",
+      "kind": "play",
+      "text": "つりあう ところに おこう",
+      "seesaw": {
+        "notches": 4,
+        "left": [{ "robots": 1, "pos": 2 }],
+        "mover": { "robots": 1, "start": 1 }
+      },
+      "solution": 2
+    },
+    {
+      "stepId": "p2",
+      "kind": "play",
+      "text": "つりあう ところに おこう",
+      "seesaw": {
+        "notches": 4,
+        "left": [{ "robots": 2, "pos": 2 }],
+        "mover": { "robots": 1, "start": 1 }
+      },
+      "solution": 4
+    },
+    {
+      "stepId": "p3",
+      "kind": "play",
+      "text": "つりあう ところに おこう",
+      "seesaw": {
+        "notches": 6,
+        "left": [{ "robots": 2, "pos": 3 }],
+        "mover": { "robots": 1, "start": 1 }
+      },
+      "solution": 6
+    },
+    { "stepId": "s2", "kind": "summary", "text": "おもいほど ちかくに おくよ" }
+  ]
+}

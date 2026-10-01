@@ -43,7 +43,7 @@ const pulseIds = (page) => page.$$eval('.next-pulse', (els) => els.map((e) => e.
 export default async function run({ page, check }) {
   // --- 初期：先頭だけ有効 ---
   await page.goto('/index.html?view=map');
-  await check('初期は先頭以外(レッスン10本＋れんしゅう1本)がdisabled＋data-locked', async () => (await lockedIds(page)).length, 11);
+  await check('初期は先頭以外(レッスン11本＋れんしゅう1本)がdisabled＋data-locked', async () => (await lockedIds(page)).length, 12);
   await check('先頭(cmd-01)は有効', async () => page.$eval('[data-lesson-id="cmd-01-susumu"]', (b) => !b.disabled));
   await check('パルスは先頭の1件だけ', async () => pulseIds(page), ['cmd-01-susumu']);
   await check('ボタンに単元内番号が付く(cmd-02は2)', async () =>

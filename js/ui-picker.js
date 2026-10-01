@@ -15,6 +15,7 @@ const UNIT_STYLE = {
   ice: { bg: 'bg-sky-400', icon: () => iceIconSvg() },
   keys: { bg: 'bg-purple-400', icon: () => keyIconSvg() },
   switches: { bg: 'bg-rose-400', icon: () => switchIconSvg() },
+  teko: { bg: 'bg-teal-400', icon: () => seesawIconSvg() },
 };
 const DEFAULT_UNIT_STYLE = { bg: 'bg-sky-400', icon: null };
 
@@ -97,6 +98,13 @@ function switchIconSvg() {
   return `<svg viewBox="0 0 24 24" class="w-full h-full" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
     <circle cx="12" cy="12" r="8" />
     <circle cx="12" cy="12" r="3" />
+  </svg>`;
+}
+
+function seesawIconSvg() {
+  return `<svg viewBox="0 0 24 24" class="w-full h-full" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M3 9L21 15" />
+    <path d="M12 12L8 21H16Z" fill="currentColor" />
   </svg>`;
 }
 

@@ -26,6 +26,11 @@
       "unitId": "switches",
       "title": "スイッチと かべ",
       "lessonIds": ["switch-01-suicchi", "switch-02-futatsu"]
+    },
+    {
+      "unitId": "teko",
+      "title": "つりあい",
+      "lessonIds": ["teko-01-tsuriai"]
     }
   ]
 }
