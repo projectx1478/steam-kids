@@ -1,7 +1,7 @@
-// switches：対象壁のDOM切替・pickup音・未踏の失敗・もういちどで壁が戻る(Issue #63)。実レッスンに依存しない。
+// switches：対象壁のDOM切替・wallSink音・未踏の失敗・もういちどで壁が戻る(Issue #63)。実レッスンに依存しない。
 import { routeLesson, enterPlay, clickRetry } from '../helpers.mjs';
 
-export const name = 'switches: data-switch-wall on→off・pickup音・未踏の衝突失敗・retryで復帰(Issue #63)';
+export const name = 'switches: data-switch-wall on→off・wallSink音・未踏の衝突失敗・retryで復帰(Issue #63)';
 
 const lesson = {
   lessonId: 'g-switches-flow',
@@ -55,7 +55,7 @@ export default async function run({ page, check }) {
   for (const c of ['up', 'down', 'down', 'up', 'right', 'right', 'right']) await page.click(`[data-command="${c}"]`);
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="next"]', { timeout: 15000 });
-  await check('スイッチ2つでpickup音が2回', () => sfxCount(page, 'pickup'), 2);
+  await check('スイッチ2つでwallSink音が2回', () => sfxCount(page, 'wallSink'), 2);
   await check('切替壁が両方消える(off)', async () => (await walls(page)).join(), 'off,off');
   await check('スイッチが両方押下済み', async () => (await pressed(page)).join(), 'true,true');
   await check('クリアできる', async () => (await page.$$('[data-action="retry"]')).length, 0);
