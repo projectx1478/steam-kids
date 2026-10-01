@@ -16,6 +16,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FROZEN_LESSONS = ['cmd-01-susumu', 'donguri-01-hirou'];
 
 export default {
+  // 手元実行ガード（テンプレートのguard.mjs）。E2Eは手元で実行せずGitHub Actionsで実行する
+  ciOnly: { hint: '  gh workflow run e2e-run.yml --ref <ブランチ> -f scenarios="<シナリオ名…>"   （全件は all）' },
   async setupRoutes(page) {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     for (const id of FROZEN_LESSONS) {

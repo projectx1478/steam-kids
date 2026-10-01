@@ -8,7 +8,7 @@
     "check:static": "node tools/check-static.mjs",
     "test:unit": "node --test \"test/**/*.test.mjs\"",
     "validate:lessons": "node tools/validate-lessons.mjs",
-    "verify:e2e": "node tools/verify-all.mjs"
+    "verify:e2e": "node .claude/verify/run-all.mjs"
   },
   "devDependencies": {
     "playwright": "1.63.0",

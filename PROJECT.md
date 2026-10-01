@@ -131,19 +131,19 @@ MVP実装対象は `grid-runtime`。予想ステップ（`kind: "predict"`）は
 
 ### 検証コマンド
 
-コード変更後、手元で実行するのは軽量チェック（`check:static`・`test:unit`・`validate:lessons`・ビルド）のみ。E2Eは手元で実行せず（`tools/verify-all.mjs`のガードで止まる）GitHub Actionsで実行する。軽量チェックはPRごとにCI（`.github/workflows/checks.yml`）でも自動実行する。
+軽量チェックは手元とCI（`.github/workflows/checks.yml`）で実行し、E2Eは手元で実行せずCIで実行する（`config.mjs`の`ciOnly`が手元実行を止める）。
 
-| 種別 | コマンド |
-| --- | --- |
-| 静的チェック | `npm run check:static` |
-| テスト | `npm run test:unit` |
-| Lint | なし |
-| 型チェック | なし |
-| ビルド | `npx tailwindcss@3.4.19 -i tailwind.src.css -o style.css --minify` |
-| E2E/実機確認 | 手元では実行しない。実装中＝`gh workflow run e2e-run.yml --ref <ブランチ> -f scenarios="<名前…>"`、PR＝E2E PR（本文の`E2E:`行）、全件＝夜間 |
-| レッスンJSON検証 | `npm run validate:lessons` |
+| 種別 | コマンド | 実行場所 |
+| --- | --- | --- |
+| 静的チェック | `npm run check:static` | 手元＋CI |
+| テスト | `npm run test:unit` | 手元＋CI |
+| Lint | なし | - |
+| 型チェック | なし | - |
+| ビルド | `npx tailwindcss@3.4.19 -i tailwind.src.css -o style.css --minify` | 手元＋CI |
+| E2E/実機確認 | `npm run verify:e2e` | CI実行（実装中＝`e2e-run.yml`、PR＝`e2e-pr.yml`、全件＝`e2e-nightly.yml`） |
+| レッスンJSON検証 | `npm run validate:lessons` | 手元＋CI |
 
-E2Eの実行方法・報告形式は `docs/testing-guidelines.md` に従う。
+実行場所の「CI実行」はAGENTS.md「検証フェーズ」の指定に対応する。夜間CI失敗ラベル：`e2e-nightly`。運用は`docs/testing-guidelines.md`、スモーク・固有の注意は`docs/testing-steam-kids.md`。
 
 影響範囲確認：レッスンJSONやDOM契約（`data-action`等）を変更するときは、`grep -lE '<lessonId|data-action名>' .claude/verify/scenarios/*`で影響シナリオを列挙する。`.claude/verify/config.mjs`の凍結fixture（cmd-01・donguri-01）の対象かも確認する。
 
@@ -210,6 +210,7 @@ P0（実機で到達）→P1（JSON外出し）→P2（ログ・ダッシュボ�
 - `docs/file-structure.md` — ファイル別の役割一覧。ファイルの新設・移動時に読む
 - `docs/roadmap.md` — 授業展開の制約とP0〜P5ロードマップ。フェーズ計画・授業展開を検討する時に読む
 - `docs/testing-guidelines.md` — 検証の運用（E2EはGitHub Actionsのみ・手元ガード・夜間失敗の対応）。検証するとき読む
+- `docs/testing-steam-kids.md` — steam-kids固有の検証事項（スモーク・軽量チェック）。スモークを変える時に読む
 
 ## 8. 未決事項
 
