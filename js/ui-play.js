@@ -34,6 +34,8 @@ const HINT_MESSAGE = {
 };
 const FAR_GOAL_MESSAGE = 'ほかの みちも ためして みよう';
 const NEAR_GOAL_DISTANCE = 2;
+// 壁衝突の失敗後、「もういちど」をパルスで強調するまでの待ち（Issue #214）。
+const RETRY_PULSE_DELAY_MS = 1200;
 
 export function renderPlay(root, step) {
   const spec = boardSpec(step);
@@ -227,6 +229,19 @@ export function renderPlay(root, step) {
   // 実行が失敗したらrunBtn自体を橙色の「もういちど」に変える（目線を動かさずに押せる。Issue #91）。
   // 他のボタンをロックする間、押せるのはこれだけなのでパルス枠で目立たせる（Issue #106）。
   const RETRY_EMPHASIS_CLASSES = ['ring-4', 'ring-amber-300', 'ring-offset-2', 'motion-safe:animate-pulse'];
+  // 壁衝突で付ける「もういちど」のパルス強調（retry-pulse。scale 1→1.08→1を2回。tailwind.src.css
+  // 側はreduced-motionでは定義されない。Issue #214）。retry押下・モード遷移で未発火のタイマーは
+  // 止めてクラスも外す。
+  let retryPulseTimer = null;
+  function pulseRetryButton() {
+    retryPulseTimer = null;
+    if (prefersReducedMotion()) return;
+    if (runBtn.dataset.action !== 'retry') return;
+    runBtn.classList.remove('retry-pulse');
+    void runBtn.offsetWidth;
+    runBtn.classList.add('retry-pulse');
+    runBtn.addEventListener('animationend', () => runBtn.classList.remove('retry-pulse'), { once: true });
+  }
   function setRunButtonMode(mode) {
     if (mode === 'retry') {
       runBtn.dataset.action = 'retry';
@@ -638,13 +653,17 @@ export function renderPlay(root, step) {
       if (info.reason === 'wall') {
         queueEl.querySelector(`[data-index="${info.cmdIndex}"]`)?.classList.add('ring-4', 'ring-amber-400');
         local.view.markCell(info.cell, 'wall');
+        // 壁衝突は横に倒れる演出で気づかせ、1.2秒後に「もういちど」をパルスで強調する（Issue #214）。
+        local.view.fallOver();
+        retryPulseTimer = setTimeout(pulseRetryButton, RETRY_PULSE_DELAY_MS);
       } else if (info.reason === 'items') {
         local.view.hintItems(info.remainingItems);
       } else {
         local.view.markCell(info.cell, 'stopped');
         local.view.markCell(spec.goal, 'goal-hint');
       }
-      local.view.shrug();
+      // 壁衝突時は倒れの演出と重なるため首かしげはしない（Issue #214）。
+      if (info.reason !== 'wall') local.view.shrug();
       local.resultShown = true;
       const far = info.reason === 'goal' && info.distance > NEAR_GOAL_DISTANCE;
       showHint(statusBar, { kind: info.reason, message: far ? FAR_GOAL_MESSAGE : HINT_MESSAGE[info.reason], restore: clearResult });
@@ -653,6 +672,11 @@ export function renderPlay(root, step) {
 
   runBtn.addEventListener('click', () => {
     if (runBtn.dataset.action === 'retry') {
+      if (retryPulseTimer) {
+        clearTimeout(retryPulseTimer);
+        retryPulseTimer = null;
+      }
+      runBtn.classList.remove('retry-pulse');
       vibrate();
       logEvent('retry', {});
       playRetryTransition(
