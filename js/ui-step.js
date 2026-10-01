@@ -320,9 +320,13 @@ export function createStepper(commands, spec, view, { onTick, onPickup }) {
         view.footprint(from);
         view.moveTo(to);
       }
+      const totalItems = (spec.items ?? []).length;
+      let collected = result.pickups.slice(0, i).reduce((n, arr) => n + arr.length, 0);
       result.pickups[i].forEach((idx) => {
         view.collectItem(spec.items[idx]);
-        playSfx('pickup');
+        collected += 1;
+        // 最後の1個で全部回収できた時だけpickupLast（Issue #158）
+        playSfx(collected === totalItems ? 'pickupLast' : 'pickup');
         onPickup?.(idx);
       });
       if (!bumped) {

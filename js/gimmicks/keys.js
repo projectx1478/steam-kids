@@ -110,17 +110,20 @@ export const keys = {
         setTimeout(() => keyEl.remove(), 400);
       }
     }
-    ids(spec.doors)
-      .filter((d) => d.color === found.color)
-      .forEach((d) => {
-        const cell = els?.doorCells.get(keyOf(d));
-        if (!cell) return;
-        cell.dataset.doorOpen = 'true';
-        cell.querySelector('.grid-door-svg')?.replaceWith(
-          Object.assign(document.createElement('template'), { innerHTML: doorSvg(d.color, true) }).content.firstElementChild
-        );
-      });
-    return 'pickup';
+    const doors = ids(spec.doors).filter((d) => d.color === found.color);
+    doors.forEach((d) => {
+      const cell = els?.doorCells.get(keyOf(d));
+      if (!cell) return;
+      cell.dataset.doorOpen = 'true';
+      cell.querySelector('.grid-door-svg')?.replaceWith(
+        Object.assign(document.createElement('template'), { innerHTML: doorSvg(d.color, true) }).content.firstElementChild
+      );
+    });
+    // ドアが開く音はかぎ取得の直後に重ならないよう約0.25s遅らせる。sfx.jsはブラウザ前提
+    // （localStorage使用）なため動的import。Nodeの単体テストはonStepを呼ばないためここでのみ
+    // sfx.jsへ依存する（Issue #158）
+    if (doors.length > 0) setTimeout(() => import('../sfx.js').then(({ play }) => play('door')), 250);
+    return 'key';
   },
 
   // 座標範囲はcheckBoard側で共通に行う。色・対応するかぎ・重なり・盤の大きさを見る。

@@ -1,7 +1,7 @@
 // keys（かぎとドア）：ドア開閉のDOM・効果音・失敗とクリア・色と形の区別(Issue #62)。実レッスンに依存しない。
 import { routeLesson, enterPlay, clickRetry } from '../helpers.mjs';
 
-export const name = 'keys: data-door-open切替・pickup音・ドア衝突の失敗・色と形の区別(Issue #62)';
+export const name = 'keys: data-door-open切替・key/door音・ドア衝突の失敗・色と形の区別(Issue #62)';
 
 const lesson = {
   lessonId: 'g-keys-flow',
@@ -55,7 +55,8 @@ export default async function run({ page, check }) {
   for (const c of ['up', 'down', 'down', 'up', 'right', 'right', 'right']) await page.click(`[data-command="${c}"]`);
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="next"]', { timeout: 15000 });
-  await check('かぎ2つでpickup音が2回', () => sfxCount(page, 'pickup'), 2);
+  await check('かぎ2つでkey音が2回', () => sfxCount(page, 'key'), 2);
+  await check('ドア2つでdoor音が2回（かぎ取得から遅れて）', () => sfxCount(page, 'door'), 2);
   await check('両方のドアが開く', async () => (await open(page)).join(), 'true,true');
   await check('取ったかぎは消える', async () => (await page.$$('.grid-key-svg')).length, 0);
   await check('クリアできる', async () => (await page.$$('[data-action="retry"]')).length, 0);

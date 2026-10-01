@@ -27,13 +27,18 @@ export default async function run({ page, check }) {
 
   // retryは正解・不正解に関わらず命令列をリセットする（Issue #104）ため、既に空になっている。
   await clickRetry(page);
+  // introデモの回収分も__sfxLogに残るため、実行前にクリアしてから音を数える（Issue #158）。
+  await page.evaluate(() => (window.__sfxLog.length = 0));
   for (const c of ['right', 'right', 'right', 'up', 'up', 'up']) {
     await page.click(`[data-command="${c}"]`);
   }
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="next"]', { timeout: 8000 });
   await check('全item回収後はitem要素が0個になる', async () => (await page.$$('.grid-item')).length, 0);
-  await check('pickup音が2回以上鳴る', async () => (await sfxLog(page)).filter((n) => n === 'pickup').length >= 2);
+  await check('pickup音1回＋最後の1個はpickupLast', async () => {
+    const log = await sfxLog(page);
+    return [log.filter((n) => n === 'pickup').length, log.filter((n) => n === 'pickupLast').length].join();
+  }, '1,1');
   // ゴール到達（showSuccess）はclearよりも長いfanfare音を鳴らす（Issue #104）。
   await check('fanfare音が鳴る', async () => (await sfxLog(page)).includes('fanfare'));
 }
