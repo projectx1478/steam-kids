@@ -17,6 +17,7 @@ import { renderSeedPick } from './ui-seedpick.js';
 import { generateMap } from './engine-generate.js';
 import { codeToSeed } from './seed-code.js';
 import { isLessonCleared } from './ui-picker.js';
+import { withDev } from './dev-mode.js';
 
 const STEP_DELAY_MS = 600;
 const STEP_TRANSITION_MS = 220;
@@ -136,7 +137,7 @@ export function initSteps() {
 
   headerEls().home.addEventListener('click', () => {
     if (headerEls().home.disabled) return;
-    location.href = './index.html?view=map';
+    location.href = withDev('./index.html?view=map');
   });
 
   document.addEventListener('visibilitychange', () => {

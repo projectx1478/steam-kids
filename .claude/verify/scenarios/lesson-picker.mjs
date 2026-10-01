@@ -1,4 +1,4 @@
-export const name = 'レッスン選択画面: ?lesson無しで14本から選べる(Issue #31, #60)';
+export const name = 'レッスン選択画面: ?lesson無しで12本が並び、解放済みから選べる(Issue #31, #60, #216)';
 
 async function boxesOk(page) {
   const boxes = [];
@@ -47,7 +47,7 @@ function title(id) {
 export default async function run({ page, check }) {
   await page.goto('/index.html?view=map');
 
-  await check('14本のレッスンボタンが表示される', async () => (await page.$$('.lesson-pick-btn')).length, 14);
+  await check('12本のレッスンボタンが表示される', async () => (await page.$$('.lesson-pick-btn')).length, 12);
   await check('レッスン1のタイトルが表示される', async () => title('cmd-01-susumu')(page), 'すすむ');
   await check('レッスン2のタイトルが表示される', async () => title('cmd-02-mijikaku')(page), 'みじかくする');
   await check('レッスン3のタイトルが表示される', async () => title('cmd-03-naosu')(page), 'なおす');
@@ -58,6 +58,14 @@ export default async function run({ page, check }) {
   await check('選択画面で横スクロールが出ない', async () => noHorizontalScroll(page));
   await check('レッスンボタンが.island内に収まる（overflow-hiddenでクリップされない）', async () => lessonButtonsInsideIslands(page));
 
+  // 段階解放（Issue #216）：cmd-02はcmd-01のクリア後に解放されるため、clearイベントを注入して開き直す。
+  await page.evaluate(() =>
+    localStorage.setItem(
+      'steamkids.events',
+      JSON.stringify([{ eventId: 'e1', learnerId: 'l', lessonId: 'cmd-01-susumu', stepId: 'p3', type: 'clear', ts: Date.now(), payload: {} }])
+    )
+  );
+  await page.goto('/index.html?view=map');
   await page.click('[data-lesson-id="cmd-02-mijikaku"]');
   await check('タップしたレッスンのintroへ遷移する', async () => page.getAttribute('#stage', 'data-step'), 'intro');
 }

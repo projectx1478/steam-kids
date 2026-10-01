@@ -10,6 +10,7 @@ import { renderInto } from './text-render.js';
 import { showHandHint } from './ui-hand.js';
 import { goToStep, createPrimaryButton, playAnimation, setActiveHandHint } from './ui-step.js';
 import { showSuccess } from './ui-reaction.js';
+import { IS_DEV } from './dev-mode.js';
 
 const GUIDE_GLOW_CLASSES = ['ring-4', 'ring-amber-400', 'ring-offset-2', 'motion-safe:animate-pulse'];
 const TUTORIAL_DONE_PREFIX = 'steamkids.tutorialDone.';
@@ -28,6 +29,7 @@ export function isTutorialDone(lessonId) {
 }
 
 export function markTutorialDone(lessonId) {
+  if (IS_DEV) return;
   try {
     localStorage.setItem(TUTORIAL_DONE_PREFIX + lessonId, 'true');
   } catch {

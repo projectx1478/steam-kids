@@ -4,12 +4,19 @@ import { loadLesson } from './lesson-loader.js';
 import { getEvents } from './events.js';
 import { summarize } from './analytics.js';
 import { shapeSvg } from './ui-grid.js';
+import { lessonOrder, isUnlocked, isPracticeUnlocked, firstPendingId } from './unlock.js';
+import { IS_DEV } from './dev-mode.js';
 
-// 単元ヘッダーの単元種別アイコン（Issue #107）。未知のunitIdはアイコン無し。
-const UNIT_TYPE_ICON = {
-  commands: () => flagSvg(),
-  donguri: () => shapeSvg('item'),
+// 単元ごとのボタン色とアイコン（Issue #216）。クラス名はTailwindのcontentスキャン用にリテラルで書く。
+// 未知のunitIdはbg-sky-400・アイコン無し。
+const UNIT_STYLE = {
+  commands: { bg: 'bg-emerald-400', icon: () => flagSvg() },
+  donguri: { bg: 'bg-amber-400', icon: () => shapeSvg('item') },
+  ice: { bg: 'bg-sky-400', icon: () => iceIconSvg() },
+  keys: { bg: 'bg-purple-400', icon: () => keyIconSvg() },
+  switches: { bg: 'bg-rose-400', icon: () => switchIconSvg() },
 };
+const DEFAULT_UNIT_STYLE = { bg: 'bg-sky-400', icon: null };
 
 function isCleared(lessonStatus, lessonId) {
   return lessonStatus[lessonId]?.status === 'cleared';
@@ -65,20 +72,17 @@ function starBadgeSvg() {
   </svg>`;
 }
 
-// レッスンボタンの小アイコン。初回playの特徴からIssue #107で導出する（JSONにアイコン指定は追加しない）。
-function arrowIconSvg() {
-  return `<svg viewBox="0 0 24 24" class="w-full h-full" fill="currentColor" aria-hidden="true"><path d="M5 4l14 8-14 8V4Z" /></svg>`;
-}
-function groupIconSvg() {
-  return `<svg viewBox="0 0 24 24" class="w-full h-full" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-    <rect x="3" y="7" width="12" height="12" rx="2" />
-    <rect x="9" y="3" width="12" height="12" rx="2" />
+function iceIconSvg() {
+  return `<svg viewBox="0 0 24 24" class="w-full h-full" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+    <path d="M12 3v18M4.2 7.5l15.6 9M19.8 7.5l-15.6 9" />
   </svg>`;
 }
-function fixIconSvg() {
-  return `<svg viewBox="0 0 24 24" class="w-full h-full" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="M4 20l4-1 10-10-3-3L5 16l-1 4Z" />
-    <path d="M14 6l3 3" />
+
+// 南京錠。鍵ドア単元のkeyIconSvgと区別するため別の形にする（未解放ボタン用）。
+function padlockSvg() {
+  return `<svg viewBox="0 0 24 24" class="w-full h-full" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+    <rect x="5" y="11" width="14" height="10" rx="2" fill="currentColor" />
+    <path d="M8 11V8a4 4 0 0 1 8 0v3" />
   </svg>`;
 }
 
@@ -96,53 +100,65 @@ function switchIconSvg() {
   </svg>`;
 }
 
-function lessonIconSvg(lesson) {
-  const playStep = lesson.steps?.find((s) => s.kind === 'play');
-  if (!playStep) return '';
-  if (playStep.initialCommands) return fixIconSvg();
-  if (playStep.groupRepeats) return groupIconSvg();
-  if (playStep.items?.length) return shapeSvg('item');
-  if (playStep.keys?.length) return keyIconSvg();
-  if (playStep.switches?.length) return switchIconSvg();
-  return arrowIconSvg();
+function iconSpan(svg, cls) {
+  const span = document.createElement('span');
+  span.className = cls;
+  span.setAttribute('aria-hidden', 'true');
+  span.innerHTML = svg;
+  return span;
 }
 
-// data-lesson-idを持つボタンはアイコン(aria-hidden)＋data-titleのタイトル文字列を持つ
+// data-lesson-idを持つボタンは単元アイコン(aria-hidden)＋単元内番号＋data-titleのタイトル文字列を持つ
 // （既存シナリオlesson-picker.mjsはdata-title側のtextContentで完全一致を見る。Issue #107）。
 // スタンプはボタン外のsiblingとして重ねる（既存シナリオa5-unit-stamp.mjsのクラス名互換）。
-async function createLessonStop(lessonId, cleared, onPick, practice = false) {
+// opts: { unit, number（単元内番号。れんしゅうはnull）, locked, pending（次に遊ぶ最前線）, cleared, practice }
+async function createLessonStop(lessonId, opts, onPick) {
+  const { unit, number, locked, pending, cleared, practice } = opts;
+  const style = UNIT_STYLE[unit.unitId] ?? DEFAULT_UNIT_STYLE;
   const wrap = document.createElement('div');
   wrap.className = 'relative inline-block';
 
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.dataset.lessonId = lessonId;
-  btn.className = `lesson-pick-btn btn-tactile flex items-center justify-center gap-1.5 px-4 text-lg text-white ${
-    practice ? 'bg-amber-500' : cleared ? 'bg-emerald-500' : 'bg-sky-500'
+  const color = locked ? 'bg-slate-300 text-slate-600' : `${style.bg} text-slate-900`;
+  btn.className = `lesson-pick-btn btn-tactile flex items-center justify-center gap-1.5 px-4 text-lg font-bold ${color}${
+    pending ? ' next-pulse' : ''
   }`;
+  if (locked) {
+    btn.disabled = true;
+    btn.dataset.locked = 'true';
+  }
+
+  if (style.icon) btn.appendChild(iconSpan(style.icon(), 'inline-block w-5 h-5 shrink-0'));
+  if (number != null) {
+    const num = document.createElement('span');
+    num.className = 'lesson-num';
+    num.textContent = String(number);
+    btn.appendChild(num);
+  }
 
   let title = lessonId;
   try {
-    const lesson = await loadLesson(lessonId);
-    title = lesson.title;
-    const icon = lessonIconSvg(lesson);
-    if (icon) {
-      const iconSpan = document.createElement('span');
-      iconSpan.className = 'inline-block w-4 h-4 shrink-0';
-      iconSpan.setAttribute('aria-hidden', 'true');
-      iconSpan.innerHTML = icon;
-      btn.appendChild(iconSpan);
-    }
+    title = (await loadLesson(lessonId)).title;
   } catch {
-    // アイコンは省略し、タイトルはlessonIdへフォールバックする
+    // タイトルはlessonIdへフォールバックする
   }
   const titleSpan = document.createElement('span');
   titleSpan.dataset.title = '';
   titleSpan.textContent = title;
   btn.appendChild(titleSpan);
+  if (locked) btn.appendChild(iconSpan(padlockSvg(), 'inline-block w-5 h-5 shrink-0'));
 
   btn.addEventListener('click', () => onPick(lessonId));
   wrap.appendChild(btn);
+
+  if (IS_DEV) {
+    const idLabel = document.createElement('p');
+    idLabel.className = 'dev-lesson-id text-center text-xs text-slate-600';
+    idLabel.textContent = lessonId;
+    wrap.appendChild(idLabel);
+  }
 
   // れんしゅう（Issue #69）：スタンプ・旗の対象にせず、クリアした回数だけを出す（比較・順位は出さない）。
   if (practice) {
@@ -164,7 +180,8 @@ async function createLessonStop(lessonId, cleared, onPick, practice = false) {
   return wrap;
 }
 
-async function createUnitIsland(unit, lessonStatus, onPick) {
+// ctx: { order, clearedIds, pendingId }。開発者画面（IS_DEV）は全解放・パルス無し・devOnlyIdsも並べる。
+async function createUnitIsland(unit, lessonStatus, ctx, onPick) {
   const island = document.createElement('div');
   // shrink-0: #stage（flex-col・overflow-y-auto）内で単元が増えた時に縮められて潰れるのを防ぐ（Issue #157）
   island.className = 'relative shrink-0 rounded-3xl p-4 mb-4 overflow-hidden wood-panel';
@@ -173,14 +190,8 @@ async function createUnitIsland(unit, lessonStatus, onPick) {
 
   const header = document.createElement('div');
   header.className = 'flex items-center justify-center gap-2 mb-3';
-  const typeIcon = UNIT_TYPE_ICON[unit.unitId];
-  if (typeIcon) {
-    const icon = document.createElement('span');
-    icon.className = 'unit-type-icon w-6 h-6';
-    icon.setAttribute('aria-hidden', 'true');
-    icon.innerHTML = typeIcon();
-    header.appendChild(icon);
-  }
+  const typeIcon = UNIT_STYLE[unit.unitId]?.icon;
+  if (typeIcon) header.appendChild(iconSpan(typeIcon(), 'unit-type-icon w-6 h-6'));
   const title = document.createElement('p');
   title.className = 'text-lg font-bold text-emerald-800';
   title.textContent = unit.title;
@@ -197,11 +208,32 @@ async function createUnitIsland(unit, lessonStatus, onPick) {
 
   const list = document.createElement('div');
   list.className = 'flex flex-wrap justify-center gap-3';
-  for (const lessonId of unit.lessonIds) {
-    list.appendChild(await createLessonStop(lessonId, isCleared(lessonStatus, lessonId), onPick));
+  const { order, clearedIds, pendingId } = ctx;
+  for (const [i, lessonId] of unit.lessonIds.entries()) {
+    list.appendChild(
+      await createLessonStop(
+        lessonId,
+        {
+          unit,
+          number: i + 1,
+          locked: !IS_DEV && !isUnlocked(order, clearedIds, lessonId),
+          pending: !IS_DEV && lessonId === pendingId,
+          cleared: isCleared(lessonStatus, lessonId),
+        },
+        onPick
+      )
+    );
   }
+  const practiceLocked = !IS_DEV && !isPracticeUnlocked(unit, clearedIds);
   for (const lessonId of unit.practiceIds ?? []) {
-    list.appendChild(await createLessonStop(lessonId, false, onPick, true));
+    list.appendChild(
+      await createLessonStop(lessonId, { unit, number: null, locked: practiceLocked, practice: true }, onPick)
+    );
+  }
+  if (IS_DEV) {
+    for (const lessonId of unit.devOnlyIds ?? []) {
+      list.appendChild(await createLessonStop(lessonId, { unit, number: null, locked: false }, onPick));
+    }
   }
   island.appendChild(list);
 
@@ -219,6 +251,17 @@ export async function renderUnitMap(stage, units, onPick) {
   stage.appendChild(heading);
 
   const { lessons: lessonStatus } = summarize(getEvents(), Date.now());
+  const order = lessonOrder(units);
+  const clearedIds = new Set(order.filter((id) => isCleared(lessonStatus, id)));
+  const ctx = { order, clearedIds, pendingId: firstPendingId(order, clearedIds) };
+
+  if (IS_DEV) {
+    const badge = document.createElement('p');
+    badge.id = 'dev-badge';
+    badge.className = 'fixed top-2 right-2 z-40 rounded-full bg-slate-800 text-white text-sm font-bold px-3 py-1';
+    badge.textContent = 'DEV';
+    stage.appendChild(badge);
+  }
 
   // 初回タップ以降は全レッスンボタンをdisabledにし、連打によるstartLessonの多重呼び出しを防ぐ
   // （Issue #107）。
@@ -233,6 +276,6 @@ export async function renderUnitMap(stage, units, onPick) {
   };
 
   for (const unit of units) {
-    stage.appendChild(await createUnitIsland(unit, lessonStatus, guardedPick));
+    stage.appendChild(await createUnitIsland(unit, lessonStatus, ctx, guardedPick));
   }
 }

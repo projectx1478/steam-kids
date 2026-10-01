@@ -6,6 +6,7 @@ import { registerServiceWorker } from './js/register-sw.js';
 import { renderUnitMap } from './js/ui-picker.js';
 import { renderTitle } from './js/ui-title.js';
 import { ensureDailyGate } from './js/ui-parental-gate.js';
+import { IS_DEV } from './js/dev-mode.js';
 
 function showError() {
   const p = document.createElement('p');
@@ -38,7 +39,7 @@ async function startLesson(lessonId) {
       S.unit = unit;
       refreshHeader();
     });
-    push();
+    if (!IS_DEV) push();
   } catch {
     showError();
   }

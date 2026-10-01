@@ -638,7 +638,8 @@ function validateIndex(data, lessonById) {
     if (!Array.isArray(unit.lessonIds)) continue;
 
     // practiceIds＝れんしゅう（スタンプ・旗の対象外。Issue #69）。実在とunitIdの一致だけ確認する。
-    for (const lessonId of [...unit.lessonIds, ...(unit.practiceIds ?? [])]) {
+    // devOnlyIds＝開発者画面だけに出す教材（Issue #216）。同じく実在とunitIdの一致を確認する。
+    for (const lessonId of [...unit.lessonIds, ...(unit.practiceIds ?? []), ...(unit.devOnlyIds ?? [])]) {
       if (seenLessonIds.has(lessonId)) {
         add('重複', `lessonId="${lessonId}" が複数のunitから参照されている`);
       }
@@ -653,6 +654,13 @@ function validateIndex(data, lessonById) {
           `lessonId="${lessonId}" のunitId="${lesson.unitId}" がindex.json側のunitId="${unit.unitId}"と不一致`
         );
       }
+    }
+  }
+
+  // どの一覧にも載らないレッスンは開発者画面からも辿れないため、掲載漏れをエラーにする（Issue #216）。
+  for (const lessonId of lessonById.keys()) {
+    if (!seenLessonIds.has(lessonId)) {
+      add('掲載漏れ', `lessonId="${lessonId}" がlessonIds・practiceIds・devOnlyIdsのどれにも載っていない`);
     }
   }
 
