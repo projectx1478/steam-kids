@@ -356,6 +356,8 @@ export function renderGrid(opts) {
       setFacing(dirFromDelta(pos.x - prevPos.x, pos.y - prevPos.y));
       const reduce = prefersReducedMotion();
       const px = pixelFor(pos);
+      // drawBoard直後の同一タスクで呼ばれても1歩目にtransitionが乗るよう、開始位置のスタイルを確定させる
+      void token.offsetWidth;
       token.style.transition = reduce ? 'none' : `transform ${MOVE_MS}ms ease`;
       token.style.transform = `translate(${px.x}px, ${px.y}px)`;
       if (!reduce) window.__gridAnimLog.push({ type: 'move', ms: MOVE_MS });

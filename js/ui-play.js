@@ -32,6 +32,8 @@ const HINT_MESSAGE = {
   items: 'どんぐりが まだ のこって いるよ',
   goal: 'ゴールまで あと すこし',
 };
+const FAR_GOAL_MESSAGE = 'ほかの みちも ためして みよう';
+const NEAR_GOAL_DISTANCE = 2;
 
 export function renderPlay(root, step) {
   const spec = boardSpec(step);
@@ -644,7 +646,8 @@ export function renderPlay(root, step) {
       }
       local.view.shrug();
       local.resultShown = true;
-      showHint(statusBar, { kind: info.reason, message: HINT_MESSAGE[info.reason], restore: clearResult });
+      const far = info.reason === 'goal' && info.distance > NEAR_GOAL_DISTANCE;
+      showHint(statusBar, { kind: info.reason, message: far ? FAR_GOAL_MESSAGE : HINT_MESSAGE[info.reason], restore: clearResult });
     }
   }
 

@@ -74,18 +74,19 @@ export function showHint(slotEl, { kind, message, restore }) {
 
 // diagnose(result, commands, spec) -> { reason: 'wall', cmdIndex, cell }
 //                                    | { reason: 'items', remainingItems }
-//                                    | { reason: 'goal', cell, goal }
+//                                    | { reason: 'goal', cell, goal, distance }
 // playが未達成の原因を1つ選ぶ純粋関数。優先順位は壁・盤外にぶつかった＞item未回収＞未到達。
+// 壁判定はエンジンのbumped（失敗衝突）で行う。クッションで止まった手は同位置でもwallにしない。
 export function diagnose(result, commands, spec) {
   for (let i = 0; i < result.stepOwner.length; i += 1) {
-    const from = result.path[i];
-    const to = result.path[i + 1];
-    if (from.x === to.x && from.y === to.y) {
-      return { reason: 'wall', cmdIndex: result.stepOwner[i], cell: from };
+    if (result.bumped[i]) {
+      return { reason: 'wall', cmdIndex: result.stepOwner[i], cell: result.path[i] };
     }
   }
   if (result.remainingItems.length > 0) {
     return { reason: 'items', remainingItems: result.remainingItems };
   }
-  return { reason: 'goal', cell: result.path[result.path.length - 1], goal: spec.goal };
+  const cell = result.path[result.path.length - 1];
+  const distance = Math.abs(cell.x - spec.goal.x) + Math.abs(cell.y - spec.goal.y);
+  return { reason: 'goal', cell, goal: spec.goal, distance };
 }
