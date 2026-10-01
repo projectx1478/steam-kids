@@ -10,6 +10,7 @@ import { play as playSfx } from './sfx.js';
 import { prefersReducedMotion, screenConfetti } from './ui-grid.js';
 import { createPrimaryButton, goToStep } from './ui-step.js';
 import { codeStripHtml, randomCode } from './seed-code.js';
+import { withDev } from './dev-mode.js';
 
 const MAX_CARDS = 3;
 const LESSON_CONFETTI = { count: 120, duration: 3000 };
@@ -154,12 +155,12 @@ export function renderSummary(root) {
     const nextId = S.unit.lessonIds[S.unit.lessonIds.indexOf(lessonId) + 1];
     if (nextId) {
       root.appendChild(
-        createPrimaryButton('つぎの レッスンへ', () => (location.href = `./index.html?lesson=${nextId}`), 'next-lesson')
+        createPrimaryButton('つぎの レッスンへ', () => (location.href = withDev(`./index.html?lesson=${nextId}`)), 'next-lesson')
       );
     }
   }
 
   root.appendChild(
-    createPrimaryButton('ほかのレッスンへ', () => (location.href = './index.html?view=map'), 'back-to-picker')
+    createPrimaryButton('ほかのレッスンへ', () => (location.href = withDev('./index.html?view=map')), 'back-to-picker')
   );
 }

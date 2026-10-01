@@ -22,6 +22,8 @@ js/
   ui-commands.js # 命令パレット・命令列・個別削除・全消し
   ui-step.js # ステップ切替、ふりがなトグル
   ui-title.js # タイトル画面（起動時のみ。Issue #107）
+  unlock.js # レッスンの段階解放（純関数。Issue #216）
+  dev-mode.js # 開発者画面（`dev=1`）の判定とURL引き継ぎ（Issue #216）
   sfx.js # 効果音（Web Audio API合成・単一API play(name)、BGMなし）
   events.js # logEvent() / getEvents()（storage.js経由で永続化）
   storage.js # localStorage読み書き（イベント・学習者プロファイル）

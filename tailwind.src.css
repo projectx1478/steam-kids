@@ -199,6 +199,20 @@
     animation: retry-pulse 0.6s ease-in-out 2;
   }
 
+  /* 単元マップの「次に遊ぶレッスン」を無限パルスで強調する（Issue #216）。 */
+  @keyframes next-pulse {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.08);
+    }
+  }
+  button.next-pulse {
+    animation: next-pulse 1.2s ease-in-out infinite;
+  }
+
   /* クリア演出のポップイン（ステージ・レッスン・単元の3段階共通。Issue #104）。 */
   @keyframes success-pop {
     0% {
@@ -397,5 +411,12 @@
   .controller-panel > .action-row,
   .tutorial-side > .palette-row {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* 動きを止める設定では、次に遊ぶレッスンを枠だけで示す（Issue #216）。 */
+@media (prefers-reduced-motion: reduce) {
+  button.next-pulse {
+    box-shadow: 0 0 0 4px #fcd34d;
   }
 }

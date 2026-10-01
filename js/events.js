@@ -1,7 +1,9 @@
 import { S, currentStep } from './state.js';
 import { appendEvent, loadEvents } from './storage.js';
+import { IS_DEV } from './dev-mode.js';
 
 export function logEvent(type, payload = {}) {
+  if (IS_DEV) return;
   const step = currentStep();
   appendEvent({
     eventId: crypto.randomUUID(),

@@ -167,6 +167,12 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 それ以外はひらがな表示に自動で落ちる。解析・表示・検証は `js/text-render.js` の純粋関数
 （`parseSegments` / `plainReading` / `rubyGrade` 等）に集約する（Issue #59）。
 
+## `lessons/index.json`の解放と開発者画面（Issue #216）
+
+単元マップは`units`の`lessonIds`を通しの順に並べ、前のレッスンをクリアすると次が開く（先頭は最初から開く。`practiceIds`は同単元の`lessonIds`を全クリアで開く）。
+`devOnlyIds`に載せたレッスンは通常の単元マップに出さず、開発者画面（`index.html?view=map&dev=1`。保護者ゲート解錠後のダッシュボードにリンク）だけに出す。
+開発者画面は全レッスンが開き、学習記録（events・tutorialDone・同期）を残さない。`lessons/*.json`は`lessonIds`・`practiceIds`・`devOnlyIds`のどれかに載せる（`validate-lessons`が検証）。
+
 ## `generator`（シード生成の制約。Issue #68）
 
 `js/engine-generate.js`の`generateMap(generator, seed)`へ渡す制約。同じシードなら同じ盤面。れんしゅう（Issue #69）は`steps`が`seedPick`（`text`のみ）→`generator`付き`play`（盤面フィールドを持たない）→`summary`で、
