@@ -255,13 +255,14 @@ export function renderPlay(root, step) {
   }
 
   // triggerFailFeedback(): 不正解時の視覚・聴覚フィードバック。派手な✕・警告音ではなく、
-  // 盤面をやさしくゆらすアニメーションと低音スイープの音で気づかせる（Issue #106）。
+  // 盤面をやさしくゆらすアニメーションと効果音（未到達はtryAgain・取り残しはitemsLeft）で
+  // 気づかせる（Issue #106・#158）。
   // reduced-motion時はゆらさず、盤面に0.5秒だけ枠を光らせて静止のまま気づけるようにする。
   // あわせて盤面のマスだけを暗くし（view.dim）、失敗リザルト状態を再スタート状態と
   // 見た目で区別する（もういちどのdrawBoard()が新しいview（dimは初期値=暗くなし）を
   // 作り直すため、明示的なdim(false)呼び出しは不要。Issue #110）。
-  function triggerFailFeedback() {
-    playSfx('tryAgain');
+  function triggerFailFeedback(reason) {
+    playSfx(reason === 'items' ? 'itemsLeft' : 'tryAgain');
     local.view.dim(true);
     if (prefersReducedMotion()) {
       boardArea.classList.add('ring-4', 'ring-amber-400', 'rounded-2xl');
@@ -630,8 +631,8 @@ export function renderPlay(root, step) {
       setRunButtonMode('retry');
       local.locked = true;
       updateControls();
-      triggerFailFeedback();
       const info = diagnose(result, local.commands, spec);
+      triggerFailFeedback(info.reason);
       if (info.reason === 'wall') {
         queueEl.querySelector(`[data-index="${info.cmdIndex}"]`)?.classList.add('ring-4', 'ring-amber-400');
         local.view.markCell(info.cell, 'wall');

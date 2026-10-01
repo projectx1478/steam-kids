@@ -83,7 +83,7 @@ export const switches = {
       cell.dataset.switchWall = 'off';
       sinkWall(cell);
     });
-    return 'pickup';
+    return 'wallSink';
   },
 
   // 座標範囲はcheckBoard側で共通に行う。盤の大きさ・mode・targets・他ギミックとの重なりを見る。
