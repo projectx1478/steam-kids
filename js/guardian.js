@@ -137,7 +137,7 @@ export async function verifyPasscodeAgainstServer(passcode) {
   try {
     const data = await guardianRequest('POST', '/guardian/auth', { passcode });
     if (data && typeof data.token === 'string' && typeof data.exp === 'number') {
-      serverToken = { token: data.token, exp: data.exp };
+      serverToken = { token: data.token, exp: data.exp, learnerId: S.learnerId };
       cachedPasscode = passcode;
       await setPasscode(passcode);
       return true;
@@ -159,17 +159,24 @@ export async function registerServerPasscode(passcode) {
   }
 }
 
+// サーバー側のguardiansはlearnerIdごと。合言葉を先に設定してから後で同期を始めた学習者
+// （スロットB/C等。Issue #218）にも合言葉を伝播するため、同期登録の成功直後に呼ぶ。
+export async function registerServerPasscodeIfCached() {
+  if (cachedPasscode) await registerServerPasscode(cachedPasscode);
+}
+
 // リンクコード発行など同期系の特権操作の直前に呼ぶ。キャッシュ済みの有効なトークンがあれば
 // 再利用し、無ければ直近ログイン時の合言葉でサーバーへ問い合わせる。取得できなければnullを返し、
 // 呼び出し元（sync.js）はトークン無しでリクエストしサーバー側の401に委ねる。
+// トークンはlearnerIdに紐づくため、ダッシュボードのスロットタブ切替で別学習者のものを流用しない。
 export async function ensureGuardianToken() {
-  if (serverToken && serverToken.exp > Date.now()) return serverToken.token;
+  if (serverToken && serverToken.learnerId === S.learnerId && serverToken.exp > Date.now()) return serverToken.token;
   serverToken = null;
   if (!cachedPasscode) return null;
   try {
     const data = await postGuardian('/guardian/auth', { passcode: cachedPasscode });
     if (data && typeof data.token === 'string' && typeof data.exp === 'number') {
-      serverToken = { token: data.token, exp: data.exp };
+      serverToken = { token: data.token, exp: data.exp, learnerId: S.learnerId };
       return serverToken.token;
     }
   } catch {

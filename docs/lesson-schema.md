@@ -329,3 +329,18 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 - `label`（呼び名）・`readingLevel`（よみレベル。0=ねんちょう〜6）は **localStorage のみ**。
   同期先へ送信しない
 - **氏名・学年・学校名を扱うフィールドを作らない**
+
+### セーブスロット（Issue #218）
+
+1端末で最大3人が別々の進行を持つ。スロットごとに別プロファイル（別`learnerId`）・別イベント・別同期状態。
+
+| キー | 単位 | 内容 |
+| --- | --- | --- |
+| `steamkids.slots` | 端末 | `{ active: 0〜2, occupied: [bool,bool,bool] }`。`active`は次回起動時に遊ぶスロット |
+| `steamkids.{profile,events,sync}` / `steamkids.tutorialDone.<id>` | スロットA | 従来のキーをそのまま使う（移行コピー無し） |
+| `steamkids.s2.*` / `steamkids.s3.*` | スロットB/C | Aと同じ構造 |
+| `steamkids.guardian` / `gateDate` / `sound` | 端末 | スロットに依存しない |
+
+- `steamkids.slots`が無い初回起動時、Aに旧profileがあり「events1件以上／`label`有り／`sync.enabled`」のどれかに当たれば`occupied[0]=true`。どれにも当たらない自動生成profileは空き扱いで、Aを作るとき既存`learnerId`を引き継ぐ
+- `label`は最大10文字（コードポイント）・前後空白除去・空なら表示は「プレイヤーN」。表示は必ず`textContent`
+- eventsを`learnerId`でのフィルタでなくスロット別キーに分ける理由：リンクコードの乗り換えで`learnerId`が変わっても旧イベントを見失わず、5000件上限を3人で共有しないため

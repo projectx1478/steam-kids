@@ -2,7 +2,7 @@
 // 保護者・教師が読む画面のため、子ども画面と異なりひらがな主体にしない（通常の大人向け表記）。
 import { register, issueLinkCode, redeemLinkCode, pull, disable } from './sync.js';
 import { loadSyncState, loadProfile } from './storage.js';
-import { changePasscode, MIN_LENGTH } from './guardian.js';
+import { changePasscode, registerServerPasscodeIfCached, MIN_LENGTH } from './guardian.js';
 
 const CODE_INVALID_CHARS_RE = /[^ABCDEFGHJKLMNPQRSTUVWXYZ23456789]/g;
 const REMAINING_UPDATE_MS = 30000;
@@ -152,6 +152,7 @@ export function renderSyncSection(root, { onChange } = {}) {
       root.appendChild(
         createBtn('同期を始める', 'sync-register', async () => {
           await register();
+          if (loadSyncState().enabled) await registerServerPasscodeIfCached();
           draw();
           if (onChange) onChange();
         })

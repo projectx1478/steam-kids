@@ -2,6 +2,7 @@
 // （背景色・見出し「れんしゅう」）も分ける。結果の見える化（番号付きゴースト矢印＋
 // 1行キャプション）・区切り画面・スキップを持つ（Issue #93。旧仕様はIssue #81）。
 import { S } from './state.js';
+import { isTutorialDoneStored, markTutorialDoneStored } from './storage.js';
 import { simulate, boardSpec } from './engine-grid.js';
 import { renderGrid, computeCellSize, splitMaxCell } from './ui-grid.js';
 import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, COMMAND_LABELS, vibrate } from './ui-commands.js';
@@ -13,7 +14,6 @@ import { showSuccess } from './ui-reaction.js';
 import { IS_DEV } from './dev-mode.js';
 
 const GUIDE_GLOW_CLASSES = ['ring-4', 'ring-amber-400', 'ring-offset-2', 'motion-safe:animate-pulse'];
-const TUTORIAL_DONE_PREFIX = 'steamkids.tutorialDone.';
 const DIVIDER_DELAY_MS = 1500; // ゴール演出（ジャンプ）が終わる頃にカードを出す
 const TUTORIAL_CELL_MAX = 56; // 「小さな盤面」。問題のplay/predict(最大64px)より一回り小さくする
 
@@ -21,20 +21,12 @@ const TUTORIAL_CELL_MAX = 56; // 「小さな盤面」。問題のplay/predict(�
 // 旧仕様は単元単位だったが、同一単元内の2本目以降のレッスンにもtutorialを置くようになった
 // ため、1本目の完了で2本目以降まで自動スキップされないようレッスン単位に変更した。Issue #98）。
 export function isTutorialDone(lessonId) {
-  try {
-    return localStorage.getItem(TUTORIAL_DONE_PREFIX + lessonId) === 'true';
-  } catch {
-    return false;
-  }
+  return isTutorialDoneStored(lessonId);
 }
 
 export function markTutorialDone(lessonId) {
   if (IS_DEV) return;
-  try {
-    localStorage.setItem(TUTORIAL_DONE_PREFIX + lessonId, 'true');
-  } catch {
-    // 容量超過等は無視（チュートリアル表示が続くだけで機能上は問題ない）
-  }
+  markTutorialDoneStored(lessonId);
 }
 
 // guide: [{tap: 'up'|'down'|'left'|'right'|'run'}]、または{tap: 'remove', index: N}

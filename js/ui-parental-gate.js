@@ -30,8 +30,9 @@ function passInput(id, placeholder) {
   return input;
 }
 
-// 通過でtrue。ゲートに閉じる手段は無く、通過するまでPromiseは解決しない。
-export async function openParentalGate() {
+// 通過でtrue。日次ゲートは閉じる手段が無く、通過するまでPromiseは解決しない。
+// cancellable=trueの時だけ「やめる」を置き、押すとfalseで解決する（上書き確認等。Issue #218）。
+export async function openParentalGate({ cancellable = false } = {}) {
   const needSetup = !hasPasscode() && !(await checkServerGuardianExists());
   const remoteVerify = !hasPasscode() && !needSetup;
 
@@ -130,6 +131,17 @@ export async function openParentalGate() {
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') submit.click();
       });
+    }
+
+    if (cancellable) {
+      const cancel = el('button', 'min-h-[48px] w-full mt-2 text-sm text-slate-500 underline', 'やめる');
+      cancel.id = 'parental-gate-cancel';
+      cancel.type = 'button';
+      cancel.onclick = () => {
+        overlay.remove();
+        resolve(false);
+      };
+      card.appendChild(cancel);
     }
 
     overlay.appendChild(card);

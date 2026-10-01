@@ -4,8 +4,9 @@ import { vibrate } from './ui-commands.js';
 
 const FADE_MS = 300;
 
-// renderTitle(stage, onStart): スタート押下で（reduced-motion時を除き）300msフェードアウトしてからonStart()を呼ぶ。
-export function renderTitle(stage, onStart) {
+// renderTitle(stage, { canContinue, onNew, onContinue }): 「はじめから」「つづきから」押下で（reduced-motion時を除き）
+// 300msフェードアウトしてから対応するコールバックを呼ぶ。つづきからはデータのあるスロットが無ければdisabled（Issue #218）。
+export function renderTitle(stage, { canContinue, onNew, onContinue }) {
   stage.innerHTML = '';
   stage.dataset.screen = 'title';
 
@@ -23,24 +24,35 @@ export function renderTitle(stage, onStart) {
   robot.innerHTML = shapeSvg('player');
   wrap.appendChild(robot);
 
-  const startBtn = document.createElement('button');
-  startBtn.type = 'button';
-  startBtn.dataset.action = 'title-start';
-  startBtn.className = 'btn-tactile bg-orange-500 text-white text-xl px-8 py-3';
-  startBtn.textContent = 'スタート';
-  startBtn.addEventListener('click', () => {
-    if (startBtn.disabled) return;
-    startBtn.disabled = true;
-    vibrate();
-    if (prefersReducedMotion()) {
-      onStart();
-      return;
-    }
-    wrap.style.transition = `opacity ${FADE_MS}ms ease`;
-    wrap.style.opacity = '0';
-    setTimeout(onStart, FADE_MS);
-  });
-  wrap.appendChild(startBtn);
+  const buttons = [];
+  const addButton = (action, label, className, onClick) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.dataset.action = action;
+    btn.className = `btn-tactile text-xl px-8 py-3 ${className}`;
+    btn.textContent = label;
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      buttons.forEach((b) => {
+        b.disabled = true;
+      });
+      vibrate();
+      if (prefersReducedMotion()) {
+        onClick();
+        return;
+      }
+      wrap.style.transition = `opacity ${FADE_MS}ms ease`;
+      wrap.style.opacity = '0';
+      setTimeout(onClick, FADE_MS);
+    });
+    buttons.push(btn);
+    wrap.appendChild(btn);
+    return btn;
+  };
+
+  addButton('title-new', 'はじめから', 'bg-orange-500 text-white', onNew);
+  const continueBtn = addButton('title-continue', 'つづきから', 'bg-sky-500 text-white', onContinue);
+  if (!canContinue) continueBtn.disabled = true;
 
   stage.appendChild(wrap);
 }

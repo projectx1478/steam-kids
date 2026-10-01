@@ -23,12 +23,15 @@ js/
   ui-grid.js # SVGグリッド描画とハイライト
   ui-commands.js # 命令パレット・命令列・個別削除・全消し
   ui-step.js # ステップ切替、ふりがなトグル
-  ui-title.js # タイトル画面（起動時のみ。Issue #107）
+  ui-title.js # タイトル画面（はじめから／つづきから。起動時のみ。Issue #107・#218）
+  ui-slots.js # スロット選択・上書き確認・名前入力（Issue #218）
+  ui-story.js # 導入ストーリー（Issue #218）
+  slot-utils.js # 名前整形・スロット表示用の純関数（Issue #218）
   unlock.js # レッスンの段階解放（純関数。Issue #216）
   dev-mode.js # 開発者画面（`dev=1`）の判定とURL引き継ぎ（Issue #216）
   sfx.js # 効果音（Web Audio API合成・単一API play(name)、BGMなし）
   events.js # logEvent() / getEvents()（storage.js経由で永続化）
-  storage.js # localStorage読み書き（イベント・学習者プロファイル）
+  storage.js # localStorage読み書き（イベント・学習者プロファイル。スロット別キー）
   analytics.js # 学習ログ集計・詰まりアラート判定（純粋関数）
   guardian.js # 保護者ゲートの合言葉管理
   gate-date.js # 日次ゲートの最終認証日（ローカル日付。Issue #217）
