@@ -314,6 +314,11 @@ export default async function run({ page, check }) {
 
   // 子ども画面(index.html)からダッシュボードへの目立たないリンク
   const contextChild = await browser.newContext({ serviceWorkers: 'block' });
+  await contextChild.addInitScript(() => {
+    const d = new Date();
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    localStorage.setItem('steamkids.gateDate', key); // 日次保護者ゲート通過済み（Issue #217）
+  });
   const pageChild = await contextChild.newPage();
   await pageChild.goto(`${origin}/index.html`);
   await check('子ども画面にダッシュボードへのリンクがある', async () =>
