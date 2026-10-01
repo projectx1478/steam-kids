@@ -12,6 +12,8 @@ node .claude/verify/run.mjs foo bar     # scenarios/foo.mjs, scenarios/bar.mjs �
 node .claude/verify/run.mjs --mobile    # ビューポート375x667（既定は1280x800）
 node .claude/verify/run.mjs --verbose   # シナリオ見出し・PASS行も出力
 node .claude/verify/run.mjs --shot      # shot()で実際にPNGを撮影する（既定はno-op）
+node .claude/verify/run-all.mjs         # 12本ずつバッチ実行。失敗バッチは1本ずつ再実行し、失敗分のみ1回リトライ（ログ: .verify/verify-all.log）
+node .claude/verify/run-all.mjs foo bar # 指定シナリオのみ。--mobile等はrun.mjsへそのまま渡す
 ```
 
 失敗があれば exit 1。既定では `FAIL <説明>` とAI失敗のみ出力し、末尾に
@@ -78,7 +80,7 @@ await check('カードがviewport幅に収まる', async () => box.x + box.width
 ## 拡張フック（`.claude/verify/config.mjs`）
 
 `run.mjs`はテンプレートからの配布対象（上書きされる）だが、`config.mjs`は配布対象外なので
-リポジトリ固有の事情を書ける。無ければ`run.mjs`は従来通り動く。3つのキーを任意で上書きできる。
+リポジトリ固有の事情を書ける。無ければ`run.mjs`は従来通り動く。4つのキーを任意で上書きできる。
 
 ```js
 // .claude/verify/config.mjs
@@ -102,8 +104,16 @@ export default {
       r.fulfill({ status: 200, contentType: 'text/css', body: '' })
     );
   },
+
+  // E2Eを手元で実行させずCIに任せるリポジトリのオプトイン（true または { hint }）。
+  // 有効にすると、CI環境（環境変数CI）か E2E_LOCAL=1 の時だけ run.mjs / run-all.mjs が動き、
+  // それ以外は案内（＋hint）を表示して終了コード2で止まる。未指定なら手元でも実行できる
+  ciOnly: { hint: 'gh workflow run e2e-run.yml --ref <ブランチ> -f scenarios="<シナリオ名…>"（全件は all）' },
 };
 ```
+
+CI実行の構成一式（ワークフロー・setup action・`config.mjs`）は`.claude/templates/ci/`にあり、
+`new-repo-setup.sh`が新規リポジトリへ初回配置する（配置後はリポジトリ所有）。運用ルールは`docs/testing-guidelines.md`。
 
 ビルドステップを持たないバニラJS構成では`config.mjs`は不要（作らない）。
 

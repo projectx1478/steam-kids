@@ -21,6 +21,7 @@ import { readFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { guardCiOnly } from './guard.mjs';
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -29,7 +30,7 @@ const SCENARIOS_DIR = path.join(__dirname, 'scenarios');
 const SHOT_DIR = path.join(ROOT, '.verify');
 const CONFIG_PATH = path.join(__dirname, 'config.mjs');
 
-// config.mjs（任意・非配布）: distDir・beforeAll・setupRoutesを上書きできる。無ければ既定のまま動く。
+// config.mjs（任意・非配布）: distDir・beforeAll・setupRoutes・ciOnlyを上書きできる。無ければ既定のまま動く。
 async function loadConfig() {
   try {
     const mod = await import(pathToFileURL(CONFIG_PATH).href);
@@ -172,6 +173,7 @@ async function main() {
   const names = args.filter((a) => !FLAGS.has(a));
 
   const config = await loadConfig();
+  guardCiOnly(config);
   if (config.beforeAll) await config.beforeAll({ root: ROOT, verbose });
   const serveRoot = config.distDir ? path.join(ROOT, config.distDir) : ROOT;
 
