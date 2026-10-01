@@ -54,7 +54,7 @@ export default async function run({ page, check }) {
     const t = await page.textContent('#parental-gate-status');
     return (await page.isDisabled('#parental-gate-passcode')) && /あと\d+秒/.test(t);
   });
-  await page.clock.fastForward(31000);
+  await page.clock.runFor(31000);
   await check('30秒後に入力可能へ戻る', async () => !(await page.isDisabled('#parental-gate-passcode')));
 
   // 4: 正解で通過し、通過後にレッスンが開始される
