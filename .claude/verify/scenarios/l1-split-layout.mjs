@@ -3,9 +3,34 @@
 // 内部スクロールをDOMの境界ボックスで判定する。
 
 export const name = 'L1 左右分割レイアウト: 横向きは盤面｜操作パネル・縦向きは縦積み(Issue #156)';
-import { enterPlay, resetTutorialFlags } from '../helpers.mjs';
+import { enterPlay, resetTutorialFlags, routeLesson } from '../helpers.mjs';
 
-const LESSON = 'donguri-02-mawarimichi';
+// 上限までチップを積んでトレイが溢れる前提のため、実レッスンの上限値に依存しないインライン盤面を使う（Issue #215）。
+const LESSON = 'l1-split-smoke';
+const LESSON_DEF = {
+  lessonId: LESSON,
+  unitId: 'inline',
+  title: 'テスト',
+  type: 'grid-runtime',
+  estimatedMinutes: 5,
+  steps: [
+    { stepId: 's1', kind: 'intro', text: 'どんぐりを さがそう' },
+    {
+      stepId: 'p1',
+      kind: 'play',
+      text: 'どんぐりを とって ゴールへ',
+      grid: { cols: 3, rows: 4 },
+      start: { x: 0, y: 0 },
+      goal: { x: 2, y: 0 },
+      walls: [],
+      items: [{ x: 1, y: 3 }],
+      allowedCommands: ['up', 'down', 'left', 'right'],
+      solution: ['right', 'down', 'down', 'down', 'up', 'up', 'up', 'right'],
+      maxCommands: 10,
+    },
+    { stepId: 's2', kind: 'summary', text: 'できたね' },
+  ],
+};
 const TUTORIAL_LESSON = 'cmd-01-susumu';
 
 async function geometry(page) {
@@ -50,6 +75,7 @@ async function toTutorial(page) {
 
 export default async function run({ page, check }) {
   await page.unroute('**/lessons/cmd-01-susumu.json');
+  await routeLesson(page, LESSON_DEF);
 
   const landscape = [{ width: 1280, height: 800 }, { width: 1024, height: 600 }];
   for (const vp of landscape) {
