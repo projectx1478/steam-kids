@@ -1,6 +1,6 @@
 name: E2E PR
 
-# PR ごとに「スモーク6本」＋「PR本文の E2E: 行に書いたシナリオ」を実行する。
+# PR ごとに「スモーク5本」＋「PR本文の E2E: 行に書いたシナリオ」を実行する。
 # 例（PR本文の任意の行）:  E2E: les-cmd-04-repeat-box group-repeats-ui --mobile
 
 on:
@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  SMOKE: app-version sw-routing p3-offline lesson-picker cmd01-flow guardian-gate
+  SMOKE: app-version p3-offline lesson-picker cmd01-flow guardian-gate
 
 jobs:
   e2e:

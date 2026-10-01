@@ -63,7 +63,7 @@ kids-player（出典コミット`74adf54`）の`service-worker.js`から移植�
 - **SWを実登録して検証しない。** SW内の`fetch`はPlaywrightの`page.route()`を貫通して実ネットワーク
   へ出てしまい、検証環境では到達不可のため誤ってFAILする。`service-worker.js`のソースを取得し、
   `new Function('self', 'fetch', 'caches', code)`で疑似環境に読み込んでfetchハンドラを直接叩き、
-  ルーティング判定のみを検証する（`.claude/verify/scenarios/sw-routing.mjs`）
+  ルーティング判定のみを検証する（`test/service-worker.test.mjs`）
 - `.claude/verify/run.mjs`は`browser.newContext({ serviceWorkers: 'block' })`でSW登録自体を
   ブロックしている。`controllerchange`による自動`location.reload()`が、他シナリオの`page.reload()`
   と競合してframeをdetachさせるため（Issue #28で`p2-dashboard.mjs`が実際に失敗した）

@@ -15,7 +15,7 @@
 | --- | --- | --- | --- |
 | PR の軽量チェック | `checks.yml` | PR の作成・更新で自動 | check:static・test:unit・validate:lessons・style.css のビルド忘れ |
 | 実装中の確認 | `e2e-run.yml` | `gh workflow run`（手動） | 指定シナリオのみ（`all` で全件） |
-| PR の最低ライン | `e2e-pr.yml` | PR の作成・更新・本文編集で自動 | スモーク6本＋PR本文の `E2E:` 行 |
+| PR の最低ライン | `e2e-pr.yml` | PR の作成・更新・本文編集で自動 | スモーク5本＋PR本文の `E2E:` 行 |
 | 回帰の網羅 | `e2e-nightly.yml` | 毎晩2時（コミットがあった日）／手動 | 全件 |
 
 ## 2. 開発の流れ
@@ -55,16 +55,17 @@
   - 保存場所は `.verify/`。成果物名は `e2e-pr-log` / `e2e-run-log` / `e2e-nightly-log`
 - 画面の確認が必要なときは、`e2e-run` に `--shot` を付けて再実行する。
 
-## 4. スモーク6本の意味
+## 4. スモーク5本の意味
 
 | シナリオ | 検出する致命的な問題 |
 | --- | --- |
 | `app-version` | キャッシュ更新漏れ（`APP_VERSION` と `CACHE_NAME` の不一致） |
-| `sw-routing` | Service Worker の配信経路の破損 |
 | `p3-offline` | オフラインで動かない |
 | `lesson-picker` | レッスンを選べない |
 | `cmd01-flow` | レッスンを最後まで進められない |
 | `guardian-gate` | 保護者ゲートが開かない |
+
+Service Worker の配信経路は単体テスト `test/service-worker.test.mjs`（`checks.yml`）で担保する。
 
 スモークに加える・外すときは Issue で決め、この表と `e2e-pr.yml` の `SMOKE` を同時に更新する。
 
