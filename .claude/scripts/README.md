@@ -12,7 +12,8 @@ Claudeが定型的なGit/GitHub操作を実行するためのラッパースク�
   差分があればPR作成・自動マージまで行う（`DRY_RUN=1`でclone〜差分表示のみに留められる）。GitHub Actions
   （`sync-template-broadcast.yml`）から呼ばれるほか、単発の再同期・修復にも使う
 - `new-repo-setup.sh <owner/repo> [target-dir]`: 新規リポジトリを`sync-targets.json`へ追加し、
-  `target-dir`指定時は本リポジトリのPROJECT.md雛形をコピーする（既存ファイルは上書きしない）。
+  `target-dir`指定時は本リポジトリのPROJECT.md雛形と`.claude/templates/ci/`のCI一式（ワークフロー・setup-e2e・
+  pick-scenarios.sh・`verify/config.mjs`）をコピーし、`e2e-nightly`ラベルを作成する（既存ファイルは上書きしない）。
   実行後はCLAUDE.mdのGitHub運用ルールに従いAIが続けてブランチ作成→コミット→push→PR作成まで行う
   （スクリプト自体はファイル操作のみに留め、Git操作はAI側の定型フローとして毎回実行する）。
   新規リポジトリ自体の作成（`create_repository`はGitHub Appの権限不足により403で失敗するため
