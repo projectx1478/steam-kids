@@ -64,3 +64,121 @@ test('engine-generate: 同一シード再現・1000件が解けて制約充足�
   assert.equal(zeroWalls, 0, 'walls.min=0でも壁0個の盤面は返らない');
   assert.equal(strictOk, 300, 'minTurns=2のsolutionは曲がり角2以上（最少経路で判定）');
 });
+
+// R3（Issue #70）：generatorのギミック対応。個別ギミックは1000シード・複合は300シードで、
+// 解け制約・個数範囲・座標重複なし・同一シード再現・解法関与（ギミックを除いた盤面との
+// 最短手数比較）を検証する。解法関与の比較方向はitems/keys＝「外すと短くなる」、ice＝「手数が変わる」。
+const G6 = { cols: 6, rows: 6 };
+const r3 = {
+  walls: { min: 2, max: 4 },
+  shortestPath: { min: 5, max: 14 },
+  minTurns: 1,
+  wallsMustMatter: true,
+  maxCommandsSlack: 2,
+};
+const stripItems = (m) => ({ ...m, items: [] });
+const stripIce = (m) => ({ ...m, ice: [] });
+const stripKeys = (m) => ({ ...m, keys: [], doors: [] });
+const allPoints = (m) => [m.start, m.goal, ...m.walls, ...(m.items ?? []), ...(m.ice ?? []), ...(m.keys ?? []), ...(m.doors ?? [])];
+const hasOverlap = (m) => new Set(allPoints(m).map((p) => `${p.x},${p.y}`)).size !== allPoints(m).length;
+
+test('engine-generate: ギミック未指定のgeneratorはR1と同一シードで同一マップ（Issue #70）', () => {
+  // ゴールデン固定：R3改修前の出力。ギミック未指定ではrng消費も返り値も変えないことを直接確認する
+  const golden = {
+    0: '{"grid":{"cols":5,"rows":5},"start":{"x":4,"y":0},"goal":{"x":0,"y":0},"walls":[{"x":1,"y":2},{"x":1,"y":0},{"x":1,"y":4},{"x":0,"y":3}],"items":[],"allowedCommands":["up","down","left","right"],"solution":["down","left","left","left","left","up"],"maxCommands":8,"fallback":false}',
+    1: '{"grid":{"cols":5,"rows":5},"start":{"x":0,"y":3},"goal":{"x":4,"y":4},"walls":[{"x":3,"y":0},{"x":0,"y":2},{"x":2,"y":3},{"x":1,"y":4},{"x":0,"y":4},{"x":4,"y":0}],"items":[],"allowedCommands":["up","down","left","right"],"solution":["right","up","right","right","right","down","down"],"maxCommands":9,"fallback":false}',
+    7: '{"grid":{"cols":5,"rows":5},"start":{"x":0,"y":3},"goal":{"x":1,"y":4},"walls":[{"x":3,"y":4},{"x":3,"y":3},{"x":0,"y":4},{"x":1,"y":3},{"x":4,"y":2},{"x":4,"y":0}],"items":[],"allowedCommands":["up","down","left","right"],"solution":["up","right","right","down","down","left"],"maxCommands":8,"fallback":false}',
+  };
+  for (const [s, json] of Object.entries(golden)) {
+    assert.equal(JSON.stringify(generateMap(g, Number(s))), json, `シード${s}の生成結果がR1と一致`);
+  }
+});
+
+test('engine-generate: itemsギミックの生成（1000シード。Issue #70）', () => {
+  const gen = { ...r3, grid: G6, items: { min: 1, max: 2 }, itemsMustMatter: true };
+  let sameSeed = true, fallbacks = 0, unsolved = 0, decorative = 0, badCount = 0, overlap = 0, badRange = 0;
+  for (let s = 0; s < 1000; s += 1) {
+    const m = generateMap(gen, s);
+    if (JSON.stringify(generateMap(gen, s)) !== JSON.stringify(m)) sameSeed = false;
+    if (m.fallback) { fallbacks += 1; continue; }
+    const res = simulate(m.solution, m);
+    if (!(res.reachedGoal && res.blockedAt.length === 0 && res.remainingItems.length === 0)) unsolved += 1;
+    if (shortestSteps(stripItems(m)) >= m.solution.length) decorative += 1;
+    if (m.items.length < 1 || m.items.length > 2) badCount += 1;
+    if (hasOverlap(m)) overlap += 1;
+    if (m.solution.length < gen.shortestPath.min || m.solution.length > gen.shortestPath.max) badRange += 1;
+  }
+  assert.equal(sameSeed, true, '同一シードで同一マップ（1000シード）');
+  assert.equal(fallbacks, 0, '1000シードすべて生成成功');
+  assert.equal(unsolved, 0, '1000件すべてsolutionでクリアできる');
+  assert.equal(decorative, 0, 'itemsを外すと最短手数が短くなる（飾りが無い）');
+  assert.equal(badCount, 0, 'itemsの個数が範囲内');
+  assert.equal(overlap, 0, '座標重複なし');
+  assert.equal(badRange, 0, '最短手数が範囲内');
+});
+
+test('engine-generate: iceギミックの生成（1000シード。Issue #70）', () => {
+  const gen = { ...r3, grid: G6, ice: { min: 1, max: 3 }, iceMustMatter: true };
+  let sameSeed = true, fallbacks = 0, unsolved = 0, decorative = 0, badCount = 0, overlap = 0;
+  for (let s = 0; s < 1000; s += 1) {
+    const m = generateMap(gen, s);
+    if (JSON.stringify(generateMap(gen, s)) !== JSON.stringify(m)) sameSeed = false;
+    if (m.fallback) { fallbacks += 1; continue; }
+    const res = simulate(m.solution, m);
+    if (!(res.reachedGoal && res.blockedAt.length === 0)) unsolved += 1;
+    if (shortestSteps(stripIce(m)) === m.solution.length) decorative += 1;
+    if (m.ice.length < 1 || m.ice.length > 3) badCount += 1;
+    if (hasOverlap(m)) overlap += 1;
+  }
+  assert.equal(sameSeed, true, '同一シードで同一マップ（1000シード）');
+  assert.equal(fallbacks, 0, '1000シードすべて生成成功');
+  assert.equal(unsolved, 0, '1000件すべてsolutionでクリアできる');
+  assert.equal(decorative, 0, 'iceを外すと最短手数が変わる（関与している）');
+  assert.equal(badCount, 0, 'iceの個数が範囲内');
+  assert.equal(overlap, 0, '座標重複なし');
+});
+
+test('engine-generate: keysギミックの生成（1000シード。Issue #70）', () => {
+  const gen = { ...r3, grid: G6, keys: { min: 1, max: 1 }, keysMustMatter: true };
+  let sameSeed = true, fallbacks = 0, unsolved = 0, decorative = 0, badPair = 0, overlap = 0;
+  for (let s = 0; s < 1000; s += 1) {
+    const m = generateMap(gen, s);
+    if (JSON.stringify(generateMap(gen, s)) !== JSON.stringify(m)) sameSeed = false;
+    if (m.fallback) { fallbacks += 1; continue; }
+    const res = simulate(m.solution, m);
+    if (!(res.reachedGoal && res.blockedAt.length === 0)) unsolved += 1;
+    if (shortestSteps(stripKeys(m)) >= m.solution.length) decorative += 1;
+    if (m.keys.length !== 1 || m.doors.length !== 1 || m.keys[0].color !== m.doors[0].color) badPair += 1;
+    if (hasOverlap(m)) overlap += 1;
+  }
+  assert.equal(sameSeed, true, '同一シードで同一マップ（1000シード）');
+  assert.equal(fallbacks, 0, '1000シードすべて生成成功');
+  assert.equal(unsolved, 0, '1000件すべてsolutionでクリアできる');
+  assert.equal(decorative, 0, 'keys/doorsを外すと最短手数が短くなる（ドアが最短路を塞ぐ）');
+  assert.equal(badPair, 0, 'かぎとドアは1組で同色');
+  assert.equal(overlap, 0, '座標重複なし');
+});
+
+test('engine-generate: 複合ギミックの生成（items+ice+keys。300シード。Issue #70）', () => {
+  const gen = {
+    ...r3, grid: G6,
+    items: { min: 1, max: 2 }, itemsMustMatter: true,
+    ice: { min: 1, max: 2 }, iceMustMatter: true,
+    keys: { min: 1, max: 1 }, keysMustMatter: true,
+  };
+  let sameSeed = true, fallbacks = 0, unsolved = 0, notMattering = 0;
+  for (let s = 0; s < 300; s += 1) {
+    const m = generateMap(gen, s);
+    if (JSON.stringify(generateMap(gen, s)) !== JSON.stringify(m)) sameSeed = false;
+    if (m.fallback) { fallbacks += 1; continue; }
+    const res = simulate(m.solution, m);
+    if (!(res.reachedGoal && res.blockedAt.length === 0 && res.remainingItems.length === 0)) unsolved += 1;
+    if (shortestSteps(stripItems(m)) >= m.solution.length
+      || shortestSteps(stripIce(m)) === m.solution.length
+      || shortestSteps(stripKeys(m)) >= m.solution.length) notMattering += 1;
+  }
+  assert.equal(sameSeed, true, '同一シードで同一マップ（300シード）');
+  assert.equal(fallbacks, 0, '300シードすべて生成成功');
+  assert.equal(unsolved, 0, '300件すべてsolutionでクリアできる');
+  assert.equal(notMattering, 0, 'すべてのギミックが解法に関与している');
+});
