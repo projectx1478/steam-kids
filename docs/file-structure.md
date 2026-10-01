@@ -27,6 +27,8 @@ js/
   storage.js # localStorage読み書き（イベント・学習者プロファイル）
   analytics.js # 学習ログ集計・詰まりアラート判定（純粋関数）
   guardian.js # 保護者ゲートの合言葉管理
+  gate-date.js # 日次ゲートの最終認証日（ローカル日付。Issue #217）
+  ui-parental-gate.js # 子ども画面の日次保護者ゲート・openParentalGate（Issue #217）
   ui-gate.js # dashboard.htmlのゲート描画
   ui-dashboard.js # dashboard.htmlの描画（summarize結果の描画のみ）
   register-sw.js # SW登録・更新時の自動リロード

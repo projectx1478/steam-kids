@@ -5,6 +5,7 @@ import { push } from './js/sync.js';
 import { registerServiceWorker } from './js/register-sw.js';
 import { renderUnitMap } from './js/ui-picker.js';
 import { renderTitle } from './js/ui-title.js';
+import { ensureDailyGate } from './js/ui-parental-gate.js';
 
 function showError() {
   const p = document.createElement('p');
@@ -60,6 +61,9 @@ async function renderPicker() {
 
   await renderUnitMap(stage, units, startLesson);
 }
+
+// ?lesson=直リンクを含む全起動経路で、その日初回のみ保護者の合言葉を求める（Issue #217）。
+await ensureDailyGate();
 
 const params = new URLSearchParams(location.search);
 const lessonId = params.get('lesson');

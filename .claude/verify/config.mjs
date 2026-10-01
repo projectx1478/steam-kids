@@ -20,6 +20,13 @@ export default {
   ciOnly: { hint: '  gh workflow run e2e-run.yml --ref <ブランチ> -f scenarios="<シナリオ名…>"   （全件は all）' },
   async setupRoutes(page) {
     await page.emulateMedia({ reducedMotion: 'reduce' });
+    // 子ども画面の日次保護者ゲート（Issue #217）を当日認証済みにして既存シナリオを通す。
+    // ゲートを検証するシナリオは冒頭でlocalStorage.removeItem('steamkids.gateDate')して外す。
+    await page.context().addInitScript(() => {
+      const d = new Date();
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      if (!sessionStorage.getItem('e2e.noGateSeed')) localStorage.setItem('steamkids.gateDate', key);
+    });
     for (const id of FROZEN_LESSONS) {
       const body = readFileSync(path.join(__dirname, 'fixtures', `${id}.json`));
       await page.route(`**/lessons/${id}.json`, (route) =>

@@ -138,6 +138,25 @@
     animation: spring-in 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
+  /* 日次保護者ゲートの合言葉ミス時に入力欄を横に揺らす（Issue #217）。 */
+  @keyframes gate-shake {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    20%,
+    60% {
+      transform: translateX(-8px);
+    }
+    40%,
+    80% {
+      transform: translateX(8px);
+    }
+  }
+  .gate-shake {
+    animation: gate-shake 300ms ease-in-out;
+  }
+
   /* 未達成時、盤面をやさしく横にゆらして気づかせる（罰則音・大きな✕は使わない。Issue #106）。 */
   @keyframes wobble-soft {
     0%,
