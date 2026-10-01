@@ -48,7 +48,8 @@ export default async function run({ page, check }) {
     const b = await readJSON(page, 'steamkids.s2.profile');
     return a.learnerId !== b.learnerId;
   });
-  await check('AのイベントがBに混ざらない', async () => (await readJSON(page, 'steamkids.s2.events')) === null);
+  await check('AのイベントがBに混ざらない', async () =>
+    ((await readJSON(page, 'steamkids.s2.events')) ?? []).some((e) => e.eventId === 'e1'), false);
 
   // --- つづきから：スロット表示・空き枠disabled・Bはパルス強調（直接レッスンへ飛ばない） ---
   await page.goto('/index.html');
@@ -74,9 +75,10 @@ export default async function run({ page, check }) {
   await page.click('[data-action="slot-pick"][data-slot="0"]');
   await page.click('[data-action="slot-erase"]');
   await page.waitForSelector('#parental-gate');
-  await check('けすで保護者ゲートが出る(上書きはまだ)', async () => (await readJSON(page, 'steamkids.events')).length, 1);
+  const hasE1 = async () => ((await readJSON(page, 'steamkids.events')) ?? []).some((e) => e.eventId === 'e1');
+  await check('けすで保護者ゲートが出る(上書きはまだ)', hasE1, true);
   await page.click('#parental-gate-cancel');
-  await check('ゲートでやめるとデータは残る', async () => (await readJSON(page, 'steamkids.events')).length, 1);
+  await check('ゲートでやめるとデータは残る', hasE1, true);
   await page.click('[data-action="slot-erase"]');
   await page.fill('#parental-gate-passcode', PASSCODE);
   await page.fill('#parental-gate-confirm', PASSCODE);

@@ -48,6 +48,9 @@ export function ensureActiveSlot() {
       saveSlots({ ...loadSlots(), active: 0 });
     }
   }
+  // 使用中のはずのprofileが壊れて読めない場合は作り直す（learnerId無しでイベントを記録しない）。
+  setActiveSlot(slots.active);
+  if (!loadProfile()) createSlot(slots.active, null);
   applySlot(slots.active, { persist: false });
 }
 
