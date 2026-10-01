@@ -1,27 +1,37 @@
 // T1 タイトル画面・デモ前1秒インターバル(Issue #107)。
-// ?lesson=・?view=mapが無い起動時だけタイトルを表示し、スタートで選択画面へ入る。
+// ?lesson=・?view=mapが無い起動時だけタイトルを表示し、つづきから→スロット選択で選択画面へ入る。
 // はじめにデモの初回自動再生は1秒の「よーい…」を挟んでからstart音を鳴らして始まる。
 
-export const name = 'T1 タイトル画面: 起動時のみ表示・スタートで選択画面へ・デモ前1秒(Issue #107)';
+export const name = 'T1 タイトル画面: 起動時のみ表示・つづきから経由で選択画面へ・デモ前1秒(Issue #107)';
 
 export default async function run({ page, check }) {
   await page.goto('/index.html');
   await check('起動時はタイトル画面', async () => page.getAttribute('#stage', 'data-screen'), 'title');
   await check('STEAM KIDSの見出しが表示される', async () => page.textContent('#stage h1'), 'STEAM KIDS');
-  const startBox = await page.locator('[data-action="title-start"]').boundingBox();
-  await check('スタートボタンが64px以上', () => startBox.width >= 64 && startBox.height >= 64);
+  const newBox = await page.locator('[data-action="title-new"]').boundingBox();
+  await check('はじめからボタンが64px以上', () => newBox.width >= 64 && newBox.height >= 64);
+  await check('データが無ければつづきからはdisabled', () => page.isDisabled('[data-action="title-continue"]'));
 
-  await page.click('[data-action="title-start"]');
-  await check('スタート後は選択画面へ遷移する', async () => page.getAttribute('#stage', 'data-screen'), 'picker');
+  // データのあるスロットがあればつづきからが押せて、スロット選択→単元マップへ進む（Issue #218）
+  await page.evaluate(() => {
+    localStorage.setItem('steamkids.profile', JSON.stringify({ learnerId: 'l-t1', label: 'たろう', createdAt: 1 }));
+    localStorage.setItem('steamkids.slots', JSON.stringify({ active: 0, occupied: [true, false, false] }));
+  });
+  await page.goto('/index.html');
+  await check('データがあればつづきからが押せる', async () => !(await page.isDisabled('[data-action="title-continue"]')));
+  await page.click('[data-action="title-continue"]');
+  await check('つづきから後はスロット選択へ遷移する', async () => page.getAttribute('#stage', 'data-screen'), 'slots');
+  await page.click('[data-action="slot-pick"][data-slot="0"]');
+  await check('スロット選択後は選択画面へ遷移する', async () => page.getAttribute('#stage', 'data-screen'), 'picker');
   await check('選択画面のレッスンボタンが表示される', async () => (await page.$$('.lesson-pick-btn')).length, 12);
 
   // ?view=map / ?lesson=はタイトルを経由しない
   await page.goto('/index.html?view=map');
-  await check('?view=mapではタイトルを経由しない', async () => (await page.$$('[data-action="title-start"]')).length, 0);
+  await check('?view=mapではタイトルを経由しない', async () => (await page.$$('[data-action="title-new"]')).length, 0);
   await check('?view=mapは選択画面', async () => page.getAttribute('#stage', 'data-screen'), 'picker');
 
   await page.goto('/index.html?lesson=cmd-01-susumu');
-  await check('?lesson=ではタイトルを経由しない', async () => (await page.$$('[data-action="title-start"]')).length, 0);
+  await check('?lesson=ではタイトルを経由しない', async () => (await page.$$('[data-action="title-new"]')).length, 0);
 
   // --- reduced-motionでロボットのfloatが止まる ---
   await page.emulateMedia({ reducedMotion: 'no-preference' });

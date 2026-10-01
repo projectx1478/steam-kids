@@ -10,6 +10,9 @@ P2着手時に読む。保護者・教師向けの**読み取り専用**画面�
 保護者ゲート内に置く）。ふりがなは`profile.furigana`（端末内のみ・同期しない）、おとは既存の
 `localStorage['steamkids.sound']`を`js/sfx.js`経由で読み書きする（Issue #93）。
 
+画面上部のスロットタブ（`#slot-tabs`）で表示するプレイヤーを切り替える。空き枠はdisabled。
+切替は表示だけで、次に子どもが遊ぶスロット（`steamkids.slots.active`）は変えない（Issue #218）。
+
 ## 表示内容
 
 - レッスンごとの状態（未着手 / 途中 / クリア）
