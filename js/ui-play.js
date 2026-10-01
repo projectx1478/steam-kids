@@ -32,7 +32,7 @@ const HINT_MESSAGE = {
   items: 'どんぐりが まだ のこって いるよ',
   goal: 'ゴールまで あと すこし',
 };
-const FAR_GOAL_MESSAGE = 'ちがう みちも ためして みよう';
+const FAR_GOAL_MESSAGE = 'ほかの みちも ためして みよう';
 const NEAR_GOAL_DISTANCE = 2;
 
 export function renderPlay(root, step) {

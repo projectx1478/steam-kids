@@ -41,7 +41,7 @@ export default async function run({ page, check }) {
   await page.waitForSelector('[data-action="retry"]', { timeout: 10000 });
   await check('クッション後の未到達はdata-hint=goal', async () => (await page.$$('[data-hint="goal"]')).length, 1);
   await check('かべのヒントは出ない', async () => (await page.$$('[data-hint="wall"]')).length, 0);
-  await check('距離3は「ちがう みちも ためして みよう」', async () => (await hintText(page)).includes('ちがう みちも ためして みよう'), true);
+  await check('距離3は「ほかの みちも ためして みよう」', async () => (await hintText(page)).includes('ほかの みちも ためして みよう'), true);
 
   // 距離2 → 現行文言
   await enterPlay(page, lesson.lessonId);
@@ -50,24 +50,24 @@ export default async function run({ page, check }) {
   await page.waitForSelector('[data-action="retry"]', { timeout: 10000 });
   await check('距離2は「ゴールまで あと すこし」', async () => (await hintText(page)).includes('ゴールまで あと すこし'), true);
 
-  // 1歩目：transitionがnone以外で、transformが開始位置から変化する
+  // 1歩目：runで駒が作り直されても、1手目のtransformにCSSTransitionが走る
   await enterPlay(page, lesson.lessonId);
-  await page.evaluate(() => {
-    const token = document.querySelector('#stage .grid-player');
-    window.__firstStep = { start: token.style.transform, transition: '', transform: '' };
-    new MutationObserver(() => {
-      if (token.style.transform !== window.__firstStep.start && !window.__firstStep.transform) {
-        window.__firstStep.transition = token.style.transition;
-        window.__firstStep.transform = token.style.transform;
-      }
-    }).observe(token, { attributes: true, attributeFilter: ['style'] });
-  });
   await page.click('[data-command="down"]');
-  await page.click('[data-command="right"]');
-  await page.click('[data-command="right"]');
+  const sawTransition = page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        const t0 = performance.now();
+        const tick = () => {
+          const hit = document
+            .getAnimations()
+            .some((a) => a instanceof CSSTransition && a.transitionProperty === 'transform' && a.effect.target?.classList.contains('grid-player'));
+          if (hit) resolve(true);
+          else if (performance.now() - t0 > 3000) resolve(false);
+          else requestAnimationFrame(tick);
+        };
+        tick();
+      })
+  );
   await page.click('[data-action="run"]');
-  await page.waitForSelector('[data-action="next"]', { timeout: 10000 });
-  const first = await page.evaluate(() => window.__firstStep);
-  await check('1歩目のtransformが変化する', async () => first.transform !== '' && first.transform !== first.start, true);
-  await check('1歩目のtransitionがnone以外', async () => first.transition !== '' && first.transition !== 'none', true);
+  await check('1歩目の移動にtransform transitionが走る', async () => sawTransition, true);
 }
