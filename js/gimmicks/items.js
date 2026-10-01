@@ -40,6 +40,11 @@ export const items = {
     return `items:${mask}`;
   },
 
+  // js/engine-generate.jsの解法関与チェック用。このギミックを除いた盤面specを返す（Issue #70）。
+  strip(spec) {
+    return { ...spec, items: [] };
+  },
+
   // tools/validate-lessons.mjsのcheckBoardから呼ばれる（座標範囲チェックはcheckBoard側で
   // walls等と共通に行うため対象外。ここではitems固有の重なりチェックのみ）。
   validate(board, add, label) {

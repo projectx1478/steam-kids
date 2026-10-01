@@ -34,6 +34,11 @@ export const ice = {
     return 'ice';
   },
 
+  // js/engine-generate.jsの解法関与チェック用。このギミックを除いた盤面specを返す（Issue #70）。
+  strip(spec) {
+    return { ...spec, ice: [] };
+  },
+
   // いま入ったマスがこおりなら同方向へ進み続ける。通常マスなら止まる（返り先が壁・盤外なら
   // makeMoverのisOpenで止まる）。
   redirect(state, pos, dir, spec) {

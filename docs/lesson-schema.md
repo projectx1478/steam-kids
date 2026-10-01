@@ -196,8 +196,19 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 | `minTurns` | 最短解の曲がり角（方向転換）数の下限 |
 | `wallsMustMatter` | true＝壁を全部外すと最短手数が短くなること（飾りの壁を防ぐ） |
 | `maxCommandsSlack` | `maxCommands`＝最短手数＋この値 |
+| `items` | `{min, max}` どんぐり（アイテム）の数（Issue #70） |
+| `ice` | `{min, max}` こおりのマス数（Issue #70） |
+| `keys` | `{min, max}` かぎとドアの組数。1組＝同色のかぎ1＋ドア1。盤は6×6以内にすること（手書きルールと同じ。Issue #70） |
+| `itemsMustMatter` | true＝itemsを外すと最短手数が短くなること（回収が遠回りを強いる） |
+| `iceMustMatter` | true＝iceを外すと最短手数が変わること（短絡・障害のどちらでも関与とみなす） |
+| `keysMustMatter` | true＝keys/doorsを外すと最短手数が短くなること（ドアが最短路を塞ぐ） |
 
-返り値は`play`相当`{grid, start, goal, walls, items: [], allowedCommands, solution, maxCommands, fallback}`。乱数を進めて200回再試行し、満たせなければ手作りの予備盤面（`fallback: true`）を返す。`items`は0固定（ギミック対応はR3）。予想ステップは自動生成しない（#104で全廃）。
+返り値は`play`相当`{grid, start, goal, walls, items, allowedCommands, solution, maxCommands, fallback}`。
+items/ice/keysを指定した場合は対応するフィールド（`items`/`ice`/`keys`/`doors`）も含む。各ギミックの
+MustMatterは、ギミックモジュールの`strip(spec)`（ギミックを除いた盤面）との`shortestSteps`比較で判定する。
+乱数を進めて400回再試行し、満たせなければ手作りの予備盤面（`fallback: true`。ギミックなし）を返す。
+ギミックを1つも指定しない`generator`では、同一シードの生成結果はR1（Issue #68）と一致する
+（追加の乱数消費をしない）。予想ステップは自動生成しない（#104で全廃）。
 
 ## `lessons/index.json`（単元マップ）
 

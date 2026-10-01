@@ -86,6 +86,11 @@ export const keys = {
     return `keys:${state.held.join(',')}`;
   },
 
+  // js/engine-generate.jsの解法関与チェック用。このギミックを除いた盤面specを返す（Issue #70）。
+  strip(spec) {
+    return { ...spec, keys: [], doors: [] };
+  },
+
   blocks(state, pos, spec) {
     const door = ids(spec.doors).find((d) => d.x === pos.x && d.y === pos.y);
     return Boolean(door) && !state.held.includes(door.color);

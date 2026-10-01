@@ -1,9 +1,11 @@
 // シードからgrid-runtimeの盤面を生成する純粋関数（Issue #68。DOMに触れない）。同じシードなら同じ盤面。
 // 「パラメータ生成＋BFS検証」方式：乱数で配置→shortestPathで制約を判定→満たすまで再試行。
-// generatorのスキーマは docs/lesson-schema.md。
-import { shortestPath, shortestSteps } from './engine-grid.js';
+// generatorのスキーマは docs/lesson-schema.md。ギミック（items/ice/keys）はIssue #70で対応。
+import { shortestPath, shortestSteps, simulate } from './engine-grid.js';
+import { GIMMICKS } from './gimmicks/index.js';
+import { KEY_COLORS } from './gimmicks/keys.js';
 
-const MAX_ATTEMPTS = 200;
+const MAX_ATTEMPTS = 400;
 const ALLOWED = ['up', 'down', 'left', 'right'];
 
 // 32bitシードから[0,1)の乱数列を返す数行のPRNG（外部ライブラリなし）。
@@ -45,10 +47,86 @@ const FALLBACK = {
 
 const inRange = (n, range) => n >= (range?.min ?? 0) && n <= (range?.max ?? Infinity);
 
+const stripOf = (key, spec) => GIMMICKS.find((g) => g.key === key).strip(spec);
+const countOf = (rng, range) => (range ? randInt(rng, range.min ?? 0, range.max ?? 0) : 0);
+
+// items/iceの乱数配置。start/goal/walls確定後の残りセル（free）の先頭から取る。返り値はspecへ
+// 展開するフィールドと未使用の残りセル。セルが足りなければnull（この試行を捨てる）。
+function placeGimmicks(rng, generator, free) {
+  const fields = { items: [] };
+  let i = 0;
+  const take = (n) => {
+    if (i + n > free.length) return null;
+    const got = free.slice(i, i + n);
+    i += n;
+    return got;
+  };
+  const itemCount = countOf(rng, generator.items);
+  if (itemCount > 0) {
+    const got = take(itemCount);
+    if (!got) return null;
+    fields.items = got;
+  }
+  const iceCount = countOf(rng, generator.ice);
+  if (iceCount > 0) {
+    const got = take(iceCount);
+    if (!got) return null;
+    fields.ice = got;
+  }
+  return { fields, free: free.slice(i) };
+}
+
+// かぎとドアの配置（pairCount組。1組＝同色のかぎ1＋ドア1）。ドアは現盤面の最短経路上の1マス、
+// かぎはドアを壁扱いにして届く空きマスへ置く（解法関与のための経路配置。受理率確保の狙いもある）。
+// keysMustMatter時は「ドアを壁にすると最短が伸びる」マスを最大4回再抽選する（最終判定は呼び出し側
+// のチェック）。かぎの候補はpoolの先頭から到達可能なものを取る（pool自体がshuffle済みのため先頭
+// 一致でもランダム性は保つ）。配置不能ならnull（この試行を捨てる）。
+function placeKeys(rng, pairCount, spec, free, mustMatter) {
+  const keys = [];
+  const doors = [];
+  const used = new Set(
+    [spec.start, spec.goal, ...spec.walls, ...(spec.items ?? []), ...(spec.ice ?? [])].map((p) => `${p.x},${p.y}`)
+  );
+  const pool = free.filter((p) => !used.has(`${p.x},${p.y}`));
+  const plain = (extraWalls, goal) => ({
+    grid: spec.grid, start: spec.start, goal: goal ?? spec.goal,
+    walls: [...spec.walls, ...extraWalls],
+  });
+  for (let n = 0; n < pairCount; n += 1) {
+    const cur = { ...spec, keys, doors };
+    const cmds = shortestPath(cur);
+    if (!cmds) return null;
+    const path = simulate(cmds, cur).path;
+    const candidates = path.filter((p, i) => i > 0 && i < path.length - 1 && !used.has(`${p.x},${p.y}`));
+    if (candidates.length === 0) return null;
+    const baseSteps = shortestSteps(plain([]));
+    let door = null;
+    const tries = mustMatter ? Math.min(4, candidates.length) : 1;
+    for (let t = 0; t < tries && !door; t += 1) {
+      const c = candidates[Math.floor(rng() * candidates.length)];
+      if (!mustMatter || shortestSteps(plain([c])) > baseSteps) door = c;
+    }
+    if (!door) return null;
+    const color = KEY_COLORS[randInt(rng, 0, KEY_COLORS.length - 1)];
+    const key = pool.find((p) => !used.has(`${p.x},${p.y}`)
+      && `${p.x},${p.y}` !== `${door.x},${door.y}`
+      && shortestSteps(plain([door], p)) !== Infinity);
+    if (!key) return null;
+    used.add(`${key.x},${key.y}`);
+    used.add(`${door.x},${door.y}`);
+    keys.push({ ...key, color });
+    doors.push({ ...door, color });
+  }
+  return { keys, doors };
+}
+
 // generateMap(generator, seed) -> playステップ相当 {grid, start, goal, walls, items, allowedCommands,
 // solution, maxCommands, fallback}。制約：shortestPath{min,max}（最短手数）・minTurns（曲がり角）・
-// wallsMustMatter（壁を全部外すと最短手数が短くなる。壁0個は不採用）。maxCommands＝最短手数＋maxCommandsSlack。
-// itemsは0固定（ギミック対応はR3）。MAX_ATTEMPTS回で満たせなければ予備盤面（fallback: true）。
+// wallsMustMatter（壁を全部外すと最短手数が短くなる。壁0個は不採用）。
+// items/ice/keys（{min,max}の個数）と{items,ice,keys}MustMatterはIssue #70。MustMatterは各ギミックの
+// strip(spec)（ギミックを除いた盤面）との最短手数比較で判定（items/keysは「外すと短くなる」、iceは
+// 「手数が変わる」）。maxCommands＝最短手数＋maxCommandsSlack。再試行はMAX_ATTEMPTS回で、満たせなければ
+// 予備盤面（fallback: true。ギミックなし）を返す。
 export function generateMap(generator, seed) {
   const rng = mulberry32(seed);
   const { grid } = generator;
@@ -58,11 +136,27 @@ export function generateMap(generator, seed) {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
     const order = shuffle(rng, cells);
     const wallCount = Math.min(randInt(rng, generator.walls?.min ?? 0, generator.walls?.max ?? 0), cells.length - 2);
-    const spec = { grid, start: order[0], goal: order[1], walls: order.slice(2, 2 + wallCount), items: [] };
+    let spec = { grid, start: order[0], goal: order[1], walls: order.slice(2, 2 + wallCount), items: [] };
+    let free = order.slice(2 + wallCount);
+    if (generator.items || generator.ice) {
+      const placed = placeGimmicks(rng, generator, free);
+      if (!placed) continue;
+      spec = { ...spec, ...placed.fields };
+      free = placed.free;
+    }
+    const pairCount = countOf(rng, generator.keys);
+    if (pairCount > 0) {
+      const placedKeys = placeKeys(rng, pairCount, spec, free, Boolean(generator.keysMustMatter));
+      if (!placedKeys) continue;
+      spec = { ...spec, keys: placedKeys.keys, doors: placedKeys.doors };
+    }
     const cmds = shortestPath(spec);
     if (!cmds || !inRange(cmds.length, generator.shortestPath)) continue;
     if (countTurns(cmds) < (generator.minTurns ?? 0)) continue;
     if (generator.wallsMustMatter && shortestSteps({ ...spec, walls: [] }) >= cmds.length) continue;
+    if (generator.itemsMustMatter && shortestSteps(stripOf('items', spec)) >= cmds.length) continue;
+    if (generator.iceMustMatter && shortestSteps(stripOf('ice', spec)) === cmds.length) continue;
+    if (generator.keysMustMatter && shortestSteps(stripOf('keys', spec)) >= cmds.length) continue;
     return {
       ...spec,
       allowedCommands: ALLOWED,
