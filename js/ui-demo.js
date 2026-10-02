@@ -1,7 +1,7 @@
 // 「はじめに」画面のデモ：ロボットが正解の道をたどってゴールへ到達する完成イメージを見せる
 // （Issue #97）。本番のplayとは別のstart/goal（レッスンJSONのintro.demo）を使い、答えの
-// ネタバレを避ける。自動再生は1回だけ（Issue #104。以前はreduced-motion判定の手前で誤って
-// 2回再生していた）。「▶ もういちど みる」でのみ繰り返せる。reduced-motion時も
+// ネタバレを避ける。自動再生は初回含め3回まで（Issue #241。reduced-motion時は1回）。
+// 以降は「▶ もういちど みる」で繰り返せる（#104では以前誤って2回再生していた）。reduced-motion時も
 // playAnimation（1手600msのコマ送り）をそのまま使う。moveToが自らtransitionを外して瞬間移動する
 // ため、静止画に差し替える必要はない（旧仕様はここでゴール静止画へ分岐しており、PCなど
 // reduced-motion環境でデモが動かない不具合の原因だった）。
@@ -20,6 +20,10 @@ const DEMO_CELL = 40;
 const FIX_PAUSE_MS = 900;
 // READY_MS: 初回自動再生のみに置く「よーい…」の間（Issue #107）。「▶ もういちど みる」は対象外。
 const READY_MS = 1000;
+// 自動ループ（Issue #241）：1周の終わりからLOOP_GAP_MS空け、初回含めLOOP_MAX回で止まる。
+// reduced-motion時はループしない。「▶ もういちど みる」は単発再生でループを再開しない。
+const LOOP_GAP_MS = 3000;
+const LOOP_MAX = 3;
 
 function toChip(entry) {
   return typeof entry === 'string' ? { dir: entry, times: 1 } : entry;
@@ -83,6 +87,8 @@ export function renderGoalDemo(container, demo) {
   let subAnim = null;
   let pendingTimer = null;
   let readyTimer = null;
+  let loopTimer = null;
+  let playCount = 0;
   // 直前に表示した周回。周が変わった時だけstack音を鳴らす（2周目以降のみ。Issue #167）。
   let lastRound = -1;
 
@@ -110,7 +116,19 @@ export function renderGoalDemo(container, demo) {
     );
   }
 
-  function playNow() {
+  // finish(loop): 1サイクルの完走時。loop=trueかつ通常モーション時のみ、LOOP_GAP_MS後に次の周を
+  // 予約する（初回含めLOOP_MAX回で止まる。Issue #241）。
+  function finish(loop) {
+    view.confetti?.();
+    if (!loop || prefersReducedMotion() || playCount >= LOOP_MAX) return;
+    loopTimer = setTimeout(() => {
+      loopTimer = null;
+      playCount += 1;
+      playNow(true);
+    }, LOOP_GAP_MS);
+  }
+
+  function playNow(loop = false) {
     draw(demo.start);
     if (demo.fixFrom) {
       runPhase(demo.fixFrom, () => {
@@ -118,11 +136,11 @@ export function renderGoalDemo(container, demo) {
         pendingTimer = setTimeout(() => {
           pendingTimer = null;
           draw(demo.start);
-          runPhase(demo.commands, () => view.confetti?.());
+          runPhase(demo.commands, () => finish(loop));
         }, FIX_PAUSE_MS);
       });
     } else {
-      runPhase(demo.commands, () => view.confetti?.());
+      runPhase(demo.commands, () => finish(loop));
     }
   }
 
@@ -135,7 +153,8 @@ export function renderGoalDemo(container, demo) {
       readyTimer = null;
       readyBadge.style.display = 'none';
       playSfx('start');
-      playNow();
+      playCount = 1;
+      playNow(true);
     }, READY_MS);
   }
 
@@ -147,6 +166,10 @@ export function renderGoalDemo(container, demo) {
       if (pendingTimer) {
         clearTimeout(pendingTimer);
         pendingTimer = null;
+      }
+      if (loopTimer) {
+        clearTimeout(loopTimer);
+        loopTimer = null;
       }
       if (readyTimer) {
         clearTimeout(readyTimer);
@@ -167,6 +190,10 @@ export function renderGoalDemo(container, demo) {
     if (pendingTimer) {
       clearTimeout(pendingTimer);
       pendingTimer = null;
+    }
+    if (loopTimer) {
+      clearTimeout(loopTimer);
+      loopTimer = null;
     }
     playNow();
   });
