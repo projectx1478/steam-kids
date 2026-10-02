@@ -181,6 +181,8 @@ P0（実機で到達）→P1（JSON外出し）→P2（ログ・ダッシュボ�
 - `docs/roadmap.md` — 授業展開の制約とP0〜P5。フェーズ計画を検討する時に読む
 - `docs/testing-guidelines.md` — 検証の運用（E2EはCIのみ・手元ガード・夜間失敗対応）。検証時に読む
 - `docs/testing-steam-kids.md` — steam-kids固有の検証事項。スモークを変える時に読む
+- `docs/principles-review.md` — 三原則・運用ルールの見直し結果（案A〜G）。入口・難度・終わり方を変える時に読む
+- `docs/foundation-review.md` — 根幹（Brilliantモデル・操作モデル・長さ等）の見直し結果と検証計画。根幹に関わる変更を検討する時に読む
 
 ## 8. 未決事項
 
