@@ -22,8 +22,8 @@
 
 - 本リポジトリは project-template の配布先。`CLAUDE.md` / `AGENTS.md` / `opencode.json` /
   `.claude/` 配下の同期対象ファイルは**本リポジトリで編集しない**（テンプレート同期PRで上書きされる）。
-  プロジェクト固有の規則は PROJECT.md と `docs/` に置く。`.claude/skills/`は配布対象外なので
-  本リポジトリに直置きしてよい（`.github/sync-files.txt`確認済み）
+  プロジェクト固有の規則は PROJECT.md と `docs/` に置く。`.claude/skills/`・`.claude/agents/`・`.claude/commands/`は配布対象外なので
+  本リポジトリに直置きしてよい（project-templateの`.github/sync-files.txt`確認済み）
 - `.github/` にbroadcast関連ファイルを置かない。配布元は project-template のみ
   （`.github/workflows/deploy-worker.yml`はプロジェクト固有のデプロイCIで対象外。#44参照）
 - `style.css` は Tailwind の生成物。直接編集禁止（`tailwind.src.css` を編集して再ビルド）
