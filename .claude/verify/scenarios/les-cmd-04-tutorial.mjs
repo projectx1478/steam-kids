@@ -3,7 +3,7 @@ export const name = 'les-cmd-04 れんしゅう: はこ→みぎ→した→か�
 export default async function run({ page, check }) {
   await page.unroute('**/lessons/cmd-04-kurikaeshi.json').catch(() => {});
   await page.goto('/index.html?lesson=cmd-04-kurikaeshi');
-  await page.click('[data-action="start"]');
+  await page.click('[data-action="how-to"]');
   await check('tutorialに入る', async () => page.getAttribute('#stage', 'data-step'), 'tutorial');
   await check('案内文「はこの なかを くりかえすよ」', async () => (await page.textContent('.tutorial-prompt')).includes('くりかえすよ'), true);
   await check('お手本列が6個', async () => (await page.$$('.guide-row [data-guide-index]')).length, 6);

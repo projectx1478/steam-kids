@@ -20,7 +20,8 @@ export default async function run({ page, check }) {
   // --- cmd-01-susumu: text未指定＝文字を読ませない、お手本列＋光るボタン＋ゴースト矢印で誘導 ---
   await page.unroute('**/lessons/cmd-01-susumu.json');
   await page.goto('/index.html?lesson=cmd-01-susumu');
-  await page.click('[data-action="start"]');
+  await check('未見のintroで「そうさほうほう」が強調される', async () => page.getAttribute('[data-action="how-to"]', 'data-highlight'), 'true');
+  await page.click('[data-action="how-to"]');
 
   await check('tutorialステップに入る', async () => page.getAttribute('#stage', 'data-step'), 'tutorial');
   await check('見出しが「れんしゅう」', async () => page.textContent('.tutorial-screen h2'), 'れんしゅう');
@@ -70,16 +71,19 @@ export default async function run({ page, check }) {
     () => !skippedEvents.includes('run') && !skippedEvents.includes('clear')
   );
 
-  // --- 再訪時は自動でスキップされ、introに「れんしゅう する」が出る ---
+  // --- 完了済みでも「はじめる」は常にp1へ。introの「そうさほうほう」は控えめ表示（強調なし） ---
   await page.goto('/index.html?lesson=cmd-01-susumu');
-  await check('introに「れんしゅう する」がある(スキップ済み)', async () => (await page.$('[data-action="redo-tutorial"]')) !== null);
+  await check('introに「そうさほうほう」がある(スキップ済み)', async () => (await page.$('[data-action="how-to"]')) !== null);
+  await check('スキップ済みは強調されない', async () => page.getAttribute('[data-action="how-to"]', 'data-highlight'), null);
   await page.click('[data-action="start"]');
-  await check('完了済みは自動でplay(p1)へ(tutorialを飛ばす)', async () => page.getAttribute('#stage', 'data-step'), 'play');
+  await check('はじめるはplay(p1)へ(tutorialを飛ばす)', async () => page.getAttribute('#stage', 'data-step'), 'play');
+  await page.click('#back-btn');
+  await check('p1から← もどるはintroへ(tutorialを飛ばす)', async () => page.getAttribute('#stage', 'data-step'), 'intro');
 
-  // --- 「れんしゅう する」で明示的に入り直し、実行完了→区切り画面まで確認 ---
+  // --- 「そうさほうほう」で明示的に入り直し、実行完了→区切り画面まで確認 ---
   await page.goto('/index.html?lesson=cmd-01-susumu');
-  await page.click('[data-action="redo-tutorial"]');
-  await check('れんしゅう するでtutorialへ入り直せる', async () => page.getAttribute('#stage', 'data-step'), 'tutorial');
+  await page.click('[data-action="how-to"]');
+  await check('そうさほうほうでtutorialへ入れる', async () => page.getAttribute('#stage', 'data-step'), 'tutorial');
 
   await page.click('[data-command="up"]');
   await page.click('[data-command="up"]');
@@ -125,14 +129,14 @@ export default async function run({ page, check }) {
   // --- no-preference: 光るボタンにpulseアニメーションが付く ---
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.goto('/index.html?lesson=cmd-01-susumu');
-  await page.click('[data-action="redo-tutorial"]');
+  await page.click('[data-action="how-to"]');
   await check('no-preference時、光るボタンにpulseアニメーション', async () => animationName(page, '[data-command="up"]'), 'pulse');
   await page.emulateMedia({ reducedMotion: 'reduce' });
 
   // --- donguri-01-hirou: textは表示、items連動（回収は実行時のみ反映） ---
   await page.unroute('**/lessons/donguri-01-hirou.json');
   await page.goto('/index.html?lesson=donguri-01-hirou');
-  await page.click('[data-action="start"]');
+  await page.click('[data-action="how-to"]');
   await check('donguri: tutorialに入る', async () => page.getAttribute('#stage', 'data-step'), 'tutorial');
   await check(
     'donguri: 指示文が表示される（視覚で表せないルールのみtext表示）',

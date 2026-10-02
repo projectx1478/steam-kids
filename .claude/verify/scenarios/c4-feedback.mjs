@@ -45,7 +45,7 @@ export default async function run({ page, check }) {
   );
 
   await page.click('[data-action="start"]');
-  await check('tutorial(fix)から始まる（Issue #98）', async () => page.getAttribute('#stage', 'data-step'), 'tutorial');
+  await check('はじめるは直接play(p1)へ進む（tutorialは「そうさほうほう」から。Issue #236）', async () => page.getAttribute('#stage', 'data-step'), 'play');
   await skipTutorialButton(page);
   await check('playの区分チップ「うごかす 1/3」（複数ステージ構成。Issue #104）', async () => page.textContent('#step-kind-chip'), 'うごかす 1/3');
   await check('よそうは全廃。Issue #104', async () => page.getAttribute('#stage', 'data-step'), 'play');
@@ -57,8 +57,8 @@ export default async function run({ page, check }) {
   // 確認ダイアログではなく命令列の下書き保持で行う（c6-tactile-ui.mjsで検証。Issue #95） ---
   await check('確認ダイアログは存在しない', async () => (await page.$$('.confirm-dialog')).length, 0);
   await page.click('#back-btn');
-  // p1の直前はtutorial(fix)のため、← もどるはtutorialへ戻る（もう一度見られる。Issue #98）。
-  await check('確認無しで1つ前のtutorialへ戻る', async () => page.getAttribute('#stage', 'data-step'), 'tutorial');
+  // ← もどるはtutorial(fix)を飛ばしてintroへ戻る（Issue #236）。
+  await check('確認無しでintroへ戻る', async () => page.getAttribute('#stage', 'data-step'), 'intro');
 
   await page.click('#home-btn');
   await check('えらぶ がめんへ も確認無しで即座に遷移する', async () => page.url().endsWith('/index.html?view=map'));

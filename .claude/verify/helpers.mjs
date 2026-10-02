@@ -10,9 +10,16 @@ async function currentStep(page) {
   return page.getAttribute(STEP_SEL, 'data-step');
 }
 
-// 「はじめる」を押した後の状態（tutorial／predict／play）を待ち、playまで進める。
-// 凍結fixture（cmd-01・donguri-01。config.mjs）はpredict経由、現行JSONはtutorial経由。
-// 戻り値は最初に着いたステップ種別（'tutorial' | 'predict' | 'play'）。
+// introの「そうさほうほう」を押してtutorialへ入り、tutorial表示まで待つ（Issue #236。
+// 「はじめる」は常にplayへ進むため、tutorialの検証はこちらから入る）。
+export async function enterTutorial(page) {
+  await page.click('[data-action="how-to"]');
+  await page.waitForFunction((sel) => document.querySelector(sel)?.dataset.step === 'tutorial', STEP_SEL);
+}
+
+// 「はじめる」を押した後の状態（predict／play）を待ち、playまで進める。
+// 凍結fixture（cmd-01・donguri-01。config.mjs）はpredict経由、現行JSONは直接play（Issue #236）。
+// 戻り値は最初に着いたステップ種別（'tutorial' | 'predict' | 'play'。tutorialは自動では来ない）。
 async function settleToPlay(page) {
   await page.waitForFunction(
     (sel) => ['tutorial', 'predict', 'play'].includes(document.querySelector(sel)?.dataset.step),

@@ -44,10 +44,14 @@ async function runLesson(page, check, lessonId, label) {
   await page.goto(`/index.html?lesson=${lessonId}`);
   await resetTutorialFlags(page);
   await page.goto(`/index.html?lesson=${lessonId}`);
-  await page.click('[data-action="start"]');
-  if (await page.$('.tutorial-screen')) {
+  // tutorialは「そうさほうほう」からだけ入る（Issue #236）。無いレッスンは「はじめる」で直接playへ。
+  if (await page.$('[data-action="how-to"]')) {
+    await page.click('[data-action="how-to"]');
+    await page.waitForSelector('.tutorial-screen');
     await check(`${label} ${lessonId} tutorial: 盤面が収まる`, () => boardFits(page), 'ok');
     await page.click('[data-action="skip-tutorial"]');
+  } else {
+    await page.click('[data-action="start"]');
   }
   // よそう（predict）はIssue #104で全廃。tutorial後は直接play(p1)へ入る。
   await page.waitForSelector('.play-screen .grid-board');

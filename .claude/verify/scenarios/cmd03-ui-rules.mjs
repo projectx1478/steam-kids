@@ -29,10 +29,8 @@ export default async function run({ page, check }) {
   await check('introの表示文言が20字以内', async () => noLongLine(page));
   await check('introで横スクロールが出ない', async () => noHorizontalScroll(page));
 
-  // よそう（predict）はIssue #104で全廃。introの「はじめる」からtutorial(fix)を経てplay(p1)へ入る
-  // （Issue #98）。
+  // よそう（predict）はIssue #104で全廃。introの「はじめる」からplay(p1)へ直接入る（Issue #236）。
   await page.click('[data-action="start"]');
-  await page.click('[data-action="skip-tutorial"]');
   await check('playの全ボタンが48px以上（初期チップ込み）', async () => boxesOk(page));
   await check('playの表示文言が20字以内', async () => noLongLine(page));
   await check('playで横スクロールが出ない', async () => noHorizontalScroll(page));

@@ -2,7 +2,7 @@ export const name = 'C9 れんしゅう(fix): cmd-03-naosuのtutorialで誤っ�
 
 export default async function run({ page, check }) {
   await page.goto('/index.html?lesson=cmd-03-naosu');
-  await page.click('[data-action="start"]');
+  await page.click('[data-action="how-to"]');
   await check('tutorialステップに入る', async () => page.getAttribute('#stage', 'data-step'), 'tutorial');
   await check('お手本列の要素数が2個（remove→run）', async () => (await page.$$('.guide-row [data-guide-index]')).length, 2);
   await check('お手本列0番目が×（remove）', async () => page.locator('[data-guide-index="0"]').innerText(), '×');
