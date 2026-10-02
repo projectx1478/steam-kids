@@ -43,7 +43,8 @@ lessons/ # レッスンJSON（P1〜）
 tools/ # レッスンJSON検証ツール
 docs/ # 詳細ドキュメント（PROJECT.md 7章の索引を参照）
 workers/steam-kids-sync/ # 同期API（Cloudflare Workers + D1、P3〜）
-.claude/ # Claude Codeのフック・検証ハーネス・スクリプト
+.claude/ # Claude Codeのフック・検証ハーネス・スクリプト・agents（原則見直しの4役）・commands（/principles-review）・skills
+review/ # 原則見直しレビューの入力と出力（Issue #227）。principles/にcontext.md・difficulty.md・round1/。観察メモ・screens/の画像はgitignore
 .devcontainer/ # Codespaces/OpenCode Web用コンテナ設定
 ```
 
