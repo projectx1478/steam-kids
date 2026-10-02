@@ -138,7 +138,27 @@ export function initSteps() {
 
   headerEls().home.addEventListener('click', () => {
     if (headerEls().home.disabled) return;
-    location.href = withDev('./index.html?view=map');
+    if (!hasPlayInProgress()) {
+      location.href = withDev('./index.html?view=map');
+      return;
+    }
+    // playの途中（命令列を組みかけ）で離れると下書きを失うため、ここだけ確認を挟む。
+    // 子どもが読まなくても分かるよう「つづける」を大きく目立たせる（Issue #240）。
+    confirmLeave(() => (location.href = withDev('./index.html?view=map')));
+  });
+
+  // 端末の戻る（Android戻る・ブラウザ戻る）も「← もどる」と同じく1ステップ戻す。
+  // 各ステップ遷移でhistoryを積み（goToStep）、ここで該当ステップを再描画する（Issue #240）。
+  history.replaceState({ stepIndex: S.stepIndex }, '');
+  window.addEventListener('popstate', (event) => {
+    const target = event.state?.stepIndex;
+    if (target == null || target === S.stepIndex) return;
+    if (headerEls().back.disabled) {
+      // 実行アニメーション中は動かさない。履歴だけ現在位置へ戻す。
+      history.pushState({ stepIndex: S.stepIndex }, '');
+      return;
+    }
+    enterStep(target);
   });
 
   document.addEventListener('visibilitychange', () => {
@@ -165,13 +185,57 @@ function resolveStepIndex(index, forward) {
   return forward ? index + 1 : index - 1;
 }
 
-export function goToStep(nextIndex) {
-  const resolvedIndex = resolveStepIndex(nextIndex, nextIndex > S.stepIndex);
+function enterStep(index) {
   logEvent('step_leave', {});
-  S.stepIndex = resolvedIndex;
+  S.stepIndex = index;
   logEvent('step_enter', {});
   playSfx('whoosh');
   renderStep();
+}
+
+export function goToStep(nextIndex) {
+  const resolvedIndex = resolveStepIndex(nextIndex, nextIndex > S.stepIndex);
+  history.pushState({ stepIndex: resolvedIndex }, '');
+  enterStep(resolvedIndex);
+}
+
+// playの途中か：現在のステップがplayで、命令列の下書きが初期状態（空 or initialCommands）から
+// 変わっている。クリア時は下書きが消えるため、クリア後は途中ではない（Issue #240）。
+function hasPlayInProgress() {
+  const step = currentStep();
+  if (step.kind !== 'play') return false;
+  const draft = S.drafts[step.stepId];
+  if (!draft) return false;
+  const initial = (step.initialCommands ?? []).map((dir) => ({ dir, times: 1 }));
+  return JSON.stringify(draft) !== JSON.stringify(initial);
+}
+
+// confirmLeave(onLeave): 「やめる？」の確認。つづける（既定・大）／やめる（小）。
+function confirmLeave(onLeave) {
+  const overlay = document.createElement('div');
+  overlay.className = 'leave-confirm';
+  overlay.setAttribute('role', 'dialog');
+  overlay.style.cssText =
+    'position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.4)';
+  const card = document.createElement('div');
+  card.className = 'bg-white rounded-2xl shadow p-6 text-center';
+  card.style.cssText = 'max-width:90vw';
+  const msg = document.createElement('p');
+  msg.className = 'text-xl mb-4';
+  msg.textContent = 'ここで やめる？';
+  const keep = createPrimaryButton('つづける', () => overlay.remove(), 'leave-cancel');
+  const leave = document.createElement('button');
+  leave.type = 'button';
+  leave.dataset.action = 'leave-ok';
+  leave.className = 'btn-tactile block mx-auto mt-3 min-w-[64px] min-h-[64px] px-6 bg-slate-200 text-slate-700 text-base';
+  leave.textContent = 'やめる';
+  leave.addEventListener('click', () => {
+    overlay.remove();
+    onLeave();
+  });
+  card.append(msg, keep, leave);
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
 }
 
 // 区分ごとの短い記号（文字を読ませない方針のため、既存のじっこう「▶」等と同じ記法。Issue #104）。
