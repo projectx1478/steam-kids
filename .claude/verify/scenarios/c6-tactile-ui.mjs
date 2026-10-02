@@ -108,7 +108,7 @@ export default async function run({ page, check }) {
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="next-stage"]', { timeout: 8000 });
   await page.click('#back-btn');
-  await page.click('[data-action="skip-tutorial"]');
+  await page.click('[data-action="start"]');
   await check('クリア後は下書きが残らず命令列が空で始まる', async () => (await page.$$('.command-chip')).length, 0);
 
   // 4で「クリア済みレッスン」を検証するため、p1を再度クリアしp2・p3まで通してレッスン全体を
