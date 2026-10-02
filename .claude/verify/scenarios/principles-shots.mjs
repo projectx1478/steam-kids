@@ -23,8 +23,8 @@ async function shotStart(page, shot, label, lessonId) {
 // tutorialのあるgrid-runtime：はじめる→tutorial冒頭→スキップ→p1で誤答→もういちど→正解でクリア
 async function shotGridLesson(page, check, shot, n, tag, lessonId, wrongCommand) {
   await shotStart(page, shot, `${n}-${tag}-start`, lessonId);
-  await page.click('[data-action="start"]');
-  await check(`${lessonId}: はじめるの次はtutorial（現行構造）`, () => stepOf(page), 'tutorial');
+  await page.click('[data-action="how-to"]');
+  await check(`${lessonId}: そうさほうほうでtutorialに入る（Issue #236）`, () => stepOf(page), 'tutorial');
   await shot(`${String(Number(n) + 1).padStart(2, '0')}-${tag}-first-op`);
 
   await page.click('[data-action="skip-tutorial"]');
@@ -54,8 +54,8 @@ export default async function run({ page, check, shot }) {
   // 01-04 cmd-01：現行構造（intro→tutorial→p1〜p3→summary）で撮れていることを1枚目の時点で確認
   await page.goto('/index.html?lesson=cmd-01-susumu');
   await page.waitForSelector('[data-action="start"]');
-  await check('cmd-01: ステップドットが6個（intro/tutorial/p1/p2/p3/summary＝現行構造）',
-    async () => (await page.$$('.step-dot')).length, 6);
+  await check('cmd-01: introのステップドットが5個（intro/p1/p2/p3/summary。tutorialの点は中だけ。Issue #236）',
+    async () => (await page.$$('.step-dot')).length, 5);
   await shotGridLesson(page, check, shot, '01', 'l1', 'cmd-01-susumu', 'up');
 
   // 05-08 ice-01

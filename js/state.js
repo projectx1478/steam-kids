@@ -12,7 +12,7 @@ export const S = {
   // 単元情報（{title, lessonIds}）。app.jsのstartLessonがlessons/index.jsonから設定する。
   // 取得失敗時はnullのまま（ヘッダーはレッスン名のみ表示。Issue #91）。
   unit: null,
-  // introの「れんしゅう する」から明示的にtutorialへ入る時だけtrue（自動スキップを1回だけ回避。Issue #93）。
+  // introの「そうさほうほう」から明示的にtutorialへ入る時だけtrue（tutorialの自動スキップを1回だけ回避。Issue #93・#236）。
   forceTutorial: false,
   // playの操作画面の下書き（stepId→commands）。確認ダイアログを全廃した代わりの誤タップ対策で、
   // ←で戻って再びそのplayへ進んだ時に命令列を復元する。レッスン内のみ・メモリのみで保持し、

@@ -90,7 +90,7 @@ export default async function run({ page, check }) {
     await page.goto('/index.html?lesson=cmd-01-susumu');
     // 各viewportでtutorialから確認するため、前のiterationで付いた完了フラグを毎回消す。
     await resetTutorialFlags(page);
-    await page.click('[data-action="start"]');
+    await page.click('[data-action="how-to"]');
     await check(`${label}: tutorialから始まる`, async () => page.getAttribute('#stage', 'data-step'), 'tutorial');
     // tutorial
     await checkFitsAndNonOverlap(page, check, `${label} tutorial`, viewport);
@@ -108,7 +108,7 @@ export default async function run({ page, check }) {
   // --- チュートリアル: ゴースト矢印が番号順に増える・キャプション20字以内 ---
   await page.goto('/index.html?lesson=cmd-01-susumu');
   await resetTutorialFlags(page);
-  await page.click('[data-action="start"]');
+  await page.click('[data-action="how-to"]');
   await check('tutorialから始まる', async () => page.getAttribute('#stage', 'data-step'), 'tutorial');
   await page.click('[data-command="up"]');
   await check('1回目タップでゴースト①が出る', async () => page.getAttribute('.grid-marker-ghost', 'data-ghost-order'), '1');

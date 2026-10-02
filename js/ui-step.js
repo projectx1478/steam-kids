@@ -150,12 +150,9 @@ export function initSteps() {
   renderStep();
 }
 
-// tutorialが完了・スキップ済みのレッスンでは、前進時のみ自動でその先へ進める。ただしrenderIntroの
-// 「れんしゅう する」で明示的に入る場合（S.forceTutorial）は飛ばさない（Issue #93）。
-// 後退時（← もどる）はスキップしない。よそう全廃でtutorialの直後がplayになった結果
-// （Issue #104）、完了直後にplayから← もどるを押すと自動スキップでplayへ押し戻され、
-// ボタンが効かないように見えてしまうため（もう一度れんしゅうを見られるようにする）。
-// 完了記録はレッスン単位（同一単元内の2本目以降にもtutorialを置くようになったため。Issue #98）。
+// tutorialはrenderIntroの「そうさほうほう」で明示的に入る場合（S.forceTutorial）だけ入る。
+// それ以外は常に飛ばす（前進＝その先、後退＝その手前のintro。Issue #236）。
+// 完了・スキップ記録（isTutorialDone）は「そうさほうほう」の強調表示の判定にだけ使う。
 function resolveStepIndex(index, forward) {
   const step = S.lesson.steps[index];
   // たね未確定でgenerator付きplayへは入れない（盤面が無い）。たね入力へ戻す（Issue #69）。
@@ -165,8 +162,7 @@ function resolveStepIndex(index, forward) {
     S.forceTutorial = false;
     return index;
   }
-  if (!forward) return index;
-  return isTutorialDone(S.lesson.lessonId) ? index + 1 : index;
+  return forward ? index + 1 : index - 1;
 }
 
 export function goToStep(nextIndex) {
@@ -200,8 +196,11 @@ function renderStepDots(root) {
   const playSteps = S.lesson.steps.filter((s) => s.kind === 'play');
   const lessonCleared_ = isLessonCleared(S.lesson.lessonId);
 
+  let drawn = 0;
   S.lesson.steps.forEach((step, i) => {
-    if (i > 0) {
+    // tutorialの点はtutorial中だけ出す（飛ばしたtutorialに✓が付いて「やった扱い」に見えるのを防ぐ。Issue #236）。
+    if (step.kind === 'tutorial' && i !== S.stepIndex) return;
+    if (drawn > 0) {
       const line = document.createElement('span');
       line.className = `step-roadmap-line flex-1 h-0.5 ${i - 1 < S.stepIndex ? 'bg-emerald-400' : 'bg-slate-200'}`;
       line.setAttribute('aria-hidden', 'true');
@@ -231,6 +230,7 @@ function renderStepDots(root) {
       });
     }
     wrap.appendChild(node);
+    drawn += 1;
   });
   root.appendChild(wrap);
 }
@@ -409,19 +409,24 @@ function renderIntro(root, step) {
   if (step.demo) renderGoalDemo(root, step.demo);
   root.appendChild(createPrimaryButton('はじめる', () => goToStep(S.stepIndex + 1), 'start'));
 
-  // tutorialが完了・スキップ済み（自動で飛ばされる）のレッスンだけ、やり直す入口を小さく出す（Issue #93）。
+  // tutorialがあるレッスンは「そうさほうほう」でだけtutorialへ入れる。未見の間は光らせて誘導する
+  // （Issue #236。完了・スキップ済みなら控えめ表示）。
   const tutorialIndex = S.lesson.steps.findIndex((s) => s.kind === 'tutorial');
-  if (tutorialIndex !== -1 && isTutorialDone(S.lesson.lessonId)) {
-    const redoBtn = document.createElement('button');
-    redoBtn.type = 'button';
-    redoBtn.dataset.action = 'redo-tutorial';
-    redoBtn.textContent = 'れんしゅう する';
-    redoBtn.className = 'block mx-auto mt-2 min-w-[64px] min-h-[64px] px-4 rounded-lg bg-white shadow text-sm text-slate-600';
-    redoBtn.addEventListener('click', () => {
+  if (tutorialIndex !== -1) {
+    const unseen = !isTutorialDone(S.lesson.lessonId);
+    const howBtn = document.createElement('button');
+    howBtn.type = 'button';
+    howBtn.dataset.action = 'how-to';
+    howBtn.textContent = 'そうさほうほう';
+    howBtn.className = unseen
+      ? 'block mx-auto mt-2 min-w-[64px] min-h-[64px] px-6 rounded-lg bg-amber-100 shadow text-base font-bold text-amber-900 ring-4 ring-amber-400 ring-offset-2 motion-safe:animate-pulse'
+      : 'block mx-auto mt-2 min-w-[64px] min-h-[64px] px-4 rounded-lg bg-white shadow text-sm text-slate-600';
+    if (unseen) howBtn.dataset.highlight = 'true';
+    howBtn.addEventListener('click', () => {
       vibrate();
       S.forceTutorial = true;
       goToStep(tutorialIndex);
     });
-    root.appendChild(redoBtn);
+    root.appendChild(howBtn);
   }
 }

@@ -28,7 +28,7 @@ export default async function run({ page, check }) {
     await page.setViewportSize(viewport);
     await page.goto('/index.html?lesson=cmd-01-susumu');
     await resetTutorialFlags(page);
-    await page.click('[data-action="start"]');
+    await page.click('[data-action="how-to"]');
     for (const dir of ['up', 'up', 'right', 'right']) await page.click(`[data-command="${dir}"]`);
     await page.click('[data-action="run"]');
     await page.waitForSelector('[data-action="continue-to-task"]', { timeout: 8000 });
@@ -93,14 +93,13 @@ export default async function run({ page, check }) {
   await check('ぜんぶ けすでチップが0個になる', async () => (await page.$$('.command-chip')).length, 0);
 
   // 確認ダイアログは存在しない。←で戻っても命令列の下書きが復元される（Issue #95）。
-  // p1の直前はtutorialのため、← もどるはtutorial画面（もう一度見られる。Issue #104）へ戻り、
-  // れんしゅうを とばすで再びp1へ進める。
+  // p1から← もどるはtutorialを飛ばしてintroへ戻り（Issue #236）、はじめるで再びp1へ進める。
   await check('.confirm-dialogは存在しない', async () => (await page.$$('.confirm-dialog')).length, 0);
   for (const dir of ['up', 'up', 'left']) await page.click(`[data-command="${dir}"]`);
   await check('編集後の命令列は3個', async () => (await page.$$('.command-chip')).length, 3);
   await page.click('#back-btn');
-  await check('確認なしで即座にtutorialへ戻る', async () => page.getAttribute('#stage', 'data-step'), 'tutorial');
-  await page.click('[data-action="skip-tutorial"]');
+  await check('確認なしで即座にintroへ戻る', async () => page.getAttribute('#stage', 'data-step'), 'intro');
+  await page.click('[data-action="start"]');
   await check('play(p1)へ戻ると下書き(3個)が復元される', async () => (await page.$$('.command-chip')).length, 3);
 
   // クリアすると下書きが消え、次にp1へ入る時は空から始まる。
@@ -109,7 +108,7 @@ export default async function run({ page, check }) {
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="next-stage"]', { timeout: 8000 });
   await page.click('#back-btn');
-  await page.click('[data-action="skip-tutorial"]');
+  await page.click('[data-action="start"]');
   await check('クリア後は下書きが残らず命令列が空で始まる', async () => (await page.$$('.command-chip')).length, 0);
 
   // 4で「クリア済みレッスン」を検証するため、p1を再度クリアしp2・p3まで通してレッスン全体を
@@ -160,7 +159,7 @@ export default async function run({ page, check }) {
   // --- 7. チュートリアルでも指ガイドが出る ---
   await page.goto('/index.html?lesson=cmd-01-susumu');
   await resetTutorialFlags(page);
-  await page.click('[data-action="start"]');
+  await page.click('[data-action="how-to"]');
   await check('tutorialから始まる', async () => page.getAttribute('#stage', 'data-step'), 'tutorial');
   await check('tutorialでも指ガイドが出る', async () => (await page.$$('.hand-hint')).length, 1);
 }

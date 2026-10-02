@@ -2,7 +2,7 @@ export const name = 'C9 れんしゅう(group): cmd-02-mijikakuのtutorialで同
 
 export default async function run({ page, check }) {
   await page.goto('/index.html?lesson=cmd-02-mijikaku');
-  await page.click('[data-action="start"]');
+  await page.click('[data-action="how-to"]');
   await check('tutorialステップに入る', async () => page.getAttribute('#stage', 'data-step'), 'tutorial');
   await check('お手本列の要素数が5個（script長と一致）', async () => (await page.$$('.guide-row [data-guide-index]')).length, 5);
   await check('光っているのはleftボタン', async () => (await page.$('[data-command="left"][data-guide="true"]')) !== null);

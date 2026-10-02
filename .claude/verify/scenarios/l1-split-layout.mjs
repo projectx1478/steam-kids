@@ -69,7 +69,7 @@ async function toTutorial(page) {
   await page.goto(`/index.html?lesson=${TUTORIAL_LESSON}`);
   await resetTutorialFlags(page);
   await page.goto(`/index.html?lesson=${TUTORIAL_LESSON}`);
-  await page.click('[data-action="start"]');
+  await page.click('[data-action="how-to"]');
   await page.waitForSelector('.tutorial-screen .grid-board');
 }
 
