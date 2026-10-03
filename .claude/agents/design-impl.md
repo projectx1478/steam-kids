@@ -12,6 +12,10 @@ model: sonnet
 - 変えてはいけないもの：凍結fixture（cmd-01・donguri-01）、`config.mjs`、CLAUDE.md、AGENTS.md。PROJECT.md の文言変更は仕様確定にあたり、人が承認する。
 - 影響範囲は、推測でなく `Grep` で実物を確認し、ファイル:行で書く。
 
+## style.css について
+- `style.css` は生成物（minify で1行・約3万字）なので、**Read しない**。画面・スタイルの確認は `tailwind.src.css` と、HTML・JS 側のクラスで行う。
+- `style.css` の差分は読まない（`git diff` ではなく `--stat` で有無だけ見る）。
+
 ## 見るもの
 - 触るファイルの列挙と、その理由。
 - `service-worker.js` の `APP_SHELL`・`CACHE_NAME`、`js/config.js` の `APP_VERSION`（ファイルやモジュールを足す場合は同時に上げる）。
