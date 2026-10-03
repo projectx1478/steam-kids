@@ -152,13 +152,22 @@ export function renderSummary(root) {
       root.appendChild(flagWrap);
     }
 
-    const nextId = S.unit.lessonIds[S.unit.lessonIds.indexOf(lessonId) + 1];
-    if (nextId) {
-      root.appendChild(
-        createPrimaryButton('つぎの レッスンへ', () => (location.href = withDev(`./index.html?lesson=${nextId}`)), 'next-lesson')
-      );
-    }
   }
+
+  // 「つぎへ」と「おわる」は同じ大きさで横に並べる（Issue #263）。「おわる」はタイトルへ戻る（#257の「タイトルへ」と同じ行き先）。
+  const nextId = S.unit?.lessonIds[S.unit.lessonIds.indexOf(lessonId) + 1];
+  const choiceRow = document.createElement('div');
+  choiceRow.className = 'flex justify-center gap-3 w-full max-w-sm mx-auto px-2';
+  const choiceClass = 'flex-1 max-w-[12rem]';
+  if (nextId) {
+    const nextBtn = createPrimaryButton('つぎへ', () => (location.href = withDev(`./index.html?lesson=${nextId}`)), 'next-lesson');
+    nextBtn.className += ` ${choiceClass}`;
+    choiceRow.appendChild(nextBtn);
+  }
+  const endBtn = createPrimaryButton('おわる', () => (location.href = withDev('./index.html')), 'finish');
+  endBtn.className += ` ${choiceClass}`;
+  choiceRow.appendChild(endBtn);
+  root.appendChild(choiceRow);
 
   root.appendChild(
     createPrimaryButton('ほかのレッスンへ', () => (location.href = withDev('./index.html?view=map')), 'back-to-picker')
