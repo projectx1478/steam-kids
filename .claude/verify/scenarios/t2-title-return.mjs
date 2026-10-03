@@ -8,6 +8,7 @@ export const name = 'T2 タイトルへ戻る導線: レッスン選択→タイ
 
 export default async function run({ page, check }) {
   // --- セットアップ: スロット0に名前「たろう」でデータを作る ---
+  await page.goto('/index.html');
   await page.evaluate(() => {
     localStorage.setItem('steamkids.profile', JSON.stringify({ learnerId: 'l-t2', label: 'たろう', createdAt: 1 }));
     localStorage.setItem('steamkids.slots', JSON.stringify({ active: 0, occupied: [true, false, false] }));
