@@ -1,0 +1,2 @@
+# 生成物（tailwindのminify出力）。差分本文を出さず、エージェントのトークン消費を抑える (#275)
+style.css -diff linguist-generated=true

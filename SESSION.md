@@ -31,7 +31,8 @@
 - 同期データに氏名・学校名・学年を含めない。これらを扱うフィールドを作らない
 - Tailwindのcontentスキャンはコード中の識別子も拾う。ユーティリティ名と一致する語（例:
   `hidden`）を書くと無関係なクラスが再ビルド時に生成される。実害はないが、再ビルド後の
-  `style.css`差分が「意図した変更」か確認してからコミットする
+  `git diff --stat`とCIの「style.cssのビルド忘れ」チェックで確認してからコミットする
+  （`.gitattributes`で`style.css -diff`のため、差分本文は出ない）
 - `lessons/index.json`はレッスン選択画面（単元マップ）の一覧ファイル（レッスン本体ではない）。
   `units: [{unitId, title, lessonIds}]`構造（#58）。`validate-lessons.mjs`が参照整合性を検証する。
   レッスン追加時はレッスンJSON本体＋該当`unit.lessonIds`（または新規unit）を更新する
