@@ -8,44 +8,78 @@ Issue #$ARGUMENTS を実装する。あなた（メインセッション）は�
 ## 規則
 - 1 Issue = 1 PR = 1セッション。
 - `git` は `--no-pager` を付ける。`git add` は**必ずパスを指定する**（`.` は使わない）。PowerShell で動く書き方にする。
-- 触らないもの：`.claude/`、`PROJECT.md`、`CLAUDE.md`、`AGENTS.md`、凍結fixture（cmd-01・donguri-01）、`config.mjs`、`review/`。PROJECT.md の文言変更を伴う Issue（#254 など）は、差分を見せるところまでで、悠さんが承認する。
+- 触らないもの：`.claude/`（設計に書かれた `.claude/verify/` のシナリオを除く）、`PROJECT.md`、`CLAUDE.md`、`AGENTS.md`、凍結fixture（cmd-01・donguri-01）、`config.mjs`、`review/`。PROJECT.md の文言変更を伴う Issue（#254 など）は、差分を見せるところまでで、悠さんが承認する。
 - E2E はローカルで実行しない（CIのみ）。
 - マージはしない。マージ判定は悠さんの責務。
-- 問題が起きたら、モデルを黙って切り替えたり、設計を変えたりせず、止まって報告する。
+- モデルを黙って切り替えたり、設計を変えたりしない。
+- **ターン数を減らす**：メインは大きいファイル（`style.css`、`js/ui-*.js`、`tools/validate-lessons.mjs` など）を自分で読まない。読み込みと調査はサブエージェントに任せる。`style.css` は読まず、差分も `git diff --stat` で見る。サブエージェントへの指示は1回にまとめ、報告は短く求める。
+
+## 停止の規則
+**必ず止まって悠さんに報告するもの：**
+- `approved.md` が無い、または先頭に `承認:` が無い（「`/design-issue <N>` が先」と報告する）
+- 設計が曖昧・矛盾している、設計に無い変更が必要になった
+- 禁止ファイルの変更、公開してはいけないものの混入
+- 作成者が noreply 形式でない
+- 次の「A」の修正後も逸脱が残る、または「B」の上限を超えた
+
+**A：本体の逸脱**（`check.md` の「本体: 逸脱あり」）— coder に直させるのは**1回まで**。再照合しても残れば止まる。
+
+**B：テストの不備**（`check.md` の「テスト: 不備あり」、またはCIでシナリオが落ちた場合）— **止まらずに直してよい。上限は3回**（CIで落ちた分を含めて通算）。歯止めとして、直すたびに次を確認する。
+1. 直す対象が `.claude/verify/` のシナリオに限られている（`git --no-pager diff --stat` で確認）。本体のファイルに変更が及んだら、Bではなく A として扱い、止まる。
+2. 直した差分（`git --no-pager diff <シナリオ>`）に、`check()` の削除、期待値の緩和、スキップが無い。あれば止まる。
+Bの修正後に、静的な再照合は回さない。確かめるのはCIの結果で行う（往復を減らすため）。
+
+**CIが落ちたときの分け方：** ログを読み、①ビルド忘れ（style.css）→ coder に `npm run build:css` を回させる、②シナリオの不備 → B、③本体の不具合 → A、のどれかに分ける。分けられなければ止まる。
 
 ## 手順
 
 ### 0. 事前確認
 1. `git --no-pager status`：作業ツリーに未コミットの変更がある場合は、内容を報告する。`review/` 以下と `docs/*-review.md` の未追跡は想定内。それ以外があれば止まる。
 2. `git --no-pager fetch` のうえ、`main` が最新であることを確認する。
-3. `review/design/<N>/approved.md` が存在し、先頭に `承認:` の行があること。無ければ止まって「`/design-issue <N>` が先」と報告する。
+3. `review/design/<N>/approved.md` の存在と、先頭の `承認:` を確認する。
 4. `gh issue view <N> --json number,title,body,labels` で本文を取得し、依存先がすべてクローズ済みであることを確認する。
 5. `git --no-pager log -5 --oneline` でコミットメッセージの書き方を確認する。
+6. `.github/workflows/e2e-pr.yml` を読み、PR本文の `E2E:` 行の書式（区切り・シナリオ名の形）を確認する。
 
 ### 1. ブランチ
 `git switch -c feature/issue-<N>-<短い英語のslug>`（`main` から）。
 
 ### 2. 実装
-`impl-coder` を呼び、`approved.md` と `issue.md` に従って変更させる。検証3種（`check:static`・`test:unit`・`validate:lessons`）の結果の報告を受ける。通らない場合、coder に直させるのは1回まで。それでも通らなければ止まる。
+`impl-coder` を1回呼び、`approved.md` と `issue.md` に従って変更させる。報告（変更ファイル、検証結果）を受ける。
 
 ### 3. 照合
-`impl-checker` を呼ぶ。`review/design/<N>/check.md` の先頭が「逸脱あり」なら、coder に1回だけ直させ、再度照合する。それでも逸脱が残れば止まって報告する。
+`impl-checker` を呼ぶ。`review/design/<N>/check.md` の先頭行で、停止の規則の A・B に分ける。
+- A があれば、coder に1回だけ直させ、再度照合する。
+- Bだけなら、先に進んでよい（CIで確かめる）。ただし「テスト: 不備あり」の指摘は、先に coder に直させる。
 
-### 4. コミットの準備
-1. `git --no-pager status -uall` で、変更が設計どおりのファイルだけであること、`.claude/`・`review/`・画像・観察メモが含まれないことを確認する。
-2. 変更ファイルを、1つずつパスを指定して `git add` する。
+### 4. push の前の検証
+変更の範囲に合わせて、coder の報告に次が含まれていることを確認する。含まれていなければ、coder に実行させる。
+- `js/`・HTML・`tailwind.src.css` を変えた：`check:static`・`test:unit`・`validate:lessons` の3つ（push の前に、最後の状態で1回）
+- シナリオ・docs だけ：`check:static` のみ
+Tailwind のクラスを足したのに、`style.css` が `git --no-pager diff --stat` に無ければ、coder に `npm run build:css` を回させる。
+
+### 5. コミットの準備
+1. `git --no-pager status -uall` で、変更が設計どおりのファイルだけであること、`.claude/`（設計に無いもの）・`review/`・画像・観察メモが含まれないことを確認する。
+2. 変更ファイルを、1つずつパスを指定して `git add` する（`style.css` を含む場合も、パス指定で）。
 3. コミットする。メッセージは手順0-5で確認した書き方に合わせ、Issue番号を入れる。
-4. `git log -1 --format="%an <%ae>"` を実行する。**noreply 形式（`...@users.noreply.github.com`）でなければ push せず、止まって報告する**。
+4. `git log -1 --format="%an <%ae>"` を実行する。noreply 形式（`...@users.noreply.github.com`）でなければ push せず、止まって報告する。
 
-### 5. push と PR
+### 6. push と PR（新シナリオをCIで走らせる）
 1. `git push -u origin <ブランチ>`。
 2. `gh pr create` で PR を作る。本文は次のとおり。
    - `Closes #<N>`
+   - **`E2E: <新シナリオ> <影響するシナリオ…>`** の行（書式は手順0-6で確認したとおり）。シナリオを足した・変えた Issue では**必須**。書かないと、PRのE2Eはスモークだけで緑になり、新シナリオが検証されない。影響するシナリオは、`approved.md` の「E2E への影響」から取る。
    - 変更の要点
-   - 検証結果（check:static・test:unit・validate:lessons、照合の結果）
+   - 検証結果（実行したもの、省いたものの理由、照合の結果）
    - 悠さんが確認すること（`summary.md` の「実機で確認すること」。操作感・音・子どもの反応）
    - 設計議論の要約（決定事項のみ。原文・観察メモ・保護者の記述は含めない）
-3. `gh pr checks <PR番号>` でCIを確認する。実行中なら、完了まで数回確認する。
+3. `gh pr checks <PR番号> --watch` で、完了まで1回の呼び出しで待つ。待ち時間の上限で切れたら、もう1回だけ同じコマンドを実行する。確認のために何度も呼ばない。
+4. CI が落ちたら、停止の規則の「CIが落ちたときの分け方」に従う。
 
-### 6. 報告して停止
-PR のURL、CIの結果、悠さんが読むべき差分（`.claude/` 配下があれば必ず）、実機で確認すること、設計と違った点を報告して、停止する。
+### 7. 報告して停止
+次を報告して、停止する。
+- PR のURLと、CIの結果（E2E で新シナリオが実際に走ったか）
+- 悠さんが読むべき差分（`.claude/` 配下があれば必ず）
+- 実機で確認すること
+- 設計と違った点
+- **実測用の記録：** coder の呼び出し回数、A・B の修正回数、CIの実行回数、停止した回数とその理由（悠さんが `/usage` と合わせて、1 Issue あたりの費用を比べる材料にする）
