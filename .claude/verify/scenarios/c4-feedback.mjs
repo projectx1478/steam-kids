@@ -209,6 +209,16 @@ export default async function run({ page, check }) {
   );
   await check('単元スタンプがlessonIds数(3)だけ表示される', async () => (await page.$$('.unit-progress [data-stamp]')).length, 3);
   await check('つぎの レッスンへボタンが出る', async () => (await page.$$('[data-action="next-lesson"]')).length, 1);
+  const boxSize = async (sel) => {
+    const b = await (await page.$(sel)).boundingBox();
+    return [Math.round(b.width), Math.round(b.height)];
+  };
+  await check('「つぎへ」と「おわる」が同じ大きさで並ぶ（Issue #263）', async () => (await boxSize('[data-action="next-lesson"]')), await boxSize('[data-action="finish"]'));
+  await check('「つぎへ」の横に「おわる」がある', async () => {
+    const a = await (await page.$('[data-action="next-lesson"]')).boundingBox();
+    const b = await (await page.$('[data-action="finish"]')).boundingBox();
+    return Math.abs(a.y - b.y) < 1 && b.x > a.x;
+  });
   await check('summaryは20字以内', () => noLongLine(page));
   await assertNoNegativeWords(page, check, 'summary');
 
@@ -245,7 +255,11 @@ export default async function run({ page, check }) {
   );
   await check('最終レッスンでは「つぎの レッスンへ」が出ない', async () => (await page.$$('[data-action="next-lesson"]')).length, 0);
   await check('最終レッスンでも「ほかのレッスンへ」は出る', async () => (await page.$$('[data-action="back-to-picker"]')).length, 1);
+  await check('最終レッスンでも「おわる」は出る', async () => (await page.$$('[data-action="finish"]')).length, 1);
   await check('「しま クリア！」という表現は出ない', async () => !(await page.textContent('#stage')).includes('しま クリア'));
+  await page.click('[data-action="finish"]');
+  await page.waitForSelector('#stage[data-screen="title"]');
+  await check('「おわる」でタイトル画面へ戻る', async () => page.getAttribute('#stage', 'data-screen'), 'title');
 
   // --- 単元ぜんぶクリア：cmd-02・cmd-03も片付けて「めいれいでうごかす」を全クリアする
   // （tutorial(group/fix)はとばす。Issue #98） ---
