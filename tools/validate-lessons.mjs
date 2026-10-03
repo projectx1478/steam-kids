@@ -456,6 +456,28 @@ function validateLesson(fileName, data) {
         add('スイッチの必須性', `${label}スイッチを踏まずにmaxCommands=${play.maxCommands}以内でゴールできる（最短${noSwitchDist}）`);
       }
     }
+    // スイッチ→鍵の順序：スイッチが無効（対象は壁のまま）でも鍵に届くなら、順序が強制されていない。
+    // かぎが1つの盤だけを対象にする（複数のとき、どのかぎを順序に使うかは未定義のため対象外）。
+    if (
+      dist !== null &&
+      Array.isArray(play.switches) &&
+      play.switches.length > 0 &&
+      Array.isArray(play.keys) &&
+      play.keys.length === 1
+    ) {
+      const targets = play.switches.flatMap((s) => (Array.isArray(s.targets) ? s.targets : []));
+      const toKey = boardSpec({
+        ...play,
+        walls: [...(play.walls || []), ...targets],
+        switches: [],
+        items: [],
+        goal: { x: play.keys[0].x, y: play.keys[0].y },
+      });
+      const toKeyDist = play.groupRepeats ? shortestChips(toKey) : shortestSteps(toKey);
+      if (toKeyDist <= play.maxCommands) {
+        add('スイッチ→かぎの順序', `${label}スイッチを踏まずにmaxCommands=${play.maxCommands}以内でかぎに届く（最短${toKeyDist}）`);
+      }
+    }
     stageDistances.push(dist);
 
     if (
