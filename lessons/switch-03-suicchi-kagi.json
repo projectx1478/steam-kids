@@ -1,0 +1,69 @@
+{
+  "lessonId": "switch-03-suicchi-kagi",
+  "unitId": "switches",
+  "title": "スイッチと かぎ",
+  "type": "grid-runtime",
+  "estimatedMinutes": 5,
+  "steps": [
+    {
+      "stepId": "s1",
+      "kind": "intro",
+      "text": "スイッチと かぎで ドアを あけよう",
+      "demo": {
+        "grid": { "cols": 3, "rows": 4 },
+        "start": { "x": 0, "y": 0 },
+        "goal": { "x": 2, "y": 3 },
+        "walls": [{ "x": 1, "y": 0 }, { "x": 1, "y": 1 }, { "x": 1, "y": 2 }],
+        "switches": [{ "x": 0, "y": 1, "targets": [{ "x": 0, "y": 2 }] }],
+        "keys": [{ "x": 0, "y": 3, "color": "red" }],
+        "doors": [{ "x": 1, "y": 3, "color": "red" }],
+        "commands": ["down", "down", "down", "right", "right"]
+      }
+    },
+    {
+      "stepId": "t1",
+      "kind": "tutorial",
+      "text": "スイッチと かぎを つかおう",
+      "grid": { "cols": 4, "rows": 3 },
+      "start": { "x": 0, "y": 0 },
+      "goal": { "x": 3, "y": 2 },
+      "walls": [{ "x": 0, "y": 1 }, { "x": 1, "y": 1 }, { "x": 2, "y": 1 }],
+      "switches": [{ "x": 1, "y": 0, "targets": [{ "x": 2, "y": 0 }] }],
+      "keys": [{ "x": 3, "y": 0, "color": "red" }],
+      "doors": [{ "x": 3, "y": 1, "color": "red" }],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "script": [{ "tap": "right" }, { "tap": "right" }, { "tap": "right" }, { "tap": "down" }, { "tap": "down" }, { "tap": "run" }]
+    },
+    {
+      "stepId": "p1",
+      "kind": "play",
+      "text": "スイッチと かぎと ドアは？",
+      "grid": { "cols": 6, "rows": 2 },
+      "start": { "x": 0, "y": 0 },
+      "goal": { "x": 5, "y": 0 },
+      "walls": [{ "x": 2, "y": 1 }, { "x": 4, "y": 1 }],
+      "switches": [{ "x": 1, "y": 0, "targets": [{ "x": 2, "y": 0 }] }],
+      "keys": [{ "x": 3, "y": 0, "color": "red" }],
+      "doors": [{ "x": 4, "y": 0, "color": "red" }],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["right", "right", "right", "right", "right"],
+      "maxCommands": 7
+    },
+    {
+      "stepId": "p2",
+      "kind": "play",
+      "text": "かべは どうなる？ ドアは あく？",
+      "grid": { "cols": 5, "rows": 3 },
+      "start": { "x": 0, "y": 0 },
+      "goal": { "x": 4, "y": 0 },
+      "walls": [{ "x": 3, "y": 0 }, { "x": 1, "y": 1 }, { "x": 2, "y": 1 }, { "x": 3, "y": 1 }],
+      "switches": [{ "x": 0, "y": 2, "targets": [{ "x": 2, "y": 2 }] }],
+      "keys": [{ "x": 4, "y": 2, "color": "red" }],
+      "doors": [{ "x": 4, "y": 1, "color": "red" }],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["down", "down", "right", "right", "right", "right", "up", "up"],
+      "maxCommands": 10
+    },
+    { "stepId": "s2", "kind": "summary", "text": "じゅんばんを かんがえよう" }
+  ]
+}
