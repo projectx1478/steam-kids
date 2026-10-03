@@ -41,15 +41,15 @@
       "kind": "play",
       "text": "かべは どうなる？ スイッチは いくつ？",
       "grid": { "cols": 5, "rows": 3 },
-      "start": { "x": 0, "y": 1 },
-      "goal": { "x": 4, "y": 1 },
-      "walls": [{ "x": 2, "y": 0 }, { "x": 2, "y": 2 }, { "x": 3, "y": 0 }, { "x": 3, "y": 2 }],
+      "start": { "x": 1, "y": 1 },
+      "goal": { "x": 4, "y": 0 },
+      "walls": [{ "x": 2, "y": 0 }, { "x": 2, "y": 2 }, { "x": 3, "y": 0 }],
       "switches": [
         { "x": 1, "y": 0, "targets": [{ "x": 2, "y": 1 }] },
-        { "x": 1, "y": 2, "targets": [{ "x": 3, "y": 1 }] }
+        { "x": 3, "y": 2, "targets": [{ "x": 4, "y": 1 }] }
       ],
       "allowedCommands": ["up", "down", "left", "right"],
-      "solution": ["right", "up", "down", "down", "up", "right", "right", "right"],
+      "solution": ["up", "down", "right", "right", "down", "up", "right", "up"],
       "maxCommands": 10
     },
     {
@@ -57,15 +57,15 @@
       "kind": "play",
       "text": "かべは どうなる？ じゅんばんは？",
       "grid": { "cols": 4, "rows": 4 },
-      "start": { "x": 0, "y": 3 },
-      "goal": { "x": 0, "y": 0 },
-      "walls": [{ "x": 0, "y": 2 }, { "x": 1, "y": 2 }, { "x": 2, "y": 2 }, { "x": 0, "y": 1 }, { "x": 2, "y": 0 }, { "x": 3, "y": 0 }],
+      "start": { "x": 0, "y": 0 },
+      "goal": { "x": 0, "y": 3 },
+      "walls": [{ "x": 3, "y": 0 }, { "x": 0, "y": 1 }, { "x": 1, "y": 1 }, { "x": 0, "y": 2 }],
       "switches": [
-        { "x": 2, "y": 3, "targets": [{ "x": 3, "y": 2 }] },
-        { "x": 1, "y": 1, "targets": [{ "x": 1, "y": 0 }] }
+        { "x": 2, "y": 0, "targets": [{ "x": 2, "y": 1 }] },
+        { "x": 3, "y": 2, "targets": [{ "x": 1, "y": 3 }] }
       ],
       "allowedCommands": ["up", "down", "left", "right"],
-      "solution": ["right", "right", "right", "up", "up", "left", "left", "up", "left"],
+      "solution": ["right", "right", "down", "down", "right", "left", "down", "left", "left"],
       "maxCommands": 10
     },
     { "stepId": "s2", "kind": "summary", "text": "スイッチを ぜんぶ ふもう" }
