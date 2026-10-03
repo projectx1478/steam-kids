@@ -286,4 +286,34 @@ export async function renderUnitMap(stage, units, onPick) {
   for (const unit of units) {
     stage.appendChild(await createUnitIsland(unit, lessonStatus, ctx, guardedPick));
   }
+
+  // タイトルへ戻るボタン（Issue #257）。dev=1 時は出さない。
+  const bottomContainer = document.createElement('div');
+  bottomContainer.className = 'flex flex-col items-center gap-3 mt-6 pb-4';
+  stage.appendChild(bottomContainer);
+
+  if (IS_DEV) {
+    // dev=1 時は「ふつうの がめんへ」リンクを置く（dashboard.html:72 の体裁と対に）
+    const devLink = document.createElement('a');
+    devLink.href = './index.html?view=map';
+    devLink.className = 'min-h-[48px] px-4 flex items-center rounded-lg bg-white shadow text-sm text-slate-500';
+    devLink.textContent = 'ふつうの がめんへ';
+    bottomContainer.appendChild(devLink);
+  } else {
+    // 通常時は「タイトルへ」ボタンを置く
+    const titleBtn = document.createElement('button');
+    titleBtn.type = 'button';
+    titleBtn.className = 'min-h-[64px] px-8 py-3 rounded-lg bg-white text-slate-500 shadow text-base font-bold transition-transform duration-100 active:scale-95 disabled:opacity-40';
+    titleBtn.textContent = 'タイトルへ';
+    titleBtn.addEventListener('click', () => {
+      if (titleBtn.disabled) return;
+      titleBtn.disabled = true;
+      // 島・レッスンボタンと同様に全ボタンを disable する
+      stage.querySelectorAll('[data-lesson-id]').forEach((btn) => {
+        btn.disabled = true;
+      });
+      location.href = './index.html';
+    });
+    bottomContainer.appendChild(titleBtn);
+  }
 }
