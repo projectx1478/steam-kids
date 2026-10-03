@@ -42,7 +42,7 @@ export default async function run({ page, check }) {
   await check('つづきからでスロット選択へ遷移', async () => page.getAttribute('#stage', 'data-screen'), 'slots');
   await page.click('[data-action="slot-pick"][data-slot="0"]');
   await check('スロット選択後は選択画面へ遷移', async () => page.getAttribute('#stage', 'data-screen'), 'picker');
-  await check('スロット0の名前「たろう」が保存されている', async () => page.textContent('#app'), /たろう/);
+  await check('スロット0の名前「たろう」が保存されている', async () => page.evaluate(() => JSON.parse(localStorage.getItem('steamkids.profile')).label), 'たろう');
   await check('保存データ(cmd-01クリア)が消えていない', async () => (await page.$$('[data-lesson-id="cmd-01-susumu"]')).length > 0);
 
   // --- 「タイトルへ」経由でゲートが再要求されない ---
