@@ -46,3 +46,19 @@ test('engine-grid: 同じ対象を共有する2スイッチはAND(片方では�
   const both = simulate(['right', 'up', 'down', 'down', 'up', 'right', 'right', 'right'], and);
   assert.deepEqual([both.blockedAt, both.reachedGoal], [[], true], '両方踏めば通れる');
   assert.equal(shortestSteps(and), 8, '両方を踏む最短は8手');});
+
+test('engine-grid: 氷上スイッチは滑走中の通過で作動し、対象が氷上でも壁扱いは変わらない(Issue #249)', () => {
+  const onIce = {
+    grid: { cols: 5, rows: 3 },
+    start: { x: 0, y: 0 },
+    goal: { x: 4, y: 2 },
+    walls: [{ x: 0, y: 1 }, { x: 1, y: 1 }, { x: 2, y: 1 }, { x: 4, y: 1 }],
+    ice: [{ x: 1, y: 0 }, { x: 2, y: 0 }],
+    switches: [{ x: 2, y: 0, targets: [{ x: 3, y: 2 }] }],
+  };
+  const r = simulate(['right', 'down', 'down', 'right'], onIce);
+  assert.deepEqual([r.blockedAt, r.reachedGoal], [[], true], '氷上を滑って通過するだけでスイッチが作動する');
+  assert.deepEqual(last(simulate(['right'], onIce)), { x: 3, y: 0 }, '氷の先の通常マスで止まる');
+  const noSwitch = simulate(['right', 'down', 'down', 'right'], { ...onIce, switches: [] , walls: [...onIce.walls, { x: 3, y: 2 }] });
+  assert.equal(noSwitch.reachedGoal, false, 'スイッチが無ければ対象は壁のまま');
+});

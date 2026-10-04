@@ -63,7 +63,7 @@
 - 移動規則：スイッチのマスへ入ると、その`targets`が通れる（1回で固定・戻らない）。踏む前の対象は`blocks`で壁と同じ失敗（歩き・こおりの滑走とも`blockedAt`）。BFSは踏んだスイッチ番号を状態に含む
 - AND：同じ座標を複数のスイッチが`targets`に持つと、全部踏むまで開かない（ORは非対応）
 - 描画：スイッチ・対象のセルにSVGを重ね`data-switch`（番号）/`data-switch-pressed`、対象は`data-switch-wall="on"`（踏むと`"off"`。約0.5秒で縮小＋暗くなって沈み、フラットな床表示になる。reduced-motion時は即時）。踏むと`pickup`音
-- 数値条件：盤面は6×6以内。`targets`は空不可。スイッチ・対象は壁・start・goal・items・ice・cushion・keys・doors・互いと重なり不可（対象同士の共有のみ可）。対象を壁のまま（スイッチ無し）にして`maxCommands`以内に届くと検証NG（スイッチの必須性）
+- 数値条件：盤面は6×6以内。`targets`は空不可。スイッチ・対象は壁・start・goal・items・cushion・keys・doors・互いと重なり不可（対象同士の共有のみ可）。iceはスイッチのみ重なり可（氷上スイッチは滑走中の通過で作動。対象は氷上不可）。対象を壁のまま（スイッチ無し）にして`maxCommands`以内に届くと検証NG（スイッチの必須性）
 
 ## 追加手順・検証規則
 
