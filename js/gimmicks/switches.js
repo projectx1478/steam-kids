@@ -100,11 +100,11 @@ export const switches = {
       ['start', board.start ? [board.start] : []],
       ['goal', board.goal ? [board.goal] : []],
       ['items', board.items],
-      ['ice', board.ice],
+      ['ice', board.ice, true],
       ['cushion', board.cushion],
       ['keys', board.keys],
       ['doors', board.doors],
-    ].map(([name, pts]) => [name, new Set(list(pts).map(keyOf))]);
+    ].map(([name, pts, switchOk]) => [name, new Set(list(pts).map(keyOf)), switchOk === true]);
     const points = [];
     swList.forEach((s, i) => {
       if (s.mode !== undefined && s.mode !== 'open') add('盤面の妥当性', `${label}switches[${i}] のmode=${JSON.stringify(s.mode)} が不正（"open"のみ）`);
@@ -116,10 +116,11 @@ export const switches = {
     const seen = new Map();
     points.forEach(([name, p]) => {
       if (!p || typeof p.x !== 'number' || typeof p.y !== 'number') return;
-      others.forEach(([otherName, set]) => {
-        if (set.has(keyOf(p))) add('盤面の妥当性', `${label}${name} が${otherName}と重なる`);
-      });
       const isTarget = name.includes('.targets[');
+      // スイッチ本体だけは氷の上に置ける（滑走中の通過で作動）。対象（壁）は氷上不可（Issue #249）。
+      others.forEach(([otherName, set, switchOk]) => {
+        if (set.has(keyOf(p)) && !(switchOk && !isTarget)) add('盤面の妥当性', `${label}${name} が${otherName}と重なる`);
+      });
       if (seen.has(keyOf(p)) && !(isTarget && seen.get(keyOf(p)))) add('盤面の妥当性', `${label}${name} が他のスイッチ・対象と座標重複`);
       seen.set(keyOf(p), isTarget && (seen.get(keyOf(p)) ?? true));
     });

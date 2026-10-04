@@ -26,7 +26,7 @@
       "unitId": "switches",
       "title": "スイッチと かべ",
       "lessonIds": ["switch-01-suicchi", "switch-02-futatsu"],
-      "devOnlyIds": ["switch-03-suicchi-kagi", "switch-04-ryouhou"]
+      "devOnlyIds": ["switch-03-suicchi-kagi", "switch-04-ryouhou", "switch-05-koori"]
     },
     {
       "unitId": "teko",
