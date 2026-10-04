@@ -448,7 +448,16 @@ function validateLesson(fileName, data) {
       }
     }
     // 切替壁を静的な壁のまま（スイッチ無し）にしても届くなら、スイッチが飾り。
-    if (dist !== null && Array.isArray(play.switches) && play.switches.length > 0) {
+    const closeSwitches = Array.isArray(play.switches) && play.switches.length > 0 && play.switches.every((s) => s?.mode === 'close');
+    // closeは罠：スイッチを無効化（踏んでも壁が出ない=スイッチ無し）した盤の最短より、実際の最短が長くなければ罠が無意味
+    // （最短経路がスイッチを通らない、または出た壁が経路に効かない）。出現後の到達不能は上のゴール到達可能性で検出する。
+    if (dist !== null && closeSwitches) {
+      const disabled = boardSpec({ ...play, switches: [] });
+      const disabledDist = play.groupRepeats ? shortestChips(disabled) : shortestSteps(disabled);
+      if (!(dist > disabledDist)) {
+        add('スイッチの罠の意味', `${label}スイッチ無効化盤の最短(${disabledDist})より最短(${dist})が長くない（出る壁が経路に効かない）`);
+      }
+    } else if (dist !== null && Array.isArray(play.switches) && play.switches.length > 0) {
       const targets = play.switches.flatMap((s) => (Array.isArray(s.targets) ? s.targets : []));
       const noSwitch = boardSpec({ ...play, walls: [...(play.walls || []), ...targets], switches: [] });
       const noSwitchDist = play.groupRepeats ? shortestChips(noSwitch) : shortestSteps(noSwitch);
@@ -460,6 +469,7 @@ function validateLesson(fileName, data) {
     // かぎが1つの盤だけを対象にする（複数のとき、どのかぎを順序に使うかは未定義のため対象外）。
     if (
       dist !== null &&
+      !closeSwitches &&
       Array.isArray(play.switches) &&
       play.switches.length > 0 &&
       Array.isArray(play.keys) &&

@@ -1,6 +1,6 @@
 // switches（スイッチ）ギミック：スイッチのマスへ入ると対応する切替壁が消えて通れる。
 // 同じ対象を複数のスイッチが持つと全部踏むまで開かない（AND）。1回で固定（戻らない）。消える代わりに壁が沈み込んで床に埋まる（Issue #168）。踏む前の切替壁は壁と同じ通行不可（当たると失敗）。Issue #63。
-// 「壁が出る」は別Issue（#149）。スキーマの mode は "open"（既定）のみ許可して予約している。
+// mode:"close"（Issue #149）は逆に、踏むと対象に壁が出る（初期は床。出た壁は通行不可）。closeは単独で使う。
 const keyOf = (p) => `${p.x},${p.y}`;
 const list = (v) => (Array.isArray(v) ? v : []);
 
@@ -35,6 +35,16 @@ function sinkWall(cell) {
   svg.animate([{ transform: 'scale(1)', filter: 'brightness(1)' }, { transform: 'scale(0.85)', filter: 'brightness(0.6)' }], { duration: SINK_MS, easing: 'ease-in', fill: 'forwards' }).finished.then(flat, flat);
 }
 
+// 床の表示を壁の表示へ差し替え、小さい状態から立ち上がらせる。reduced-motion時は即時（Issue #149）。
+function raiseWall(cell) {
+  const old = cell.querySelector('.grid-switch-wall-svg');
+  const svg = fromHtml(wallSvg(true));
+  if (old) old.replaceWith(svg);
+  else cell.insertAdjacentHTML('afterbegin', wallSvg(true));
+  if (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  cell.querySelector('.grid-switch-wall-svg')?.animate?.([{ transform: 'scale(0.85)', filter: 'brightness(0.6)' }, { transform: 'scale(1)', filter: 'brightness(1)' }], { duration: SINK_MS, easing: 'ease-out' });
+}
+
 const fromHtml = (html) => Object.assign(document.createElement('template'), { innerHTML: html }).content.firstElementChild;
 
 export const switches = {
@@ -59,9 +69,10 @@ export const switches = {
     return `switches:${state.pressed.join(',')}`;
   },
 
+  // open：踏む前の対象が壁。close：踏んだ後の対象が壁（Issue #149）。
   blocks(state, pos, spec) {
     return list(spec.switches).some(
-      (s, i) => !state.pressed.includes(i) && list(s.targets).some((t) => t.x === pos.x && t.y === pos.y)
+      (s, i) => state.pressed.includes(i) === (s.mode === 'close') && list(s.targets).some((t) => t.x === pos.x && t.y === pos.y)
     );
   },
 
@@ -78,6 +89,14 @@ export const switches = {
       swCell.querySelector('.grid-switch-svg')?.replaceWith(fromHtml(switchSvg(true)));
     }
     list(sw.targets).forEach((t) => {
+      if (sw.mode === 'close') {
+        // 壁が出る：床の表示から壁の表示へ差し替える（Issue #149）。
+        const cell = els?.wallCells.get(keyOf(t));
+        if (!cell) return;
+        cell.dataset.switchWall = 'on';
+        raiseWall(cell);
+        return;
+      }
       // 同じ対象を持つスイッチ（AND）が未踏なら、まだ開かない（blocksと同じ規則）。
       if (list(spec.switches).some((o, j) => !run.pressed.has(j) && list(o.targets).some((u) => u.x === t.x && u.y === t.y))) return;
       const cell = els?.wallCells.get(keyOf(t));
@@ -107,7 +126,15 @@ export const switches = {
     ].map(([name, pts, switchOk]) => [name, new Set(list(pts).map(keyOf)), switchOk === true]);
     const points = [];
     swList.forEach((s, i) => {
-      if (s.mode !== undefined && s.mode !== 'open') add('盤面の妥当性', `${label}switches[${i}] のmode=${JSON.stringify(s.mode)} が不正（"open"のみ）`);
+      if (s.mode !== undefined && s.mode !== 'open' && s.mode !== 'close') add('盤面の妥当性', `${label}switches[${i}] のmode=${JSON.stringify(s.mode)} が不正（"open"か"close"）`);
+      // closeは初版では単独（openとの併用・複数スイッチによる対象の共有=ANDは不可。Issue #149）。
+      if (s.mode === 'close') {
+        if (swList.some((o) => (o.mode ?? 'open') !== 'close')) add('盤面の妥当性', `${label}switches[${i}] のclose はopenと併用できない`);
+        const mine = list(s.targets);
+        swList.forEach((o, j) => {
+          if (j > i && list(o.targets).some((u) => mine.some((t) => t.x === u.x && t.y === u.y))) add('盤面の妥当性', `${label}switches[${i}] のclose は他のスイッチと対象を共有できない（AND不可）`);
+        });
+      }
       if (!Array.isArray(s.targets) || s.targets.length === 0) add('盤面の妥当性', `${label}switches[${i}] のtargetsが空`);
       points.push([`switches[${i}]`, s]);
       list(s.targets).forEach((t, j) => points.push([`switches[${i}].targets[${j}]`, t]));
@@ -143,8 +170,9 @@ export const switches = {
       list(s.targets).forEach((t) => {
         const wall = cellAt(t);
         if (!wall || wallCells.has(keyOf(t))) return;
-        wall.dataset.switchWall = 'on';
-        wall.insertAdjacentHTML('afterbegin', wallSvg(true));
+        const closing = s.mode === 'close';
+        wall.dataset.switchWall = closing ? 'off' : 'on';
+        wall.insertAdjacentHTML('afterbegin', wallSvg(!closing));
         wallCells.set(keyOf(t), wall);
       });
     });

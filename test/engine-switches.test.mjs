@@ -62,3 +62,21 @@ test('engine-grid: 氷上スイッチは滑走中の通過で作動し、対象�
   const noSwitch = simulate(['right', 'down', 'down', 'right'], { ...onIce, switches: [] , walls: [...onIce.walls, { x: 3, y: 2 }] });
   assert.equal(noSwitch.reachedGoal, false, 'スイッチが無ければ対象は壁のまま');
 });
+
+test('engine-grid: close は踏むまで通れ、踏んだ後の対象が壁になる。openの挙動は変わらない(Issue #149)', () => {
+  const trap = {
+    grid: { cols: 5, rows: 3 },
+    start: { x: 0, y: 1 },
+    goal: { x: 4, y: 1 },
+    walls: [0, 1, 2, 3, 4].map((x) => ({ x, y: 2 })),
+    switches: [{ x: 2, y: 1, mode: 'close', targets: [{ x: 3, y: 1 }] }],
+  };
+  const hit = simulate(['right', 'right', 'right'], trap);
+  assert.deepEqual([hit.blockedAt, last(hit)], [[2], { x: 2, y: 1 }], '踏んだ後に出た壁へ当たると失敗');
+  const around = simulate(['right', 'up', 'right', 'right', 'right', 'down'], trap);
+  assert.deepEqual([around.blockedAt, around.reachedGoal], [[], true], '踏まずに迂回すれば通れる');
+  assert.equal(shortestSteps(trap), 6, '最短は迂回の6手(踏む直進は4手でも到達不能)');
+  assert.equal(shortestSteps({ ...trap, switches: [] }), 4, '無効化盤の最短は直進の4手');
+  const open = { ...trap, switches: [{ x: 2, y: 1, targets: [{ x: 3, y: 1 }] }], walls: [...trap.walls] };
+  assert.equal(simulate(['right', 'right', 'right', 'right'], open).reachedGoal, true, 'open(mode省略)は踏むと通れる');
+});
