@@ -32,3 +32,17 @@ test('engine-grid: switchesの通行可否・滑走中の衝突・BFS・複数�
   assert.deepEqual(dist.slice(0, 2), [6, Infinity], '最短はスイッチ経由(6手)・スイッチに届かなければ到達不能');
   assert.equal(dist[2], 6, 'スイッチ2つを踏む最短は6手');
 });
+
+test('engine-grid: 同じ対象を共有する2スイッチはAND(片方では開かない・両方で開く)(Issue #250)', () => {
+  const and = {
+    grid: { cols: 5, rows: 3 },
+    start: { x: 0, y: 1 },
+    goal: { x: 4, y: 1 },
+    walls: [{ x: 2, y: 0 }, { x: 2, y: 2 }],
+    switches: [{ x: 1, y: 0, targets: [{ x: 2, y: 1 }] }, { x: 1, y: 2, targets: [{ x: 2, y: 1 }] }],
+  };
+  const one = simulate(['right', 'up', 'down', 'right', 'right', 'right'], and);
+  assert.deepEqual([one.blockedAt, one.reachedGoal], [[3, 4, 5], false], '片方だけ踏んでも共有の対象で失敗');
+  const both = simulate(['right', 'up', 'down', 'down', 'up', 'right', 'right', 'right'], and);
+  assert.deepEqual([both.blockedAt, both.reachedGoal], [[], true], '両方踏めば通れる');
+  assert.equal(shortestSteps(and), 8, '両方を踏む最短は8手');});

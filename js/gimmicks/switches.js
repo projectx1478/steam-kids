@@ -1,5 +1,5 @@
 // switches（スイッチ）ギミック：スイッチのマスへ入ると対応する切替壁が消えて通れる。
-// 1回で固定（戻らない）。消える代わりに壁が沈み込んで床に埋まる（Issue #168）。踏む前の切替壁は壁と同じ通行不可（当たると失敗）。Issue #63。
+// 同じ対象を複数のスイッチが持つと全部踏むまで開かない（AND）。1回で固定（戻らない）。消える代わりに壁が沈み込んで床に埋まる（Issue #168）。踏む前の切替壁は壁と同じ通行不可（当たると失敗）。Issue #63。
 // 「壁が出る」は別Issue（#149）。スキーマの mode は "open"（既定）のみ許可して予約している。
 const keyOf = (p) => `${p.x},${p.y}`;
 const list = (v) => (Array.isArray(v) ? v : []);
@@ -78,6 +78,8 @@ export const switches = {
       swCell.querySelector('.grid-switch-svg')?.replaceWith(fromHtml(switchSvg(true)));
     }
     list(sw.targets).forEach((t) => {
+      // 同じ対象を持つスイッチ（AND）が未踏なら、まだ開かない（blocksと同じ規則）。
+      if (list(spec.switches).some((o, j) => !run.pressed.has(j) && list(o.targets).some((u) => u.x === t.x && u.y === t.y))) return;
       const cell = els?.wallCells.get(keyOf(t));
       if (!cell) return;
       cell.dataset.switchWall = 'off';
@@ -110,14 +112,16 @@ export const switches = {
       points.push([`switches[${i}]`, s]);
       list(s.targets).forEach((t, j) => points.push([`switches[${i}].targets[${j}]`, t]));
     });
-    const seen = new Set();
+    // 座標重複は対象同士の共有だけ許可する（同じ対象を複数スイッチで共有＝AND）。
+    const seen = new Map();
     points.forEach(([name, p]) => {
       if (!p || typeof p.x !== 'number' || typeof p.y !== 'number') return;
       others.forEach(([otherName, set]) => {
         if (set.has(keyOf(p))) add('盤面の妥当性', `${label}${name} が${otherName}と重なる`);
       });
-      if (seen.has(keyOf(p))) add('盤面の妥当性', `${label}${name} が他のスイッチ・対象と座標重複`);
-      seen.add(keyOf(p));
+      const isTarget = name.includes('.targets[');
+      if (seen.has(keyOf(p)) && !(isTarget && seen.get(keyOf(p)))) add('盤面の妥当性', `${label}${name} が他のスイッチ・対象と座標重複`);
+      seen.set(keyOf(p), isTarget && (seen.get(keyOf(p)) ?? true));
     });
   },
 
@@ -137,7 +141,7 @@ export const switches = {
       }
       list(s.targets).forEach((t) => {
         const wall = cellAt(t);
-        if (!wall) return;
+        if (!wall || wallCells.has(keyOf(t))) return;
         wall.dataset.switchWall = 'on';
         wall.insertAdjacentHTML('afterbegin', wallSvg(true));
         wallCells.set(keyOf(t), wall);
