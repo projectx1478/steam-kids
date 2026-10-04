@@ -1,0 +1,73 @@
+{
+  "lessonId": "switch-04-ryouhou",
+  "unitId": "switches",
+  "title": "りょうほう ふむ",
+  "type": "grid-runtime",
+  "estimatedMinutes": 5,
+  "steps": [
+    {
+      "stepId": "s1",
+      "kind": "intro",
+      "text": "ふたつ ふむと かべが あく",
+      "demo": {
+        "grid": { "cols": 4, "rows": 2 },
+        "start": { "x": 0, "y": 0 },
+        "goal": { "x": 3, "y": 0 },
+        "walls": [{ "x": 2, "y": 1 }],
+        "switches": [
+          { "x": 0, "y": 1, "targets": [{ "x": 2, "y": 0 }] },
+          { "x": 1, "y": 1, "targets": [{ "x": 2, "y": 0 }] }
+        ],
+        "commands": ["down", "right", "up", "right", "right"]
+      }
+    },
+    {
+      "stepId": "t1",
+      "kind": "tutorial",
+      "text": "りょうほうの スイッチを ふもう",
+      "grid": { "cols": 4, "rows": 3 },
+      "start": { "x": 0, "y": 1 },
+      "goal": { "x": 3, "y": 1 },
+      "walls": [{ "x": 2, "y": 0 }, { "x": 2, "y": 2 }],
+      "switches": [
+        { "x": 0, "y": 0, "targets": [{ "x": 2, "y": 1 }] },
+        { "x": 1, "y": 0, "targets": [{ "x": 2, "y": 1 }] }
+      ],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "script": [{ "tap": "up" }, { "tap": "right" }, { "tap": "down" }, { "tap": "right" }, { "tap": "right" }, { "tap": "run" }]
+    },
+    {
+      "stepId": "p1",
+      "kind": "play",
+      "text": "かべは いつ あく？",
+      "grid": { "cols": 5, "rows": 3 },
+      "start": { "x": 0, "y": 1 },
+      "goal": { "x": 4, "y": 1 },
+      "walls": [{ "x": 2, "y": 0 }, { "x": 2, "y": 2 }],
+      "switches": [
+        { "x": 1, "y": 0, "targets": [{ "x": 2, "y": 1 }] },
+        { "x": 1, "y": 2, "targets": [{ "x": 2, "y": 1 }] }
+      ],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["right", "up", "down", "down", "up", "right", "right", "right"],
+      "maxCommands": 10
+    },
+    {
+      "stepId": "p2",
+      "kind": "play",
+      "text": "どの じゅんで ふむ？",
+      "grid": { "cols": 4, "rows": 4 },
+      "start": { "x": 0, "y": 0 },
+      "goal": { "x": 3, "y": 3 },
+      "walls": [{ "x": 2, "y": 0 }, { "x": 2, "y": 1 }, { "x": 2, "y": 3 }],
+      "switches": [
+        { "x": 1, "y": 0, "targets": [{ "x": 2, "y": 2 }] },
+        { "x": 0, "y": 3, "targets": [{ "x": 2, "y": 2 }] }
+      ],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["right", "down", "down", "down", "left", "up", "right", "right", "right", "down"],
+      "maxCommands": 12
+    },
+    { "stepId": "s2", "kind": "summary", "text": "ぜんぶ ふむと かべが あく" }
+  ]
+}
