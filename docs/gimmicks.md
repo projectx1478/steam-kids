@@ -59,9 +59,10 @@
 
 ## switches（スイッチ）
 
-- JSONフィールド：`switches`（任意・`[{x, y, targets: [{x, y}], mode?}]`・既定`[]`）。`targets`は最初は壁で、スイッチを踏むと通れる（へこんで床に埋まる）。静的`walls`とは別フィールド。`mode`は省略時`"open"`（`"open"`以外は検証NG。「壁が出る」は#149で拡張）。`play`・`tutorial`・`intro.demo`で使える
+- JSONフィールド：`switches`（任意・`[{x, y, targets: [{x, y}], mode?}]`・既定`[]`）。`targets`は最初は壁で、スイッチを踏むと通れる（へこんで床に埋まる）。静的`walls`とは別フィールド。`mode`は省略時`"open"`（`"open"`か`"close"`以外は検証NG）。`"close"`は逆に、踏むと`targets`に壁が出る（初期は床）。`play`・`tutorial`・`intro.demo`で使える
 - 移動規則：スイッチのマスへ入ると、その`targets`が通れる（1回で固定・戻らない）。踏む前の対象は`blocks`で壁と同じ失敗（歩き・こおりの滑走とも`blockedAt`）。BFSは踏んだスイッチ番号を状態に含む
 - AND：同じ座標を複数のスイッチが`targets`に持つと、全部踏むまで開かない（ORは非対応）
+- close（壁が出る）：踏んだ後の`targets`が`blocks`で壁と同じ失敗。単独で使い、openとの併用・対象の共有（AND）は検証NG。対象が氷上は既存規則どおりNG。スイッチを無効化（スイッチ無し）した盤の最短より実際の最短が長くなければ検証NG（スイッチの罠の意味）。出現後にゴールへ届かないのはゴール到達可能性で検出。描画は初期が`data-switch-wall="off"`（床）、踏むと`"on"`（壁が立ち上がる。reduced-motion時は即時）
 - 描画：スイッチ・対象のセルにSVGを重ね`data-switch`（番号）/`data-switch-pressed`、対象は`data-switch-wall="on"`（踏むと`"off"`。約0.5秒で縮小＋暗くなって沈み、フラットな床表示になる。reduced-motion時は即時）。踏むと`pickup`音
 - 数値条件：盤面は6×6以内。`targets`は空不可。スイッチ・対象は壁・start・goal・items・cushion・keys・doors・互いと重なり不可（対象同士の共有のみ可）。iceはスイッチのみ重なり可（氷上スイッチは滑走中の通過で作動。対象は氷上不可）。対象を壁のまま（スイッチ無し）にして`maxCommands`以内に届くと検証NG（スイッチの必須性）
 
