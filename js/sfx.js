@@ -284,13 +284,14 @@ const SOUND = {
     noiseSweep(ctx, now, { duration: 0.2, freqStart: 3000, freqEnd: 600, peak: 0.5 });
   },
   // fanfare: ステージクリアで鳴らす、clearより長い達成音（Issue #104）。
+  // 音階をかけあがり（ド〜シ）、高いドと高いミを重ねてのばす（Issue #268で分散和音から変更）。
   fanfare(ctx, now) {
-    const notes = [523.25, 659.25, 783.99, 1046.5, 1318.5]; // ド・ミ・ソ・ド・ミ(高)
-    notes.forEach((freq, i) =>
-      tone(ctx, now + i * 0.09, { freq, duration: i === notes.length - 1 ? 0.5 : 0.22, type: 'sine' })
-    );
+    const scale = [523.25, 587.33, 659.25, 698.46, 783.99, 880, 987.77]; // ド・レ・ミ・ファ・ソ・ラ・シ
+    scale.forEach((freq, i) => tone(ctx, now + i * 0.07, { freq, duration: 0.14, type: 'sine', peak: 0.89 }));
+    tone(ctx, now + 0.49, { freq: 1046.5, duration: 0.37, type: 'sine', peak: 0.89 }); // ド(高)
+    tone(ctx, now + 0.49, { freq: 1318.5, duration: 0.37, type: 'sine', peak: 0.445 }); // ミ(高)
   },
-  // lessonClear: レッスンクリア専用。fanfare（のぼる分散和音）と聞き分けられるよう、
+  // lessonClear: レッスンクリア専用。fanfare（音階のかけあがり）と聞き分けられるよう、
   // 和音を4回重ねて終わる（ドミソ→ファラド→ソシレ→高いドミソ）。長さ・音量は fanfare に合わせる（Issue #268）。
   lessonClear(ctx, now) {
     const chords = [

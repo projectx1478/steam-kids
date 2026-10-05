@@ -252,7 +252,7 @@ Web Audio APIで合成する効果音のみ（音声ファイル・BGMなし）�
 | `reveal` | 予想の答え合わせ（一致・不一致で同じ音） | 200ms |
 | `clear` | ゴール到達（ド・ミ・ソ・ド。現在は`predict`正解時のみ。Issue #104） | 460ms |
 | `whoosh` | ステップ遷移（`goToStep`） | 200ms |
-| `fanfare` | ステージクリア（`showSuccess`） | 860ms |
+| `fanfare` | ステージクリア（`showSuccess`）。ド〜シの音階をかけあがり、高いド＋ミでのばす（Issue #268で分散和音から変更） | 860ms |
 | `lessonClear` | レッスンクリア（`summary`）。和音4つ（ドミソ→ファラド→ソシレ→高いドミソ）で、`fanfare`と聞き分ける（Issue #268） | 860ms |
 | `grandFanfare` | 単元ぜんぶクリア | 2030ms |
 
