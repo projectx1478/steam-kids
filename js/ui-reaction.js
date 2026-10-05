@@ -14,7 +14,7 @@ const STAGE_CONFETTI_MS = 2000;
 // showSuccess(slotEl, { view, restore }): slotElに.clear-reaction・data-result="clear"をトースト
 // 表示する。view.confetti()/celebrateDance()があれば盤面側の演出も再生する（play・predict双方の
 // viewが持つ）。restoreはトーストが消えた時に呼ばれる（呼び出し側が問い文へ戻す）。
-export function showSuccess(slotEl, { view, restore } = {}) {
+export function showSuccess(slotEl, { view, restore, label = 'やったね！' } = {}) {
   playSfx('fanfare');
   vibrate();
   view?.confetti?.({ count: STAGE_CONFETTI_COUNT, duration: STAGE_CONFETTI_MS });
@@ -29,7 +29,7 @@ export function showSuccess(slotEl, { view, restore } = {}) {
       wrap.innerHTML = `<svg viewBox="0 0 64 64" class="w-12 h-12 shrink-0" aria-hidden="true">
         <polygon points="32,4 39,24 60,24 43,37 49,58 32,46 15,58 21,37 4,24 25,24"
           fill="#fbbf24" stroke="#f59e0b" stroke-width="2" />
-      </svg>やったね！`;
+      </svg>${label}`;
       el.appendChild(wrap);
     },
     restore: (el) => {
@@ -73,6 +73,7 @@ export function showHint(slotEl, { kind, message, restore }) {
 }
 
 // diagnose(result, commands, spec) -> { reason: 'wall', cmdIndex, cell }
+//                                    | { reason: 'paint', over }（塗りが目標と違う。overは目標外を塗ったマス。Issue #286）
 //                                    | { reason: 'items', remainingItems }
 //                                    | { reason: 'goal', cell, goal, distance }
 // playが未達成の原因を1つ選ぶ純粋関数。優先順位は壁・盤外にぶつかった＞item未回収＞未到達。
@@ -82,6 +83,9 @@ export function diagnose(result, commands, spec) {
     if (result.bumped[i]) {
       return { reason: 'wall', cmdIndex: result.stepOwner[i], cell: result.path[i] };
     }
+  }
+  if (result.unmet.includes('paint')) {
+    return { reason: 'paint', over: result.paintOver };
   }
   if (result.remainingItems.length > 0) {
     return { reason: 'items', remainingItems: result.remainingItems };

@@ -25,6 +25,7 @@
 - `blocks?(state, pos, spec)`：（任意）posが通行不可なら真。壁と同様に動けない扱い（ドア・動く壁向け）。ギミックに`soft: true`があると、そのblocksに当たっても失敗（`blockedAt`）にならず手前で止まるだけ（クッション向け）
 - `redirect?(state, pos, dir, spec)`：（任意）posへ入った直後に続けて移動する先`{pos, dir}`かnull。返り先が盤内・非壁・非`blocks`なら1マスとして`path`へ積み（同一`stepOwner`。`simulate`の`slid[i]`が真）、再度問う。連鎖は`cols*rows`回で打ち切り（滑り・ワープ向け）
 - `onStep?({pos, spec, view, run})`：（任意）`createStepper`が1手進むたび（壁衝突を除く）に呼ぶUI更新用フック。`view.gimmickEls[key]`にrenderの戻り値が入る。`run`は実行1回ごとの作業領域。効果音名を返すと鳴らす（かぎ・ドアの開閉向け。Issue #62）
+- `dead?(state)`：（任意）真ならその状態から二度とクリアできない。BFS（shortestSteps/shortestChips/shortestPath）はその遷移を捨てる（枝刈りのみ。最短手数は変わらない。paint向け。Issue #286）
 - `validate(board, add, label)`：`tools/validate-lessons.mjs`のcheckBoardから呼ばれる盤面検証
 - `render(cellCtx)`：`js/ui-grid.js`のrenderGridから呼ばれる描画。`{board, pixelFor, CELL, shapeSvg, …}`を受け取る
 
@@ -65,6 +66,13 @@
 - close（壁が出る）：踏んだ後の`targets`が`blocks`で壁と同じ失敗。単独で使い、openとの併用・対象の共有（AND）は検証NG。対象が氷上は既存規則どおりNG。スイッチを無効化（スイッチ無し）した盤の最短より実際の最短が長くなければ検証NG（スイッチの罠の意味）。出現後にゴールへ届かないのはゴール到達可能性で検出。描画は初期が`data-switch-wall="off"`（床）、踏むと`"on"`（壁が立ち上がる。reduced-motion時は即時）
 - 描画：スイッチ・対象のセルにSVGを重ね`data-switch`（番号）/`data-switch-pressed`、対象は`data-switch-wall="on"`（踏むと`"off"`。約0.5秒で縮小＋暗くなって沈み、フラットな床表示になる。reduced-motion時は即時）。踏むと`pickup`音
 - 数値条件：盤面は6×6以内。`targets`は空不可。スイッチ・対象は壁・start・goal・items・cushion・keys・doors・互いと重なり不可（対象同士の共有のみ可）。iceはスイッチのみ重なり可（氷上スイッチは滑走中の通過で作動。対象は氷上不可）。対象を壁のまま（スイッチ無し）にして`maxCommands`以内に届くと検証NG（スイッチの必須性）
+
+## paint（色ぬり）
+
+- JSONフィールド：`paint`（任意・目標の模様＝塗るマスの`{x, y}`配列）。`play`・`intro.demo`で使える。全回収（items）は「全マスを通る」が目的、こちらは「通ってよいマス・いけないマス」を区別して形を作る
+- 移動規則：通ったマス（startを含む）が塗られる。クリアは「ゴール到達かつ最後の塗り＝目標」（塗り残しも目標外を塗るのも失敗。同じマスの再通過は変化なし）。`simulate`の`unmet`に`'paint'`、`paintOver`に目標外のマスが入る。BFSは塗り集合を状態に含み、目標外を塗った状態は`dead`で捨てる
+- 描画：塗ったマスに黄（amber-300）の全面＋白い丸のSVGを重ね`.grid-paint`（0.3秒でフェードイン。reduced-motion時は即時）。問い文の下に目標を同じ色・図形で小さく見せる「みほん」ミニ盤（`data-paint-sample`）。クリア時は「みほんと おなじ！」。失敗時は目標外のマスに枠を出すだけで、文言のヒントは出さない
+- 数値条件：盤面は6×6以内。paint単独（壁のみ併用可。items・ice・cushion・warp・keys・doors・switches・repeatBox・groupRepeatsは検証NG）。目標は盤内・壁と重ならず重複なし・start/goalを含む。目標を外した（塗り無し）最短より塗りありの最短が長いこと、`maxCommands`＝最短ちょうど
 
 ## 追加手順・検証規則
 
