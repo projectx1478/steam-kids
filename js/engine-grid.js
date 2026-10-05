@@ -195,7 +195,8 @@ export function isRunCleared(result) {
 // ギミックが無ければ従来通りの挙動になる。tools/validate-lessons.mjs（ゴール到達可能性の検証）
 // とjs/ui-summary.js（できたことの「いちばん みじかい めいれい」判定）の双方が使う
 // （Issue #91でvalidate-lessons.mjsから移設。Issue #123でitemMaskAt直書きを一般化）。
-export function shortestSteps(rawSpec) {
+// statsを渡すと、返す時点の訪問済み状態数をstats.visitedに入れる（tools/analyze-board.mjs用。結果は不変）。
+export function shortestSteps(rawSpec, stats) {
   const spec = boardSpec(rawSpec);
   const key = (p, states) => `${p.x},${p.y}|${gimmicksKey(states)}`;
   const move = makeMover(spec);
@@ -204,7 +205,10 @@ export function shortestSteps(rawSpec) {
   const seen = new Set([key(spec.start, startStates)]);
   while (queue.length > 0) {
     const cur = queue.shift();
-    if (cur.pos.x === spec.goal.x && cur.pos.y === spec.goal.y && allCleared(cur.states)) return cur.dist;
+    if (cur.pos.x === spec.goal.x && cur.pos.y === spec.goal.y && allCleared(cur.states)) {
+      if (stats) stats.visited = seen.size;
+      return cur.dist;
+    }
     for (const cmd of COMMANDS) {
       const { steps, bumped } = move(cur.pos, cmd, cur.states);
       if (bumped || steps.length === 0) continue;
@@ -216,6 +220,7 @@ export function shortestSteps(rawSpec) {
       queue.push({ pos: next, states: nextStates, dist: cur.dist + 1 });
     }
   }
+  if (stats) stats.visited = seen.size;
   return Infinity;
 }
 
