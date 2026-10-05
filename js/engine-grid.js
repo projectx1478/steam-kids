@@ -94,7 +94,10 @@ function makeMover(spec) {
       next = redirect.pos;
       curDir = redirect.dir;
     }
-    return { steps, bumped, cushioned };
+    // 手の終わりに1度だけ、tickを持つギミック（周期ドア）の状態を進める（氷の各マスでは進めない。壁衝突・クッションで止まる手も1手）。
+    const after = {};
+    for (const g of GIMMICKS) after[g.key] = g.tick ? g.tick(cur[g.key]) : cur[g.key];
+    return { steps, bumped, cushioned, after };
   };
 }
 
@@ -109,6 +112,7 @@ function makeMover(spec) {
 // stepOwnerはpath[i+1]がcommandsの何番目の要素に属するかを表す（まとめ命令の実行ハイライト用）。
 // innerOwner[i]はpath[i+1]が箱の中の何番目の方向か（箱の外なら-1。箱内ハイライト用）。
 // pickups[i]はpath[i+1]で新たに回収したitemsのインデックス配列（Issue #60。js/gimmicks/items.js）。
+// turnAt[k]は展開後のk番目の手（move1回）の開始時の手番（周期ドア。Issue #310）。
 // slid[i]はpath[i+1]が滑走（redirect）で進んだマスならtrue（効果音の切替用）。
 // remainingItemsは最終位置までに回収されなかったitem座標（reachedGoalとの併用でクリア判定に使う）。
 // unmetはitems以外でクリア条件を満たしていないギミックのkey配列（paint＝塗りが目標と不一致）。
@@ -145,12 +149,14 @@ export function simulate(commands, rawSpec) {
   const pickups = [];
   const slid = [];
   const bumpedList = [];
+  const turnAt = [];
   let pos = { ...start };
   let states = enterAll(initGimmickStates(spec), spec, pos);
 
   commands.forEach((entry, i) => {
     for (const [dir, inner, round] of expandEntry(entry)) {
-      const { steps, bumped, cushioned } = move(pos, dir, states);
+      turnAt.push(states.periodic?.turn ?? 0);
+      const { steps, bumped, cushioned, after } = move(pos, dir, states);
       // 滑走などで複数マス進んだ手は1マスずつpathへ展開する（同一stepOwner）。
       for (const step of steps) {
         pos = step.pos;
@@ -163,6 +169,7 @@ export function simulate(commands, rawSpec) {
         slid.push(step.slid);
         bumpedList.push(false);
       }
+      states = after;
       if (bumped || cushioned) {
         if (bumped) blockedAt.push(i);
         path.push({ ...pos });
@@ -182,7 +189,7 @@ export function simulate(commands, rawSpec) {
   // items以外でクリア条件を満たしていないギミックのkey（items以外は現状paintのみ。remainingItemsは別途返す）。
   const unmet = GIMMICKS.filter((g) => g.key !== 'items' && !g.isCleared(states[g.key])).map((g) => g.key);
   const paintOver = GIMMICKS.find((g) => g.key === 'paint')?.overCells(states.paint) ?? [];
-  return { path, blockedAt, reachedGoal, stepOwner, innerOwner, roundOwner, pickups, slid, bumped: bumpedList, remainingItems, unmet, paintOver };
+  return { path, blockedAt, reachedGoal, stepOwner, innerOwner, roundOwner, pickups, slid, bumped: bumpedList, remainingItems, unmet, paintOver, turnAt };
 }
 
 // simulate()の結果がクリアか（ゴール到達・item全回収・壁衝突なし・他ギミックの条件達成）。
