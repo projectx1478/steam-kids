@@ -1,0 +1,66 @@
+{
+  "lessonId": "paint-01-nuru",
+  "unitId": "donguri",
+  "title": "いろぬり",
+  "type": "grid-runtime",
+  "estimatedMinutes": 5,
+  "steps": [
+    {
+      "stepId": "s1",
+      "kind": "intro",
+      "text": "とおった ところに いろが つくよ",
+      "demo": {
+        "grid": { "cols": 3, "rows": 3 },
+        "start": { "x": 0, "y": 0 },
+        "goal": { "x": 2, "y": 0 },
+        "walls": [],
+        "paint": [{ "x": 0, "y": 0 }, { "x": 1, "y": 0 }, { "x": 2, "y": 0 }],
+        "commands": ["right", "right"]
+      }
+    },
+    {
+      "stepId": "p1",
+      "kind": "play",
+      "text": "みほんと おなじに しよう",
+      "grid": { "cols": 4, "rows": 4 },
+      "start": { "x": 1, "y": 1 },
+      "goal": { "x": 1, "y": 3 },
+      "walls": [],
+      "paint": [{ "x": 0, "y": 1 }, { "x": 1, "y": 1 }, { "x": 2, "y": 1 }, { "x": 1, "y": 2 }, { "x": 1, "y": 3 }],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["left", "right", "right", "left", "down", "down"],
+      "maxCommands": 6
+    },
+    {
+      "stepId": "p2",
+      "kind": "play",
+      "text": "みほんと おなじに しよう",
+      "grid": { "cols": 5, "rows": 5 },
+      "start": { "x": 2, "y": 2 },
+      "goal": { "x": 3, "y": 3 },
+      "walls": [],
+      "paint": [{ "x": 1, "y": 1 }, { "x": 1, "y": 2 }, { "x": 1, "y": 3 }, { "x": 2, "y": 2 }, { "x": 3, "y": 1 }, { "x": 3, "y": 2 }, { "x": 3, "y": 3 }],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["left", "up", "down", "down", "up", "right", "right", "up", "down", "down"],
+      "maxCommands": 10
+    },
+    {
+      "stepId": "p3",
+      "kind": "play",
+      "text": "みほんと おなじに しよう",
+      "grid": { "cols": 6, "rows": 6 },
+      "start": { "x": 1, "y": 1 },
+      "goal": { "x": 3, "y": 3 },
+      "walls": [],
+      "paint": [
+        { "x": 1, "y": 1 }, { "x": 2, "y": 1 }, { "x": 3, "y": 1 }, { "x": 4, "y": 1 },
+        { "x": 1, "y": 2 }, { "x": 4, "y": 2 },
+        { "x": 1, "y": 3 }, { "x": 2, "y": 3 }, { "x": 3, "y": 3 }, { "x": 4, "y": 3 }
+      ],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["right", "right", "right", "down", "down", "left", "left", "left", "up", "down", "right", "right"],
+      "maxCommands": 12
+    },
+    { "stepId": "s2", "kind": "summary", "text": "とおった マスに いろが ついたよ" }
+  ]
+}

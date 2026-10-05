@@ -10,7 +10,8 @@
     {
       "unitId": "donguri",
       "title": "どんぐりひろい",
-      "lessonIds": ["donguri-01-hirou", "donguri-02-mawarimichi"]
+      "lessonIds": ["donguri-01-hirou", "donguri-02-mawarimichi"],
+      "devOnlyIds": ["paint-01-nuru"]
     },
     {
       "unitId": "ice",
