@@ -68,9 +68,9 @@ export function renderSummary(root) {
   lessonTitle.textContent = S.lesson.title;
   burst.appendChild(lessonTitle);
   root.appendChild(burst);
-  // レッスンクリアの演出：画面全体の紙ふぶき＋fanfare（Issue #104）。単元ぜんぶクリアの
+  // レッスンクリアの演出：画面全体の紙ふぶき＋lessonClear（Issue #104・#268）。単元ぜんぶクリアの
   // 演出（メダル・虹色紙ふぶき・grandFanfare）はこの後さらに重ねる。
-  playSfx('fanfare');
+  playSfx('lessonClear');
   screenConfetti(LESSON_CONFETTI);
 
   const playStepIds = S.lesson.steps.filter((s) => s.kind === 'play').map((s) => s.stepId);

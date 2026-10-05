@@ -47,8 +47,8 @@ export default async function run({ page, check }) {
   const before = (await sfxLog(page)).length;
   await page.click('[data-action="next"]');
   await check('summaryへの遷移でもログが増える', async () => (await sfxLog(page)).length > before);
-  // summaryは達成感の演出（星のはじけ）でfanfare音を再生するため、最後に鳴るのはwhooshではなく
-  // fanfareになる（Issue #91・#104）。
+  // summaryは達成感の演出（星のはじけ）でレッスンクリア専用のlessonClear音を再生するため、
+  // 最後に鳴るのはwhooshではなくlessonClearになる（Issue #91・#104・#268）。
   const log = await sfxLog(page);
-  await check('最後に鳴った音はfanfare（summaryのクリア演出）', () => log[log.length - 1], 'fanfare');
+  await check('最後に鳴った音はlessonClear（summaryのクリア演出）', () => log[log.length - 1], 'lessonClear');
 }
