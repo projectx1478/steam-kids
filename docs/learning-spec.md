@@ -154,7 +154,7 @@
   `play`各ステージのノードが64px以上のボタンになり、タップで`goToStep`により直接そのステージへ
   移動できる（Issue #104）
 - `summary`は大きな星（`w-32`）が回転しながら出る演出（reduced-motionは静止）＋「クリア！」＋
-  レッスン名＋画面全体の紙ふぶき120粒・3秒＋`fanfare`音を表示する。このレッスンを開始してからの
+  レッスン名＋画面全体の紙ふぶき120粒・3秒＋`lessonClear`音を表示する。このレッスンを開始してからの
   イベントをもとに、最大3枚の「できたこと」カード（`js/analytics.js`の`lessonAchievements`。
   最初のよそうの正誤・全ステージを1回ずつで／やり直しつつクリアしたか・最終ステージが最短手数と
   一致したかを判定する純粋関数。点数・割合・他人との比較は返さない）を表示し、単元のスタンプ
@@ -252,7 +252,8 @@ Web Audio APIで合成する効果音のみ（音声ファイル・BGMなし）�
 | `reveal` | 予想の答え合わせ（一致・不一致で同じ音） | 200ms |
 | `clear` | ゴール到達（ド・ミ・ソ・ド。現在は`predict`正解時のみ。Issue #104） | 460ms |
 | `whoosh` | ステップ遷移（`goToStep`） | 200ms |
-| `fanfare` | ステージクリア（`showSuccess`）・レッスンクリア（`summary`） | 860ms |
+| `fanfare` | ステージクリア（`showSuccess`） | 860ms |
+| `lessonClear` | レッスンクリア（`summary`）。和音4つ（ドミソ→ファラド→ソシレ→高いドミソ）で、`fanfare`と聞き分ける（Issue #268） | 860ms |
 | `grandFanfare` | 単元ぜんぶクリア | 2030ms |
 
 ミュート状態は`localStorage['steamkids.sound']`。`?sound=off`で未設定時のみ既定ミュート。
