@@ -77,10 +77,12 @@ function makeMover(spec) {
     let cur = states;
     let bumped = false;
     let cushioned = false;
+    let byPeriodic = false;
     for (let n = 0; n <= limit; n += 1) {
       if (!isOpen(next, cur)) {
         cushioned = isSoft(next, cur);
         bumped = !cushioned;
+        byPeriodic = bumped && blockers(next, cur).some((g) => g.key === 'periodic');
         break;
       }
       cur = enterAll(cur, spec, next);
@@ -97,7 +99,7 @@ function makeMover(spec) {
     // 手の終わりに1度だけ、tickを持つギミック（周期ドア）の状態を進める（氷の各マスでは進めない。壁衝突・クッションで止まる手も1手）。
     const after = {};
     for (const g of GIMMICKS) after[g.key] = g.tick ? g.tick(cur[g.key]) : cur[g.key];
-    return { steps, bumped, cushioned, after };
+    return { steps, bumped, cushioned, after, byPeriodic };
   };
 }
 
@@ -113,6 +115,7 @@ function makeMover(spec) {
 // innerOwner[i]はpath[i+1]が箱の中の何番目の方向か（箱の外なら-1。箱内ハイライト用）。
 // pickups[i]はpath[i+1]で新たに回収したitemsのインデックス配列（Issue #60。js/gimmicks/items.js）。
 // turnAt[k]は展開後のk番目の手（move1回）の開始時の手番（周期ドア。Issue #310）。
+// moveOf[i]はpath[i+1]が属する手（turnAtの添字）。periodicBump[i]はpath[i+1]が閉じた周期ドアへの衝突ならtrue。
 // slid[i]はpath[i+1]が滑走（redirect）で進んだマスならtrue（効果音の切替用）。
 // remainingItemsは最終位置までに回収されなかったitem座標（reachedGoalとの併用でクリア判定に使う）。
 // unmetはitems以外でクリア条件を満たしていないギミックのkey配列（paint＝塗りが目標と不一致）。
@@ -150,13 +153,15 @@ export function simulate(commands, rawSpec) {
   const slid = [];
   const bumpedList = [];
   const turnAt = [];
+  const moveOf = [];
+  const periodicBump = [];
   let pos = { ...start };
   let states = enterAll(initGimmickStates(spec), spec, pos);
 
   commands.forEach((entry, i) => {
     for (const [dir, inner, round] of expandEntry(entry)) {
       turnAt.push(states.periodic?.turn ?? 0);
-      const { steps, bumped, cushioned, after } = move(pos, dir, states);
+      const { steps, bumped, cushioned, after, byPeriodic } = move(pos, dir, states);
       // 滑走などで複数マス進んだ手は1マスずつpathへ展開する（同一stepOwner）。
       for (const step of steps) {
         pos = step.pos;
@@ -168,6 +173,8 @@ export function simulate(commands, rawSpec) {
         pickups.push(states.items?.collected ?? []);
         slid.push(step.slid);
         bumpedList.push(false);
+        moveOf.push(turnAt.length - 1);
+        periodicBump.push(false);
       }
       states = after;
       if (bumped || cushioned) {
@@ -180,6 +187,8 @@ export function simulate(commands, rawSpec) {
         pickups.push(states.items?.collected ?? []);
         slid.push(false);
         bumpedList.push(bumped);
+        moveOf.push(turnAt.length - 1);
+        periodicBump.push(byPeriodic);
       }
     }
   });
@@ -189,7 +198,7 @@ export function simulate(commands, rawSpec) {
   // items以外でクリア条件を満たしていないギミックのkey（items以外は現状paintのみ。remainingItemsは別途返す）。
   const unmet = GIMMICKS.filter((g) => g.key !== 'items' && !g.isCleared(states[g.key])).map((g) => g.key);
   const paintOver = GIMMICKS.find((g) => g.key === 'paint')?.overCells(states.paint) ?? [];
-  return { path, blockedAt, reachedGoal, stepOwner, innerOwner, roundOwner, pickups, slid, bumped: bumpedList, remainingItems, unmet, paintOver, turnAt };
+  return { path, blockedAt, reachedGoal, stepOwner, innerOwner, roundOwner, pickups, slid, bumped: bumpedList, remainingItems, unmet, paintOver, turnAt, moveOf, periodicBump };
 }
 
 // simulate()の結果がクリアか（ゴール到達・item全回収・壁衝突なし・他ギミックの条件達成）。
