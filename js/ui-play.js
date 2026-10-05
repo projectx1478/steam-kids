@@ -2,7 +2,7 @@
 // 操作画面に直接入る。説明は「れんしゅう」画面と指ガイドで行う（Issue #97。旧仕様はIssue #93）。
 // 画面上部の問い文スロットは、実行結果（やったね／ヒント）を数秒だけトースト表示する場所も兼ねる。
 import { S } from './state.js';
-import { boardSpec, chipCount } from './engine-grid.js';
+import { boardSpec, chipCount, isRunCleared } from './engine-grid.js';
 import { logEvent } from './events.js';
 import { renderGrid, shapeSvg, computeCellSize, splitMaxCell, prefersReducedMotion } from './ui-grid.js';
 import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, vibrate } from './ui-commands.js';
@@ -24,6 +24,7 @@ import {
   markLessonCleared,
 } from './ui-step.js';
 import { showSuccess, showHint, diagnose } from './ui-reaction.js';
+import { paintMiniBoard } from './gimmicks/paint.js';
 import { clearToast, showToast } from './ui-toast.js';
 
 // diagnose()の原因ごとの文言（20字以内・否定語なし。Issue #91）。
@@ -126,6 +127,7 @@ export function renderPlay(root, step) {
     q.className = 'text-sm font-bold text-slate-700';
     renderInto(q, step.text ?? defaultText, S.readingLevel, S.furigana);
     statusBar.appendChild(q);
+    if (spec.paint) statusBar.appendChild(paintMiniBoard(spec));
     if (spec.items.length > 0) {
       renderAcornTray();
     } else {
@@ -342,6 +344,7 @@ export function renderPlay(root, step) {
       keys: spec.keys,
       doors: spec.doors,
       switches: spec.switches,
+      paint: spec.paint,
       playerPos,
       labels: [],
       cellSize: local.cellSize,
@@ -624,10 +627,10 @@ export function renderPlay(root, step) {
     drawQueue();
     updateControls();
     // 壁にぶつかった手が1つでもあれば、結果としてゴールに着いても正解にしない（Issue #104）。
-    if (result.reachedGoal && result.remainingItems.length === 0 && result.blockedAt.length === 0) {
+    if (isRunCleared(result)) {
       delete S.drafts[step.stepId];
       local.resultShown = true;
-      showSuccess(statusBar, { view: local.view, restore: clearResult });
+      showSuccess(statusBar, { view: local.view, restore: clearResult, ...(spec.paint ? { label: 'みほんと おなじ！' } : {}) });
       if (isFinalStage) {
         logEvent('clear', {});
         markLessonCleared();
@@ -656,6 +659,12 @@ export function renderPlay(root, step) {
         // 壁衝突は横に倒れる演出で気づかせ、1.2秒後に「もういちど」をパルスで強調する（Issue #214）。
         local.view.fallOver();
         retryPulseTimer = setTimeout(pulseRetryButton, RETRY_PULSE_DELAY_MS);
+      } else if (info.reason === 'paint') {
+        // 塗りが目標と違う：画面は事実のみ（目標外を塗ったマスの枠。塗り残しは何も出さない。文言のヒントも出さない。Issue #286）。
+        info.over.forEach((c) => local.view.markCell(c, 'wall'));
+        local.resultShown = true;
+        local.view.shrug();
+        return;
       } else if (info.reason === 'items') {
         local.view.hintItems(info.remainingItems);
       } else {

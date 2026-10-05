@@ -3,7 +3,7 @@
 // 1行キャプション）・区切り画面・スキップを持つ（Issue #93。旧仕様はIssue #81）。
 import { S } from './state.js';
 import { isTutorialDoneStored, markTutorialDoneStored } from './storage.js';
-import { simulate, boardSpec } from './engine-grid.js';
+import { simulate, boardSpec, isRunCleared } from './engine-grid.js';
 import { renderGrid, computeCellSize, splitMaxCell } from './ui-grid.js';
 import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, COMMAND_LABELS, vibrate } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
@@ -492,7 +492,7 @@ export function renderTutorial(root, step) {
         drawQueue();
         markTutorialDone(S.lesson.lessonId);
         const result = simulate(local.commands, spec);
-        if (result.reachedGoal && result.remainingItems.length === 0 && result.blockedAt.length === 0) {
+        if (isRunCleared(result)) {
           showSuccess(resultSlot, { view: local.view, restore: (el) => { el.innerHTML = ''; } });
           setTimeout(() => { if (panel.isConnected) renderDivider(); }, DIVIDER_DELAY_MS);
         } else {
