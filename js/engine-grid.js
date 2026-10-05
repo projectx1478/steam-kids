@@ -217,9 +217,10 @@ export function shortestSteps(rawSpec, stats) {
       return cur.dist;
     }
     for (const cmd of COMMANDS) {
-      const { steps, bumped } = move(cur.pos, cmd, cur.states);
+      const { steps, bumped, after } = move(cur.pos, cmd, cur.states);
       if (bumped || steps.length === 0) continue;
-      const { pos: next, states: nextStates } = steps[steps.length - 1];
+      const { pos: next } = steps[steps.length - 1];
+      const nextStates = after;
       if (isDead(nextStates)) continue;
       const k = key(next, nextStates);
       if (seen.has(k)) continue;
@@ -246,9 +247,10 @@ export function shortestChips(rawSpec) {
     const cur = deque.shift();
     const curDist = dist.get(key(cur.pos, cur.dir, cur.states)).d;
     for (const cmd of COMMANDS) {
-      const { steps, bumped } = move(cur.pos, cmd, cur.states);
+      const { steps, bumped, after } = move(cur.pos, cmd, cur.states);
       if (bumped || steps.length === 0) continue;
-      const { pos: next, states: nextStates } = steps[steps.length - 1];
+      const { pos: next } = steps[steps.length - 1];
+      const nextStates = after;
       if (isDead(nextStates)) continue;
       const cost = cmd === cur.dir ? 0 : 1;
       const nextDist = curDist + cost;
@@ -288,9 +290,10 @@ export function shortestPath(rawSpec) {
     const next = new Map();
     for (const cur of level) {
       for (const cmd of COMMANDS) {
-        const { steps, bumped } = move(cur.pos, cmd, cur.states);
+        const { steps, bumped, after } = move(cur.pos, cmd, cur.states);
         if (bumped || steps.length === 0) continue;
-        const { pos, states } = steps[steps.length - 1];
+        const { pos } = steps[steps.length - 1];
+        const states = after;
         if (isDead(states)) continue;
         const k = key(pos, cmd, states);
         if (seen.has(k)) continue;

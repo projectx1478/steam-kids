@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { periodic } from '../js/gimmicks/periodic.js';
 import { GIMMICKS } from '../js/gimmicks/index.js';
-import { simulate } from '../js/engine-grid.js';
+import { simulate, isRunCleared, shortestSteps, shortestChips, shortestPath } from '../js/engine-grid.js';
 
 const spec = { periodic: [{ x: 1, y: 0, period: 2, open: [0] }, { x: 2, y: 0, period: 3, open: [1, 2] }] };
 const at = (p, s, n) => {
@@ -82,4 +82,50 @@ test('simulate: 氷の滑走中は手の開始時のturnで判定（途中でtur
   const r = simulate(['right'], board({ ice: [{ x: 1, y: 0 }, { x: 2, y: 0 }], periodic: [{ x: 3, y: 0, period: 2, open: [0] }] }));
   assert.deepEqual(r.blockedAt, [], 'turn0のままなので3マス目のドアは開いている');
   assert.deepEqual(r.path[r.path.length - 1], { x: 3, y: 0 });
+});
+
+// 探索（shortestSteps／shortestChips／shortestPath）とsimulateの手番が一致すること（Issue #310 段1-3）。
+// 基準は、simulateで全命令列を総当たりして最初にクリアする手数（最小チップ数）。
+const DIRS = ['up', 'down', 'left', 'right'];
+function bruteForce(spec, maxLen) {
+  const runs = (c) => c.reduce((n, d, i) => n + (i === 0 || d !== c[i - 1] ? 1 : 0), 0);
+  let steps = Infinity;
+  let chips = Infinity;
+  const walk = (cmds) => {
+    if (cmds.length > 0 && isRunCleared(simulate(cmds, spec))) {
+      steps = Math.min(steps, cmds.length);
+      chips = Math.min(chips, runs(cmds));
+    }
+    if (cmds.length >= maxLen) return;
+    for (const d of DIRS) walk([...cmds, d]);
+  };
+  walk([]);
+  return { steps, chips };
+}
+const pboard = (cols, rows, goalX, doors) => ({ grid: { cols, rows }, start: { x: 0, y: 0 }, goal: { x: goalX, y: 0 }, walls: [], periodic: doors });
+const alwaysOpen = (spec) => ({ ...spec, periodic: spec.periodic.map((d) => ({ ...d, open: Array.from({ length: d.period }, (_, i) => i) })) });
+
+for (const [name, spec, expectSteps] of [
+  ['閉じた手番に当たるので寄り道が要る（period2 open[1]）', pboard(4, 2, 3, [{ x: 1, y: 0, period: 2, open: [1] }]), 5],
+  ['寄り道で開く手番に合わせる（period3 open[2]）', pboard(4, 2, 3, [{ x: 1, y: 0, period: 3, open: [2] }]), 5],
+  ['寄り道なしだと失敗する一本道（到達不能）', pboard(3, 1, 2, [{ x: 1, y: 0, period: 2, open: [1] }]), Infinity],
+]) {
+  test(`探索とsimulateの手数が一致: ${name}`, () => {
+    const bf = bruteForce(spec, 5);
+    assert.equal(bf.steps, expectSteps, 'simulateの総当たり');
+    assert.equal(shortestSteps(spec), expectSteps, 'shortestSteps');
+    assert.equal(shortestChips(spec), bf.chips, 'shortestChips');
+    const path = shortestPath(spec);
+    if (expectSteps === Infinity) { assert.equal(path, null); return; }
+    assert.equal(path.length, expectSteps, 'shortestPath');
+    assert.ok(isRunCleared(simulate(path, spec)), 'shortestPathの解をsimulateが通す');
+    const open = alwaysOpen(spec);
+    assert.ok(shortestSteps(open) < expectSteps || expectSteps === Infinity, 'ドアを常に開と見た最短より長い');
+  });
+}
+
+test('探索: ドアを常に開と見ると最短3手、周期ドアでは5手', () => {
+  const spec = pboard(4, 2, 3, [{ x: 1, y: 0, period: 2, open: [1] }]);
+  assert.equal(shortestSteps(alwaysOpen(spec)), 3);
+  assert.equal(shortestSteps(spec), 5);
 });
