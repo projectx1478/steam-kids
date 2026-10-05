@@ -7,6 +7,8 @@
     "build:css": "tailwindcss -i tailwind.src.css -o style.css --minify",
     "check:static": "node tools/check-static.mjs",
     "test:unit": "node --test \"test/**/*.test.mjs\"",
+    "test:unit:core": "node tools/test-unit-core.mjs",
+    "test:unit:generate": "node tools/test-unit-core.mjs --only-generate",
     "validate:lessons": "node tools/validate-lessons.mjs",
     "verify:fast": "node tools/verify-fast.mjs",
     "verify:e2e":"node .claude/verify/run-all.mjs"
