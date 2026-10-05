@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { generateMap } from '../js/engine-generate.js';
 import { isValidCode, codeToSeed } from '../js/seed-code.js';
-import { simulate, shortestSteps, shortestChips, boardSpec, chipCount } from '../js/engine-grid.js';
+import { simulate, shortestSteps, shortestChips, boardSpec, chipCount, isRunCleared } from '../js/engine-grid.js';
 import { balance, solutions, difficulty } from '../js/engine-seesaw.js';
 import { GIMMICKS } from '../js/gimmicks/index.js';
 import { plainSegmentsText, plainReading, parseSegments, rubyGrade, textKanjiMaxGrade, KANJI_RE } from '../js/text-render.js';
@@ -162,8 +162,8 @@ function checkDemo(intro, playSteps, add) {
   if (!vocabOk || !demo.start || !demo.goal || !grid.cols || !grid.rows) return;
 
   const result = simulate(demo.commands, boardSpec(demo));
-  if (!result.reachedGoal || result.remainingItems.length > 0 || result.blockedAt.length > 0) {
-    add('デモの到達可能性', `${label} のcommandsを実行してもゴール到達＋全item回収にならない、または壁にぶつかる`);
+  if (!isRunCleared(result)) {
+    add('デモの到達可能性', `${label} のcommandsを実行してもゴール到達＋全item回収にならない、または壁にぶつかる（paintは目標一致も必要）`);
   }
 
   if (demo.fixFrom) {
@@ -222,8 +222,8 @@ function checkSolution(play, add, label) {
   queue.push(...commands);
   if (!play.start || !play.goal || !play.grid) return;
   const result = simulate(queue, boardSpec(play));
-  if (!result.reachedGoal || result.remainingItems.length > 0 || result.blockedAt.length > 0) {
-    add('solutionのクリア', `${label}solutionを実行してもクリアしない（到達=${result.reachedGoal}、未回収=${result.remainingItems.length}、壁・盤外=${result.blockedAt.length}）`);
+  if (!isRunCleared(result)) {
+    add('solutionのクリア', `${label}solutionを実行してもクリアしない（到達=${result.reachedGoal}、未回収=${result.remainingItems.length}、壁・盤外=${result.blockedAt.length}、未達ギミック=${result.unmet.join('・') || 'なし'}）`);
   }
   // groupRepeatsは同方向の連続が1チップにまとまる（ui-commands.js）ためチップ数で数える。
   // repeatBoxは箱1＋中の命令数（chipCount）で数える（Issue #66）。
@@ -446,6 +446,12 @@ function validateLesson(fileName, data) {
       if (noDoorDist <= play.maxCommands) {
         add('かぎの必須性', `${label}かぎを取らずにmaxCommands=${play.maxCommands}以内でゴールできる（最短${noDoorDist}）`);
       }
+    }
+    // paint：目標が最短経路（塗り無しの最短）より大きいこと（塗りが飾りでない）と、maxCommands＝最短ちょうど。
+    if (dist !== null && Array.isArray(play.paint) && play.paint.length > 0) {
+      const noPaintDist = shortestSteps(boardSpec({ ...play, paint: [] }));
+      if (!(dist > noPaintDist)) add('paintの必須性', `${label}目標の塗りが最短経路より大きくない（塗り無しの最短${noPaintDist}、塗りありの最短${dist}）`);
+      if (dist !== Infinity && play.maxCommands !== dist) add('paintの手数', `${label}maxCommands=${play.maxCommands} が最短${dist}手と一致しない`);
     }
     // 切替壁を静的な壁のまま（スイッチ無し）にしても届くなら、スイッチが飾り。
     const closeSwitches = Array.isArray(play.switches) && play.switches.length > 0 && play.switches.every((s) => s?.mode === 'close');

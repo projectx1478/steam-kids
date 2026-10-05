@@ -35,6 +35,11 @@ function enterAll(states, spec, pos) {
   return next;
 }
 
+// 任意フックdead?(state)：真ならその状態から二度とクリアできない（BFSはその遷移を捨てる。枝刈りのみで最短手数は変わらない）。
+function isDead(states) {
+  return GIMMICKS.some((g) => g.dead?.(states[g.key]));
+}
+
 function allCleared(states) {
   return GIMMICKS.every((g) => g.isCleared(states[g.key]));
 }
@@ -106,6 +111,8 @@ function makeMover(spec) {
 // pickups[i]はpath[i+1]で新たに回収したitemsのインデックス配列（Issue #60。js/gimmicks/items.js）。
 // slid[i]はpath[i+1]が滑走（redirect）で進んだマスならtrue（効果音の切替用）。
 // remainingItemsは最終位置までに回収されなかったitem座標（reachedGoalとの併用でクリア判定に使う）。
+// unmetはitems以外でクリア条件を満たしていないギミックのkey配列（paint＝塗りが目標と不一致）。
+// paintOverは目標外を塗ったマス（{x,y}の配列。paint無しは[]）。クリア判定はisRunCleared。
 // roundOwner[i]はpath[i+1]が箱のくりかえしの何周目か（0始まり。箱の外は-1。周回の点表示用。Issue #167。
 // innerOwnerからの逆算は不可：氷の滑走・クッションで1命令が複数tick（または0+重複1tick）に展開され、
 // 同じ箱内indexが連続するため）。
@@ -172,7 +179,16 @@ export function simulate(commands, rawSpec) {
 
   const reachedGoal = pos.x === goal.x && pos.y === goal.y;
   const remainingItems = [...(states.items?.remaining ?? [])].map((idx) => spec.items[idx]);
-  return { path, blockedAt, reachedGoal, stepOwner, innerOwner, roundOwner, pickups, slid, bumped: bumpedList, remainingItems };
+  // items以外でクリア条件を満たしていないギミックのkey（items以外は現状paintのみ。remainingItemsは別途返す）。
+  const unmet = GIMMICKS.filter((g) => g.key !== 'items' && !g.isCleared(states[g.key])).map((g) => g.key);
+  const paintOver = GIMMICKS.find((g) => g.key === 'paint')?.overCells(states.paint) ?? [];
+  return { path, blockedAt, reachedGoal, stepOwner, innerOwner, roundOwner, pickups, slid, bumped: bumpedList, remainingItems, unmet, paintOver };
+}
+
+// simulate()の結果がクリアか（ゴール到達・item全回収・壁衝突なし・他ギミックの条件達成）。
+// ui-play・ui-tutorial・tools/validate-lessons.mjsが共通で使う。
+export function isRunCleared(result) {
+  return result.reachedGoal && result.remainingItems.length === 0 && result.blockedAt.length === 0 && result.unmet.length === 0;
 }
 
 // BFSでstart→goal（かつ全ギミックisCleared）の最短手数を求める（到達不能ならInfinity）。
@@ -193,6 +209,7 @@ export function shortestSteps(rawSpec) {
       const { steps, bumped } = move(cur.pos, cmd, cur.states);
       if (bumped || steps.length === 0) continue;
       const { pos: next, states: nextStates } = steps[steps.length - 1];
+      if (isDead(nextStates)) continue;
       const k = key(next, nextStates);
       if (seen.has(k)) continue;
       seen.add(k);
@@ -220,6 +237,7 @@ export function shortestChips(rawSpec) {
       const { steps, bumped } = move(cur.pos, cmd, cur.states);
       if (bumped || steps.length === 0) continue;
       const { pos: next, states: nextStates } = steps[steps.length - 1];
+      if (isDead(nextStates)) continue;
       const cost = cmd === cur.dir ? 0 : 1;
       const nextDist = curDist + cost;
       const nk = key(next, cmd, nextStates);
@@ -261,6 +279,7 @@ export function shortestPath(rawSpec) {
         const { steps, bumped } = move(cur.pos, cmd, cur.states);
         if (bumped || steps.length === 0) continue;
         const { pos, states } = steps[steps.length - 1];
+        if (isDead(states)) continue;
         const k = key(pos, cmd, states);
         if (seen.has(k)) continue;
         const turns = cur.turns + (cur.dir !== null && cmd !== cur.dir ? 1 : 0);
