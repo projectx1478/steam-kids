@@ -37,6 +37,61 @@ export const periodic = {
     return { ...state, turn: (state.turn + 1) % state.cycle };
   },
 
-  // 盤面の妥当性検証は段2で追加する。
-  validate() {},
+  // js/engine-generate.jsの解法関与チェック用。このギミックを除いた盤面specを返す。
+  strip(spec) {
+    return { ...spec, periodic: [] };
+  },
+
+  // 盤面の妥当性。形（period 2〜4・openは相異なる整数で空でなく全手番でもない）、他要素との重なり、
+  // paint・repeatBox・groupRepeatsとの併用禁止。必須性（常に開とみなした盤の最短）はtools/validate-lessons.mjsのplay側。
+  validate(board, add, label) {
+    if (board.periodic === undefined) return;
+    if (!Array.isArray(board.periodic) || board.periodic.length === 0) {
+      add('盤面の妥当性', `${label}periodic が空、または配列でない`);
+      return;
+    }
+    const grid = board.grid || {};
+    if (grid.cols > 6 || grid.rows > 6) add('盤面の妥当性', `${label}periodicのある盤面は6×6以内（${grid.cols}×${grid.rows}）`);
+    if (list(board.paint).length > 0) add('盤面の妥当性', `${label}periodic は paint と併用できない`);
+    // 周期をまたぐ箱・同方向まとめは手番とずれるため、周期ドア盤では使わせない（初期は禁止で簡潔に）。
+    if (board.repeatBox === true || board.groupRepeats === true) {
+      add('盤面の妥当性', `${label}periodic は repeatBox・groupRepeats と併用できない（箱の展開が手番の周期をまたぐため。4方向のみ）`);
+    }
+    const keyOf = (p) => `${p.x},${p.y}`;
+    const sets = [
+      ['壁', list(board.walls)],
+      ['start', board.start ? [board.start] : []],
+      ['goal', board.goal ? [board.goal] : []],
+      ['items', list(board.items)],
+      ['ice', list(board.ice)],
+      ['cushion', list(board.cushion)],
+      ['keys', list(board.keys)],
+      ['doors', list(board.doors)],
+      ['switches', list(board.switches)],
+      ['switchesのtargets', list(board.switches).flatMap((s) => list(s?.targets))],
+    ].map(([name, pts]) => [name, new Set(pts.filter((p) => p && typeof p.x === 'number').map(keyOf))]);
+    const seen = new Set();
+    board.periodic.forEach((d, i) => {
+      if (!d || !Number.isInteger(d.x) || !Number.isInteger(d.y)) {
+        add('盤面の妥当性', `${label}periodic[${i}] が{x,y,period,open}でない`);
+        return;
+      }
+      if (d.x < 0 || d.x >= grid.cols || d.y < 0 || d.y >= grid.rows) add('座標範囲', `${label}periodic[${i}]=${JSON.stringify(d)} が盤外`);
+      for (const [name, set] of sets) if (set.has(keyOf(d))) add('盤面の妥当性', `${label}periodic[${i}] が${name}と重なる`);
+      if (seen.has(keyOf(d))) add('盤面の妥当性', `${label}periodic[${i}] が他のperiodicと座標重複`);
+      seen.add(keyOf(d));
+      if (!Number.isInteger(d.period) || d.period < 2 || d.period > 4) {
+        add('盤面の妥当性', `${label}periodic[${i}] のperiod=${JSON.stringify(d.period)} が2〜4の整数でない`);
+        return;
+      }
+      const open = d.open;
+      if (!Array.isArray(open) || open.length === 0) {
+        add('盤面の妥当性', `${label}periodic[${i}] のopenが空、または配列でない`);
+      } else if (open.some((v) => !Number.isInteger(v) || v < 0 || v >= d.period) || new Set(open).size !== open.length) {
+        add('盤面の妥当性', `${label}periodic[${i}] のopen=${JSON.stringify(open)} が0以上period未満の相異なる整数でない`);
+      } else if (open.length === d.period) {
+        add('盤面の妥当性', `${label}periodic[${i}] のopenが全手番を含む（常に開）`);
+      }
+    });
+  },
 };
