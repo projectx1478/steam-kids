@@ -1,7 +1,7 @@
 // periodic（周期ドア）：turnとperiodによるblocksの切替・stateKey・tickの不変更新（Issue #310）。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { periodic, phaseColors, OPEN_COUNT } from '../js/gimmicks/periodic.js';
+import { periodic, phaseColors, OPEN_COUNT, MARK_SHAPE } from '../js/gimmicks/periodic.js';
 import { GIMMICKS } from '../js/gimmicks/index.js';
 import { simulate, isRunCleared, shortestSteps, shortestChips, shortestPath } from '../js/engine-grid.js';
 
@@ -56,6 +56,14 @@ test('phaseColors: 周期2・3・4の色の並び（青＝開、黄・赤＝閉�
     });
     assert.equal(phaseColors(period).filter((c) => c === 'blue').length, OPEN_COUNT[period]);
   }
+});
+
+test('MARK_SHAPE: 色ごとの形（青●・黄▲・赤■）と周期2・3・4の形の並び', () => {
+  assert.deepEqual(MARK_SHAPE, { blue: 'circle', yellow: 'triangle', red: 'square' });
+  const shapes = (p) => phaseColors(p).map((c) => MARK_SHAPE[c]);
+  assert.deepEqual(shapes(2), ['circle', 'square']);
+  assert.deepEqual(shapes(3), ['circle', 'triangle', 'square']);
+  assert.deepEqual(shapes(4), ['circle', 'circle', 'triangle', 'square']);
 });
 
 test('periodic: GIMMICKSに登録されている', () => {

@@ -48,6 +48,7 @@ test('validate-lessons: periodicの形（period 2〜4・openフィールドは�
   assert.ok(ng(validate(door({ open: [1, 2] })), 'open フィールドは廃止'));
   assert.ok(ng(validate(door({ open: [] })), 'open フィールドは廃止'));
   for (const period of [2, 3, 4]) assert.equal(validate(door({ period })).out.includes('2〜4の整数でない'), false, `period${period}は形として通る`);
+  assert.ok(ng(validate((p) => { p.periodic = [{ x: 2, y: 0 }]; }), '2〜4の整数でない'));
   assert.ok(ng(validate((p) => { p.periodic = []; }), 'periodic が空'));
   assert.ok(ng(validate((p) => { p.periodic = {}; }), 'periodic が空、または配列でない'));
 });

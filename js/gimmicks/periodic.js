@@ -20,8 +20,8 @@ export function phaseColors(period) {
 // 色名→表示色（青 #0072B2、黄 #F0E442（濃い縁つき）、赤 #D55E00）と縁の色。
 const COLOR = { blue: '#0072B2', yellow: '#F0E442', red: '#D55E00' };
 const EDGE = { blue: '#004a73', yellow: '#7a6f00', red: '#8f3d00' };
-// 色ごとの形（blueは塗り●固定）。黄・赤の形は未確定の仮置きで輪郭○。形を決めたらここだけ差し替える（'filled' か 'ring'）。
-export const MARK_SHAPE = { blue: 'filled', yellow: 'ring', red: 'ring' };
+// 色ごとの形（青＝塗り●、黄＝塗り▲（濃い縁）、赤＝塗り■）。形の決定はここだけ。
+export const MARK_SHAPE = { blue: 'circle', yellow: 'triangle', red: 'square' };
 
 // 灰茶の板張りドア。構造はjs/gimmicks/keys.jsのdoorSvgと同じ（閉＝壁のように閉じた扉、開＝扉が脇に開いて床が見える）。
 // 色は赤／青（かぎドア）と区別するため灰茶だけにし、かぎの形の印は付けない。
@@ -50,11 +50,15 @@ function dotsSvg(d, turn) {
   const dots = colors.map((color, i) => {
     const current = i === turn % d.period;
     const cx = (64 * (i + 0.5)) / d.period;
-    const filled = MARK_SHAPE[color] === 'filled';
-    const dot = filled
-      ? `<circle cx="${cx}" cy="57" r="4.5" fill="${COLOR[color]}" stroke="${EDGE[color]}" stroke-width="1.5"`
-      : `<circle cx="${cx}" cy="57" r="4" fill="#ffffff" stroke="${color === 'yellow' ? EDGE[color] : COLOR[color]}" stroke-width="2.5"`;
-    return `<circle cx="${cx}" cy="57" r="6.5" fill="#000000" data-dot-halo="${i}" opacity="${current ? 1 : 0}" />${dot} data-dot="${i}" data-dot-color="${color}" data-dot-fill="${filled ? 'filled' : 'outline'}" data-dot-current="${current}" />`;
+    const shape = MARK_SHAPE[color];
+    const paint = `fill="${COLOR[color]}" stroke="${EDGE[color]}" stroke-width="1.5" stroke-linejoin="round"`;
+    // 外接はどれも半径約5以内（円r=4.5＋縁、三角は外接円半径4.5、四角は半辺3.5）。
+    const dot = shape === 'circle'
+      ? `<circle cx="${cx}" cy="57" r="4.5" ${paint}`
+      : shape === 'triangle'
+        ? `<polygon points="${cx},52.5 ${cx + 3.9},59.25 ${cx - 3.9},59.25" ${paint}`
+        : `<rect x="${cx - 3.5}" y="53.5" width="7" height="7" ${paint}`;
+    return `<circle cx="${cx}" cy="57" r="6.5" fill="#000000" data-dot-halo="${i}" opacity="${current ? 1 : 0}" />${dot} data-dot="${i}" data-dot-color="${color}" data-dot-shape="${shape}" data-dot-current="${current}" />`;
   }).join('');
   return `<svg viewBox="0 0 64 64" class="grid-periodic-dots absolute inset-0 w-full h-full pointer-events-none" aria-hidden="true">
       <rect x="4" y="50" width="56" height="14" rx="4" fill="#fafaf9" opacity="0.92" />${dots}
@@ -85,7 +89,8 @@ export const periodic = {
   // state: { turn: 手番（0〜cycle-1）, cycle: 全ドアのperiodの最小公倍数（ドア無しは1）, doors: spec.periodicの写し }
   initState(spec) {
     const doors = list(spec.periodic);
-    return { turn: 0, cycle: doors.reduce((c, d) => lcm(c, d.period), 1), doors };
+    // periodが2・3・4以外（欠落など）のドアはcycleの計算から除く（validateが不合格にする。gcdが再帰し続けないため）。
+    return { turn: 0, cycle: doors.reduce((c, d) => (OPEN_COUNT[d?.period] ? lcm(c, d.period) : c), 1), doors };
   },
 
   enter(state) {
