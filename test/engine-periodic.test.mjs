@@ -1,22 +1,23 @@
-// periodic（周期ドア）：turnとopenによるblocksの切替・stateKey・tickの不変更新（Issue #310）。
+// periodic（周期ドア）：turnとperiodによるblocksの切替・stateKey・tickの不変更新（Issue #310）。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { periodic } from '../js/gimmicks/periodic.js';
+import { periodic, phaseColors, OPEN_COUNT } from '../js/gimmicks/periodic.js';
 import { GIMMICKS } from '../js/gimmicks/index.js';
 import { simulate, isRunCleared, shortestSteps, shortestChips, shortestPath } from '../js/engine-grid.js';
 
-const spec = { periodic: [{ x: 1, y: 0, period: 2, open: [0] }, { x: 2, y: 0, period: 3, open: [1, 2] }] };
+const spec = { periodic: [{ x: 1, y: 0, period: 2 }, { x: 2, y: 0, period: 3 }, { x: 3, y: 0, period: 4 }] };
 const at = (p, s, n) => {
   let st = s;
   for (let i = 0; i < n; i++) st = periodic.tick(st);
   return periodic.blocks(st, p, spec);
 };
 
-test('periodic: initState・blocksがturnとopenで切り替わる', () => {
+test('periodic: initState・blocksがturnとperiodで切り替わる', () => {
   const s = periodic.initState(spec);
   assert.equal(s.turn, 0);
-  assert.deepEqual([at({ x: 1, y: 0 }, s, 0), at({ x: 1, y: 0 }, s, 1), at({ x: 1, y: 0 }, s, 2)], [false, true, false], 'period2 open[0]');
-  assert.deepEqual([0, 1, 2, 3].map((n) => at({ x: 2, y: 0 }, s, n)), [true, false, false, true], 'period3 open[1,2]');
+  assert.deepEqual([at({ x: 1, y: 0 }, s, 0), at({ x: 1, y: 0 }, s, 1), at({ x: 1, y: 0 }, s, 2)], [false, true, false], 'period2＝開1閉1');
+  assert.deepEqual([0, 1, 2, 3].map((n) => at({ x: 2, y: 0 }, s, n)), [false, true, true, false], 'period3＝開1閉2');
+  assert.deepEqual([0, 1, 2, 3, 4].map((n) => at({ x: 3, y: 0 }, s, n)), [false, false, true, true, false], 'period4＝開2閉2');
   assert.equal(at({ x: 0, y: 0 }, s, 1), false, 'ドア以外は通れる');
   assert.equal(periodic.blocks(periodic.initState({}), { x: 1, y: 0 }, {}), false, 'ドア無し盤は何も塞がない');
 });
@@ -27,9 +28,9 @@ test('periodic: stateKeyはドア無しで定数・有りでturnの最小公倍�
   const s = periodic.initState(spec);
   const keys = [];
   let st = s;
-  for (let i = 0; i < 7; i++) { keys.push(periodic.stateKey(st)); st = periodic.tick(st); }
-  assert.equal(new Set(keys).size, 6, 'lcm(2,3)=6で一巡');
-  assert.equal(keys[0], keys[6]);
+  for (let i = 0; i < 13; i++) { keys.push(periodic.stateKey(st)); st = periodic.tick(st); }
+  assert.equal(new Set(keys).size, 12, 'lcm(2,3,4)=12で一巡');
+  assert.equal(keys[0], keys[12]);
 });
 
 test('periodic: tickは不変更新', () => {
@@ -40,12 +41,29 @@ test('periodic: tickは不変更新', () => {
   assert.notEqual(s, t);
 });
 
+test('phaseColors: 周期2・3・4の色の並び（青＝開、黄・赤＝閉）', () => {
+  assert.deepEqual(phaseColors(2), ['blue', 'red']);
+  assert.deepEqual(phaseColors(3), ['blue', 'yellow', 'red']);
+  assert.deepEqual(phaseColors(4), ['blue', 'blue', 'yellow', 'red']);
+  assert.deepEqual(phaseColors(5), [], '範囲外は空');
+  // 青の数＝開の手番数、青以外は閉（blocksと一致）
+  for (const period of [2, 3, 4]) {
+    const st = periodic.initState({ periodic: [{ x: 0, y: 0, period }] });
+    let t = st;
+    phaseColors(period).forEach((c, i) => {
+      assert.equal(periodic.blocks(t, { x: 0, y: 0 }), c !== 'blue', `period${period} 手番${i}`);
+      t = periodic.tick(t);
+    });
+    assert.equal(phaseColors(period).filter((c) => c === 'blue').length, OPEN_COUNT[period]);
+  }
+});
+
 test('periodic: GIMMICKSに登録されている', () => {
   assert.ok(GIMMICKS.includes(periodic));
 });
 
-const board = (extra) => ({ grid: { cols: 6, rows: 2 }, start: { x: 0, y: 0 }, goal: { x: 5, y: 0 }, walls: [], periodic: [{ x: 5, y: 1, period: 8, open: [0] }], ...extra });
-// periodicの既定ドア（盤の隅・period8）はturnを進める基準用（ドア無しだとcycle=1でturnが0固定になる）。
+const board = (extra) => ({ grid: { cols: 6, rows: 2 }, start: { x: 0, y: 0 }, goal: { x: 5, y: 0 }, walls: [], periodic: [{ x: 5, y: 1, period: 4 }], ...extra });
+// periodicの既定ドア（盤の隅・period4）はturnを進める基準用（ドア無しだとcycle=1でturnが0固定になる）。
 
 test('simulate: 氷の滑走全体で1手、次の手のturnAtは1', () => {
   const r = simulate(['right', 'right'], board({ ice: [{ x: 1, y: 0 }, { x: 2, y: 0 }] }));
@@ -55,7 +73,7 @@ test('simulate: 氷の滑走全体で1手、次の手のturnAtは1', () => {
 
 test('simulate: repeatBox展開後に各方向1手', () => {
   const r = simulate([{ box: ['right', 'down'], times: 2 }, 'left'], board());
-  assert.deepEqual(r.turnAt, [0, 1, 2, 3, 4]);
+  assert.deepEqual(r.turnAt, [0, 1, 2, 3, 0], 'period4のcycle=4で丸める');
 });
 
 test('simulate: 壁衝突の手も1手（動けなくてもturnは進む）', () => {
@@ -72,14 +90,14 @@ test('simulate: クッションで止まる手も1手', () => {
 });
 
 test('simulate: 閉じている周期ドアへ入る手は失敗(blockedAt)、開く手番では入れる', () => {
-  const r = simulate(['right', 'right'], board({ periodic: [{ x: 1, y: 0, period: 2, open: [1] }] }));
-  assert.deepEqual(r.blockedAt, [0]);
-  assert.deepEqual(r.turnAt, [0, 1]);
+  const r = simulate(['left', 'right', 'right'], board({ periodic: [{ x: 1, y: 0, period: 2 }] }));
+  assert.deepEqual(r.blockedAt, [0, 1], '手番0の壁衝突と、手番1（閉）のドア衝突');
+  assert.deepEqual(r.turnAt, [0, 1, 0], 'period2のcycle=2で丸める');
   assert.deepEqual(r.path[r.path.length - 1], { x: 1, y: 0 });
 });
 
 test('simulate: 氷の滑走中は手の開始時のturnで判定（途中でturnは進まない）', () => {
-  const r = simulate(['right'], board({ ice: [{ x: 1, y: 0 }, { x: 2, y: 0 }], periodic: [{ x: 3, y: 0, period: 2, open: [0] }] }));
+  const r = simulate(['right'], board({ ice: [{ x: 1, y: 0 }, { x: 2, y: 0 }], periodic: [{ x: 3, y: 0, period: 2 }] }));
   assert.deepEqual(r.blockedAt, [], 'turn0のままなので3マス目のドアは開いている');
   assert.deepEqual(r.path[r.path.length - 1], { x: 3, y: 0 });
 });
@@ -103,15 +121,17 @@ function bruteForce(spec, maxLen) {
   return { steps, chips };
 }
 const pboard = (cols, rows, goalX, doors) => ({ grid: { cols, rows }, start: { x: 0, y: 0 }, goal: { x: goalX, y: 0 }, walls: [], periodic: doors });
-const alwaysOpen = (spec) => ({ ...spec, periodic: spec.periodic.map((d) => ({ ...d, open: Array.from({ length: d.period }, (_, i) => i) })) });
+const alwaysOpen = (spec) => ({ ...spec, periodic: [] });
 
+// 手番0では必ず開くので、ドアは2手目以降に入る位置に置く。
 for (const [name, spec, expectSteps] of [
-  ['閉じた手番に当たるので寄り道が要る（period2 open[1]）', pboard(4, 2, 3, [{ x: 1, y: 0, period: 2, open: [1] }]), 5],
-  ['寄り道で開く手番に合わせる（period3 open[2]）', pboard(4, 2, 3, [{ x: 1, y: 0, period: 3, open: [2] }]), 5],
-  ['寄り道なしだと失敗する一本道（到達不能）', pboard(3, 1, 2, [{ x: 1, y: 0, period: 2, open: [1] }]), Infinity],
+  ['閉じた手番に当たるので寄り道が要る（period2）', pboard(4, 2, 3, [{ x: 2, y: 0, period: 2 }]), 5],
+  ['寄り道で開く手番に合わせる（period3）', pboard(4, 2, 3, [{ x: 2, y: 0, period: 3 }]), 5],
+  ['period4（開2閉2）で寄り道が要る', pboard(5, 2, 4, [{ x: 3, y: 0, period: 4 }]), 6],
+  ['寄り道なしだと失敗する一本道（到達不能）', pboard(4, 1, 3, [{ x: 2, y: 0, period: 2 }]), Infinity],
 ]) {
   test(`探索とsimulateの手数が一致: ${name}`, () => {
-    const bf = bruteForce(spec, 5);
+    const bf = bruteForce(spec, 6);
     assert.equal(bf.steps, expectSteps, 'simulateの総当たり');
     assert.equal(shortestSteps(spec), expectSteps, 'shortestSteps');
     assert.equal(shortestChips(spec), bf.chips, 'shortestChips');
@@ -119,13 +139,12 @@ for (const [name, spec, expectSteps] of [
     if (expectSteps === Infinity) { assert.equal(path, null); return; }
     assert.equal(path.length, expectSteps, 'shortestPath');
     assert.ok(isRunCleared(simulate(path, spec)), 'shortestPathの解をsimulateが通す');
-    const open = alwaysOpen(spec);
-    assert.ok(shortestSteps(open) < expectSteps || expectSteps === Infinity, 'ドアを常に開と見た最短より長い');
+    assert.ok(shortestSteps(alwaysOpen(spec)) < expectSteps, 'ドアを無視した最短より長い');
   });
 }
 
-test('探索: ドアを常に開と見ると最短3手、周期ドアでは5手', () => {
-  const spec = pboard(4, 2, 3, [{ x: 1, y: 0, period: 2, open: [1] }]);
+test('探索: ドアを無視すると最短3手、周期ドアでは5手', () => {
+  const spec = pboard(4, 2, 3, [{ x: 2, y: 0, period: 3 }]);
   assert.equal(shortestSteps(alwaysOpen(spec)), 3);
   assert.equal(shortestSteps(spec), 5);
 });

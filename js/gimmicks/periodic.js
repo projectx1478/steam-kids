@@ -1,12 +1,27 @@
 // periodic（周期ドア）ギミック：決まった手数ごとに開閉するドア。閉じている手に入ると壁と同じ失敗（Issue #310）。
-// 手番(turn)は1手の移動が終わった時点で tick が1進める。判定はその手の開始時の turn mod period が open に含まれるか。
+// 手番(turn)は1手の移動が終わった時点で tick が1進める。形は固定（periodは2・3・4のみ）：周期2＝開1閉1、周期3＝開1閉2、周期4＝開2閉2。
+// 手番0から数えて開が先頭。判定はその手の開始時の turn mod period が openCount 未満か。
 // 状態は有限にするため、turn は全ドアの period の最小公倍数(cycle)で丸めて持つ。
 const list = (v) => (Array.isArray(v) ? v : []);
 const gcd = (a, b) => (b === 0 ? a : gcd(b, a % b));
 const lcm = (a, b) => (a / gcd(a, b)) * b;
 
 const keyOf = (p) => `${p.x},${p.y}`;
-const isOpenAt = (d, turn) => list(d.open).includes(turn % d.period);
+// 周期ごとの開の手番数（周期内の先頭から）。
+export const OPEN_COUNT = { 2: 1, 3: 1, 4: 2 };
+const isOpenAt = (d, turn) => turn % d.period < OPEN_COUNT[d.period];
+
+// 周期内の手番ごとの色名の並び。色の決定はここだけ。blue＝開、yellow・red＝閉（どちらも通れない）。
+// 周期2＝[青,赤]、周期3＝[青,黄,赤]、周期4＝[青,青,黄,赤]。
+export function phaseColors(period) {
+  return { 2: ['blue', 'red'], 3: ['blue', 'yellow', 'red'], 4: ['blue', 'blue', 'yellow', 'red'] }[period] ?? [];
+}
+
+// 色名→表示色（青 #0072B2、黄 #F0E442（濃い縁つき）、赤 #D55E00）と縁の色。
+const COLOR = { blue: '#0072B2', yellow: '#F0E442', red: '#D55E00' };
+const EDGE = { blue: '#004a73', yellow: '#7a6f00', red: '#8f3d00' };
+// 色ごとの形（blueは塗り●固定）。黄・赤の形は未確定の仮置きで輪郭○。形を決めたらここだけ差し替える（'filled' か 'ring'）。
+export const MARK_SHAPE = { blue: 'filled', yellow: 'ring', red: 'ring' };
 
 // 灰茶の板張りドア。構造はjs/gimmicks/keys.jsのdoorSvgと同じ（閉＝壁のように閉じた扉、開＝扉が脇に開いて床が見える）。
 // 色は赤／青（かぎドア）と区別するため灰茶だけにし、かぎの形の印は付けない。
@@ -29,16 +44,17 @@ function doorSvg(open) {
     </svg>`;
 }
 
-// ドア下端の帯（高さ14）に周期の数だけ丸を横一列に並べる。左から手番0。
-// 開く手番＝塗り（緑）、閉じる手番＝輪郭（灰）、今の手番＝黄の太縁。色だけに頼らず塗り／輪郭でも区別する。
+// ドア下端の帯（高さ14）に周期の数だけ丸を横一列に並べる。左から手番0。色はphaseColors、形はMARK_SHAPE、今の手番は黒の太縁（背面の黒い丸）。
 function dotsSvg(d, turn) {
-  const dots = Array.from({ length: d.period }, (_, i) => {
-    const open = list(d.open).includes(i);
+  const colors = phaseColors(d.period);
+  const dots = colors.map((color, i) => {
     const current = i === turn % d.period;
     const cx = (64 * (i + 0.5)) / d.period;
-    const fill = open ? '#10b981' : '#ffffff';
-    const stroke = current ? '#f59e0b' : open ? '#047857' : '#a8a29e';
-    return `<circle cx="${cx}" cy="57" r="5" fill="${fill}" stroke="${stroke}" stroke-width="${current ? 3 : 2}" data-dot="${i}" data-dot-fill="${open ? 'filled' : 'outline'}" data-dot-current="${current}" />`;
+    const filled = MARK_SHAPE[color] === 'filled';
+    const dot = filled
+      ? `<circle cx="${cx}" cy="57" r="4.5" fill="${COLOR[color]}" stroke="${EDGE[color]}" stroke-width="1.5"`
+      : `<circle cx="${cx}" cy="57" r="4" fill="#ffffff" stroke="${color === 'yellow' ? EDGE[color] : COLOR[color]}" stroke-width="2.5"`;
+    return `<circle cx="${cx}" cy="57" r="6.5" fill="#000000" data-dot-halo="${i}" opacity="${current ? 1 : 0}" />${dot} data-dot="${i}" data-dot-color="${color}" data-dot-fill="${filled ? 'filled' : 'outline'}" data-dot-current="${current}" />`;
   }).join('');
   return `<svg viewBox="0 0 64 64" class="grid-periodic-dots absolute inset-0 w-full h-full pointer-events-none" aria-hidden="true">
       <rect x="4" y="50" width="56" height="14" rx="4" fill="#fafaf9" opacity="0.92" />${dots}
@@ -58,10 +74,8 @@ function paintDoor(cell, d, turn) {
   cell.querySelectorAll('[data-dot]').forEach((c) => {
     const i = Number(c.dataset.dot);
     const current = i === turn % d.period;
-    const open_ = c.dataset.dotFill === 'filled';
     c.dataset.dotCurrent = String(current);
-    c.setAttribute('stroke', current ? '#f59e0b' : open_ ? '#047857' : '#a8a29e');
-    c.setAttribute('stroke-width', current ? '3' : '2');
+    c.parentNode.querySelector(`[data-dot-halo="${i}"]`)?.setAttribute('opacity', current ? '1' : '0');
   });
 }
 
@@ -87,9 +101,9 @@ export const periodic = {
     return state.doors.length === 0 ? 'periodic' : `periodic:${state.turn % state.cycle}`;
   },
 
-  // 閉じているドア（turn mod period が open に含まれない）は通行不可。soft にしない（壁と同じ失敗）。
+  // 閉じているドア（turn mod period が openCount 以上）は通行不可。soft にしない（壁と同じ失敗）。
   blocks(state, pos) {
-    return state.doors.some((d) => d.x === pos.x && d.y === pos.y && !list(d.open).includes(state.turn % d.period));
+    return state.doors.some((d) => d.x === pos.x && d.y === pos.y && !isOpenAt(d, state.turn));
   },
 
   // 1手の移動が終わった時点で1度だけ呼ぶ（呼び出し側は段1-2）。不変更新。
@@ -135,7 +149,7 @@ export const periodic = {
     return { ...spec, periodic: [] };
   },
 
-  // 盤面の妥当性。形（period 2〜4・openは相異なる整数で空でなく全手番でもない）、他要素との重なり、
+  // 盤面の妥当性。形（period 2〜4・openフィールドは廃止）、他要素との重なり、
   // paint・repeatBox・groupRepeatsとの併用禁止。必須性（常に開とみなした盤の最短）はtools/validate-lessons.mjsのplay側。
   validate(board, add, label) {
     if (board.periodic === undefined) return;
@@ -166,24 +180,16 @@ export const periodic = {
     const seen = new Set();
     board.periodic.forEach((d, i) => {
       if (!d || !Number.isInteger(d.x) || !Number.isInteger(d.y)) {
-        add('盤面の妥当性', `${label}periodic[${i}] が{x,y,period,open}でない`);
+        add('盤面の妥当性', `${label}periodic[${i}] が{x,y,period}でない`);
         return;
       }
       if (d.x < 0 || d.x >= grid.cols || d.y < 0 || d.y >= grid.rows) add('座標範囲', `${label}periodic[${i}]=${JSON.stringify(d)} が盤外`);
       for (const [name, set] of sets) if (set.has(keyOf(d))) add('盤面の妥当性', `${label}periodic[${i}] が${name}と重なる`);
       if (seen.has(keyOf(d))) add('盤面の妥当性', `${label}periodic[${i}] が他のperiodicと座標重複`);
       seen.add(keyOf(d));
+      if (d.open !== undefined) add('盤面の妥当性', `${label}periodic[${i}] の open フィールドは廃止（形はperiodで固定：周期2＝開1閉1、周期3＝開1閉2、周期4＝開2閉2）`);
       if (!Number.isInteger(d.period) || d.period < 2 || d.period > 4) {
         add('盤面の妥当性', `${label}periodic[${i}] のperiod=${JSON.stringify(d.period)} が2〜4の整数でない`);
-        return;
-      }
-      const open = d.open;
-      if (!Array.isArray(open) || open.length === 0) {
-        add('盤面の妥当性', `${label}periodic[${i}] のopenが空、または配列でない`);
-      } else if (open.some((v) => !Number.isInteger(v) || v < 0 || v >= d.period) || new Set(open).size !== open.length) {
-        add('盤面の妥当性', `${label}periodic[${i}] のopen=${JSON.stringify(open)} が0以上period未満の相異なる整数でない`);
-      } else if (open.length === d.period) {
-        add('盤面の妥当性', `${label}periodic[${i}] のopenが全手番を含む（常に開）`);
       }
     });
   },

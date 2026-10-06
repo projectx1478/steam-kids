@@ -19,9 +19,9 @@ const lesson = {
       start: { x: 0, y: 0 },
       goal: { x: 2, y: 0 },
       walls: [],
-      periodic: [{ x: 1, y: 0, period: 2, open: [1] }],
+      periodic: [{ x: 1, y: 1, period: 2 }],
       allowedCommands: ['up', 'down', 'left', 'right'],
-      solution: ['down', 'right', 'right', 'up'],
+      solution: ['right', 'right'],
       maxCommands: 6,
     },
     { stepId: 's2', kind: 'summary', text: 'おわり' },
@@ -34,13 +34,14 @@ export default async function run({ page, check }) {
   await routeLesson(page, lesson);
   await enterPlay(page, lesson.lessonId);
 
-  for (const c of ['right', 'right']) await page.click(`[data-command="${c}"]`);
+  // down（手番0）→right（手番1）で(1,1)の周期ドア（手番1は閉）へ入る。
+  for (const c of ['down', 'right']) await page.click(`[data-command="${c}"]`);
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="retry"]', { timeout: 10000 });
   await check('閉じたドアに入る手でbump音（実行停止）', () => page.evaluate(() => window.__sfxLog.filter((x) => x === 'bump').length), 1);
-  await check('手番は進まず閉のまま（手番0）', () => turnOf(page), 'false/0');
+  await check('手番は進まず閉のまま（手番1）', () => turnOf(page), 'false/1');
   await check('ヒントは periodic の文言', () => page.$eval('[data-hint="periodic"] p.text-sm', (el) => el.textContent), 'ドアが しまって いたよ');
 
   await clickRetry(page);
-  await check('もういちどでヒントが消え、手番0に戻る', async () => [(await page.$$('[data-hint]')).length, await turnOf(page)].join(), '0,false/0');
+  await check('もういちどでヒントが消え、手番0に戻る', async () => [(await page.$$('[data-hint]')).length, await turnOf(page)].join(), '0,true/0');
 }

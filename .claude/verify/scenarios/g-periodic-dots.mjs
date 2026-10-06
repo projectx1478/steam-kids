@@ -1,7 +1,7 @@
-// periodic（周期ドア）の描画：data-periodic・ドット数・塗り／輪郭・現在の手番の強調が1コマごとに進む・クリア（Issue #310）。実レッスンに依存しない。
+// periodic（周期ドア）の描画：data-periodic・ドット数・色の並び（周期2・3・4）・塗り●／輪郭○・現在の手番の黒い太縁が1コマごとに進む・クリア（Issue #310）。実レッスンに依存しない。
 import { routeLesson, enterPlay } from '../helpers.mjs';
 
-export const name = 'periodic dots: ドット数・塗り/輪郭・現在の手番が手ごとに進む・ドアの開閉(Issue #310)';
+export const name = 'periodic dots: ドット数・色と形・現在の手番が手ごとに進む・ドアの開閉(Issue #310)';
 
 const lesson = {
   lessonId: 'g-periodic-dots',
@@ -20,8 +20,9 @@ const lesson = {
       goal: { x: 2, y: 0 },
       walls: [],
       periodic: [
-        { x: 1, y: 0, period: 2, open: [1] },
-        { x: 3, y: 1, period: 4, open: [0, 1] },
+        { x: 1, y: 0, period: 2 },
+        { x: 3, y: 1, period: 4 },
+        { x: 3, y: 0, period: 3 },
       ],
       allowedCommands: ['up', 'down', 'left', 'right'],
       solution: ['down', 'right', 'right', 'up'],
@@ -32,34 +33,45 @@ const lesson = {
 };
 
 const cellOf = (x, y) => `.grid-cell[data-x="${x}"][data-y="${y}"]`;
-// そのドアのドット：[塗り/輪郭の並び, 今の手番の添字]
+// そのドアのドット：色の並び（B青・Y黄・R赤）/ 塗り●の数 / 輪郭○の数 / 今の手番の添字 / 黒い太縁（halo）が出ている添字
+const L = { blue: 'B', yellow: 'Y', red: 'R' };
 const dots = (page, x, y) =>
-  page.$$eval(`${cellOf(x, y)} [data-dot]`, (cs) => [cs.map((c) => (c.dataset.dotFill === 'filled' ? 'F' : 'O')).join(''), cs.findIndex((c) => c.dataset.dotCurrent === 'true')].join('/'));
+  page.$eval(`${cellOf(x, y)} svg.grid-periodic-dots`, (svg, L) => {
+    const ds = [...svg.querySelectorAll('[data-dot]')];
+    const halos = [...svg.querySelectorAll('[data-dot-halo]')];
+    return [
+      ds.map((c) => L[c.dataset.dotColor]).join(''),
+      ds.filter((c) => c.dataset.dotFill === 'filled').length,
+      ds.filter((c) => c.dataset.dotFill === 'outline').length,
+      ds.findIndex((c) => c.dataset.dotCurrent === 'true'),
+      halos.findIndex((h) => h.getAttribute('opacity') === '1'),
+    ].join('/');
+  }, L);
 const state = (page, x, y) => page.$eval(cellOf(x, y), (c) => [c.dataset.periodic, c.dataset.periodicOpen, c.dataset.periodicTurn].join('/'));
 
 export default async function run({ page, check }) {
   await routeLesson(page, lesson);
   await enterPlay(page, lesson.lessonId);
 
-  await check('周期ドアが2つ描画される', async () => (await page.$$('.grid-cell[data-periodic]')).length, 2);
-  await check('ドット数は周期の数（2と4）', async () => [(await page.$$(`${cellOf(1, 0)} [data-dot]`)).length, (await page.$$(`${cellOf(3, 1)} [data-dot]`)).length].join(), '2,4');
-  await check('周期2・open[1]：手番0は輪郭・手番1は塗り・今は手番0', () => dots(page, 1, 0), 'OF/0');
-  await check('周期4・open[0,1]：塗り塗り輪郭輪郭・今は手番0', () => dots(page, 3, 1), 'FFOO/0');
-  await check('最初は閉じている', () => state(page, 1, 0), '2/false/0');
+  await check('周期ドアが3つ描画される', async () => (await page.$$('.grid-cell[data-periodic]')).length, 3);
+  await check('ドット数は周期の数（2・4・3）', async () => [(await page.$$(`${cellOf(1, 0)} [data-dot]`)).length, (await page.$$(`${cellOf(3, 1)} [data-dot]`)).length, (await page.$$(`${cellOf(3, 0)} [data-dot]`)).length].join(), '2,4,3');
+  // 色の並び/塗り●の数/輪郭○の数/今の手番/黒い太縁の添字
+  await check('周期2：青赤・塗り1輪郭1・今は手番0', () => dots(page, 1, 0), 'BR/1/1/0/0');
+  await check('周期3：青黄赤・塗り1輪郭2・今は手番0', () => dots(page, 3, 0), 'BYR/1/2/0/0');
+  await check('周期4：青青黄赤・塗り2輪郭2・今は手番0', () => dots(page, 3, 1), 'BBYR/2/2/0/0');
+  await check('最初は手番0で開いている（周期2）', () => state(page, 1, 0), '2/true/0');
 
   for (const c of ['down', 'right', 'right', 'up']) await page.click(`[data-command="${c}"]`);
-  // 1手ごとに今の手番が進む（周期2のドアは0,1,0,1…。開閉も手番に追従する）
-  const expected = [
-    ['1手目後', '2/true/1', 'OF/1', 'FFOO/1'],
-    ['2手目後', '2/false/0', 'OF/0', 'FFOO/2'],
-    ['3手目後', '2/true/1', 'OF/1', 'FFOO/3'],
-    ['4手目後', '2/false/0', 'OF/0', 'FFOO/0'],
-  ];
-  for (const [label, door, d2, d4] of expected) {
+  // 1手ごとに今の手番（と黒い太縁）が進む。周期2のドアは開（青）・閉（赤）を交互に繰り返す。
+  const L2 = 'BR/1/1';
+  const L3 = 'BYR/1/2';
+  const L4 = 'BBYR/2/2';
+  for (let k = 1; k <= 4; k++) {
     await page.click('[data-action="step"]');
-    await check(`${label}：周期2ドアの開閉と手番`, () => state(page, 1, 0), door);
-    await check(`${label}：周期2のドット`, () => dots(page, 1, 0), d2);
-    await check(`${label}：周期4のドット`, () => dots(page, 3, 1), d4);
+    await check(`${k}手目後：周期2ドアの開閉と手番`, () => state(page, 1, 0), `2/${k % 2 === 0}/${k % 2}`);
+    await check(`${k}手目後：周期2のドット`, () => dots(page, 1, 0), `${L2}/${k % 2}/${k % 2}`);
+    await check(`${k}手目後：周期3のドット`, () => dots(page, 3, 0), `${L3}/${k % 3}/${k % 3}`);
+    await check(`${k}手目後：周期4のドット`, () => dots(page, 3, 1), `${L4}/${k % 4}/${k % 4}`);
   }
   await page.waitForSelector('[data-action="next"]', { timeout: 10000 });
   await check('ドアを通らず迂回してゴール（クリア）', async () => (await page.$$('[data-action="retry"]')).length, 0);
