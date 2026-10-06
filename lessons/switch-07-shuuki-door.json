@@ -1,0 +1,49 @@
+{
+  "lessonId": "switch-07-shuuki-door",
+  "unitId": "switches",
+  "title": "あいたときに とおる",
+  "type": "grid-runtime",
+  "estimatedMinutes": 5,
+  "steps": [
+    {
+      "stepId": "s1",
+      "kind": "intro",
+      "text": "ドアは あいたり しまったり",
+      "demo": {
+        "grid": { "cols": 4, "rows": 2 },
+        "start": { "x": 0, "y": 0 },
+        "goal": { "x": 3, "y": 0 },
+        "walls": [{ "x": 1, "y": 1 }, { "x": 2, "y": 1 }, { "x": 3, "y": 1 }],
+        "periodic": [{ "x": 2, "y": 0, "period": 3 }],
+        "commands": ["down", "up", "right", "right", "right"]
+      }
+    },
+    {
+      "stepId": "p1",
+      "kind": "play",
+      "text": "ドアが あくのは いつ？",
+      "grid": { "cols": 5, "rows": 2 },
+      "start": { "x": 0, "y": 0 },
+      "goal": { "x": 4, "y": 0 },
+      "walls": [{ "x": 1, "y": 1 }, { "x": 2, "y": 1 }, { "x": 3, "y": 1 }, { "x": 4, "y": 1 }],
+      "periodic": [{ "x": 2, "y": 0, "period": 3 }],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["down", "up", "right", "right", "right", "right"],
+      "maxCommands": 6
+    },
+    {
+      "stepId": "p2",
+      "kind": "play",
+      "text": "どの みちを いく？",
+      "grid": { "cols": 5, "rows": 3 },
+      "start": { "x": 0, "y": 1 },
+      "goal": { "x": 4, "y": 1 },
+      "walls": [{ "x": 1, "y": 2 }, { "x": 2, "y": 2 }, { "x": 3, "y": 2 }, { "x": 4, "y": 2 }],
+      "periodic": [{ "x": 2, "y": 1, "period": 3 }],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["down", "up", "right", "right", "right", "right"],
+      "maxCommands": 6
+    },
+    { "stepId": "s2", "kind": "summary", "text": "ドアが あいた ときに とおれたね" }
+  ]
+}
