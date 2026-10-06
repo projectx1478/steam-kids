@@ -60,11 +60,11 @@ export default async function run({ page, check }) {
   await check('360px: 「つづきから」の高さと幅が64px以上', async () => {
     const r = await page.$eval('[data-action="resume"]', (el) => el.getBoundingClientRect().toJSON());
     return r.height >= 64 && r.width >= 64;
-  });
+  }, true);
   await check('360px: 「はじめから」の高さが64px以上', async () => {
     const r = await page.$eval('[data-action="start"]', (el) => el.getBoundingClientRect().toJSON());
     return r.height >= 64;
-  });
+  }, true);
   await check('360px: 横スクロールなし', () => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true);
   await check('縦積み：つづきから→はじめから', () =>
     page.evaluate(() => {
@@ -120,4 +120,41 @@ export default async function run({ page, check }) {
     resetSlot(0);
   });
   await check('resetSlotで保存が消える', () => readResume(page), null);
+
+  // --- tutorialがあるレッスン：再開位置があれば「そうさほうほう」を光らせない（決定6） ---
+  const tutLesson = {
+    ...lesson,
+    lessonId: 'r3-resume-tut',
+    unitId: 'r3-resume-tut',
+    steps: [{ stepId: 's1', kind: 'intro', text: 'つづきの テスト' }, { ...stage('t1'), kind: 'tutorial' }, stage('p1'), stage('p2'), { stepId: 's2', kind: 'summary', text: 'おわり' }],
+  };
+  await routeLesson(page, tutLesson);
+  const hasHighlight = (p) => p.evaluate(() => document.querySelector('[data-action="how-to"]')?.dataset.highlight ?? null);
+  await page.goto(`/index.html?lesson=${tutLesson.lessonId}`);
+  await page.waitForSelector('#stage[data-step="intro"]');
+  await check('tutorialあり・未見・保存なしでは「そうさほうほう」が光る', () => hasHighlight(page), 'true');
+  await page.evaluate((k) => localStorage.setItem(k, JSON.stringify({ stepId: 'p2', ts: 1 })), 'steamkids.resume.r3-resume-tut');
+  await page.goto(`/index.html?lesson=${tutLesson.lessonId}`);
+  await page.waitForSelector('#stage[data-step="intro"]');
+  await check('tutorialあり・保存ありでは「つづきから」が出る', () => hasResumeBtn(page), 1);
+  await check('保存ありでは「そうさほうほう」に光る印が付かない', () => hasHighlight(page), null);
+  await check('保存ありでも「そうさほうほう」ボタン自体は残る', async () => (await page.$$('[data-action="how-to"]')).length, 1);
+
+  // --- 先頭がintroでないレッスンでは保存しない ---
+  await check('cmd-06-practiceの先頭stepはintroではない', () =>
+    page.evaluate(async () => (await (await fetch('/lessons/cmd-06-practice.json')).json()).steps[0].kind !== 'intro'), true);
+  const noIntro = {
+    ...lesson,
+    lessonId: 'r3-resume-nointro',
+    unitId: 'r3-resume-nointro',
+    steps: [stage('p1'), stage('p2'), { stepId: 's2', kind: 'summary', text: 'おわり' }],
+  };
+  await routeLesson(page, noIntro);
+  await page.goto(`/index.html?lesson=${noIntro.lessonId}`);
+  await page.waitForSelector('#stage[data-step="play"]');
+  await check('先頭がintroでないレッスンは操作画面から始まる', () => readStepId(page), 'p1');
+  await clearStage(page, SOL);
+  await check('p1をクリアして次のplayへ進む', () => readStepId(page), 'p2');
+  await check('先頭がintroでないレッスンでは途中クリアでも保存が書かれない', () =>
+    page.evaluate(() => Object.keys(localStorage).filter((k) => k.includes('resume') && k.includes('nointro')).length), 0);
 }
