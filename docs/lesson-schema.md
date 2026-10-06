@@ -59,6 +59,10 @@
 `tools/validate-lessons.mjs`が機械チェック）。`predict`は将来の教材型向けに語彙のみ残し、
 現行レッスンでは0個（Issue #104で全廃。0個でも検証NG にはしない）。
 
+**長尺試作（例外）**：ステージ数だけを変えた別IDの試作レッスン（例：cmd-01 を元にした8ステージ版）。
+「長尺試作の一覧」に載るIDだけが、下記の上限を緩められる。既存レッスンのステージ数は変えない。
+一覧の置き場は実装Issueで決める（validate と集計側で同じ一覧を参照する）。
+
 `predict` ステップは自前の盤面を持たず、同じレッスン内の最初の `play` ステップ（`p1`）の
 `grid` / `start` / `goal` / `walls` を参照する。`commands` はその盤面上で予想させる命令列、
 `optionCells` は `options` の各選択肢が指すマス座標（`id` が `options` の値と対応）。
@@ -239,9 +243,10 @@ MustMatterは、ギミックモジュールの`strip(spec)`（ギミックを除
 - 必須キー（`lessonId` `unitId` `title` `type` `estimatedMinutes` `steps`）が揃っている
 - `lessonId` がファイル名と一致する
 - `text` は全てひらがなに展開した表示（よみレベル0相当）で20字以内
-- `steps` は4〜7個
-- `grid-runtime` では `play` ステップが2〜4個であること（`predict`は0個でもよい。Issue #104）
-- `estimatedMinutes` が5であること
+- `steps` は4〜7個（長尺試作は4〜12個）
+- `grid-runtime` では `play` ステップが2〜4個であること（`predict`は0個でもよい。Issue #104）。
+  長尺試作は2〜8個
+- `estimatedMinutes` が5であること（長尺試作は8（仮。実測後に見直す））
 - `answer` が `options` に存在し、`optionCells` の `id` 集合が `options` と一致すること
 - `predict.commands` を最初の `play`（`p1`）の盤面で実行した終点が `answer` の `optionCells` 座標と
   一致すること
