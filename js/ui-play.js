@@ -22,7 +22,9 @@ import {
   setActiveHandHint,
   setActiveAnimation,
   markLessonCleared,
+  saveResumePoint,
 } from './ui-step.js';
+import { clearResume } from './storage.js';
 import { showSuccess, showHint, diagnose } from './ui-reaction.js';
 import { paintMiniBoard } from './gimmicks/paint.js';
 import { clearToast, showToast } from './ui-toast.js';
@@ -636,6 +638,7 @@ export function renderPlay(root, step) {
       if (isFinalStage) {
         logEvent('clear', {});
         markLessonCleared();
+        clearResume(S.lesson.lessonId);
         showResultActions([
           createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'),
           createPrimaryButton('もういちど', replay, 'replay'),
@@ -644,6 +647,7 @@ export function renderPlay(root, step) {
         // 途中ステージのクリアはstage_clearのみを記録し、レッスン全体のクリア（clear）や
         // 単元スタンプの対象にはしない（Issue #104）。
         logEvent('stage_clear', { stage: stageIndex + 1 });
+        saveResumePoint();
         showResultActions([
           createPrimaryButton('つぎの ステージ', () => goToStep(S.stepIndex + 1), 'next-stage'),
           createPrimaryButton('もういちど', replay, 'replay'),

@@ -19,6 +19,7 @@ import { generateMap } from './engine-generate.js';
 import { codeToSeed } from './seed-code.js';
 import { isLessonCleared } from './ui-picker.js';
 import { withDev } from './dev-mode.js';
+import { readResume, writeResume, clearResume } from './storage.js';
 
 const STEP_DELAY_MS = 600;
 const STEP_TRANSITION_MS = 220;
@@ -185,18 +186,19 @@ function resolveStepIndex(index, forward) {
   return forward ? index + 1 : index - 1;
 }
 
-function enterStep(index) {
+function enterStep(index, { resumed = false } = {}) {
   logEvent('step_leave', {});
   S.stepIndex = index;
-  logEvent('step_enter', {});
+  logEvent('step_enter', resumed ? { resumed: true } : {});
   playSfx('whoosh');
   renderStep();
 }
 
-export function goToStep(nextIndex) {
+// opts.resumed: 「つづきから」で入るときだけtrue。step_enterのpayloadに{resumed:true}を付ける（Issue #242）。
+export function goToStep(nextIndex, opts = {}) {
   const resolvedIndex = resolveStepIndex(nextIndex, nextIndex > S.stepIndex);
   history.pushState({ stepIndex: resolvedIndex }, '');
-  enterStep(resolvedIndex);
+  enterStep(resolvedIndex, opts);
 }
 
 // playの途中か：現在のステップがplayで、命令列の下書きが初期状態（空 or initialCommands）から
@@ -463,6 +465,30 @@ export function playAnimation(commands, spec, view, { onTick, onDone, onPickup }
   return autoAdvance(stepper, { onDone }, opts);
 }
 
+// 途中ステージのstage_clear後に、次のstepIdを再開位置として保存する（Issue #242）。
+// 先頭がintroでないレッスン（renderIntroを通らない）と、再開に向かないstep（tutorial等）は保存しない。
+export function saveResumePoint() {
+  const steps = S.lesson.steps;
+  if (steps[0]?.kind !== 'intro') return;
+  const next = steps[S.stepIndex + 1];
+  if (!next || !['play', 'predict', 'seedPick'].includes(next.kind)) return;
+  writeResume(S.lesson.lessonId, next.stepId);
+}
+
+// 再開先のステップ位置。保存なし・レッスンに無いstepId（保存は破棄）・クリア済みは-1（Issue #242）。
+function findResumeIndex() {
+  const lessonId = S.lesson.lessonId;
+  const saved = readResume(lessonId);
+  if (!saved) return -1;
+  const index = S.lesson.steps.findIndex((s) => s.stepId === saved.stepId);
+  if (index <= 0) {
+    clearResume(lessonId);
+    return -1;
+  }
+  if (isLessonCleared(lessonId)) return -1;
+  return index;
+}
+
 function renderIntro(root, step) {
   const p = document.createElement('p');
   p.className = 'text-2xl text-center py-8';
@@ -471,13 +497,34 @@ function renderIntro(root, step) {
   // ロボットが正解の道をたどってゴールへ到達する完成イメージ（本番とは別のstart/goal。
   // Issue #97）。demoが無い教材型は対象外。
   if (step.demo) renderGoalDemo(root, step.demo);
-  root.appendChild(createPrimaryButton('はじめる', () => goToStep(S.stepIndex + 1), 'start'));
+  // 途中再開（Issue #242）：保存があり、そのstepIdがレッスンにあり、未クリアのときだけ
+  // 主ボタンを「つづきから」にし、「はじめから」（保存は触らない）を控えめに添える。
+  const resumeIndex = findResumeIndex();
+  if (resumeIndex !== -1) {
+    const resumeBtn = createPrimaryButton('つづきから', () => goToStep(resumeIndex, { resumed: true }), 'resume');
+    resumeBtn.classList.add('min-h-[64px]');
+    root.appendChild(resumeBtn);
+    const restartBtn = document.createElement('button');
+    restartBtn.type = 'button';
+    restartBtn.dataset.action = 'start';
+    restartBtn.textContent = 'はじめから';
+    restartBtn.className =
+      'block mx-auto mt-6 min-w-[64px] min-h-[64px] px-6 rounded-lg bg-white shadow text-base text-slate-600';
+    restartBtn.addEventListener('click', () => {
+      vibrate();
+      goToStep(S.stepIndex + 1);
+    });
+    root.appendChild(restartBtn);
+  } else {
+    root.appendChild(createPrimaryButton('はじめる', () => goToStep(S.stepIndex + 1), 'start'));
+  }
 
   // tutorialがあるレッスンは「そうさほうほう」でだけtutorialへ入れる。未見の間は光らせて誘導する
-  // （Issue #236。完了・スキップ済みなら控えめ表示）。
+  // （Issue #236。完了・スキップ済みなら控えめ表示）。再開位置があるときは「つづきから」を
+  // 優先して光らせない（Issue #242）。
   const tutorialIndex = S.lesson.steps.findIndex((s) => s.kind === 'tutorial');
   if (tutorialIndex !== -1) {
-    const unseen = !isTutorialDone(S.lesson.lessonId);
+    const unseen = resumeIndex === -1 && !isTutorialDone(S.lesson.lessonId);
     const howBtn = document.createElement('button');
     howBtn.type = 'button';
     howBtn.dataset.action = 'how-to';

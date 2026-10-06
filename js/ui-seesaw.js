@@ -10,7 +10,8 @@ import { play as playSfx } from './sfx.js';
 import { renderInto } from './text-render.js';
 import { showHandHint } from './ui-hand.js';
 import { isLessonCleared } from './ui-picker.js';
-import { goToStep, createPrimaryButton, setBackDisabled, setActiveHandHint, setActiveAnimation, markLessonCleared } from './ui-step.js';
+import { goToStep, createPrimaryButton, setBackDisabled, setActiveHandHint, setActiveAnimation, markLessonCleared, saveResumePoint } from './ui-step.js';
+import { clearResume } from './storage.js';
 import { showSuccess, showHint } from './ui-reaction.js';
 import { clearToast, showToast } from './ui-toast.js';
 
@@ -212,12 +213,14 @@ export function renderSeesaw(root, step) {
       if (isFinalStage) {
         logEvent('clear', {});
         markLessonCleared();
+        clearResume(S.lesson.lessonId);
         showResultActions([
           createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'),
           createPrimaryButton('もういちど', replay, 'replay'),
         ]);
       } else {
         logEvent('stage_clear', { stage: stageIndex + 1 });
+        saveResumePoint();
         showResultActions([
           createPrimaryButton('つぎの ステージ', () => goToStep(S.stepIndex + 1), 'next-stage'),
           createPrimaryButton('もういちど', replay, 'replay'),

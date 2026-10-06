@@ -351,7 +351,9 @@ MustMatterは、ギミックモジュールの`strip(spec)`（ギミックを除
 | `steamkids.{profile,events,sync}` / `steamkids.tutorialDone.<id>` | スロットA | 従来のキーをそのまま使う（移行コピー無し） |
 | `steamkids.s2.*` / `steamkids.s3.*` | スロットB/C | Aと同じ構造 |
 | `steamkids.guardian` / `gateDate` / `sound` | 端末 | スロットに依存しない |
+| `steamkids.resume.<lessonId>`（B/Cは`s2.`/`s3.`接頭辞） | スロット | 途中再開の位置`{ stepId, ts }`のみ。途中ステージのclearで次のstepIdを書き、最終clearで消す。同期しない。`resetSlot`で消える |
 
 - `steamkids.slots`が無い初回起動時、Aに旧profileがあり「events1件以上／`label`有り／`sync.enabled`」のどれかに当たれば`occupied[0]=true`。どれにも当たらない自動生成profileは空き扱いで、Aを作るとき既存`learnerId`を引き継ぐ
+- 途中再開（introの「つづきから」）は先頭ステップが`intro`のレッスンだけが対象。先頭が`intro`でないレッスン（`cmd-06-practice`）は保存しない。保存した`stepId`がレッスンに無ければ破棄して通常の「はじめる」を出す
 - `label`は最大10文字（コードポイント）・前後空白除去・空なら表示は「プレイヤーN」。表示は必ず`textContent`
 - eventsを`learnerId`でのフィルタでなくスロット別キーに分ける理由：リンクコードの乗り換えで`learnerId`が変わっても旧イベントを見失わず、5000件上限を3人で共有しないため
