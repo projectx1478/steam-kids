@@ -16,7 +16,7 @@ description: 単元名からgrid-runtimeレッスンJSONを生成し、npm run v
 2. `docs/learning-spec.md` に対象レッスンの確定値（grid/start/goal/walls等）が既にあれば
    それに従う。無ければ以下を満たすように設計する。
    - PROJECT.md「学習体験の固定仕様」の3原則を全ステップで維持し、操作モデル（計画型／直接操作型）を明記する
-   - `steps` は4〜7個、`estimatedMinutes` は5
+   - `steps` は4〜7個、`estimatedMinutes` は5（長尺試作は対象外。生成せず手で作る）
    - 1画面の文章はひらがな展開後20字以内。ひらがな主体。漢字を使う場合は`{漢字|よみ}`
      のルビ記法で書き、`js/kanji-grades.js`（学年別漢字配当表）内の漢字に限る
      （`docs/authoring-rules.md`「使用できる文字」）
