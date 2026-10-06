@@ -47,7 +47,8 @@ function allCleared(states) {
 // 全ギミックのstateKeyを連結する。BFS（shortestSteps/shortestChips）の重複排除キーに使う
 // （Issue #60のitemMaskAtを一般化。Issue #123）。
 function gimmicksKey(states) {
-  return GIMMICKS.map((g) => g.stateKey(states[g.key])).join('|');
+  // 空文字のキー（周期ドアの無い盤のperiodic）は連結から省く。
+  return GIMMICKS.map((g) => g.stateKey(states[g.key])).filter((k) => k !== '').join('|');
 }
 
 // 移動1手（方向1つ）を解決するmoverをspecから作る。返り値の関数 move(pos, dir, states) は
@@ -57,11 +58,13 @@ function gimmicksKey(states) {
 // 最初の1マスへ入った後、ギミックのredirect（こおりの滑り・将来のワープ）が返す先が空いていれば
 // 続けて1マスずつ進める（同一の1手として扱う。2マス目以降のstepはslid: true）。redirectの連鎖は
 // cols*rows回で打ち切る（Issue #61。フックIFはdocs/gimmicks.md）。
-function makeMover(spec) {
+export function makeMover(spec) {
   const { grid, walls } = spec;
   const wallSet = new Set(walls.map((w) => `${w.x},${w.y}`));
   const limit = grid.cols * grid.rows;
   const inBoard = (p) => p.x >= 0 && p.x < grid.cols && p.y >= 0 && p.y < grid.rows;
+  // tickを持つギミックがこの盤で必要か（盤ごとに1回だけ判定。不要なら手ごとのafter作成を省く）。
+  const tickers = GIMMICKS.filter((g) => g.tick && (g.needsTick ? g.needsTick(spec) : true));
   const blockers = (p, states) => GIMMICKS.filter((g) => g.blocks?.(states[g.key], p, spec));
   const isOpen = (p, states) => inBoard(p) && !wallSet.has(`${p.x},${p.y}`) && blockers(p, states).length === 0;
   const isSoft = (p, states) => {
@@ -97,8 +100,11 @@ function makeMover(spec) {
       curDir = redirect.dir;
     }
     // 手の終わりに1度だけ、tickを持つギミック（周期ドア）の状態を進める（氷の各マスでは進めない。壁衝突・クッションで止まる手も1手）。
-    const after = {};
-    for (const g of GIMMICKS) after[g.key] = g.tick ? g.tick(cur[g.key]) : cur[g.key];
+    let after = cur;
+    if (tickers.length > 0) {
+      after = { ...cur };
+      for (const g of tickers) after[g.key] = g.tick(cur[g.key]);
+    }
     return { steps, bumped, cushioned, after, byPeriodic };
   };
 }

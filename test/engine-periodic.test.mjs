@@ -156,3 +156,20 @@ test('探索: ドアを無視すると最短3手、周期ドアでは5手', () =
   assert.equal(shortestSteps(alwaysOpen(spec)), 3);
   assert.equal(shortestSteps(spec), 5);
 });
+
+test('makeMover: 周期ドアの無い盤ではafterが元のstatesと同じ参照（手番の処理を飛ばす）', async () => {
+  const { makeMover } = await import('../js/engine-grid.js');
+  const plain = { grid: { cols: 3, rows: 1 }, start: { x: 0, y: 0 }, goal: { x: 2, y: 0 }, walls: [], items: [], ice: [] };
+  const states = Object.fromEntries(GIMMICKS.map((g) => [g.key, g.initState(plain)]));
+  const r = makeMover(plain)({ x: 0, y: 0 }, 'right', states);
+  assert.equal(r.after, r.steps[r.steps.length - 1].states, 'after は手の最後のstatesそのもの');
+  const r2 = makeMover(plain)({ x: 2, y: 0 }, 'right', states);
+  assert.equal(r2.after, states, '動けない手も元のstatesのまま');
+});
+
+test('gimmicksKey: 周期ドアの無い盤のキーにperiodicの項が入らない', () => {
+  assert.equal(periodic.stateKey(periodic.initState({})), '');
+  const plain = pboard(4, 2, 3, []);
+  assert.equal(shortestSteps(plain), 3);
+  assert.equal(shortestSteps(pboard(4, 2, 3, [{ x: 2, y: 0, period: 3 }])), 5, '周期ドア盤の最短は変わらない');
+});

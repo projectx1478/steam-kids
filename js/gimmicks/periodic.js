@@ -106,9 +106,14 @@ export const periodic = {
     return true;
   },
 
-  // ドア無しの盤は定数（BFSの状態数を増やさない）。ある盤は手番をcycleで割った余り。
+  // ドア無しの盤は空文字（gimmicksKeyが連結から省くため、キー文字列に何も足さない）。ある盤は手番をcycleで割った余り。
   stateKey(state) {
-    return state.doors.length === 0 ? 'periodic' : `periodic:${state.turn % state.cycle}`;
+    return state.doors.length === 0 ? '' : `periodic:${state.turn % state.cycle}`;
+  },
+
+  // この盤でtickが必要か（周期ドアがある盤のみ。makeMoverが盤ごとに1回判定する）。
+  needsTick(spec) {
+    return list(spec.periodic).length > 0;
   },
 
   // 閉じているドア（turn mod period が openCount 以上）は通行不可。soft にしない（壁と同じ失敗）。
