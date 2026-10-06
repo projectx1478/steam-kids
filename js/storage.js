@@ -141,12 +141,36 @@ export function resetSlot(slot) {
   } catch {
     // 無視
   }
+  try {
+    const resumePrefix = keyFor('resume.', slot);
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith(resumePrefix))
+      .forEach((k) => localStorage.removeItem(k));
+  } catch {
+    // 無視
+  }
   const profile = newProfile();
   writeJSON(keyFor('profile', slot), profile);
   const slots = loadSlots();
   slots.occupied[slot] = true;
   saveSlots(slots);
   return profile;
+}
+
+// レッスンの途中再開（Issue #242）。値は {stepId, ts} のみ。壊れた値・型違いは null。
+export function readResume(lessonId) {
+  const v = readJSON(keyFor(`resume.${lessonId}`, getActiveSlot()), null);
+  return Boolean(v) && typeof v.stepId === 'string' && typeof v.ts === 'number'
+    ? { stepId: v.stepId, ts: v.ts }
+    : null;
+}
+
+export function writeResume(lessonId, stepId, ts = Date.now()) {
+  writeJSON(keyFor(`resume.${lessonId}`, getActiveSlot()), { stepId, ts });
+}
+
+export function clearResume(lessonId) {
+  removeKey(keyFor(`resume.${lessonId}`, getActiveSlot()));
 }
 
 export function isTutorialDoneStored(lessonId) {

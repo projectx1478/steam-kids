@@ -101,6 +101,48 @@ test('スロット間でevents・sync・tutorialDoneが混ざらない', () => {
   assert.ok(store.has('steamkids.s2.sync'));
 });
 
+test('resume: write→read→clear、スロット分離', () => {
+  assert.equal(storage.readResume('L1'), null);
+  storage.writeResume('L1', 'p2', 123);
+  assert.deepEqual(storage.readResume('L1'), { stepId: 'p2', ts: 123 });
+  assert.ok(store.has('steamkids.resume.L1'));
+  assert.equal(storage.readResume('L2'), null);
+  storage.setActiveSlot(2);
+  assert.equal(storage.readResume('L1'), null);
+  storage.writeResume('L1', 'p3', 5);
+  assert.ok(store.has('steamkids.s3.resume.L1'));
+  storage.clearResume('L1');
+  assert.equal(storage.readResume('L1'), null);
+  storage.setActiveSlot(0);
+  assert.equal(storage.readResume('L1').stepId, 'p2');
+  storage.clearResume('L1');
+  assert.equal(storage.readResume('L1'), null);
+});
+
+test('resume: 壊れた値・型違いは null 扱い', () => {
+  const k = 'steamkids.resume.L1';
+  for (const raw of ['{broken', 'null', '"p2"', '[]', '{}', '{"stepId":1,"ts":1}', '{"stepId":"p2"}', '{"stepId":"p2","ts":"1"}']) {
+    store.set(k, raw);
+    assert.equal(storage.readResume('L1'), null, raw);
+  }
+});
+
+test('resetSlot: resume も消え、他スロットの resume は残る', () => {
+  storage.createSlot(0, 'A');
+  storage.createSlot(1, 'B');
+  storage.setActiveSlot(0);
+  storage.writeResume('L1', 'p2', 1);
+  storage.writeResume('L2', 'p3', 2);
+  storage.setActiveSlot(1);
+  storage.writeResume('L1', 'p2', 3);
+  storage.resetSlot(0);
+  storage.setActiveSlot(0);
+  assert.equal(storage.readResume('L1'), null);
+  assert.equal(storage.readResume('L2'), null);
+  storage.setActiveSlot(1);
+  assert.equal(storage.readResume('L1').ts, 3);
+});
+
 test('resetSlot: 対象スロットのみ初期化し、他スロットに触れない', () => {
   storage.createSlot(0, 'A');
   const b = storage.createSlot(1, 'B');
