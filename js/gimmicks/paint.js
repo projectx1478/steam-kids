@@ -86,7 +86,7 @@ export const paint = {
     }
     const grid = board.grid || {};
     if (grid.cols > 6 || grid.rows > 6) add('盤面の妥当性', `${label}paintのある盤面は6×6以内（${grid.cols}×${grid.rows}）`);
-    for (const field of ['items', 'ice', 'cushion', 'warp', 'keys', 'doors', 'switches']) {
+    for (const field of ['items', 'ice', 'cushion', 'warp', 'keys', 'doors', 'switches', 'periodic']) {
       if (list(board[field]).length > 0) add('盤面の妥当性', `${label}paint は${field}と併用できない（paint単独。かべのみ可）`);
     }
     if (board.repeatBox === true || board.groupRepeats === true) add('盤面の妥当性', `${label}paint は repeatBox・groupRepeats と併用できない（4方向のみ）`);

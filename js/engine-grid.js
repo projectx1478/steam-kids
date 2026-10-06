@@ -47,7 +47,14 @@ function allCleared(states) {
 // 全ギミックのstateKeyを連結する。BFS（shortestSteps/shortestChips）の重複排除キーに使う
 // （Issue #60のitemMaskAtを一般化。Issue #123）。
 function gimmicksKey(states) {
-  return GIMMICKS.map((g) => g.stateKey(states[g.key])).join('|');
+  // 空文字のキー（周期ドアの無い盤のperiodic）は連結から省く（配列を作らず文字列を直接組む）。
+  let out = '';
+  for (const g of GIMMICKS) {
+    const k = g.stateKey(states[g.key]);
+    if (k === '') continue;
+    out = out === '' ? k : `${out}|${k}`;
+  }
+  return out;
 }
 
 // 移動1手（方向1つ）を解決するmoverをspecから作る。返り値の関数 move(pos, dir, states) は
@@ -57,11 +64,14 @@ function gimmicksKey(states) {
 // 最初の1マスへ入った後、ギミックのredirect（こおりの滑り・将来のワープ）が返す先が空いていれば
 // 続けて1マスずつ進める（同一の1手として扱う。2マス目以降のstepはslid: true）。redirectの連鎖は
 // cols*rows回で打ち切る（Issue #61。フックIFはdocs/gimmicks.md）。
-function makeMover(spec) {
+export function makeMover(spec) {
   const { grid, walls } = spec;
   const wallSet = new Set(walls.map((w) => `${w.x},${w.y}`));
   const limit = grid.cols * grid.rows;
   const inBoard = (p) => p.x >= 0 && p.x < grid.cols && p.y >= 0 && p.y < grid.rows;
+  // tickを持つギミックがこの盤で必要か（盤ごとに1回だけ判定。不要なら手ごとのafter作成を省く）。
+  const tickers = GIMMICKS.filter((g) => g.tick && (g.needsTick ? g.needsTick(spec) : true));
+  const hasPeriodic = tickers.some((g) => g.key === 'periodic');
   const blockers = (p, states) => GIMMICKS.filter((g) => g.blocks?.(states[g.key], p, spec));
   const isOpen = (p, states) => inBoard(p) && !wallSet.has(`${p.x},${p.y}`) && blockers(p, states).length === 0;
   const isSoft = (p, states) => {
@@ -77,10 +87,12 @@ function makeMover(spec) {
     let cur = states;
     let bumped = false;
     let cushioned = false;
+    let byPeriodic = false;
     for (let n = 0; n <= limit; n += 1) {
       if (!isOpen(next, cur)) {
         cushioned = isSoft(next, cur);
         bumped = !cushioned;
+        byPeriodic = bumped && hasPeriodic && blockers(next, cur).some((g) => g.key === 'periodic');
         break;
       }
       cur = enterAll(cur, spec, next);
@@ -94,7 +106,13 @@ function makeMover(spec) {
       next = redirect.pos;
       curDir = redirect.dir;
     }
-    return { steps, bumped, cushioned };
+    // 手の終わりに1度だけ、tickを持つギミック（周期ドア）の状態を進める（氷の各マスでは進めない。壁衝突・クッションで止まる手も1手）。
+    let after = cur;
+    if (tickers.length > 0) {
+      after = { ...cur };
+      for (const g of tickers) after[g.key] = g.tick(cur[g.key]);
+    }
+    return { steps, bumped, cushioned, after, byPeriodic };
   };
 }
 
@@ -109,6 +127,8 @@ function makeMover(spec) {
 // stepOwnerはpath[i+1]がcommandsの何番目の要素に属するかを表す（まとめ命令の実行ハイライト用）。
 // innerOwner[i]はpath[i+1]が箱の中の何番目の方向か（箱の外なら-1。箱内ハイライト用）。
 // pickups[i]はpath[i+1]で新たに回収したitemsのインデックス配列（Issue #60。js/gimmicks/items.js）。
+// turnAt[k]は展開後のk番目の手（move1回）の開始時の手番（周期ドア。Issue #310）。
+// moveOf[i]はpath[i+1]が属する手（turnAtの添字）。periodicBump[i]はpath[i+1]が閉じた周期ドアへの衝突ならtrue。
 // slid[i]はpath[i+1]が滑走（redirect）で進んだマスならtrue（効果音の切替用）。
 // remainingItemsは最終位置までに回収されなかったitem座標（reachedGoalとの併用でクリア判定に使う）。
 // unmetはitems以外でクリア条件を満たしていないギミックのkey配列（paint＝塗りが目標と不一致）。
@@ -145,12 +165,16 @@ export function simulate(commands, rawSpec) {
   const pickups = [];
   const slid = [];
   const bumpedList = [];
+  const turnAt = [];
+  const moveOf = [];
+  const periodicBump = [];
   let pos = { ...start };
   let states = enterAll(initGimmickStates(spec), spec, pos);
 
   commands.forEach((entry, i) => {
     for (const [dir, inner, round] of expandEntry(entry)) {
-      const { steps, bumped, cushioned } = move(pos, dir, states);
+      turnAt.push(states.periodic?.turn ?? 0);
+      const { steps, bumped, cushioned, after, byPeriodic } = move(pos, dir, states);
       // 滑走などで複数マス進んだ手は1マスずつpathへ展開する（同一stepOwner）。
       for (const step of steps) {
         pos = step.pos;
@@ -162,7 +186,10 @@ export function simulate(commands, rawSpec) {
         pickups.push(states.items?.collected ?? []);
         slid.push(step.slid);
         bumpedList.push(false);
+        moveOf.push(turnAt.length - 1);
+        periodicBump.push(false);
       }
+      states = after;
       if (bumped || cushioned) {
         if (bumped) blockedAt.push(i);
         path.push({ ...pos });
@@ -173,6 +200,8 @@ export function simulate(commands, rawSpec) {
         pickups.push(states.items?.collected ?? []);
         slid.push(false);
         bumpedList.push(bumped);
+        moveOf.push(turnAt.length - 1);
+        periodicBump.push(byPeriodic);
       }
     }
   });
@@ -182,7 +211,7 @@ export function simulate(commands, rawSpec) {
   // items以外でクリア条件を満たしていないギミックのkey（items以外は現状paintのみ。remainingItemsは別途返す）。
   const unmet = GIMMICKS.filter((g) => g.key !== 'items' && !g.isCleared(states[g.key])).map((g) => g.key);
   const paintOver = GIMMICKS.find((g) => g.key === 'paint')?.overCells(states.paint) ?? [];
-  return { path, blockedAt, reachedGoal, stepOwner, innerOwner, roundOwner, pickups, slid, bumped: bumpedList, remainingItems, unmet, paintOver };
+  return { path, blockedAt, reachedGoal, stepOwner, innerOwner, roundOwner, pickups, slid, bumped: bumpedList, remainingItems, unmet, paintOver, turnAt, moveOf, periodicBump };
 }
 
 // simulate()の結果がクリアか（ゴール到達・item全回収・壁衝突なし・他ギミックの条件達成）。
@@ -210,9 +239,10 @@ export function shortestSteps(rawSpec, stats) {
       return cur.dist;
     }
     for (const cmd of COMMANDS) {
-      const { steps, bumped } = move(cur.pos, cmd, cur.states);
+      const { steps, bumped, after } = move(cur.pos, cmd, cur.states);
       if (bumped || steps.length === 0) continue;
-      const { pos: next, states: nextStates } = steps[steps.length - 1];
+      const { pos: next } = steps[steps.length - 1];
+      const nextStates = after;
       if (isDead(nextStates)) continue;
       const k = key(next, nextStates);
       if (seen.has(k)) continue;
@@ -239,9 +269,10 @@ export function shortestChips(rawSpec) {
     const cur = deque.shift();
     const curDist = dist.get(key(cur.pos, cur.dir, cur.states)).d;
     for (const cmd of COMMANDS) {
-      const { steps, bumped } = move(cur.pos, cmd, cur.states);
+      const { steps, bumped, after } = move(cur.pos, cmd, cur.states);
       if (bumped || steps.length === 0) continue;
-      const { pos: next, states: nextStates } = steps[steps.length - 1];
+      const { pos: next } = steps[steps.length - 1];
+      const nextStates = after;
       if (isDead(nextStates)) continue;
       const cost = cmd === cur.dir ? 0 : 1;
       const nextDist = curDist + cost;
@@ -281,9 +312,10 @@ export function shortestPath(rawSpec) {
     const next = new Map();
     for (const cur of level) {
       for (const cmd of COMMANDS) {
-        const { steps, bumped } = move(cur.pos, cmd, cur.states);
+        const { steps, bumped, after } = move(cur.pos, cmd, cur.states);
         if (bumped || steps.length === 0) continue;
-        const { pos, states } = steps[steps.length - 1];
+        const { pos } = steps[steps.length - 1];
+        const states = after;
         if (isDead(states)) continue;
         const k = key(pos, cmd, states);
         if (seen.has(k)) continue;

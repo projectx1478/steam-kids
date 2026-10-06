@@ -73,6 +73,7 @@ export function showHint(slotEl, { kind, message, restore }) {
 }
 
 // diagnose(result, commands, spec) -> { reason: 'wall', cmdIndex, cell }
+//                                    | { reason: 'periodic', cmdIndex, cell }（閉じた周期ドアにぶつかった。Issue #310）
 //                                    | { reason: 'paint', over }（塗りが目標と違う。overは目標外を塗ったマス。Issue #286）
 //                                    | { reason: 'items', remainingItems }
 //                                    | { reason: 'goal', cell, goal, distance }
@@ -81,6 +82,7 @@ export function showHint(slotEl, { kind, message, restore }) {
 export function diagnose(result, commands, spec) {
   for (let i = 0; i < result.stepOwner.length; i += 1) {
     if (result.bumped[i]) {
+      if (result.periodicBump?.[i]) return { reason: 'periodic', cmdIndex: result.stepOwner[i], cell: result.path[i] };
       return { reason: 'wall', cmdIndex: result.stepOwner[i], cell: result.path[i] };
     }
   }

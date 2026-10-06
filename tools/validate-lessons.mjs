@@ -447,6 +447,15 @@ function validateLesson(fileName, data) {
         add('かぎの必須性', `${label}かぎを取らずにmaxCommands=${play.maxCommands}以内でゴールできる（最短${noDoorDist}）`);
       }
     }
+    // 周期ドアを「常に開」（ドアを無視）にした盤の最短と比べ、実際の最短が長くなければドアが飾り（待ち・寄り道が要らない）。
+    // 「常に開の最短 <= maxCommands なら不合格」は、ドアは通行を狭めるだけで常に成立してしまうため、paintの必須性と同じ比較にした。
+    if (dist !== null && dist !== Infinity && Array.isArray(play.periodic) && play.periodic.length > 0) {
+      const alwaysOpen = boardSpec({ ...play, periodic: [] });
+      const alwaysOpenDist = play.groupRepeats ? shortestChips(alwaysOpen) : shortestSteps(alwaysOpen);
+      if (!(dist > alwaysOpenDist)) {
+        add('周期ドアの必須性', `${label}周期ドアを常に開とみなした最短(${alwaysOpenDist})より最短(${dist})が長くない（待ち・寄り道が要らず、ドアが飾り）`);
+      }
+    }
     // paint：目標が最短経路（塗り無しの最短）より大きいこと（塗りが飾りでない）と、maxCommands＝最短ちょうど。
     if (dist !== null && Array.isArray(play.paint) && play.paint.length > 0) {
       const noPaintDist = shortestSteps(boardSpec({ ...play, paint: [] }));

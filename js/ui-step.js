@@ -397,7 +397,7 @@ export function createStepper(commands, spec, view, { onTick, onPickup }) {
       });
       if (!bumped) {
         for (const g of GIMMICKS) {
-          const sfx = g.onStep?.({ pos: to, spec, view, run: (runStates[g.key] ??= {}) });
+          const sfx = g.onStep?.({ pos: to, spec, view, run: (runStates[g.key] ??= {}), result, index: i });
           if (sfx) playSfx(sfx);
         }
       }

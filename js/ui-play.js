@@ -32,6 +32,7 @@ const HINT_MESSAGE = {
   wall: 'この めいれいで かべに ぶつかったよ',
   items: 'どんぐりが まだ のこって いるよ',
   goal: 'ゴールまで あと すこし',
+  periodic: 'ドアが しまって いたよ',
 };
 const FAR_GOAL_MESSAGE = 'ほかの みちも ためして みよう';
 const NEAR_GOAL_DISTANCE = 2;
@@ -345,6 +346,7 @@ export function renderPlay(root, step) {
       doors: spec.doors,
       switches: spec.switches,
       paint: spec.paint,
+      periodic: spec.periodic,
       playerPos,
       labels: [],
       cellSize: local.cellSize,
@@ -653,7 +655,7 @@ export function renderPlay(root, step) {
       updateControls();
       const info = diagnose(result, local.commands, spec);
       triggerFailFeedback(info.reason);
-      if (info.reason === 'wall') {
+      if (info.reason === 'wall' || info.reason === 'periodic') {
         queueEl.querySelector(`[data-index="${info.cmdIndex}"]`)?.classList.add('ring-4', 'ring-amber-400');
         local.view.markCell(info.cell, 'wall');
         // 壁衝突は横に倒れる演出で気づかせ、1.2秒後に「もういちど」をパルスで強調する（Issue #214）。
@@ -672,7 +674,7 @@ export function renderPlay(root, step) {
         local.view.markCell(spec.goal, 'goal-hint');
       }
       // 壁衝突時は倒れの演出と重なるため首かしげはしない（Issue #214）。
-      if (info.reason !== 'wall') local.view.shrug();
+      if (info.reason !== 'wall' && info.reason !== 'periodic') local.view.shrug();
       local.resultShown = true;
       const far = info.reason === 'goal' && info.distance > NEAR_GOAL_DISTANCE;
       showHint(statusBar, { kind: info.reason, message: far ? FAR_GOAL_MESSAGE : HINT_MESSAGE[info.reason], restore: clearResult });
