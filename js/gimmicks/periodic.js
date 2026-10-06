@@ -23,24 +23,29 @@ const EDGE = { blue: '#004a73', yellow: '#7a6f00', red: '#8f3d00' };
 // 色ごとの形（青＝塗り●、黄＝塗り▲（濃い縁）、赤＝塗り■）。形の決定はここだけ。
 export const MARK_SHAPE = { blue: 'circle', yellow: 'triangle', red: 'square' };
 
-// 灰茶の板張りドア。構造はjs/gimmicks/keys.jsのdoorSvgと同じ（閉＝壁のように閉じた扉、開＝扉が脇に開いて床が見える）。
-// 色は赤／青（かぎドア）と区別するため灰茶だけにし、かぎの形の印は付けない。
+// 明るい木目のドア。構造はjs/gimmicks/keys.jsのdoorSvgと同じ（閉＝壁のように閉じた扉、開＝扉が脇に開いて床が見える）。
+// 色は赤／青（かぎドア）と区別するため木目の茶だけにし、かぎの形の印は付けない。閉じた扉には金の取っ手を付ける。
 function doorSvg(open) {
-  const ledge = '<rect x="4" y="10" width="56" height="52" rx="4" fill="#44403c" />';
+  const ledge = '<rect x="4" y="10" width="56" height="52" rx="4" fill="#a9784a" stroke="#7a5230" stroke-width="1.2" />';
   const frame = open
-    ? '<path fill-rule="evenodd" d="M4 3 h56 v52 h-56z M9 7 h46 v48 h-46z" fill="#57534e" />'
-    : '<rect x="4" y="3" width="56" height="52" rx="4" fill="#57534e" />';
+    ? '<path fill-rule="evenodd" d="M4 3 h56 v52 h-56z M9 7 h46 v48 h-46z" fill="#a9784a" />'
+    : '<rect x="4" y="3" width="56" height="52" rx="4" fill="#a9784a" />';
+  const outer = open ? '' : '<rect x="4" y="3" width="56" height="52" rx="4" fill="none" stroke="#7a5230" stroke-width="1.2" />';
+  const pane = (x, y) => `<rect x="${x}" y="${y}" width="16" height="16" rx="2" fill="none" stroke="#b98e5a" stroke-width="2" />`;
   const inner = open
     ? `<rect x="9" y="7" width="46" height="5" fill="#0f172a" opacity="0.12" />
-      <path d="M9 7 L18 10 L18 58 L9 55Z" fill="#78716c" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" />`
-    : `<rect x="9" y="7" width="46" height="48" rx="2" fill="#78716c" stroke="#44403c" stroke-width="2" />
-      <rect x="14" y="11" width="16" height="16" rx="2" fill="none" stroke="#44403c" stroke-width="2" />
-      <rect x="34" y="11" width="16" height="16" rx="2" fill="none" stroke="#44403c" stroke-width="2" />
-      <rect x="14" y="30" width="16" height="16" rx="2" fill="none" stroke="#44403c" stroke-width="2" />
-      <rect x="34" y="30" width="16" height="16" rx="2" fill="none" stroke="#44403c" stroke-width="2" />
-      <rect x="11" y="8" width="42" height="3" fill="#a8a29e" opacity="0.7" />`;
+      <path d="M9 7 L18 10 L18 58 L9 55Z" fill="#d9b382" stroke="#7a5230" stroke-width="1.5" stroke-linejoin="round" />
+      <path d="M13 12 q1 8 0 16 t0 16" fill="none" stroke="#b98e5a" stroke-width="1" />`
+    : `<rect x="9" y="7" width="46" height="48" rx="2" fill="#d9b382" stroke="#7a5230" stroke-width="2" />
+      <g fill="none" stroke="#b98e5a" stroke-width="1" stroke-linecap="round">
+        <path d="M12 9 q3 8 0 16 t0 16 t0 12" /><path d="M32 9 q-3 8 0 16 t0 16 t0 12" /><path d="M52 9 q3 8 0 16 t0 16 t0 12" />
+        <path d="M22 28 q2 6 0 12 t0 12" /><path d="M42 28 q-2 6 0 12 t0 12" />
+      </g>
+      ${pane(14, 11)}${pane(34, 11)}${pane(14, 30)}${pane(34, 30)}
+      <rect x="11" y="8" width="42" height="3" fill="#ffffff" opacity="0.45" />
+      <circle cx="51" cy="28.5" r="2.4" fill="#f5c542" stroke="#7a5230" stroke-width="0.8" />`;
   return `<svg viewBox="0 0 64 64" class="grid-periodic-door-svg absolute inset-0 w-full h-full pointer-events-none" aria-hidden="true">
-      ${ledge}${frame}${inner}
+      ${ledge}${frame}${outer}${inner}
     </svg>`;
 }
 
