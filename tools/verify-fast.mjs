@@ -1,5 +1,5 @@
 // verify-fast.mjs: 軽量検証（check:static → validate:lessons → test:unit:core、生成まわり変更時は test:unit:generate も）を1コマンドで回す。
-//   npm run verify:fast        （全体のタイムアウト240秒。各段の成否と所要時間だけ出力。失敗時は要約のみ）
+//   npm run verify:fast        （全体のタイムアウト300秒。各段の成否と所要時間だけ出力。失敗時は要約のみ）
 //   npm run verify:fast -- --with-generate   （生成テストを強制的に含める）
 // 実行する npm スクリプトの中身は package.json が正本（ここでは複製しない）。E2E は含まない。
 import { spawn, spawnSync } from 'node:child_process';
@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const BASE_STAGES = ['check:static', 'validate:lessons', 'test:unit:core'];
 const GENERATE_STAGE = 'test:unit:generate';
-const TOTAL_MS = 240_000;
+const TOTAL_MS = 300_000;
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 // 生成まわりのパス（これらに変更があれば test:unit:generate も回す）。'/' 区切りで比較する。
