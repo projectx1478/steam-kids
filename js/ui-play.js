@@ -286,12 +286,18 @@ export function renderPlay(root, step) {
   const GAP_FRAME_CLASSES = ['min-h-[64px]', 'items-center', 'rounded-2xl', 'border-2', 'border-dashed', 'border-slate-300'];
   let resultRowEl = null;
 
+  // 結果ダイアログ（Issue #340）は controls（パネル）全体に被せる。表示中は背面のボタンを inert にし、
+  // 除去時に inert と relative を戻す。
   function clearResultRow() {
     resultRowEl?.remove();
     resultRowEl = null;
+    [paletteEl, queueEl, actionsEl].forEach((el) => {
+      el.inert = false;
+    });
+    controls.classList.remove('relative');
   }
 
-  function showResultActionsDelayed(primaryBtn, replayBtn) {
+  function showResultActionsDelayed(primaryBtn, replayBtn, headingText) {
     clearResultRow();
     actionsEl.innerHTML = '';
     actionsEl.classList.add(...GAP_FRAME_CLASSES);
@@ -306,13 +312,30 @@ export function renderPlay(root, step) {
       primaryBtn.classList.remove('block', 'mx-auto', 'mt-4');
       primaryBtn.classList.add('w-full', 'h-16');
       replayBtn.classList.remove('block', 'mx-auto', 'mt-4', 'py-3');
-      replayBtn.classList.add('w-40', 'h-12', 'self-end');
+      replayBtn.classList.add('w-40', 'h-16', 'self-end');
       resultRowEl = document.createElement('div');
-      resultRowEl.className = 'result-row flex flex-col gap-2';
+      resultRowEl.className = 'result-row absolute inset-0 z-10 flex flex-col justify-center rounded-2xl bg-slate-900/50 p-2';
       resultRowEl.dataset.resultRow = 'true';
-      resultRowEl.appendChild(primaryBtn);
-      resultRowEl.appendChild(replayBtn);
-      controls.insertBefore(resultRowEl, actionsEl);
+      const dialog = document.createElement('div');
+      dialog.className = 'result-dialog flex flex-col gap-2 rounded-xl bg-white p-3 shadow-lg';
+      dialog.dataset.resultDialog = 'true';
+      let heading = null;
+      if (headingText) {
+        heading = document.createElement('p');
+        heading.className = 'text-center text-lg font-bold text-slate-700';
+        heading.textContent = headingText;
+        dialog.appendChild(heading);
+      }
+      dialog.appendChild(primaryBtn);
+      dialog.appendChild(replayBtn);
+      resultRowEl.appendChild(dialog);
+      controls.classList.add('relative');
+      [paletteEl, queueEl, actionsEl].forEach((el) => {
+        el.inert = true;
+      });
+      controls.appendChild(resultRowEl);
+      // パネルに収まらない端末では見出しを出さずに収める（スクロールさせない。ボタンは64pxのまま）。
+      if (heading && dialog.offsetHeight > resultRowEl.clientHeight - 16) heading.remove();
     }, prefersReducedMotion() ? RESULT_GAP_REDUCED_MS : RESULT_GAP_MS);
     setActiveAnimation({
       cancel() {
@@ -695,7 +718,8 @@ export function renderPlay(root, step) {
         saveResumePoint();
         showResultActionsDelayed(
           createPrimaryButton('つぎの ステージ', () => goToStep(S.stepIndex + 1), 'next-stage'),
-          createPrimaryButton('もういちど', replay, 'replay')
+          createPrimaryButton('もういちど', replay, 'replay'),
+          'つぎへ すすもう'
         );
       }
     } else {
