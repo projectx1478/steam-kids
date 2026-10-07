@@ -236,6 +236,18 @@ async function renderLessonsSection(root, lessons) {
   }
 }
 
+// 長尺試作の一覧（lessons/index.json の longTrialIds）。読めなければ空（従来どおりの表示）。
+async function loadLongTrialIds() {
+  try {
+    const res = await fetch('./lessons/index.json');
+    if (!res.ok) return [];
+    const ids = (await res.json()).longTrialIds;
+    return Array.isArray(ids) ? ids : [];
+  } catch {
+    return [];
+  }
+}
+
 async function renderDashboard() {
   if (loadSyncState().enabled) {
     await push();
@@ -243,7 +255,7 @@ async function renderDashboard() {
   }
 
   const events = loadEvents();
-  const result = summarize(events, Date.now());
+  const result = summarize(events, Date.now(), { longTrialIds: await loadLongTrialIds() });
 
   renderWorkerVersionBanner(document.getElementById('worker-version-banner'), loadSyncState().workerVersionMismatch);
   renderSlotTabs(document.getElementById('slot-tabs'));

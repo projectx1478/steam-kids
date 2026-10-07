@@ -96,7 +96,8 @@ function computeRecentDays(events, now) {
 
 // summarize(events, now) -> { lessons: { [lessonId]: {...} }, recentDays: [...] }
 // now は呼び出し側から渡す（純粋関数内でDate.now()を呼ばない）。
-export function summarize(events, now) {
+// longTrialIds: 長尺試作のレッスンID一覧。該当レッスンはalertsだけ空にする（ログは従来どおり集計）。
+export function summarize(events, now, { longTrialIds = [] } = {}) {
   const byLesson = new Map();
   for (const e of events) {
     if (!byLesson.has(e.lessonId)) byLesson.set(e.lessonId, []);
@@ -117,6 +118,7 @@ export function summarize(events, now) {
     const steps = {};
     for (const [stepId, stepEvents] of byStep) {
       steps[stepId] = computeStepMetrics(stepEvents);
+      if (longTrialIds.includes(lessonId)) steps[stepId].alerts = [];
     }
 
     lessons[lessonId] = {

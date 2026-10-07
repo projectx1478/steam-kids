@@ -22,6 +22,10 @@ const MIN_STEPS = 4;
 const MAX_STEPS = 7;
 const MIN_PLAY = 2;
 const MAX_PLAY = 4;
+// 長尺試作（lessons/index.json の longTrialIds。Issue #319）だけに許す上限。MIN_*は共通。
+const LONG_MAX_STEPS = 12;
+const LONG_MAX_PLAY = 8;
+const LONG_MINUTES = 8;
 // docs/authoring-rules.md「禁止事項」で確定した否定語リスト。
 const FORBIDDEN_WORDS = ['ちがう', 'まちがい', 'ざんねん'];
 
@@ -261,9 +265,9 @@ function validatePractice(steps, add) {
 
 // predict-slider（シーソー）：playは2〜4個、座標が範囲内、solutionでつりあいstartでは傾く、
 // 解がちょうど1つ、難易度（左のおもさ合計）が非減少（Issue #150）。
-function validateSeesaw(playSteps, add) {
-  if (playSteps.length < MIN_PLAY || playSteps.length > MAX_PLAY) {
-    add('盤面の必須', `kind="play" が${playSteps.length}個（${MIN_PLAY}〜${MAX_PLAY}個である必要がある）`);
+function validateSeesaw(playSteps, add, maxPlay = MAX_PLAY) {
+  if (playSteps.length < MIN_PLAY || playSteps.length > maxPlay) {
+    add('盤面の必須', `kind="play" が${playSteps.length}個（${MIN_PLAY}〜${maxPlay}個である必要がある）`);
   }
   const isInt = (v) => Number.isInteger(v) && v >= 1;
   let prevDifficulty = 0;
@@ -294,7 +298,7 @@ function validateSeesaw(playSteps, add) {
   }
 }
 
-function validateLesson(fileName, data) {
+function validateLesson(fileName, data, longTrialIds = []) {
   const errors = [];
   const add = (rule, detail) => errors.push(`${fileName}: ${rule}: ${detail}`);
 
@@ -308,17 +312,23 @@ function validateLesson(fileName, data) {
     add('ID一致', `lessonId="${data.lessonId}" はファイル名"${idFromFile}"と不一致`);
   }
 
-  if (data.estimatedMinutes !== 5) {
-    add('所要時間', `estimatedMinutes=${data.estimatedMinutes}（5である必要がある）`);
+  // 長尺試作＝ファイル名由来のidが longTrialIds に載るレッスン（lessonIdでは引かない）。
+  const isLong = longTrialIds.includes(idFromFile);
+  const minutes = isLong ? LONG_MINUTES : 5;
+  if (data.estimatedMinutes !== minutes) {
+    add('所要時間', `estimatedMinutes=${data.estimatedMinutes}（${minutes}である必要がある）`);
   }
+  const maxSteps = isLong ? LONG_MAX_STEPS : MAX_STEPS;
+  const maxPlay = isLong ? LONG_MAX_PLAY : MAX_PLAY;
 
   const steps = Array.isArray(data.steps) ? data.steps : [];
   if (steps.some((s) => s.kind === 'seedPick')) {
+    if (isLong) add('長尺試作とseedPick', 'longTrialIdsのレッスンはseedPick（れんしゅう）を持てない');
     validatePractice(steps, add);
     return errors;
   }
-  if (steps.length < MIN_STEPS || steps.length > MAX_STEPS) {
-    add('ステップ数', `steps.length=${steps.length}（${MIN_STEPS}〜${MAX_STEPS}である必要がある）`);
+  if (steps.length < MIN_STEPS || steps.length > maxSteps) {
+    add('ステップ数', `steps.length=${steps.length}（${MIN_STEPS}〜${maxSteps}である必要がある）`);
   }
 
   for (const step of steps) {
@@ -357,8 +367,8 @@ function validateLesson(fileName, data) {
 
   // playは2〜4個（だんだん難易度を上げる複数ステージ構成。Issue #104）。
   const playSteps = steps.filter((s) => s.kind === 'play');
-  if (data.type === 'grid-runtime' && (playSteps.length < MIN_PLAY || playSteps.length > MAX_PLAY)) {
-    add('盤面の必須', `kind="play" が${playSteps.length}個（${MIN_PLAY}〜${MAX_PLAY}個である必要がある）`);
+  if (data.type === 'grid-runtime' && (playSteps.length < MIN_PLAY || playSteps.length > maxPlay)) {
+    add('盤面の必須', `kind="play" が${playSteps.length}個（${MIN_PLAY}〜${maxPlay}個である必要がある）`);
   }
 
   // チュートリアル（tutorial）は各単元1本目のみ・0〜1個（Issue #81）。
@@ -368,7 +378,7 @@ function validateLesson(fileName, data) {
   }
 
   if (data.type === 'predict-slider') {
-    validateSeesaw(playSteps, add);
+    validateSeesaw(playSteps, add, maxPlay);
     return errors;
   }
   if (data.type !== 'grid-runtime' || playSteps.length === 0) return errors;
@@ -708,7 +718,7 @@ function validateLesson(fileName, data) {
 
 // index.jsonはレッスン選択画面（単元マップ）用の一覧ファイル。参照するlessonIdが実在し、
 // unitIdがレッスン本体のunitIdと一致していることを確認する（Issue #58）。
-function validateIndex(data, lessonById) {
+function validateIndex(data, lessonById, fileIds = new Set()) {
   const errors = [];
   const add = (rule, detail) => errors.push(`index.json: ${rule}: ${detail}`);
 
@@ -744,6 +754,26 @@ function validateIndex(data, lessonById) {
     }
   }
 
+  // longTrialIds＝長尺試作の一覧（Issue #319）。文字列配列・重複なし・lessons/<id>.json が実在すること。
+  // 省略時は空。seedPickとの併用はvalidateLessonで見る。
+  if ('longTrialIds' in data) {
+    const ids = data.longTrialIds;
+    if (!Array.isArray(ids)) {
+      add('longTrialIds', 'longTrialIds が配列でない');
+    } else {
+      const seen = new Set();
+      for (const id of ids) {
+        if (typeof id !== 'string') {
+          add('longTrialIds', `要素 ${JSON.stringify(id)} が文字列でない`);
+          continue;
+        }
+        if (seen.has(id)) add('longTrialIds', `"${id}" が重複している`);
+        seen.add(id);
+        if (!fileIds.has(id)) add('longTrialIds', `"${id}" の lessons/${id}.json が無い`);
+      }
+    }
+  }
+
   // どの一覧にも載らないレッスンは開発者画面からも辿れないため、掲載漏れをエラーにする（Issue #216）。
   for (const lessonId of lessonById.keys()) {
     if (!seenLessonIds.has(lessonId)) {
@@ -766,7 +796,18 @@ function lessonKanjiMaxGrade(data) {
   return max;
 }
 
+// index.jsonのlongTrialIds（文字列だけ拾う。形の不正はvalidateIndexが不合格にする）。
+async function readLongTrialIds() {
+  try {
+    const index = JSON.parse(await readFile(path.join(LESSONS_DIR, 'index.json'), 'utf-8'));
+    return Array.isArray(index.longTrialIds) ? index.longTrialIds.filter((id) => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
 async function main() {
+  const longTrialIds = await readLongTrialIds();
   const files = (await readdir(LESSONS_DIR)).filter((f) => f.endsWith('.json') && f !== 'index.json');
   const allErrors = [];
   const infoLines = [];
@@ -781,14 +822,14 @@ async function main() {
       continue;
     }
     if (typeof data.lessonId === 'string') lessonById.set(data.lessonId, data);
-    allErrors.push(...validateLesson(file, data));
+    allErrors.push(...validateLesson(file, data, longTrialIds));
     const maxGrade = lessonKanjiMaxGrade(data);
     if (maxGrade !== null) infoLines.push(`INFO ${file}: kanjiMaxGrade=${maxGrade}`);
   }
 
   const indexRaw = await readFile(path.join(LESSONS_DIR, 'index.json'), 'utf-8');
   try {
-    allErrors.push(...validateIndex(JSON.parse(indexRaw), lessonById));
+    allErrors.push(...validateIndex(JSON.parse(indexRaw), lessonById, new Set(files.map((f) => path.basename(f, '.json')))));
   } catch (e) {
     allErrors.push(`index.json: JSONパース: ${e.message}`);
   }
