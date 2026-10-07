@@ -81,9 +81,10 @@ Tailwind のクラスを足したのに、`style.css` が `git --no-pager diff -
 
 ### 5. コミットの準備
 1. `git --no-pager status -uall` で、変更が設計どおりのファイルだけであること、`.claude/`（設計に無いもの）・`review/`・画像・観察メモが含まれないことを確認する。
-2. 変更ファイルを、1つずつパスを指定して `git add` する（`style.css` を含む場合も、パス指定で）。
-3. コミットする。メッセージは手順0-5で確認した書き方に合わせ、Issue番号を入れる。
-4. `git log -1 --format="%an <%ae>"` を実行する。noreply 形式（`...@users.noreply.github.com`）でなければ push せず、止まって報告する。
+2. `approved.md` と引き継ぎ書の決定欄で「含めない」「触らない」とされたファイルを洗い出し、`git --no-pager diff --name-only origin/main...HEAD`（未コミットの分は `git --no-pager status --short` も）と突き合わせる。該当があれば、コミットせずに止まって報告する。
+3. 変更ファイルを、1つずつパスを指定して `git add` する（`style.css` を含む場合も、パス指定で）。
+4. コミットする。メッセージは手順0-5で確認した書き方に合わせ、Issue番号を入れる。
+5. `git log -1 --format="%an <%ae>"` を実行する。noreply 形式（`...@users.noreply.github.com`）でなければ push せず、止まって報告する。
 
 ### 6. push と PR（新シナリオをCIで走らせる）
 1. `git push -u origin <ブランチ>`。

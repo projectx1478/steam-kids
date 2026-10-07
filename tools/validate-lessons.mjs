@@ -355,7 +355,7 @@ function validateLesson(fileName, data) {
   // predictは0個でもよい（現行レッスンはIssue #104で全廃。将来の教材型のため語彙は残す）。
   const predictSteps = steps.filter((s) => s.kind === 'predict');
 
-  // playは2〜4個（だんだん難易度を上げる複数ステージ構成。Issue #104）。
+  // playは2〜4個（だんだん難易度を上げる複数ステージ構成。Issue #104）。長尺試作の一覧IDだけ2〜8個（Issue #319）。
   const playSteps = steps.filter((s) => s.kind === 'play');
   if (data.type === 'grid-runtime' && (playSteps.length < MIN_PLAY || playSteps.length > MAX_PLAY)) {
     add('盤面の必須', `kind="play" が${playSteps.length}個（${MIN_PLAY}〜${MAX_PLAY}個である必要がある）`);
