@@ -57,6 +57,9 @@ review/principles/archive/
 review/lesson-ideas/round1/
 review/lesson-ideas/round2/
 
+# 自動進行（/run-issues）の Issue 別 worktree
+.worktrees/
+
 # 設計議論（/design-issue）の議論原文。公開しない
 review/design/
 review/autopilot/

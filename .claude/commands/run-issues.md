@@ -46,13 +46,13 @@ Issue を選ぶときに付ける（付いていれば従う）。
 
 ### 1. モード「設計」
 1. `queue.md` から、状態が `待ち`・`再開可` で、依存がマージ済みで、区分が M・L の Issue を最大3件選ぶ（区分が空なら付ける）。
-2. Issue ごとに、`/design-issue <N>`（M は1〜2役、L は4役）→ 見本が要るなら見本の作成 → 専用の worktree（`git worktree add ../<リポジトリ名>-<N> -b feature/issue-<N>-<slug> origin/main`）→ ゲート判定（下の「ゲート判定」）まで進める。
+2. Issue ごとに、`/design-issue <N>`（M は1〜2役、L は4役）→ 見本が要るなら見本の作成 → 専用の worktree（`git worktree add <MAIN>/.worktrees/<N> -b feature/issue-<N>-<slug> origin/main`。置き場所は `<MAIN>/.worktrees/<N>`。`.gitignore` 済み）→ ゲート判定（下の「ゲート判定」）まで進める。
 3. 次の項目を、`<MAIN>/review/autopilot/decisions/inbox.md` の1枚に、Issue ごと・項目ごとに記号付き（`A`〜`D`）でまとめる：設計案の承認／見本の色・形・文言・盤面／`.claude/` と docs の規則変更の文言。項目ごとに、番号・問い・選択肢・推奨案と理由1行・先例の有無・決めないと止まる段を書く。
 4. 状態を `設計承認待ち` にして、手順3（記録）へ。
 
 ### 2. モード「実装」
 承認済みの Issue と S の Issue を、依存先がマージ済みのものから最大2件進める。
-- **M・L**：専用の worktree で `/implement-issue <N>`（ブランチは設計で切ったもの）→ 下書き PR → マージ前の照合。
+- **M・L**：専用の worktree（`<MAIN>/.worktrees/<N>`）で `/implement-issue <N>`（ブランチは設計で切ったもの）→ 下書き PR → マージ前の照合。
 - **S**：メインが直接編集する（`/implement-issue-light` の手順に従ってよい）→ 下書き PR → マージ前の照合（`model: sonnet`）。
 
 マージ前の照合：`gh pr view <PR番号> --json body -q .body` で PR 本文を取り、`reviewer` をモード `マージ前の照合` で呼ぶ。渡すのは、Issue 本文・`approved.md`（S は Issue 本文のみ）・引き継ぎ書の決定欄のパス、PR 番号、作業ブランチ、PR 本文だけ。coder の報告・検証ログ・判断の経緯・checker の返信は渡さない。重大が無ければ `gh pr ready <PR番号>`。重大があれば `/implement-issue` の打ち切り規則（reviewer の重大）に従い、下書きのままにして inbox.md に積む。軽微は PR 本文か log.md に書く。
@@ -81,7 +81,7 @@ Issue を選ぶときに付ける（付いていれば従う）。
 2. 次のモード（`設計` または `実装`）
 3. 次のモデル（L 区分の設計なら `opus`、ほかは `sonnet`）
 
-決め方：依存・保留・inbox.md の未回答・歯止め（週間85％以上・今回の2件上限・「要確認」欄の5件超）を考えたうえで、次の起動で着手できる Issue があれば `CONTINUE`。inbox.md に未回答がある、着手できる Issue が無い、週間85％以上、予算不足、止まる条件に当たった、のいずれかなら `STOP（理由）`。`STOP` のときも 2・3 行目は、再開したときの次のモードとモデルを書く。
+決め方：依存・保留・歯止め（週間85％以上・今回の2件上限・「要確認」欄の5件超）を考えたうえで、次の起動で着手できる Issue があれば `CONTINUE`。`STOP（理由）` にするのは、着手できる Issue が無い／週間85％以上／予算不足／止まる条件に当たった、のときだけ。inbox.md の未回答だけでは `STOP` にしない（回答待ちの Issue は飛ばして、着手できる次の Issue へ進む。回答待ちの Issue しか残っていなければ「着手できる Issue が無い」として `STOP`）。`STOP` のときも 2・3 行目は、再開したときの次のモードとモデルを書く。
 
 ## 停止時の報告（チャット、1〜3行）
 inbox.md の未回答の件数（うち【相談推奨】の数）、ready にした PR の番号、保留にした Issue。それ以外は書かない。

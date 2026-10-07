@@ -58,7 +58,7 @@ Bの修正後に、静的な再照合は回さない。確かめるのはCIの�
 6. `.github/workflows/e2e-pr.yml` を読み、PR本文の `E2E:` 行の書式（区切り・シナリオ名の形）を確認する。
 
 ### 1. ブランチ
-`git switch -c feature/issue-<N>-<短い英語のslug>`（`main` から）。`/run-issues` 経由で専用の worktree とブランチが用意済みなら、切らずにその worktree で作業する（`review/design/<N>/` は main 作業ツリー側を絶対パスで読む）。
+`git switch -c feature/issue-<N>-<短い英語のslug>`（`main` から）。`/run-issues` 経由で専用の worktree（`<MAIN>/.worktrees/<N>`）とブランチが用意済みなら、切らずにその worktree で作業する（`review/design/<N>/` は main 作業ツリー側を絶対パスで読む）。
 
 ### 2. 実装（段ごとに新しい coder）
 `approved.md` の「段の分け方」（段ごとに触るファイルと関数名、変えない挙動、完了条件）に沿って、**段ごとに新しい `impl-coder` を1回ずつ**起動する。「段の分け方」が無い `approved.md` は使わず、止まって報告する（`/design-issue` で補う）。
