@@ -7,9 +7,6 @@ on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, edited]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
 
 permissions:
   contents: read
@@ -22,7 +19,39 @@ env:
   SMOKE: app-version p3-offline lesson-picker cmd01-flow guardian-gate
 
 jobs:
+  # 必須チェック（e2e）を常に報告するため、paths-ignore ではなくジョブの if で省略する。
+  # 変更が *.md・docs/ 配下だけなら e2e を省略（省略は必須チェック上で成功扱い）。
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - name: 変更パスを判定する
+        id: diff
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          code=false
+          FILES=$(gh api "repos/$REPO/pulls/$PR/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)')
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            case "$f" in
+              *.md|docs/*) ;;
+              *) code=true ;;
+            esac
+          done <<< "$FILES"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "### 変更パスの判定: code=$code" >> "$GITHUB_STEP_SUMMARY"
+
   e2e:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

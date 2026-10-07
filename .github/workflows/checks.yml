@@ -9,9 +9,6 @@ name: Checks
 on:
   pull_request:
     branches: [main]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
   workflow_dispatch: {}
 
 permissions:
@@ -22,7 +19,43 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # 必須チェック（checks）を常に報告するため、paths-ignore ではなくジョブの if で省略する。
+  # 変更が *.md・docs/ 配下だけなら checks を省略（省略は必須チェック上で成功扱い）。手動実行は常に実行。
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - name: 変更パスを判定する
+        id: diff
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          code=false
+          if [ -z "$PR" ]; then
+            code=true
+          else
+            FILES=$(gh api "repos/$REPO/pulls/$PR/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)')
+            while IFS= read -r f; do
+              [ -z "$f" ] && continue
+              case "$f" in
+                *.md|docs/*) ;;
+                *) code=true ;;
+              esac
+            done <<< "$FILES"
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "### 変更パスの判定: code=$code" >> "$GITHUB_STEP_SUMMARY"
+
   checks:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
