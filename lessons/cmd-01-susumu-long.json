@@ -1,0 +1,179 @@
+{
+  "lessonId": "cmd-01-susumu-long",
+  "unitId": "commands",
+  "title": "すすむ",
+  "type": "grid-runtime",
+  "estimatedMinutes": 8,
+  "steps": [
+    {
+      "stepId": "s1",
+      "kind": "intro",
+      "text": "ゴールまで {進|すす}もう",
+      "demo": {
+        "grid": { "cols": 4, "rows": 4 },
+        "start": { "x": 3, "y": 3 },
+        "goal": { "x": 0, "y": 0 },
+        "walls": [{ "x": 2, "y": 2 }],
+        "commands": ["left", "left", "left", "up", "up", "up"],
+        "showCommands": true
+      }
+    },
+    {
+      "stepId": "t1",
+      "kind": "tutorial",
+      "grid": { "cols": 3, "rows": 3 },
+      "start": { "x": 0, "y": 2 },
+      "goal": { "x": 2, "y": 0 },
+      "walls": [],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "script": [
+        { "tap": "up" },
+        { "tap": "up" },
+        { "tap": "right" },
+        { "tap": "right" },
+        { "tap": "run" }
+      ]
+    },
+    {
+      "stepId": "p1",
+      "kind": "play",
+      "grid": { "cols": 3, "rows": 3 },
+      "start": { "x": 2, "y": 2 },
+      "goal": { "x": 0, "y": 0 },
+      "walls": [],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["up", "up", "left", "left"],
+      "maxCommands": 6
+    },
+    {
+      "stepId": "p2",
+      "kind": "play",
+      "grid": { "cols": 4, "rows": 4 },
+      "start": { "x": 0, "y": 3 },
+      "goal": { "x": 3, "y": 0 },
+      "walls": [{ "x": 2, "y": 2 }],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["up", "up", "up", "right", "right", "right"],
+      "maxCommands": 8
+    },
+    {
+      "stepId": "p3",
+      "kind": "play",
+      "grid": { "cols": 5, "rows": 5 },
+      "start": { "x": 0, "y": 4 },
+      "goal": { "x": 4, "y": 0 },
+      "walls": [
+        { "x": 2, "y": 0 },
+        { "x": 2, "y": 1 },
+        { "x": 2, "y": 3 },
+        { "x": 2, "y": 4 }
+      ],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["up", "up", "right", "right", "right", "right", "up", "up"],
+      "maxCommands": 10
+    },
+    {
+      "stepId": "p4",
+      "kind": "play",
+      "grid": { "cols": 5, "rows": 5 },
+      "start": { "x": 0, "y": 4 },
+      "goal": { "x": 4, "y": 0 },
+      "walls": [
+        { "x": 1, "y": 2 },
+        { "x": 1, "y": 3 },
+        { "x": 1, "y": 4 },
+        { "x": 3, "y": 1 },
+        { "x": 3, "y": 2 },
+        { "x": 3, "y": 3 },
+        { "x": 3, "y": 4 }
+      ],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["up", "up", "up", "up", "right", "right", "right", "right"],
+      "maxCommands": 10
+    },
+    {
+      "stepId": "p5",
+      "kind": "play",
+      "grid": { "cols": 6, "rows": 6 },
+      "start": { "x": 0, "y": 5 },
+      "goal": { "x": 4, "y": 0 },
+      "walls": [
+        { "x": 1, "y": 3 },
+        { "x": 2, "y": 2 },
+        { "x": 3, "y": 1 }
+      ],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["up", "up", "up", "up", "up", "right", "right", "right", "right"],
+      "maxCommands": 11
+    },
+    {
+      "stepId": "p6",
+      "kind": "play",
+      "grid": { "cols": 6, "rows": 6 },
+      "start": { "x": 0, "y": 5 },
+      "goal": { "x": 5, "y": 0 },
+      "walls": [
+        { "x": 1, "y": 3 },
+        { "x": 1, "y": 4 },
+        { "x": 1, "y": 5 },
+        { "x": 3, "y": 1 },
+        { "x": 3, "y": 2 },
+        { "x": 3, "y": 3 },
+        { "x": 3, "y": 4 }
+      ],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["up", "up", "up", "up", "up", "right", "right", "right", "right", "right"],
+      "maxCommands": 12
+    },
+    {
+      "stepId": "p7",
+      "kind": "play",
+      "grid": { "cols": 6, "rows": 6 },
+      "start": { "x": 5, "y": 5 },
+      "goal": { "x": 0, "y": 0 },
+      "walls": [
+        { "x": 5, "y": 4 },
+        { "x": 4, "y": 3 },
+        { "x": 3, "y": 2 },
+        { "x": 2, "y": 1 },
+        { "x": 1, "y": 0 },
+        { "x": 3, "y": 5 },
+        { "x": 2, "y": 4 },
+        { "x": 1, "y": 3 },
+        { "x": 0, "y": 2 }
+      ],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["left", "up", "left", "up", "left", "up", "left", "up", "left", "up"],
+      "maxCommands": 12
+    },
+    {
+      "stepId": "p8",
+      "kind": "play",
+      "grid": { "cols": 6, "rows": 6 },
+      "start": { "x": 0, "y": 0 },
+      "goal": { "x": 5, "y": 5 },
+      "walls": [
+        { "x": 2, "y": 0 },
+        { "x": 3, "y": 1 },
+        { "x": 4, "y": 2 },
+        { "x": 5, "y": 3 },
+        { "x": 0, "y": 1 },
+        { "x": 1, "y": 2 },
+        { "x": 2, "y": 3 },
+        { "x": 3, "y": 4 },
+        { "x": 4, "y": 5 },
+        { "x": 3, "y": 0 },
+        { "x": 4, "y": 1 },
+        { "x": 5, "y": 2 },
+        { "x": 0, "y": 2 },
+        { "x": 1, "y": 3 },
+        { "x": 2, "y": 4 },
+        { "x": 3, "y": 5 }
+      ],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["right", "down", "right", "down", "right", "down", "right", "down", "right", "down"],
+      "maxCommands": 12
+    },
+    { "stepId": "s2", "kind": "summary", "text": "めいれいの じゅんばんが だいじ" }
+  ]
+}
