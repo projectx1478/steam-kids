@@ -256,17 +256,22 @@ function stepGlyph(step, stageIdx) {
 // （よそうはIssue #104で全廃したため対象はplayのみ）。
 function renderStepDots(root) {
   const wrap = document.createElement('div');
-  wrap.className = 'step-roadmap flex justify-center items-center gap-0.5 mb-2';
   const isIntro = currentStep().kind === 'intro';
   const nodeSizeClass = isIntro ? 'w-12 h-12 text-base' : 'w-8 h-8 text-xs';
   const playSteps = S.lesson.steps.filter((s) => s.kind === 'play');
   const lessonCleared_ = isLessonCleared(S.lesson.lessonId);
+  // 描画ノード数（tutorial除外を反映）。クリア済みで7以上なら折返し・48px・線なしにする（Issue #320）。
+  const drawnCount = S.lesson.steps.filter((s, i) => !(s.kind === 'tutorial' && i !== S.stepIndex)).length;
+  const wrapMode = lessonCleared_ && drawnCount >= 7;
+  wrap.className = wrapMode
+    ? 'step-roadmap flex flex-wrap justify-center items-center gap-x-2 gap-y-2 mb-2'
+    : 'step-roadmap flex justify-center items-center gap-0.5 mb-2';
 
   let drawn = 0;
   S.lesson.steps.forEach((step, i) => {
     // tutorialの点はtutorial中だけ出す（飛ばしたtutorialに✓が付いて「やった扱い」に見えるのを防ぐ。Issue #236）。
     if (step.kind === 'tutorial' && i !== S.stepIndex) return;
-    if (drawn > 0) {
+    if (drawn > 0 && !wrapMode) {
       const line = document.createElement('span');
       line.className = `step-roadmap-line flex-1 h-0.5 ${i - 1 < S.stepIndex ? 'bg-emerald-400' : 'bg-slate-200'}`;
       line.setAttribute('aria-hidden', 'true');
@@ -280,7 +285,8 @@ function renderStepDots(root) {
 
     const node = document.createElement(clickable ? 'button' : 'span');
     if (clickable) node.type = 'button';
-    const sizeClass = clickable ? 'min-w-[64px] min-h-[64px] px-2' : nodeSizeClass;
+    const clickableSize = wrapMode ? 'min-w-[48px] min-h-[48px] px-0' : 'min-w-[64px] min-h-[64px] px-2';
+    const sizeClass = clickable ? clickableSize : nodeSizeClass;
     const stateClass = isCurrent
       ? 'bg-sky-500 text-white ring-2 ring-sky-300 ring-offset-1'
       : isDone
