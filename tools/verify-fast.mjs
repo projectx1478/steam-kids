@@ -58,10 +58,18 @@ function killTree(child) {
   }
 }
 
+// 手元の generate 段だけシード数を減らす（CI の test:unit は設定しないので1000のまま）。呼び出し側の設定を優先。
+export const GENERATE_SEEDS_LOCAL = '200';
+export function stageEnv(name, baseEnv = process.env) {
+  if (name !== GENERATE_STAGE || baseEnv.GENERATE_SEEDS) return { ...baseEnv };
+  return { ...baseEnv, GENERATE_SEEDS: GENERATE_SEEDS_LOCAL };
+}
+
 function runStage(name, budgetMs) {
   return new Promise((resolve) => {
     const started = Date.now();
     const child = spawn(`npm run ${name}`, {
+      env: stageEnv(name),
       shell: true,
       detached: process.platform !== 'win32',
       stdio: ['ignore', 'pipe', 'pipe'],

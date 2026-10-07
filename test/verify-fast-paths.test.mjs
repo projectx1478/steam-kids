@@ -1,7 +1,7 @@
 // verify:fast の「生成テストを含めるか」判定（純関数）。実行: npm run test:unit
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isGeneratePath, decideGenerate } from '../tools/verify-fast.mjs';
+import { isGeneratePath, decideGenerate, stageEnv } from '../tools/verify-fast.mjs';
 
 test('生成まわりのパスは含める判定', () => {
   for (const p of ['js/gimmicks/paint.js', 'js/engine-generate.js', 'js/engine-grid.js', 'test/engine-generate-x.test.mjs',
@@ -13,6 +13,15 @@ test('生成まわりのパスは含める判定', () => {
 test('それ以外のパスは除く判定', () => {
   for (const p of ['docs/tools.md', 'js/engine.js', 'test/analytics.test.mjs', 'js/gimmicks.js', 'tools/analyze-board.mjs']) {
     assert.equal(isGeneratePath(p), false, p);
+  }
+});
+
+test('generate 段だけ GENERATE_SEEDS=200 を渡す（設定済みなら上書きしない）', () => {
+  assert.equal(stageEnv('test:unit:generate', { A: '1' }).GENERATE_SEEDS, '200');
+  assert.equal(stageEnv('test:unit:generate', { A: '1' }).A, '1');
+  assert.equal(stageEnv('test:unit:generate', { GENERATE_SEEDS: '50' }).GENERATE_SEEDS, '50');
+  for (const n of ['check:static', 'validate:lessons', 'test:unit:core']) {
+    assert.equal(stageEnv(n, { A: '1' }).GENERATE_SEEDS, undefined, n);
   }
 });
 
