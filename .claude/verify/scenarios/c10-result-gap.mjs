@@ -36,7 +36,7 @@ export default async function run({ page, check }) {
   await check('結果ボタン(つぎの ステージ)が1コマボタンの位置と重ならない', async () => !overlaps(nextBox, stepBox));
   await check('結果ボタン(もういちど)が1コマボタンの位置と重ならない', async () => !overlaps(replayBox, stepBox));
   await check('つぎの ステージの高さは64px', async () => Math.round(nextBox.height), 64);
-  await check('もういちどの高さは48px・幅160px', async () => [Math.round(replayBox.height), Math.round(replayBox.width)], [48, 160]);
+  await check('もういちどの高さは64px・幅160px', async () => [Math.round(replayBox.height), Math.round(replayBox.width)], [64, 160]);
   await check('連打しても結果ボタンのもういちどは起動していない', stepId, p1);
 
   // --- 間の最中の「← もどる」：タイマーが片付き、結果ボタンが後から現れない ---
