@@ -318,11 +318,11 @@
 }
 
 /* 操作画面のトースト行は問い文と同じ20pxに揃え、「やったね！」で status-bar が伸びて盤面が縮まないようにする（Issue #340）。 */
-.play-screen > .status-bar .clear-reaction {
+.play-screen > .status-bar.play-status .clear-reaction {
   height: 20px;
   line-height: 20px;
 }
-.play-screen > .status-bar .clear-reaction svg {
+.play-screen > .status-bar.play-status .clear-reaction svg {
   width: 20px;
   height: 20px;
 }

@@ -92,7 +92,7 @@ export function renderPlay(root, step) {
 
   // 問い文スロット（1行）。実行結果もここへ数秒だけトースト表示する（Issue #97）。
   const statusBar = document.createElement('div');
-  statusBar.className = 'status-bar flex flex-col items-center gap-0.5 shrink-0 text-center';
+  statusBar.className = 'status-bar play-status flex flex-col items-center gap-0.5 shrink-0 text-center';
   opScreen.appendChild(statusBar);
 
   let remainingEl = null;
