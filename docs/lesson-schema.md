@@ -61,7 +61,8 @@
 
 **長尺試作（例外）**：ステージ数だけを変えた別IDの試作レッスン（例：cmd-01 を元にした8ステージ版）。
 「長尺試作の一覧」に載るIDだけが、下記の上限を緩められる。既存レッスンのステージ数は変えない。
-一覧の置き場は実装Issueで決める（validate と集計側で同じ一覧を参照する）。
+一覧の置き場は `lessons/index.json` の最上位 `longTrialIds`（文字列配列。省略時は空。
+validate と集計側で同じ一覧を参照する）。一覧の照合はファイル名由来のIDで行う（`lessonId` では引かない）。
 
 `predict` ステップは自前の盤面を持たず、同じレッスン内の最初の `play` ステップ（`p1`）の
 `grid` / `start` / `goal` / `walls` を参照する。`commands` はその盤面上で予想させる命令列、
@@ -246,7 +247,10 @@ MustMatterは、ギミックモジュールの`strip(spec)`（ギミックを除
 - `steps` は4〜7個（長尺試作は4〜12個）
 - `grid-runtime` では `play` ステップが2〜4個であること（`predict`は0個でもよい。Issue #104）。
   長尺試作は2〜8個
-- `estimatedMinutes` が5であること（長尺試作は8（仮。実測後に見直す））
+- `estimatedMinutes` が5であること（長尺試作は8（仮。実測後に見直す）ちょうど。一覧のIDで5は不合格）
+- `lessons/index.json` の `longTrialIds` は配列で、要素は文字列・重複なし、各IDに対応する
+  `lessons/<id>.json` があること（一覧に載るのにJSONが無い場合は不合格）
+- 長尺試作（一覧のID）は `seedPick`（れんしゅう）を持てない（併用は不合格）
 - `answer` が `options` に存在し、`optionCells` の `id` 集合が `options` と一致すること
 - `predict.commands` を最初の `play`（`p1`）の盤面で実行した終点が `answer` の `optionCells` 座標と
   一致すること
