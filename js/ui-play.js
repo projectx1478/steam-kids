@@ -264,6 +264,8 @@ export function renderPlay(root, step) {
   // クリア時はつぎへ・もういちど（レッスン再挑戦）を通常アクション行に差し替えて表示する
   // （盤面上に重ねない。Issue #97）。
   function showNormalActions() {
+    clearResultRow();
+    actionsEl.classList.remove(...GAP_FRAME_CLASSES);
     actionsEl.innerHTML = '';
     actionsEl.appendChild(removeLastBtn);
     actionsEl.appendChild(clearBtn);
@@ -274,6 +276,49 @@ export function renderPlay(root, step) {
   function showResultActions(buttons) {
     actionsEl.innerHTML = '';
     buttons.forEach((b) => actionsEl.appendChild(b));
+  }
+
+  // クリア時の結果ボタン（Issue #336）。1コマの連打がそのまま結果ボタンに当たらないよう、
+  // 間（RESULT_GAP_MS。reduced-motionは短縮）のあいだ操作行を同じ高さの空き枠にして「…」を出し、
+  // 間のあと結果ボタンを queue と操作行の間の別行に遅れて挿入する。
+  const RESULT_GAP_MS = 1500;
+  const RESULT_GAP_REDUCED_MS = 1000;
+  const GAP_FRAME_CLASSES = ['min-h-[64px]', 'items-center', 'rounded-2xl', 'border-2', 'border-dashed', 'border-slate-300'];
+  let resultRowEl = null;
+
+  function clearResultRow() {
+    resultRowEl?.remove();
+    resultRowEl = null;
+  }
+
+  function showResultActionsDelayed(primaryBtn, replayBtn) {
+    clearResultRow();
+    actionsEl.innerHTML = '';
+    actionsEl.classList.add(...GAP_FRAME_CLASSES);
+    const dots = document.createElement('span');
+    dots.className = 'col-span-full text-center text-2xl text-slate-400 w-full';
+    dots.dataset.resultGap = 'true';
+    dots.textContent = '…';
+    actionsEl.appendChild(dots);
+    const timer = setTimeout(() => {
+      setActiveAnimation(null);
+      dots.remove();
+      primaryBtn.classList.remove('block', 'mx-auto', 'mt-4');
+      primaryBtn.classList.add('w-full', 'h-16');
+      replayBtn.classList.remove('block', 'mx-auto', 'mt-4', 'py-3');
+      replayBtn.classList.add('w-40', 'h-12', 'self-end');
+      resultRowEl = document.createElement('div');
+      resultRowEl.className = 'result-row flex flex-col gap-2';
+      resultRowEl.dataset.resultRow = 'true';
+      resultRowEl.appendChild(primaryBtn);
+      resultRowEl.appendChild(replayBtn);
+      controls.insertBefore(resultRowEl, actionsEl);
+    }, prefersReducedMotion() ? RESULT_GAP_REDUCED_MS : RESULT_GAP_MS);
+    setActiveAnimation({
+      cancel() {
+        clearTimeout(timer);
+      },
+    });
   }
 
   // triggerFailFeedback(): 不正解時の視覚・聴覚フィードバック。派手な✕・警告音ではなく、
@@ -639,19 +684,19 @@ export function renderPlay(root, step) {
         logEvent('clear', {});
         markLessonCleared();
         clearResume(S.lesson.lessonId);
-        showResultActions([
+        showResultActionsDelayed(
           createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'),
-          createPrimaryButton('もういちど', replay, 'replay'),
-        ]);
+          createPrimaryButton('もういちど', replay, 'replay')
+        );
       } else {
         // 途中ステージのクリアはstage_clearのみを記録し、レッスン全体のクリア（clear）や
         // 単元スタンプの対象にはしない（Issue #104）。
         logEvent('stage_clear', { stage: stageIndex + 1 });
         saveResumePoint();
-        showResultActions([
+        showResultActionsDelayed(
           createPrimaryButton('つぎの ステージ', () => goToStep(S.stepIndex + 1), 'next-stage'),
-          createPrimaryButton('もういちど', replay, 'replay'),
-        ]);
+          createPrimaryButton('もういちど', replay, 'replay')
+        );
       }
     } else {
       setRunButtonMode('retry');
