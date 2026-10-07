@@ -17,6 +17,16 @@ test('analytics: やり直し3回以上でretryアラート', () => {
   assert.equal(step([ev('retry', 1), ev('retry', 2), ev('retry', 3)]).alerts.includes('retry'), true, 'retryが3件でアラートが出る');
 });
 
+test('analytics: 長尺試作の一覧IDはalertsだけ空（retryCountは集計する）', () => {
+  const events = [ev('retry', 1), ev('retry', 2), ev('retry', 3)];
+  const inList = summarize(events, 1000, { longTrialIds: [LESSON] }).lessons[LESSON].steps[STEP];
+  assert.deepEqual(inList.alerts, [], '一覧IDはalertsが空');
+  assert.equal(inList.retryCount, 3, '一覧IDでもretryCountは3');
+  const other = summarize(events, 1000, { longTrialIds: ['other'] }).lessons[LESSON].steps[STEP];
+  assert.deepEqual(other.alerts, ['retry'], '一覧外IDはretryアラート');
+  assert.deepEqual(step(events).alerts, ['retry'], '第3引数省略時は従来どおり');
+});
+
 test('analytics: 滞在時間が中央値の2倍以上（サンプル3件以上）でdwellアラート', () => {
   const dwellEvents = (lastDwellMs) => [
     ev('step_enter', 0),
