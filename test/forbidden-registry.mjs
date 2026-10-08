@@ -2,7 +2,10 @@
 // 件数の基準は test/forbidden-baseline.json。項目を足すときは、ここに1行足し、基準ファイルに同じ id を足す。
 // 例外は該当行の行末コメント `// allow-component:<id> 理由`（CSS は `/* allow-component:<id> 理由 */`）。理由は必須。
 
-export const CLEAR = 'js/ui-clear.js'; // 部品の置き場（検出の対象外）
+export const CLEAR = 'js/ui-clear.js'; // クリア演出の置き場
+export const SCREEN = 'js/ui-screen.js'; // 操作画面の枠の置き場
+// 部品の置き場：そのファイルでは、その部品（登録表の 部品）の id だけを数えない。ほかの部品の id は数える。
+export const HOMES = { [CLEAR]: 'クリア演出', [SCREEN]: '操作画面の枠' };
 
 // 検査の対象から外すファイル（理由1行つき）。最大2ファイル。増やすには悠さんの承認。
 // 外したファイルの中の検出件数も数え、基準ファイルの excluded に記録する。
@@ -44,6 +47,9 @@ const CONFETTI_RES = [/\.confetti\??\.?\(/, /(?<!function\s+)\bscreenConfetti\s*
 const CLEARRECORD_RES = [/(?<!function\s+)\b(markLessonCleared|saveResumePoint)\s*\(/];
 const CLEARLOG_RES = [/\blogEvent\(\s*['"](clear|stage_clear)['"]/];
 
+// 5) 操作画面の枠の旧クラス名（className の行。コメント行は数えない）
+const SCREEN_RES = [/className.*(?<![\w-])(play-screen|status-bar|board-area|controller-panel|action-row)(?![\w-])/];
+
 export function checkDialog(src) {
   return lineHits(src, DIALOG_RES, 'dialog');
 }
@@ -84,6 +90,9 @@ export function checkClearRecord(src) {
 export function checkClearLog(src) {
   return callHits(src, CLEARLOG_RES, 'clearlog');
 }
+export function checkScreen(src) {
+  return callHits(src, SCREEN_RES, 'screen');
+}
 
 const JS = ['js/'];
 // 登録表：{ id, 部品, 項目, 対象（先頭一致のパス。末尾 / 以外は完全一致）, 検出(file, src) → 行番号の配列 }
@@ -101,6 +110,7 @@ export const REGISTRY = [
   { id: 'confetti', 部品: 'クリア演出', 項目: '紙吹雪の直呼び', 対象: JS, 検出: (f, s) => checkConfetti(s) },
   { id: 'clearrecord', 部品: 'クリア演出', 項目: 'クリア記録の直呼び', 対象: JS, 検出: (f, s) => checkClearRecord(s) },
   { id: 'clearlog', 部品: 'クリア演出', 項目: 'クリアログの直書き', 対象: JS, 検出: (f, s) => checkClearLog(s) },
+  { id: 'screen', 部品: '操作画面の枠', 項目: '操作画面の枠の自前組み立て', 対象: JS, 検出: (f, s) => checkScreen(s) },
 ];
 
 const inTarget = (file, targets) => targets.some((t) => (t.endsWith('/') ? file.startsWith(t) : file === t));
@@ -109,7 +119,7 @@ const zeros = (ids) => Object.fromEntries(ids.map((id) => [id, 0]));
 
 // sources: { パス: ソース全文 }。件数を数える。
 // patterns＝除外ファイルを除いた件数、excluded＝除外ファイルの中の件数、allow＝allow-component コメントの id ごとの件数。
-export function measure(sources, registry = REGISTRY, excludes = EXCLUDES) {
+export function measure(sources, registry = REGISTRY, excludes = EXCLUDES, homes = HOMES) {
   const ids = registry.map((r) => r.id);
   const patterns = zeros(ids);
   const allow = zeros(ids);
@@ -120,16 +130,16 @@ export function measure(sources, registry = REGISTRY, excludes = EXCLUDES) {
     src.split('\n').forEach((line, i) => {
       if (/allow-clear/.test(line)) errors.push(`${file}:${i + 1}: 旧 allow-clear が残っている（allow-component:<id> 理由 に直す）`);
       if (!line.includes('allow-component:')) return;
-      const m = line.match(/(?:\/\/|\/\*)\s*allow-component:([\w-]*)(\s.*)?$/);
+      const m = line.replace(/\r$/, '').match(/(?:\/\/|\/\*)\s*allow-component:([\w-]*)(\s.*)?$/);
       const id = m?.[1];
       const reason = (m?.[2] ?? '').replace(/\*\/\s*$/, '').trim();
       if (!m || !ids.includes(id)) errors.push(`${file}:${i + 1}: allow-component の id が登録表に無い、または形が違う`);
       else if (!reason) errors.push(`${file}:${i + 1}: allow-component:${id} に理由が無い`);
       else allow[id] += 1;
     });
-    if (file === CLEAR) continue;
     const ex = excluded[file];
     for (const r of registry) {
+      if (homes[file] === r.部品) continue;
       if (!inTarget(file, r.対象)) continue;
       const n = r.検出(file, src).length;
       if (ex) ex[r.id] += n;

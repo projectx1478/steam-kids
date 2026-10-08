@@ -16,8 +16,8 @@ clearSequence = showClearSequence({ statusBar, controls, lockEl, host, gapEl, vi
 | 引数 | 意味 |
 | --- | --- |
 | statusBar / view / restore | 星のトースト（showSuccess）に渡す。restore は表示後に元へ戻す処理。トーストは `confetti: false` で呼ぶ（紙吹雪はダイアログ側だけ） |
-| controls | ダイアログの位置・大きさを合わせる先（play は操作パネル、シーソーは `.play-screen`）。ダイアログは controls の境界ボックスに一致する |
-| lockEl | 間の始まりからダイアログ表示中ずっと `inert` にする、操作画面の外枠（1要素。play・シーソーとも `.play-screen`）。盤面も含めて押せなくなる |
+| controls | ダイアログの位置・大きさを合わせる先（play は操作パネル、シーソーは操作画面の枠 `data-sk-screen="frame"`）。ダイアログは controls の境界ボックスに一致する |
+| lockEl | 間の始まりからダイアログ表示中ずっと `inert` にする、操作画面の外枠（1要素。play・シーソーとも `data-sk-screen="frame"` の枠）。盤面も含めて押せなくなる |
 | host | ダイアログを置く先。lockEl の親（`#stage`）。`inert` の子孫は押せないので、ダイアログは lockEl の外に置く。`static` なら表示中だけ `relative` になる |
 | gapEl | 間のあいだ空き枠にする操作行（省略可） |
 | label | トーストの文言（省略可） |
@@ -49,7 +49,7 @@ clearSequence = showClearSequence({ statusBar, controls, lockEl, host, gapEl, vi
 
 ## CSS
 
-`tailwind.src.css` に書く部品の CSS は `.sk-clear-*`（現状は星の `.sk-clear-reaction`）に閉じ、`.play-screen`・`.status-bar` など画面側のクラスに依存しない。ダイアログ（`result-row`・`result-dialog`）は Tailwind のユーティリティだけで組み、これらの名前は E2E が読む目印で CSS ルールは持たない。見た目を変えたいときは部品側を直し、全画面に効かせる。
+`tailwind.src.css` に書く部品の CSS は `.sk-clear-*`（現状は星の `.sk-clear-reaction`）に閉じ、`.sk-screen-*`（`data-sk-screen`）など画面側のクラスに依存しない。ダイアログ（`result-row`・`result-dialog`）は Tailwind のユーティリティだけで組み、これらの名前は E2E が読む目印で CSS ルールは持たない。見た目を変えたいときは部品側を直し、全画面に効かせる。
 
 ## 実例
 

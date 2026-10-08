@@ -15,9 +15,9 @@ export default async function run({ page, check }) {
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="retry"]', { timeout: 4000 });
 
-  await check('不正解: 盤面がwobble-softでゆれる', async () => (await page.$$('.board-area.wobble-soft')).length, 1);
+  await check('不正解: 盤面がwobble-softでゆれる', async () => (await page.$$('[data-sk-screen="board"].wobble-soft')).length, 1);
   await check('不正解: tryAgain音が鳴る', () => page.evaluate(() => window.__sfxLog.includes('tryAgain')));
-  await check('不正解: ゆれは自動で消える(罰則感を残さない)', async () => (await page.$$('.board-area.wobble-soft')).length, 0);
+  await check('不正解: ゆれは自動で消える(罰則感を残さない)', async () => (await page.$$('[data-sk-screen="board"].wobble-soft')).length, 0);
 
   // --- ロック中: もういちど以外はすべて押せない ---
   await check('ロック中: 命令パレットが全てdisabled', async () => (await page.$$('[data-command]:not([disabled])')).length, 0);

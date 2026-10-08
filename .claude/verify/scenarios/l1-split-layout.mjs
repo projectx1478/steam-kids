@@ -40,8 +40,8 @@ async function geometry(page) {
       const r = el.getBoundingClientRect();
       return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, width: r.width, height: r.height };
     };
-    const area = vis('.board-area');
-    const panel = vis('.controller-panel, .tutorial-side') || vis('.palette-row');
+    const area = vis('.board-area, [data-sk-screen="board"]');
+    const panel = vis('[data-sk-screen="panel"], .tutorial-side') || vis('.palette-row');
     const board = area.querySelector('.grid-board');
     const cell = board.querySelector('.grid-cell');
     const tray = vis('.command-queue');
@@ -87,7 +87,7 @@ export default async function run({ page, check }) {
     await check(`${label} tutorial: #appが768pxを超える`, () => t.appW > 768);
     await check(`${label} tutorial: 全ボタン64px以上`, () => t.smallButtons, 0);
     await enterPlay(page, LESSON);
-    await page.waitForSelector('.play-screen .grid-board');
+    await page.waitForSelector('[data-sk-screen="frame"] .grid-board');
 
     const g = await geometry(page);
     await check(`${label} play: 操作パネルが盤面エリアの右`, () => rightOf(g));
@@ -123,7 +123,7 @@ export default async function run({ page, check }) {
   const pt = await geometry(page);
   await check('390x844 tutorial: 操作パネルが盤面エリアの下', () => below(pt));
   await enterPlay(page, LESSON);
-  await page.waitForSelector('.play-screen .grid-board');
+  await page.waitForSelector('[data-sk-screen="frame"] .grid-board');
   const pg = await geometry(page);
   await check('390x844 play: 操作パネルが盤面エリアの下', () => below(pg));
   await check('390x844 play: セルは64px以下', () => pg.cellW <= 64.5);

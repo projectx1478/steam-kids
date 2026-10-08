@@ -6,7 +6,8 @@
     "showsuccess": 2,
     "confetti": 2,
     "clearrecord": 0,
-    "clearlog": 0
+    "clearlog": 0,
+    "screen": 3
   },
   "allow": {
     "dialog": 0,
@@ -15,7 +16,8 @@
     "showsuccess": 0,
     "confetti": 0,
     "clearrecord": 0,
-    "clearlog": 0
+    "clearlog": 0,
+    "screen": 1
   },
   "excluded": {
     "js/ui-summary.js": {
@@ -25,7 +27,8 @@
       "showsuccess": 0,
       "confetti": 2,
       "clearrecord": 0,
-      "clearlog": 0
+      "clearlog": 0,
+      "screen": 0
     },
     "js/ui-demo.js": {
       "dialog": 0,
@@ -34,7 +37,8 @@
       "showsuccess": 0,
       "confetti": 1,
       "clearrecord": 0,
-      "clearlog": 0
+      "clearlog": 0,
+      "screen": 0
     }
   }
 }

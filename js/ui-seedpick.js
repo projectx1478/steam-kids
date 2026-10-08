@@ -12,7 +12,7 @@ export function renderSeedPick(root, step) {
   if (slots.every((d) => d !== '')) cursor = 0;
 
   const question = document.createElement('p');
-  question.className = 'status-bar text-center text-xl font-bold my-3';
+  question.className = 'status-bar text-center text-xl font-bold my-3'; // allow-component:screen たねえらびの問い文で、操作画面の枠（盤面・パネル）ではないため対象外
   question.textContent = step.text;
   root.appendChild(question);
 

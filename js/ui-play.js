@@ -7,7 +7,7 @@ import { logEvent } from './events.js';
 import { renderGrid, shapeSvg, computeCellSize, splitMaxCell, prefersReducedMotion } from './ui-grid.js';
 import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, vibrate } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
-import { renderInto } from './text-render.js';
+import { createOpScreen } from './ui-screen.js';
 import { createIdleNudge } from './ui-guide.js';
 import { showHandHint } from './ui-hand.js';
 import { isLessonCleared } from './ui-picker.js';
@@ -83,14 +83,10 @@ export function renderPlay(root, step) {
     fixOpened: isFix && JSON.stringify(commands) !== JSON.stringify(freshCommands),
   };
 
-  const opScreen = document.createElement('div');
-  opScreen.className = 'play-screen flex flex-col flex-1 min-h-0 gap-2';
-  root.appendChild(opScreen);
-
-  // 問い文スロット（1行）。実行結果もここへ数秒だけトースト表示する（Issue #97）。
-  const statusBar = document.createElement('div');
-  statusBar.className = 'status-bar flex flex-col items-center gap-0.5 shrink-0 text-center';
-  opScreen.appendChild(statusBar);
+  // 画面の枠は共通部品（js/ui-screen.js。Issue #343）。問い文スロット（statusBar＝questionEl）には
+  // 実行結果もここへ数秒だけトースト表示する（Issue #97）。
+  const screen = createOpScreen({ root, question: step.text ?? defaultText });
+  const { frame: opScreen, questionEl: statusBar, boardArea, panel: controls, actions: actionsEl } = screen;
 
   let remainingEl = null;
   // renderAcornTray(): どんぐりの残数を「空き枠が埋まる絵」で示す（Issue #110）。
@@ -122,11 +118,7 @@ export function renderPlay(root, step) {
   }
 
   function renderQuestion() {
-    statusBar.innerHTML = '';
-    const q = document.createElement('p');
-    q.className = 'text-sm font-bold text-slate-700';
-    renderInto(q, step.text ?? defaultText, S.readingLevel, S.furigana);
-    statusBar.appendChild(q);
+    screen.renderQuestion();
     if (spec.paint) statusBar.appendChild(paintMiniBoard(spec));
     if (spec.items.length > 0) {
       renderAcornTray();
@@ -176,28 +168,16 @@ export function renderPlay(root, step) {
     renderQuestion();
   }
 
-  const boardArea = document.createElement('div');
-  boardArea.className = 'board-area relative flex-1 min-h-0 flex items-center justify-center overflow-hidden';
-  opScreen.appendChild(boardArea);
-
   const boardWrap = document.createElement('div');
   boardArea.appendChild(boardWrap);
 
-  const controls = document.createElement('div');
-  controls.className = 'controller-panel flex flex-col gap-2 shrink-0';
-  opScreen.appendChild(controls);
-
   const paletteEl = document.createElement('div');
   paletteEl.className = 'palette-row flex gap-2 justify-center';
-  controls.appendChild(paletteEl);
+  controls.insertBefore(paletteEl, actionsEl);
 
   const queueEl = document.createElement('ul');
   queueEl.className = 'command-queue command-tray flex flex-nowrap items-center gap-2 overflow-x-auto min-h-[64px] py-1';
-  controls.appendChild(queueEl);
-
-  const actionsEl = document.createElement('div');
-  actionsEl.className = 'action-row flex gap-2 justify-center';
-  controls.appendChild(actionsEl);
+  controls.insertBefore(queueEl, actionsEl);
 
   const removeLastBtn = document.createElement('button');
   removeLastBtn.type = 'button';
