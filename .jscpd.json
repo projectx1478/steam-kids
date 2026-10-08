@@ -1,0 +1,9 @@
+{
+  "path": ["js", "app.js", "service-worker.js"],
+  "ignore": ["**/js/vendor/**", "**/test/**", "**/style.css"],
+  "format": ["javascript"],
+  "minLines": 8,
+  "minTokens": 70,
+  "reporters": ["console", "json"],
+  "output": ".verify/jscpd"
+}
