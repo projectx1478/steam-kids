@@ -14,10 +14,11 @@ const STAGE_CONFETTI_MS = 2000;
 // showSuccess(slotEl, { view, restore }): slotElに.clear-reaction・data-result="clear"をトースト
 // 表示する。view.confetti()/celebrateDance()があれば盤面側の演出も再生する（play・predict双方の
 // viewが持つ）。restoreはトーストが消えた時に呼ばれる（呼び出し側が問い文へ戻す）。
-export function showSuccess(slotEl, { view, restore, label = 'やったね！' } = {}) {
+// confetti: false なら view.confetti を呼ばない（結果ダイアログ側の紙吹雪に任せる呼び出し元用。既定 true。Issue #347）。
+export function showSuccess(slotEl, { view, restore, label = 'やったね！', confetti = true } = {}) {
   playSfx('fanfare');
   vibrate();
-  view?.confetti?.({ count: STAGE_CONFETTI_COUNT, duration: STAGE_CONFETTI_MS });
+  if (confetti) view?.confetti?.({ count: STAGE_CONFETTI_COUNT, duration: STAGE_CONFETTI_MS });
   view?.celebrateDance?.();
   view?.setMood?.('happy');
   showToast(slotEl, {

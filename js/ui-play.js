@@ -644,7 +644,8 @@ export function renderPlay(root, step) {
       clearSequence = showClearSequence({
         statusBar,
         controls,
-        lockEls: [paletteEl, queueEl, actionsEl],
+        lockEl: opScreen,
+        host: root,
         gapEl: actionsEl,
         view: local.view,
         restore: clearResult,

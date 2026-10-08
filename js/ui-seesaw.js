@@ -214,7 +214,8 @@ export function renderSeesaw(root, step) {
       clearSequence = showClearSequence({
         statusBar,
         controls: opScreen,
-        lockEls: [boardArea, controls],
+        lockEl: opScreen,
+        host: root,
         gapEl: actionsEl,
         view,
         restore: renderQuestion,

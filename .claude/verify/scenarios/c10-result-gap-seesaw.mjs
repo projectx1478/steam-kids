@@ -26,8 +26,11 @@ export default async function run({ page, check }) {
   await page.waitForSelector('[data-result-dialog]', { timeout: 4000 });
   await check('間のあと: 「…」は消える', async () => (await page.$$('[data-result-gap]')).length, 0);
   await check('間のあと: 結果ボタンは操作行(.action-row)に出ない', async () => (await page.$$('.action-row [data-action="next-stage"], .action-row [data-action="replay"]')).length, 0);
-  await check('ダイアログが操作画面(.play-screen)の中にあり、境界内に収まる', async () => {
-    const inPlay = await page.evaluate(() => document.querySelector('[data-result-dialog]').closest('.play-screen') !== null);
+  await check('ダイアログは操作画面(.play-screen)の外(#stage の子)にあり、その境界内に収まる(Issue #347)', async () => {
+    const inPlay = await page.evaluate(() => {
+      const row = document.querySelector('[data-result-dialog]').closest('[data-result-row]');
+      return row.parentElement.id === 'stage' && row.closest('.play-screen') === null;
+    });
     return inPlay && inside(await (await page.$('[data-result-dialog]')).boundingBox(), await playBox());
   }, true);
   await check('途中ステージ: 見出し「つぎへ すすもう」が出る', async () =>
