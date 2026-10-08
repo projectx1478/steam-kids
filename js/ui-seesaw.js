@@ -7,7 +7,7 @@ import { logEvent } from './events.js';
 import { shapeSvg, setMoodIn, prefersReducedMotion, screenConfetti } from './ui-grid.js';
 import { vibrate } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
-import { renderInto } from './text-render.js';
+import { createOpScreen } from './ui-screen.js';
 import { showHandHint } from './ui-hand.js';
 import { isLessonCleared } from './ui-picker.js';
 import { goToStep, setBackDisabled, setActiveHandHint, setActiveAnimation } from './ui-step.js';
@@ -48,25 +48,12 @@ export function renderSeesaw(root, step) {
 
   const local = { pos: spec.mover.start, phase: 'edit', timer: null };
 
-  const opScreen = document.createElement('div');
-  opScreen.className = 'play-screen flex flex-col flex-1 min-h-0 gap-2';
-  root.appendChild(opScreen);
-
-  const statusBar = document.createElement('div');
-  statusBar.className = 'status-bar flex flex-col items-center gap-0.5 shrink-0 text-center';
-  opScreen.appendChild(statusBar);
-
+  // 画面の枠は共通部品（js/ui-screen.js。Issue #343）。
+  const screen = createOpScreen({ root, question: step.text ?? 'つりあう ところに おこう' });
+  const { frame: opScreen, questionEl: statusBar, boardArea, actions: actionsEl } = screen;
   function renderQuestion() {
-    statusBar.innerHTML = '';
-    const q = document.createElement('p');
-    q.className = 'text-sm font-bold text-slate-700';
-    renderInto(q, step.text ?? 'つりあう ところに おこう', S.readingLevel, S.furigana);
-    statusBar.appendChild(q);
+    screen.renderQuestion();
   }
-
-  const boardArea = document.createElement('div');
-  boardArea.className = 'board-area relative flex-1 min-h-0 flex items-center justify-center overflow-hidden';
-  opScreen.appendChild(boardArea);
 
   const ticks = Array.from({ length: notches * 2 + 1 }, (_, i) => i - notches)
     .map((n) => `<circle cx="${cx0 + n * UNIT}" cy="${PLANK_Y + PLANK_H / 2}" r="${n === 0 ? 0 : 2.5}" fill="#7c4a1e" opacity="0.55" />`)
@@ -108,13 +95,6 @@ export function renderSeesaw(root, step) {
       );
     },
   };
-
-  const controls = document.createElement('div');
-  controls.className = 'controller-panel flex flex-col gap-2 shrink-0';
-  opScreen.appendChild(controls);
-  const actionsEl = document.createElement('div');
-  actionsEl.className = 'action-row flex gap-2 justify-center';
-  controls.appendChild(actionsEl);
 
   const moveBtnClass =
     'min-w-[64px] min-h-[64px] px-4 rounded-lg bg-slate-200 text-2xl font-bold transition-transform duration-100 active:scale-95 disabled:opacity-40';

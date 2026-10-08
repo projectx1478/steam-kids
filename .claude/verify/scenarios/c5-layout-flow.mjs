@@ -66,11 +66,11 @@ export default async function run({ page, check }) {
   await page.setViewportSize({ width: 1280, height: 800 });
   await enterPlay(page, 'cmd-03-naosu');
   await check('playへ即座に入る（課題カード・よそう無し）', async () => page.getAttribute('#stage', 'data-step'), 'play');
-  await check('操作画面に区分見出しが無い', async () => (await page.$$('.play-screen h2')).length, 0);
-  await check('操作画面にデモが無い', async () => (await page.$$('.play-screen .demo-widget')).length, 0);
-  await check('操作画面にやりかた帯が無い', async () => (await page.$$('.play-screen .howto-strip')).length, 0);
-  await check('play操作画面に説明要素(<p>)が問い文以外に無い', async () => (await page.$$('.play-screen > p, .play-screen h2')).length, 0);
-  await check('play操作画面にデモが無い', async () => (await page.$$('.play-screen .demo-widget, .play-screen .category-banner')).length, 0);
+  await check('操作画面に区分見出しが無い', async () => (await page.$$('[data-sk-screen="frame"] h2')).length, 0);
+  await check('操作画面にデモが無い', async () => (await page.$$('[data-sk-screen="frame"] .demo-widget')).length, 0);
+  await check('操作画面にやりかた帯が無い', async () => (await page.$$('[data-sk-screen="frame"] .howto-strip')).length, 0);
+  await check('play操作画面に説明要素(<p>)が問い文以外に無い', async () => (await page.$$('[data-sk-screen="frame"] > p, [data-sk-screen="frame"] h2')).length, 0);
+  await check('play操作画面にデモが無い', async () => (await page.$$('[data-sk-screen="frame"] .demo-widget, [data-sk-screen="frame"] .category-banner')).length, 0);
 
   // --- 命令列に→区切りと順番数字（Issue #93）。cmd-02-mijikakuのtutorial(group)をとばした
   // play(p1)の空queueで確認する（Issue #98） ---

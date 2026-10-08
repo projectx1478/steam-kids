@@ -11,7 +11,7 @@ export default async function run({ page, check }) {
   await check('パレットに「はこ」ボタンがある', async () => (await page.$('[data-action="box-open"]')) !== null, true);
   await check('箱が閉じている間は回数ボタン・とじるが無い', async () => (await page.$('[data-action="box-times"]')) === null, true);
 
-  const boardClosed = await page.$eval('.board-area svg', (e) => e.getBoundingClientRect().height);
+  const boardClosed = await page.$eval('[data-sk-screen="board"] svg', (e) => e.getBoundingClientRect().height);
   await page.click('[data-action="box-open"]');
   await check('はこ→空の箱が1チップ（開いている）', async () => page.$eval('.command-chip', (e) => [e.dataset.box, e.dataset.open]), ['true', 'true']);
   await check('箱を開いている間はじっこうボタンが出ない(かいすう・とじるに差し替え)', async () => (await page.$('[data-action="run"]')) === null, true);
@@ -46,7 +46,7 @@ export default async function run({ page, check }) {
     }
     return true;
   }, true);
-  const board = await page.$eval('.board-area svg', (e) => e.getBoundingClientRect().height);
+  const board = await page.$eval('[data-sk-screen="board"] svg', (e) => e.getBoundingClientRect().height);
   await check('箱を開いても盤面の高さが変わらない', async () => Math.round(board) === Math.round(boardClosed), true);
 
   await page.click('[data-action="box-close"]');

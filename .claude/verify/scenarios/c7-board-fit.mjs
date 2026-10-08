@@ -1,4 +1,4 @@
-// 盤面（.grid-board）とロボットが盤面エリア（.board-area）内に完全に収まることを、スマホ縦を含む
+// 盤面（.grid-board）とロボットが盤面エリア（.board-area／data-sk-screen=board）内に完全に収まることを、スマホ縦を含む
 // 複数viewport・全レッスンのtutorial/predict/playで確認する。#95のc6は「縦スクロール無し」のみを
 // 見ており、overflow-hiddenで盤面が切れてロボットが隠れる不具合を検出できなかった（Issue #99）。
 // 端末の文字サイズ拡大（ルート文字125%）でボタン文字が折り返し、操作パネルが高くなる場合も見る。
@@ -18,7 +18,7 @@ const LESSONS = ['cmd-01-susumu', 'cmd-02-mijikaku', 'cmd-03-naosu', 'donguri-01
 // 盤面・ロボットの矩形が盤面エリア・viewportの内側にあるか（1px の丸め誤差は許容）。
 async function boardFits(page) {
   return page.evaluate(() => {
-    const area = [...document.querySelectorAll('.board-area')].find((e) => e.offsetParent !== null);
+    const area = [...document.querySelectorAll('.board-area, [data-sk-screen="board"]')].find((e) => e.offsetParent !== null);
     if (!area) return 'no-area';
     const a = area.getBoundingClientRect();
     const inside = (el) => {
@@ -54,7 +54,7 @@ async function runLesson(page, check, lessonId, label) {
     await page.click('[data-action="start"]');
   }
   // よそう（predict）はIssue #104で全廃。tutorial後は直接play(p1)へ入る。
-  await page.waitForSelector('.play-screen .grid-board');
+  await page.waitForSelector('[data-sk-screen="frame"] .grid-board');
   await check(`${label} ${lessonId} play: 盤面が収まる`, () => boardFits(page), 'ok');
   // 命令を積んでキューにチップが並んだ状態（パネルが最も高くなる状態）でも収まるか
   for (let i = 0; i < 3; i += 1) {
@@ -107,7 +107,7 @@ async function checkQueueOverflow(page, check) {
   await resetTutorialFlags(page);
   await enterPlay(page, 'donguri-02-mawarimichi');
   // よそう（predict）はIssue #104で全廃。introの「はじめる」から直接play(p1)へ入る。
-  await page.waitForSelector('.play-screen .grid-board');
+  await page.waitForSelector('[data-sk-screen="frame"] .grid-board');
   for (let i = 0; i < 9; i += 1) {
     const btn = await page.$('[data-command]:not(:disabled)');
     if (!btn) break;

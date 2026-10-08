@@ -89,7 +89,7 @@ export default async function run({ page, check }) {
   await check('不正解後: 命令パレットが全てdisabled', async () => (await page.$$('[data-command]:not([disabled])')).length, 0);
   // このシナリオはreduced-motion既定（config.mjs）のため、ゆれる代わりに盤面へ0.5秒の
   // 静止リングが付く（Issue #106のreduced-motion分岐。ゆれ自体はc8-fail-lock.mjsで検証）。
-  await check('不正解後: reduced-motionでは盤面に静止リングが付く', async () => (await page.$$('.board-area.ring-amber-400')).length, 1);
+  await check('不正解後: reduced-motionでは盤面に静止リングが付く', async () => (await page.$$('[data-sk-screen="board"].ring-amber-400')).length, 1);
   await check('不正解後: tryAgain音が鳴る', () => page.evaluate(() => window.__sfxLog.includes('tryAgain')));
   // ロック中はチップ×を押しても何も起きない（pointer-events-noneで受け付けない）
   await page.click('[data-remove-index="0"]', { force: true });
