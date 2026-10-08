@@ -13,7 +13,8 @@ import { isLessonCleared } from './ui-picker.js';
 import { goToStep, setBackDisabled, setActiveHandHint, setActiveAnimation } from './ui-step.js';
 import { showHint } from './ui-reaction.js';
 import { showClearSequence, recordClear } from './ui-clear.js';
-import { clearToast, showToast } from './ui-toast.js';
+import { clearToast } from './ui-toast.js';
+import { setRetryButton, shakeBoard, showRestartCue } from './ui-retry.js';
 
 const UNIT = 40; // 1刻みの幅（viewBox単位）
 const BOARD_H = 260;
@@ -115,14 +116,7 @@ export function renderSeesaw(root, step) {
   runBtn.className = 'btn-tactile px-4 bg-emerald-500 text-white text-lg font-bold whitespace-nowrap break-keep disabled:opacity-40';
 
   function setRunMode(mode) {
-    const retry = mode === 'retry';
-    runBtn.dataset.action = retry ? 'retry' : 'run';
-    runBtn.textContent = retry ? '↺ もういちど' : '▶ ためす';
-    runBtn.classList.toggle('bg-emerald-500', !retry);
-    runBtn.classList.toggle('bg-amber-500', retry);
-    runBtn.classList.toggle('ring-4', retry);
-    runBtn.classList.toggle('ring-amber-300', retry);
-    runBtn.classList.toggle('ring-offset-2', retry);
+    setRetryButton(runBtn, mode, { runLabel: '▶ ためす', emphasis: ['ring-4', 'ring-amber-300', 'ring-offset-2'] });
   }
 
   function updateControls() {
@@ -214,13 +208,7 @@ export function renderSeesaw(root, step) {
     addFootprint(local.pos);
     playSfx('tryAgain');
     setMoodIn(svg, 'puzzled');
-    if (prefersReducedMotion()) {
-      boardArea.classList.add('ring-4', 'ring-amber-400', 'rounded-2xl');
-      setTimeout(() => boardArea.classList.remove('ring-4', 'ring-amber-400', 'rounded-2xl'), 500);
-    } else {
-      boardArea.classList.add('wobble-soft');
-      boardArea.addEventListener('animationend', () => boardArea.classList.remove('wobble-soft'), { once: true });
-    }
+    shakeBoard(boardArea);
     showHint(statusBar, { kind: 'tilt', message: HEAVY_MESSAGE[result.tilt], restore: renderQuestion });
   }
 
@@ -247,21 +235,7 @@ export function renderSeesaw(root, step) {
   }
 
   function restartCue() {
-    playSfx('start');
-    showToast(statusBar, {
-      render: (el) => {
-        el.dataset.restart = 'true';
-        const p = document.createElement('p');
-        p.className = 'text-lg font-bold text-sky-700';
-        p.textContent = 'スタート！';
-        el.appendChild(p);
-      },
-      durationMs: 1000,
-      restore: (el) => {
-        delete el.dataset.restart;
-        renderQuestion();
-      },
-    });
+    showRestartCue(statusBar, { restore: () => renderQuestion() });
   }
 
   function retry() {

@@ -8,6 +8,7 @@
 | --- | --- | --- | --- | --- |
 | クリア演出（星のトースト→間→結果ダイアログ＋紙吹雪） | `js/ui-clear.js` | `docs/clear-component.md` | ダイアログの自前生成、待ち時間の直書き、星サイズの直書き、`showSuccess`・紙吹雪・クリア記録・クリアログの直呼び | dialog 0・wait 0・star 0・showsuccess 0・confetti 2・clearrecord 0・clearlog 0 |
 | 操作画面の枠（問い文の行・盤面・操作パネル・ボタン行の骨格。縦・横・背の低い横向き） | `js/ui-screen.js` | 本表（下の「操作画面の枠」） | 旧クラス名（`play-screen`・`status-bar`・`board-area`・`controller-panel`・`action-row`）での枠の自前組み立て | screen 3（allow 1） |
+| やり直しの流れ（失敗のゆれ・「もういちど」ボタン切替・「スタート！」） | `js/ui-retry.js` | `js/ui-retry.js` 先頭のコメント | 検査なし（登録表に足さない。Issue #344） | — |
 
 基準件数の正本は `test/forbidden-baseline.json`。`showsuccess 0`：`js/ui-predict.js`・`js/ui-tutorial.js` も `showClearToast` に移行済み（状態：移行完了）。`confetti 2` は `js/ui-reaction.js` の `showSuccess` 本体と `js/ui-seesaw.js` のアダプタ。
 
