@@ -7,7 +7,10 @@ import { clearResume } from './storage.js';
 import { prefersReducedMotion } from './ui-grid.js';
 import { createPrimaryButton, markLessonCleared, saveResumePoint } from './ui-step.js';
 import { showSuccess } from './ui-reaction.js';
+import { create as createConfetti } from './vendor/confetti.js';
 
+const CONFETTI_COUNT = 40;
+const CONFETTI_TICKS = 110; // 約60fpsで約1.8秒
 const RESULT_GAP_MS = 1500;
 const RESULT_GAP_REDUCED_MS = 1000;
 const GAP_FRAME_CLASSES = ['min-h-[64px]', 'items-center', 'rounded-2xl', 'border-2', 'border-dashed', 'border-slate-300'];
@@ -67,6 +70,18 @@ export function showResultDialog({ controls, host, observed, primaryBtn, replayB
   rowEl.appendChild(dialog);
   const addedRelative = getComputedStyle(host).position === 'static';
   if (addedRelative) host.classList.add('relative');
+  // 紙吹雪の canvas（Issue #347）。ボタンより後ろ（カードを relative にして上に重ねる）・押せない・1回きり。
+  // 動きを減らす設定では canvas を作らず confetti も呼ばない。
+  let canvas = null;
+  let fire = null;
+  if (!prefersReducedMotion()) {
+    canvas = document.createElement('canvas');
+    canvas.className = 'absolute inset-0 h-full w-full pointer-events-none';
+    canvas.style.pointerEvents = 'none';
+    canvas.dataset.clearConfetti = 'true';
+    rowEl.insertBefore(canvas, dialog);
+    dialog.classList.add('relative');
+  }
   host.appendChild(rowEl);
   rowEl.show();
   const place = () => {
@@ -78,6 +93,11 @@ export function showResultDialog({ controls, host, observed, primaryBtn, replayB
     rowEl.style.height = `${c.height}px`;
   };
   place();
+  if (canvas) {
+    fire = createConfetti(canvas, { resize: true, useWorker: false });
+    const done = fire({ particleCount: CONFETTI_COUNT, ticks: CONFETTI_TICKS, spread: 70, origin: { y: 0.6 } });
+    done?.then?.(() => canvas.remove());
+  }
   window.addEventListener('resize', place);
   window.addEventListener('orientationchange', place);
   const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(place) : null;
@@ -89,6 +109,8 @@ export function showResultDialog({ controls, host, observed, primaryBtn, replayB
       window.removeEventListener('resize', place);
       window.removeEventListener('orientationchange', place);
       observer?.disconnect();
+      fire?.reset();
+      canvas?.remove();
       if (addedRelative) host.classList.remove('relative');
     },
   };
@@ -132,7 +154,7 @@ export function showClearSequence({
     clearTimeout(timer);
     disposeClear({ lockEl, gapEl, dialogHandle });
   }
-  showSuccess(statusBar, { view, restore, ...(label ? { label } : {}) });
+  showSuccess(statusBar, { view, restore, confetti: false, ...(label ? { label } : {}) });
   const primaryBtn = createPrimaryButton(primary.label, primary.action, primary.id);
   const replayBtn = createPrimaryButton('もういちど', replay, 'replay');
   const dots = showResultGap({ gapEl });
