@@ -52,6 +52,7 @@ export function renderSeesaw(root, step) {
   // 画面の枠は共通部品（js/ui-screen.js。Issue #343）。
   const screen = createOpScreen({ root, question: step.text ?? 'つりあう ところに おこう' });
   const { frame: opScreen, questionEl: statusBar, boardArea, actions: actionsEl } = screen;
+  actionsEl.classList.add('sk-screen-actions--one-row');
   function renderQuestion() {
     screen.renderQuestion();
   }
