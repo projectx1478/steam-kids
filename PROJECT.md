@@ -185,6 +185,7 @@ P0（実機で到達）→P1（JSON外出し）→P2（ログ・ダッシュボ�
 - `docs/testing-steam-kids.md` — steam-kids固有の検証事項。スモークを変える時に読む
 - `docs/principles-review.md` — 三原則・運用ルールの見直し結果（案A〜G）。入口・難度・終わり方を変える時に読む
 - `docs/foundation-review.md` — 根幹（Brilliantモデル・操作モデル・長さ等）の見直し結果と検証計画。根幹に関わる変更を検討する時に読む
+- `docs/components.md` — 共通部品の台帳と禁止パターン。クリア演出など共通部品を使う・足す時に読む
 
 ## 8. 未決事項
 
