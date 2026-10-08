@@ -327,6 +327,17 @@
   height: 20px;
 }
 
+/* 結果ダイアログ（<dialog class="result-row">）の既定スタイル（枠・余白・margin・色・位置）を打ち消す。位置と大きさは js/ui-clear.js が controls に合わせて決める（Issue #347）。 */
+dialog.result-row {
+  right: auto;
+  bottom: auto;
+  margin: 0;
+  border: 0;
+  max-width: none;
+  max-height: none;
+  color: inherit;
+}
+
 /* 操作画面（play・れんしゅう）：横向きは「盤面｜操作パネル」の左右分割、縦向きは従来の縦積み（Issue #156）。 */
 .tutorial-main,
 .tutorial-side {
