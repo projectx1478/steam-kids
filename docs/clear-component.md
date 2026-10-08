@@ -16,7 +16,7 @@ clearSequence = showClearSequence({ statusBar, controls, lockEls, gapEl, view, r
 | 引数 | 意味 |
 | --- | --- |
 | statusBar / view / restore | 星のトースト（showSuccess）に渡す。restore は表示後に元へ戻す処理 |
-| controls | ダイアログを被せる先（操作パネル）。表示中だけ `relative` になる |
+| controls | ダイアログを被せる先（play は操作パネル、シーソーは `.play-screen`）。表示中だけ `relative` になる |
 | lockEls | ダイアログ表示中に `inert` にする背面の要素の配列 |
 | gapEl | 間のあいだ空き枠にする操作行（省略可） |
 | label | トーストの文言（省略可） |
@@ -26,7 +26,7 @@ clearSequence = showClearSequence({ statusBar, controls, lockEls, gapEl, view, r
 | setActiveAnimation | 画面側の「進行中アニメ」登録関数。間のタイマーを cancel できる形で渡す。間の終わりに null を渡す |
 
 - 返り値は `{ dispose() }`。ステージ切替・やり直し・画面を離れる時に必ず呼ぶ（タイマー・ダイアログ・inert・空き枠を戻す。2回呼んでも安全）。
-- `recordClear`：最終ステージは clear → markLessonCleared → clearResume、途中は stage_clear のみ（Issue #104）。
+- `recordClear`：最終ステージは clear → markLessonCleared → clearResume、途中は stage_clear → saveResumePoint（Issue #104）。
 
 ## 画面ごとに変えてよいもの／いけないもの
 
