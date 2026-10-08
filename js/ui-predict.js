@@ -10,7 +10,8 @@ import { play as playSfx } from './sfx.js';
 import { renderInto } from './text-render.js';
 import { createIdleNudge } from './ui-guide.js';
 import { goToStep, createPrimaryButton, playAnimation, setActiveNudge } from './ui-step.js';
-import { showSuccess, showHint } from './ui-reaction.js';
+import { showHint } from './ui-reaction.js';
+import { showClearToast } from './ui-clear.js';
 import { clearToast } from './ui-toast.js';
 
 const RETRY_HINT_MESSAGE = 'ロボットは ここで とまったよ';
@@ -127,7 +128,7 @@ export function renderPredict(root, step) {
         local.view.markCell(finalPos, 'result');
 
         if (correct) {
-          showSuccess(statusBar, { view: local.view, restore: renderQuestion });
+          showClearToast(statusBar, { view: local.view, restore: renderQuestion });
           actionsEl.innerHTML = '';
           actionsEl.appendChild(createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'));
           actionsEl.appendChild(createPrimaryButton('もういちど よそう', showQuestion, 'retry-predict'));

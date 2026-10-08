@@ -6,10 +6,10 @@
 
 | 部品 | 置き場 | 個別の説明 | 禁止パターン（部品の外で自前で組まない） | 基準件数（`patterns`） |
 | --- | --- | --- | --- | --- |
-| クリア演出（星のトースト→間→結果ダイアログ＋紙吹雪） | `js/ui-clear.js` | `docs/clear-component.md` | ダイアログの自前生成、待ち時間の直書き、星サイズの直書き、`showSuccess`・紙吹雪・クリア記録・クリアログの直呼び | dialog 0・wait 0・star 0・showsuccess 2・confetti 2・clearrecord 0・clearlog 0 |
+| クリア演出（星のトースト→間→結果ダイアログ＋紙吹雪） | `js/ui-clear.js` | `docs/clear-component.md` | ダイアログの自前生成、待ち時間の直書き、星サイズの直書き、`showSuccess`・紙吹雪・クリア記録・クリアログの直呼び | dialog 0・wait 0・star 0・showsuccess 0・confetti 2・clearrecord 0・clearlog 0 |
 | 操作画面の枠（問い文の行・盤面・操作パネル・ボタン行の骨格。縦・横・背の低い横向き） | `js/ui-screen.js` | 本表（下の「操作画面の枠」） | 旧クラス名（`play-screen`・`status-bar`・`board-area`・`controller-panel`・`action-row`）での枠の自前組み立て | screen 3（allow 1） |
 
-基準件数の正本は `test/forbidden-baseline.json`。`showsuccess 2` は `js/ui-predict.js`・`js/ui-tutorial.js` の直呼びで、クリア演出への移行は後続 Issue（状態：移行中）。`confetti 2` は `js/ui-reaction.js` の `showSuccess` 本体と `js/ui-seesaw.js` のアダプタ。
+基準件数の正本は `test/forbidden-baseline.json`。`showsuccess 0`：`js/ui-predict.js`・`js/ui-tutorial.js` も `showClearToast` に移行済み（状態：移行完了）。`confetti 2` は `js/ui-reaction.js` の `showSuccess` 本体と `js/ui-seesaw.js` のアダプタ。
 
 ## 操作画面の枠
 
