@@ -5,10 +5,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
-import { CLEAR, EXCLUDES, REGISTRY, measure, judge } from './forbidden-registry.mjs';
+import { CLEAR, SCREEN, EXCLUDES, REGISTRY, measure, judge } from './forbidden-registry.mjs';
 
 export { checkDialog, checkWait, checkStarJs, checkStarCss } from './forbidden-registry.mjs';
-import { checkDialog, checkWait, checkStarJs, checkStarCss, checkShowSuccess, checkConfetti, checkClearRecord, checkClearLog } from './forbidden-registry.mjs';
+import { checkDialog, checkWait, checkStarJs, checkStarCss, checkShowSuccess, checkConfetti, checkClearRecord, checkClearLog, checkScreen } from './forbidden-registry.mjs';
 
 function jsFiles(dir) {
   return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
@@ -94,10 +94,23 @@ test('ダミー：新4項目は赤、定義・import・コメント行・allow-c
   }
 });
 
+test('ダミー：操作画面の枠の旧クラス名は赤、allow-component:screen 付き・コメント行・別の名前は緑', () => {
+  for (const cls of ['play-screen', 'status-bar', 'board-area', 'controller-panel', 'action-row']) {
+    const bad = `el.className = '${cls} text-xl';`;
+    assert.equal(checkScreen(bad).length, 1, bad);
+    assert.deepEqual(checkScreen(`${bad} // allow-component:screen 別用途の問い文`), [], bad);
+    assert.equal(checkScreen(`${bad} // allow-component:wait 別のid`).length, 1, bad);
+  }
+  for (const ok of ["el.className = 'sk-screen-board';", "el.dataset.skScreen = 'frame';", "// className = 'status-bar' の説明", 'const statusBar = 1;']) {
+    assert.deepEqual(checkScreen(ok), [], ok);
+  }
+  assert.ok(Object.hasOwn(sources, SCREEN));
+});
+
 // ---- 件数の基準の赤緑（ダミーの登録表・ソース・基準で判定そのものを通す）----
 const reg = [
-  { id: 'aa', 部品: 't', 項目: 'a', 対象: ['js/'], 検出: (f, s) => s.split('\n').flatMap((l, i) => (/BAD/.test(l) && !/\/\/\s*allow-component:aa\s+\S/.test(l) ? [i + 1] : [])) },
-  { id: 'bb', 部品: 't', 項目: 'b', 対象: ['js/', 'x.css'], 検出: (f, s) => s.split('\n').flatMap((l, i) => (/WORSE/.test(l) ? [i + 1] : [])) },
+  { id: 'aa', 部品: 'クリア演出', 項目: 'a', 対象: ['js/'], 検出: (f, s) => s.split('\n').flatMap((l, i) => (/BAD/.test(l) && !/\/\/\s*allow-component:aa\s+\S/.test(l) ? [i + 1] : [])) },
+  { id: 'bb', 部品: 'クリア演出', 項目: 'b', 対象: ['js/', 'x.css'], 検出: (f, s) => s.split('\n').flatMap((l, i) => (/WORSE/.test(l) ? [i + 1] : [])) },
 ];
 const exc = [{ file: 'js/ex.js', 理由: 'テスト' }];
 const base = (o = {}) => ({
@@ -175,4 +188,16 @@ test('ダミー：基準ファイルの登録表に無い id・欠けた id・�
     { patterns: { aa: 1, bb: 0 }, allow: { aa: 0, bb: 0 } },
   ];
   for (const b of bads) assert.ok(run(srcs(), b).length > 0, JSON.stringify(b));
+});
+
+test('ダミー：部品の置き場は、その部品の id だけを数えない（互いの id は数える）', () => {
+  const regs = [
+    { id: 'aa', 部品: 'クリア演出', 項目: 'a', 対象: ['js/'], 検出: (f, s) => (s.includes('BAD') ? [1] : []) },
+    { id: 'screen', 部品: '操作画面の枠', 項目: 's', 対象: ['js/'], 検出: (f, s) => (s.includes('OLD') ? [1] : []) },
+  ];
+  const m = measure({ 'js/ui-screen.js': 'BAD OLD\n', 'js/ui-clear.js': 'BAD OLD\n', 'js/x.js': 'ok\n' }, regs, []);
+  // ui-screen.js は screen を数えず aa を数える／ui-clear.js は aa を数えず screen を数える
+  assert.deepEqual(m.patterns, { aa: 1, screen: 1 });
+  const none = measure({ 'js/x.js': 'BAD OLD\n' }, regs, []);
+  assert.deepEqual(none.patterns, { aa: 1, screen: 1 });
 });

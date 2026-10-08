@@ -41,7 +41,7 @@
   差し替えている。現行構造を検証する新シナリオは冒頭で`page.unroute('**/lessons/<id>.json')`する
   （c2・c4・c5と同じ）
 - 課題カード（predict/play前の説明画面）はIssue #97で廃止した。操作画面へ直接入り、問い文は
-  `.status-bar`に常時表示、結果（やったね／ヒント）は同じ場所へ3秒だけトースト表示する
+  `sk-screen`の問い文の行（`data-sk-screen="question"`）に常時表示、結果（やったね／ヒント）は同じ場所へ3秒だけトースト表示する
   （`js/ui-toast.js`）
 - `#app`は`h-[100dvh]`固定（`min-h`ではない）。操作画面（play/predict/tutorial）のflex-1な
   盤面エリアが画面高さから縮む前提のレイアウトのため、`min-h`に戻すと縦スクロールが発生する
