@@ -124,6 +124,17 @@ export function disposeClear({ lockEl, gapEl, dialogHandle }) {
   gapEl?.classList.remove(...GAP_FRAME_CLASSES);
 }
 
+// showClearToast(slotEl, { view, restore, label, confetti }) → トースト（星）だけを出す。間・結果ダイアログは出さない。
+//   引数は showSuccess と同じ（confetti の既定は showSuccess と同じ true）。predict・tutorial 用（Issue #352）。
+export function showClearToast(slotEl, { view, restore, label, confetti } = {}) {
+  showSuccess(slotEl, {
+    view,
+    restore,
+    ...(label !== undefined ? { label } : {}),
+    ...(confetti !== undefined ? { confetti } : {}),
+  });
+}
+
 // showClearSequence({ statusBar, controls, lockEl, host, gapEl, view, restore, label, primary, replay, heading,
 // setActiveAnimation }) → { dispose() }
 //   lockEl: 間の始まりから inert にする操作画面の外枠（1要素）。host: ダイアログを置く外枠の親（root）。

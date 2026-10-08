@@ -10,7 +10,7 @@ import { play as playSfx } from './sfx.js';
 import { renderInto } from './text-render.js';
 import { showHandHint } from './ui-hand.js';
 import { goToStep, createPrimaryButton, playAnimation, setActiveHandHint } from './ui-step.js';
-import { showSuccess } from './ui-reaction.js';
+import { showClearToast } from './ui-clear.js';
 import { IS_DEV } from './dev-mode.js';
 
 const GUIDE_GLOW_CLASSES = ['ring-4', 'ring-amber-400', 'ring-offset-2', 'motion-safe:animate-pulse'];
@@ -493,7 +493,7 @@ export function renderTutorial(root, step) {
         markTutorialDone(S.lesson.lessonId);
         const result = simulate(local.commands, spec);
         if (isRunCleared(result)) {
-          showSuccess(resultSlot, { view: local.view, restore: (el) => { el.innerHTML = ''; } });
+          showClearToast(resultSlot, { view: local.view, restore: (el) => { el.innerHTML = ''; } });
           setTimeout(() => { if (panel.isConnected) renderDivider(); }, DIVIDER_DELAY_MS);
         } else {
           renderDivider();

@@ -27,6 +27,7 @@ clearSequence = showClearSequence({ statusBar, controls, lockEl, host, gapEl, vi
 | setActiveAnimation | 画面側の「進行中アニメ」登録関数。`{ cancel: dispose }` を渡す。ダイアログを出した後も登録したままにし、画面の作り直し（renderStep の `activeAnimation.cancel()`）でも `dispose` が呼ばれるようにする |
 
 - 返り値は `{ dispose() }`。ステージ切替・やり直し・画面を離れる時に必ず呼ぶ（タイマー・ダイアログ・紙吹雪・`inert`・空き枠・`relative`・リスナーを戻す。2回呼んでも安全）。
+- `showClearToast(slotEl, { view, restore, label, confetti })`：星のトーストだけを出す（間・ダイアログなし。引数・既定は showSuccess と同じ）。predict・tutorial 用（Issue #352）。
 - `recordClear`：最終ステージは clear → markLessonCleared → clearResume、途中は stage_clear → saveResumePoint（Issue #104）。
 
 ## 結果ダイアログ
