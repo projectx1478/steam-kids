@@ -10,9 +10,9 @@ import { play as playSfx } from './sfx.js';
 import { renderInto } from './text-render.js';
 import { showHandHint } from './ui-hand.js';
 import { isLessonCleared } from './ui-picker.js';
-import { goToStep, createPrimaryButton, setBackDisabled, setActiveHandHint, setActiveAnimation, markLessonCleared, saveResumePoint } from './ui-step.js';
-import { clearResume } from './storage.js';
-import { showSuccess, showHint } from './ui-reaction.js';
+import { goToStep, setBackDisabled, setActiveHandHint, setActiveAnimation } from './ui-step.js';
+import { showHint } from './ui-reaction.js';
+import { showClearSequence, recordClear } from './ui-clear.js';
 import { clearToast, showToast } from './ui-toast.js';
 
 const UNIT = 40; // 1刻みの幅（viewBox単位）
@@ -152,14 +152,14 @@ export function renderSeesaw(root, step) {
     runBtn.disabled = local.phase === 'running';
   }
 
+  // クリア演出（星→間→結果ダイアログ。Issue #342）は js/ui-clear.js の共通部品に任せる。
+  let clearSequence = null;
+
   function showNormalActions() {
+    clearSequence?.dispose();
+    clearSequence = null;
     actionsEl.innerHTML = '';
     actionsEl.append(leftBtn, rightBtn, runBtn);
-  }
-
-  function showResultActions(buttons) {
-    actionsEl.innerHTML = '';
-    buttons.forEach((b) => actionsEl.appendChild(b));
   }
 
   function drawMover() {
@@ -209,23 +209,22 @@ export function renderSeesaw(root, step) {
     if (result.tilt === 0) {
       local.phase = 'cleared';
       updateControls();
-      showSuccess(statusBar, { view, restore: renderQuestion });
-      if (isFinalStage) {
-        logEvent('clear', {});
-        markLessonCleared();
-        clearResume(S.lesson.lessonId);
-        showResultActions([
-          createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'),
-          createPrimaryButton('もういちど', replay, 'replay'),
-        ]);
-      } else {
-        logEvent('stage_clear', { stage: stageIndex + 1 });
-        saveResumePoint();
-        showResultActions([
-          createPrimaryButton('つぎの ステージ', () => goToStep(S.stepIndex + 1), 'next-stage'),
-          createPrimaryButton('もういちど', replay, 'replay'),
-        ]);
-      }
+      recordClear({ isFinal: isFinalStage, stageIndex });
+      clearSequence?.dispose();
+      clearSequence = showClearSequence({
+        statusBar,
+        controls: opScreen,
+        lockEls: [boardArea, controls],
+        gapEl: actionsEl,
+        view,
+        restore: renderQuestion,
+        primary: isFinalStage
+          ? { label: 'つぎへ', action: () => goToStep(S.stepIndex + 1), id: 'next' }
+          : { label: 'つぎの ステージ', action: () => goToStep(S.stepIndex + 1), id: 'next-stage' },
+        replay,
+        ...(isFinalStage ? {} : { heading: 'つぎへ すすもう' }),
+        setActiveAnimation,
+      });
       return;
     }
     local.phase = 'failed';

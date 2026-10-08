@@ -13,7 +13,6 @@ import { showHandHint } from './ui-hand.js';
 import { isLessonCleared } from './ui-picker.js';
 import {
   goToStep,
-  createPrimaryButton,
   playAnimation,
   createStepper,
   autoAdvance,
@@ -21,11 +20,9 @@ import {
   setActiveNudge,
   setActiveHandHint,
   setActiveAnimation,
-  markLessonCleared,
-  saveResumePoint,
 } from './ui-step.js';
-import { clearResume } from './storage.js';
-import { showSuccess, showHint, diagnose } from './ui-reaction.js';
+import { showHint, diagnose } from './ui-reaction.js';
+import { showClearSequence, recordClear } from './ui-clear.js';
 import { paintMiniBoard } from './gimmicks/paint.js';
 import { clearToast, showToast } from './ui-toast.js';
 
@@ -92,7 +89,7 @@ export function renderPlay(root, step) {
 
   // 問い文スロット（1行）。実行結果もここへ数秒だけトースト表示する（Issue #97）。
   const statusBar = document.createElement('div');
-  statusBar.className = 'status-bar play-status flex flex-col items-center gap-0.5 shrink-0 text-center';
+  statusBar.className = 'status-bar flex flex-col items-center gap-0.5 shrink-0 text-center';
   opScreen.appendChild(statusBar);
 
   let remainingEl = null;
@@ -264,8 +261,8 @@ export function renderPlay(root, step) {
   // クリア時はつぎへ・もういちど（レッスン再挑戦）を通常アクション行に差し替えて表示する
   // （盤面上に重ねない。Issue #97）。
   function showNormalActions() {
-    clearResultRow();
-    actionsEl.classList.remove(...GAP_FRAME_CLASSES);
+    clearSequence?.dispose();
+    clearSequence = null;
     actionsEl.innerHTML = '';
     actionsEl.appendChild(removeLastBtn);
     actionsEl.appendChild(clearBtn);
@@ -278,71 +275,9 @@ export function renderPlay(root, step) {
     buttons.forEach((b) => actionsEl.appendChild(b));
   }
 
-  // クリア時の結果ボタン（Issue #336）。1コマの連打がそのまま結果ボタンに当たらないよう、
-  // 間（RESULT_GAP_MS。reduced-motionは短縮）のあいだ操作行を同じ高さの空き枠にして「…」を出し、
-  // 間のあと結果ボタンを queue と操作行の間の別行に遅れて挿入する。
-  const RESULT_GAP_MS = 1500;
-  const RESULT_GAP_REDUCED_MS = 1000;
-  const GAP_FRAME_CLASSES = ['min-h-[64px]', 'items-center', 'rounded-2xl', 'border-2', 'border-dashed', 'border-slate-300'];
-  let resultRowEl = null;
-
-  // 結果ダイアログ（Issue #340）は controls（パネル）全体に被せる。表示中は背面のボタンを inert にし、
-  // 除去時に inert と relative を戻す。
-  function clearResultRow() {
-    resultRowEl?.remove();
-    resultRowEl = null;
-    [paletteEl, queueEl, actionsEl].forEach((el) => {
-      el.inert = false;
-    });
-    controls.classList.remove('relative');
-  }
-
-  function showResultActionsDelayed(primaryBtn, replayBtn, headingText) {
-    clearResultRow();
-    actionsEl.innerHTML = '';
-    actionsEl.classList.add(...GAP_FRAME_CLASSES);
-    const dots = document.createElement('span');
-    dots.className = 'col-span-full text-center text-2xl text-slate-400 w-full';
-    dots.dataset.resultGap = 'true';
-    dots.textContent = '…';
-    actionsEl.appendChild(dots);
-    const timer = setTimeout(() => {
-      setActiveAnimation(null);
-      dots.remove();
-      primaryBtn.classList.remove('block', 'mx-auto', 'mt-4');
-      primaryBtn.classList.add('w-full', 'h-16');
-      replayBtn.classList.remove('block', 'mx-auto', 'mt-4', 'py-3');
-      replayBtn.classList.add('w-40', 'h-16', 'self-end');
-      resultRowEl = document.createElement('div');
-      resultRowEl.className = 'result-row absolute inset-0 z-10 flex flex-col justify-center rounded-2xl bg-slate-900/50 p-2';
-      resultRowEl.dataset.resultRow = 'true';
-      const dialog = document.createElement('div');
-      dialog.className = 'result-dialog flex flex-col gap-2 rounded-xl bg-white p-3 shadow-lg';
-      dialog.dataset.resultDialog = 'true';
-      let heading = null;
-      if (headingText) {
-        heading = document.createElement('p');
-        heading.className = 'text-center text-lg font-bold text-slate-700';
-        heading.textContent = headingText;
-        dialog.appendChild(heading);
-      }
-      dialog.appendChild(primaryBtn);
-      dialog.appendChild(replayBtn);
-      resultRowEl.appendChild(dialog);
-      controls.classList.add('relative');
-      [paletteEl, queueEl, actionsEl].forEach((el) => {
-        el.inert = true;
-      });
-      controls.appendChild(resultRowEl);
-      // パネルに収まらない端末では見出しを出さずに収める（スクロールさせない。ボタンは64pxのまま）。
-      if (heading && dialog.offsetHeight > resultRowEl.clientHeight - 16) heading.remove();
-    }, prefersReducedMotion() ? RESULT_GAP_REDUCED_MS : RESULT_GAP_MS);
-    setActiveAnimation({
-      cancel() {
-        clearTimeout(timer);
-      },
-    });
-  }
+  // クリア演出（星→間→結果ダイアログ。Issue #336・#340・#342）は js/ui-clear.js の共通部品に任せる。
+  // 返り値の dispose() で間のタイマー・ダイアログ・空き枠を片付ける。
+  let clearSequence = null;
 
   // triggerFailFeedback(): 不正解時の視覚・聴覚フィードバック。派手な✕・警告音ではなく、
   // 盤面をやさしくゆらすアニメーションと効果音（未到達はtryAgain・取り残しはitemsLeft）で
@@ -702,26 +637,25 @@ export function renderPlay(root, step) {
     if (isRunCleared(result)) {
       delete S.drafts[step.stepId];
       local.resultShown = true;
-      showSuccess(statusBar, { view: local.view, restore: clearResult, ...(spec.paint ? { label: 'みほんと おなじ！' } : {}) });
-      if (isFinalStage) {
-        logEvent('clear', {});
-        markLessonCleared();
-        clearResume(S.lesson.lessonId);
-        showResultActionsDelayed(
-          createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'),
-          createPrimaryButton('もういちど', replay, 'replay')
-        );
-      } else {
-        // 途中ステージのクリアはstage_clearのみを記録し、レッスン全体のクリア（clear）や
-        // 単元スタンプの対象にはしない（Issue #104）。
-        logEvent('stage_clear', { stage: stageIndex + 1 });
-        saveResumePoint();
-        showResultActionsDelayed(
-          createPrimaryButton('つぎの ステージ', () => goToStep(S.stepIndex + 1), 'next-stage'),
-          createPrimaryButton('もういちど', replay, 'replay'),
-          'つぎへ すすもう'
-        );
-      }
+      // 途中ステージのクリアはstage_clearのみを記録し、レッスン全体のクリア（clear）や
+      // 単元スタンプの対象にはしない（Issue #104）。
+      recordClear({ isFinal: isFinalStage, stageIndex });
+      clearSequence?.dispose();
+      clearSequence = showClearSequence({
+        statusBar,
+        controls,
+        lockEls: [paletteEl, queueEl, actionsEl],
+        gapEl: actionsEl,
+        view: local.view,
+        restore: clearResult,
+        ...(spec.paint ? { label: 'みほんと おなじ！' } : {}),
+        primary: isFinalStage
+          ? { label: 'つぎへ', action: () => goToStep(S.stepIndex + 1), id: 'next' }
+          : { label: 'つぎの ステージ', action: () => goToStep(S.stepIndex + 1), id: 'next-stage' },
+        replay,
+        ...(isFinalStage ? {} : { heading: 'つぎへ すすもう' }),
+        setActiveAnimation,
+      });
     } else {
       setRunButtonMode('retry');
       local.locked = true;

@@ -134,8 +134,8 @@ export function renderPredict(root, step) {
         } else {
           showHint(statusBar, { kind: 'predict', message: RETRY_HINT_MESSAGE, restore: renderQuestion });
           actionsEl.innerHTML = '';
-          actionsEl.appendChild(createPrimaryButton('もういちど よそう', showQuestion, 'retry-predict'));
           actionsEl.appendChild(createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'));
+          actionsEl.appendChild(createPrimaryButton('もういちど よそう', showQuestion, 'retry-predict'));
         }
       },
     });
