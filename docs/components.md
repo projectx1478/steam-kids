@@ -1,28 +1,57 @@
 # 共通部品の台帳
 
-画面をまたいで使う部品の索引。新しい画面で同じ演出・見た目が要るときは自前で組まず、ここにある部品を呼ぶ。部品を足す・直すときは、この表と禁止パターンも更新する（Issue #347 以降）。
+画面をまたいで使う部品の索引。新しい画面で同じ演出・見た目が要るときは自前で組まず、ここにある部品を呼ぶ。部品を足す・直すときは、この表と禁止パターンも更新する（Issue #347・#349）。
 
 ## 部品の一覧
 
-| 部品 | 置き場 | 個別の説明 | 禁止パターン（部品の外で自前で組まない） |
-| --- | --- | --- | --- |
-| クリア演出（星のトースト→間→結果ダイアログ＋紙吹雪） | `js/ui-clear.js` | `docs/clear-component.md` | ダイアログの自前生成、待ち時間の直書き、星サイズの直書き |
+| 部品 | 置き場 | 個別の説明 | 禁止パターン（部品の外で自前で組まない） | 基準件数（`patterns`） |
+| --- | --- | --- | --- | --- |
+| クリア演出（星のトースト→間→結果ダイアログ＋紙吹雪） | `js/ui-clear.js` | `docs/clear-component.md` | ダイアログの自前生成、待ち時間の直書き、星サイズの直書き、`showSuccess`・紙吹雪・クリア記録・クリアログの直呼び | dialog 0・wait 0・star 0・showsuccess 2・confetti 2・clearrecord 0・clearlog 0 |
+
+基準件数の正本は `test/forbidden-baseline.json`。`showsuccess 2` は `js/ui-predict.js`・`js/ui-tutorial.js` の直呼びで、クリア演出への移行は後続 Issue（状態：移行中）。`confetti 2` は `js/ui-reaction.js` の `showSuccess` 本体と `js/ui-seesaw.js` のアダプタ。
 
 ## 禁止パターンの検査
 
-`test/forbidden-patterns.test.mjs`（`npm run test:unit` に含まれる）。ファイル単位の正規表現で、部品の置き場（上の表）を除いた `js/`（`js/vendor/` は対象外）と `tailwind.src.css` を調べる。
+`test/forbidden-patterns.test.mjs`（`npm run test:unit` に含まれる）。項目は登録表 `test/forbidden-registry.mjs`、件数の基準は `test/forbidden-baseline.json`。ファイル単位の正規表現で、部品の置き場（上の表）を除いた `js/`（`js/vendor/` は対象外）と `tailwind.src.css`（星サイズのみ）を調べる。
 
-- 例外は、該当行の末尾に `// allow-clear: 理由` を書く（CSS は `/* allow-clear: 理由 */`）。理由は必須。
+- 件数が基準より**増えたら赤**。**減ったのに基準を下げていなくても赤**（失敗文言は「<id>: 基準N→実際M。下げるなら基準をMに」）。
+- 例外は、該当行の末尾に `// allow-component:<id> 理由` を書く（CSS は `/* allow-component:<id> 理由 */`）。理由は必須（無ければ赤）。`<id>` は登録表の id。旧 `allow-clear` は受け付けず、残れば赤。例外の件数も基準の `allow` に id ごとに記録する。
 - 誤検知を例外で逃がすのは、自分が編集してよいファイルに限る。
+- 除外ファイル：`js/ui-summary.js`（レッスン・単元の完了画面で、ステージ演出ではない）、`js/ui-demo.js`（お手本デモで、クリアではない）。検査の対象からは外すが、中の検出件数は数え続け、基準の `excluded` にファイルごと・id ごとに記録する。除外は2ファイルまで。増やすには悠さんの承認。
 
-| 部品 | 項目 | 定義 |
-| --- | --- | --- |
-| クリア演出 | ダイアログの自前生成 | `js/ui-clear.js` 以外で、`createElement('dialog')`・`.showModal(`・`.show(`・`result-row`・`result-dialog` |
-| クリア演出 | 待ち時間の直書き | `js/ui-clear.js` を import するファイルで、`setTimeout(…, 1500)`・`setTimeout(…, 1000)`、`const RESULT_GAP…` の再定義 |
-| クリア演出 | 星サイズの直書き | `tailwind.src.css` の `.sk-clear-` を含まないルールの `width/height: 20px`、`js/` の `style.width/height = '20px'` |
+| id | 部品 | 項目 | 定義 |
+| --- | --- | --- | --- |
+| dialog | クリア演出 | ダイアログの自前生成 | `js/ui-clear.js` 以外で、`createElement('dialog')`・`.showModal(`・`.show(`・`result-row`・`result-dialog` |
+| wait | クリア演出 | 待ち時間の直書き | `js/ui-clear.js` を import するファイルで、`setTimeout(…, 1500)`・`setTimeout(…, 1000)`、`const RESULT_GAP…` の再定義 |
+| star | クリア演出 | 星サイズの直書き | `tailwind.src.css` の `.sk-clear-` を含まないルールの `width/height: 20px`、`js/` の `style.width/height = '20px'` |
+| showsuccess | クリア演出 | `showSuccess` の直呼び | `js/ui-clear.js` 以外での `showSuccess(` の呼び出し（定義行・import 行・コメント行は数えない） |
+| confetti | クリア演出 | 紙吹雪の直呼び | `view.confetti(`（`?.` つきも）・`screenConfetti(` の呼び出し（同上） |
+| clearrecord | クリア演出 | クリア記録の直呼び | `markLessonCleared(`・`saveResumePoint(` の呼び出し（同上） |
+| clearlog | クリア演出 | クリアログの直書き | `logEvent('clear'`・`logEvent('stage_clear'` |
+
+効果音（`playSfx`）と `clearResume` は数えない。トーストと結果ボタンの並びは目視。
+
+## 基準ファイルの更新手順
+
+基準を**上げる**変更（検出が増える変更）は、原則しない。部品を使うか、理由つきの `allow-component` で逃がす。どうしても上げるときは、悠さんの承認を得て、`test/forbidden-baseline.json` の該当の数字だけを変え、PR 本文に理由を書く（差分を悠さんが読んで止める）。
+
+基準を**下げる**とき（移行や削除で検出が減った）は、失敗文言の「基準をMに」のとおり、同じファイルの数字を実際の件数に直す。基準ファイルは `patterns`（除外ファイルを除いた件数）・`allow`（`allow-component` コメントの件数）・`excluded`（除外ファイルの中の件数）の3つ。キーは登録表の id すべてが必須で、値は0以上の整数。
 
 ## 部品を足すとき
 
-1. 部品の説明を `docs/<部品名>.md` に書き、上の一覧に1行足す。
-2. 部品の中身を外で自前で組ませない検査を `test/forbidden-patterns.test.mjs` に足す。違反するダミー（赤）と `allow-clear` 付きのダミー（緑）も同じテストに入れる。
+1. 部品の説明を `docs/<部品名>.md` に書き、上の一覧に1行足す（基準件数の列も）。
+2. 登録表 `test/forbidden-registry.mjs` に `{id, 部品, 項目, 対象, 検出}` を足し、`test/forbidden-baseline.json` の `patterns`・`allow`・`excluded` の各ファイルに同じ id を足す（件数は実測）。違反するダミー（赤）と `allow-component:<id>` 付きのダミー（緑）を `test/forbidden-patterns.test.mjs` に入れる。
 3. `docs/file-structure.md` の索引にファイルを足す。
+
+## 見送った部品
+
+候補に挙げたが、今は部品にしないもの。見直す条件は全行「同じ見た目かロジックが3画面以上で必要になったとき」。
+
+| 候補 | 見送りの理由 | 見直す条件 |
+| --- | --- | --- |
+| 重ねて出す画面 | 効果が小さい（2026-10-08 判断） | 同じ見た目かロジックが3画面以上で必要になったとき |
+| 進捗のドット | 効果が小さい（2026-10-08 判断） | 同じ見た目かロジックが3画面以上で必要になったとき |
+| レッスンの枠 | 効果が小さい（2026-10-08 判断） | 同じ見た目かロジックが3画面以上で必要になったとき |
+| くりかえし箱の操作行 | 効果が小さい（2026-10-08 判断） | 同じ見た目かロジックが3画面以上で必要になったとき |
+| 最初のステージの指ガイド | 効果が小さい（2026-10-08 判断） | 同じ見た目かロジックが3画面以上で必要になったとき |
+| ヒント表示 | 効果が小さい（2026-10-08 判断） | 同じ見た目かロジックが3画面以上で必要になったとき |

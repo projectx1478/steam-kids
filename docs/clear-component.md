@@ -59,4 +59,5 @@ clearSequence = showClearSequence({ statusBar, controls, lockEl, host, gapEl, vi
 
 ## 禁止パターン
 
-部品の外で自前で組まない（検査は `test/forbidden-patterns.test.mjs`、定義は `docs/components.md`）。ダイアログの自前生成、待ち時間（1500・1000）の直書き、星サイズ20pxの直書き。
+部品の外で自前で組まない（検査は `test/forbidden-patterns.test.mjs`、定義は `docs/components.md`）。ダイアログの自前生成、待ち時間（1500・1000）の直書き、星サイズ20pxの直書き、`showSuccess`・紙吹雪・クリア記録・クリアログの直呼び。
+件数は基準ファイル `test/forbidden-baseline.json` で管理し、増減とも赤になる（更新手順は `docs/components.md`）。例外は行末に `// allow-component:<id> 理由`（理由は必須）。

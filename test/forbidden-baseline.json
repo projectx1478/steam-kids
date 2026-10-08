@@ -1,0 +1,40 @@
+{
+  "patterns": {
+    "dialog": 0,
+    "wait": 0,
+    "star": 0,
+    "showsuccess": 2,
+    "confetti": 2,
+    "clearrecord": 0,
+    "clearlog": 0
+  },
+  "allow": {
+    "dialog": 0,
+    "wait": 0,
+    "star": 0,
+    "showsuccess": 0,
+    "confetti": 0,
+    "clearrecord": 0,
+    "clearlog": 0
+  },
+  "excluded": {
+    "js/ui-summary.js": {
+      "dialog": 0,
+      "wait": 0,
+      "star": 0,
+      "showsuccess": 0,
+      "confetti": 2,
+      "clearrecord": 0,
+      "clearlog": 0
+    },
+    "js/ui-demo.js": {
+      "dialog": 0,
+      "wait": 0,
+      "star": 0,
+      "showsuccess": 0,
+      "confetti": 1,
+      "clearrecord": 0,
+      "clearlog": 0
+    }
+  }
+}
