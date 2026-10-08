@@ -25,7 +25,7 @@ import { showHint, diagnose } from './ui-reaction.js';
 import { showClearSequence, recordClear } from './ui-clear.js';
 import { paintMiniBoard } from './gimmicks/paint.js';
 import { clearToast } from './ui-toast.js';
-import { shakeBoard, showRestartCue as showRestartCueUi } from './ui-retry.js';
+import { setRetryButton, shakeBoard, showRestartCue as showRestartCueUi } from './ui-retry.js';
 
 // diagnose()の原因ごとの文言（20字以内・否定語なし。Issue #91）。
 const HINT_MESSAGE = {
@@ -226,17 +226,7 @@ export function renderPlay(root, step) {
     runBtn.addEventListener('animationend', () => runBtn.classList.remove('retry-pulse'), { once: true });
   }
   function setRunButtonMode(mode) {
-    if (mode === 'retry') {
-      runBtn.dataset.action = 'retry';
-      runBtn.textContent = '↺ もういちど';
-      runBtn.classList.remove('bg-emerald-500');
-      runBtn.classList.add('bg-amber-500', ...RETRY_EMPHASIS_CLASSES);
-    } else {
-      runBtn.dataset.action = 'run';
-      runBtn.textContent = '▶ じっこう';
-      runBtn.classList.remove('bg-amber-500', ...RETRY_EMPHASIS_CLASSES);
-      runBtn.classList.add('bg-emerald-500');
-    }
+    setRetryButton(runBtn, mode, { runLabel: '▶ じっこう', emphasis: RETRY_EMPHASIS_CLASSES });
   }
 
   // クリア時はつぎへ・もういちど（レッスン再挑戦）を通常アクション行に差し替えて表示する

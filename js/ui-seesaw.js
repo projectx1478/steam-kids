@@ -14,7 +14,7 @@ import { goToStep, setBackDisabled, setActiveHandHint, setActiveAnimation } from
 import { showHint } from './ui-reaction.js';
 import { showClearSequence, recordClear } from './ui-clear.js';
 import { clearToast } from './ui-toast.js';
-import { shakeBoard, showRestartCue } from './ui-retry.js';
+import { setRetryButton, shakeBoard, showRestartCue } from './ui-retry.js';
 
 const UNIT = 40; // 1刻みの幅（viewBox単位）
 const BOARD_H = 260;
@@ -116,14 +116,7 @@ export function renderSeesaw(root, step) {
   runBtn.className = 'btn-tactile px-4 bg-emerald-500 text-white text-lg font-bold whitespace-nowrap break-keep disabled:opacity-40';
 
   function setRunMode(mode) {
-    const retry = mode === 'retry';
-    runBtn.dataset.action = retry ? 'retry' : 'run';
-    runBtn.textContent = retry ? '↺ もういちど' : '▶ ためす';
-    runBtn.classList.toggle('bg-emerald-500', !retry);
-    runBtn.classList.toggle('bg-amber-500', retry);
-    runBtn.classList.toggle('ring-4', retry);
-    runBtn.classList.toggle('ring-amber-300', retry);
-    runBtn.classList.toggle('ring-offset-2', retry);
+    setRetryButton(runBtn, mode, { runLabel: '▶ ためす', emphasis: ['ring-4', 'ring-amber-300', 'ring-offset-2'] });
   }
 
   function updateControls() {

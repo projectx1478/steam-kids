@@ -4,6 +4,23 @@ import { prefersReducedMotion } from './ui-grid.js';
 import { play as playSfx } from './sfx.js';
 import { showToast } from './ui-toast.js';
 
+// setRetryButton(btn, mode, { runLabel, emphasis }): 実行ボタンを「もういちど」(mode='retry') と
+// 通常 (それ以外) で切り替える。data-action は 'retry' / 'run'、色は amber / emerald。
+// 強調の強さは画面ごとの引数 emphasis（追加するクラスの配列。retry のときだけ付き、戻すと外れる）。
+export function setRetryButton(btn, mode, { runLabel, emphasis = [] }) {
+  if (mode === 'retry') {
+    btn.dataset.action = 'retry';
+    btn.textContent = '↺ もういちど';
+    btn.classList.remove('bg-emerald-500');
+    btn.classList.add('bg-amber-500', ...emphasis);
+  } else {
+    btn.dataset.action = 'run';
+    btn.textContent = runLabel;
+    btn.classList.remove('bg-amber-500', ...emphasis);
+    btn.classList.add('bg-emerald-500');
+  }
+}
+
 // shakeBoard(boardArea): 失敗時に盤面をやさしくゆらす（0.5秒）。reduced-motion時はゆらさず、
 // 盤面に0.5秒だけ枠を光らせて静止のまま気づけるようにする。
 export function shakeBoard(boardArea) {
