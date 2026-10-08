@@ -24,7 +24,8 @@ import {
 import { showHint, diagnose } from './ui-reaction.js';
 import { showClearSequence, recordClear } from './ui-clear.js';
 import { paintMiniBoard } from './gimmicks/paint.js';
-import { clearToast, showToast } from './ui-toast.js';
+import { clearToast } from './ui-toast.js';
+import { shakeBoard, showRestartCue as showRestartCueUi } from './ui-retry.js';
 
 // diagnose()の原因ごとの文言（20字以内・否定語なし。Issue #91）。
 const HINT_MESSAGE = {
@@ -269,34 +270,15 @@ export function renderPlay(root, step) {
   function triggerFailFeedback(reason) {
     playSfx(reason === 'items' ? 'itemsLeft' : 'tryAgain');
     local.view.dim(true);
-    if (prefersReducedMotion()) {
-      boardArea.classList.add('ring-4', 'ring-amber-400', 'rounded-2xl');
-      setTimeout(() => boardArea.classList.remove('ring-4', 'ring-amber-400', 'rounded-2xl'), 500);
-    } else {
-      boardArea.classList.add('wobble-soft');
-      boardArea.addEventListener('animationend', () => boardArea.classList.remove('wobble-soft'), { once: true });
-    }
+    shakeBoard(boardArea);
   }
 
   // showRestartCue(): 盤面を作り直した直後（もういちど＝失敗後のretry・クリア後のreplay共通）に
   // 「スタート！」を1秒だけ問い文スロットへ表示し、再スタート状態を明確に伝える（Issue #110）。
+  // 表示は js/ui-retry.js の共通部品に任せる（Issue #344）。
   function showRestartCue() {
-    playSfx('start');
     local.resultShown = true;
-    showToast(statusBar, {
-      render: (el) => {
-        el.dataset.restart = 'true';
-        const p = document.createElement('p');
-        p.className = 'text-lg font-bold text-sky-700';
-        p.textContent = 'スタート！';
-        el.appendChild(p);
-      },
-      durationMs: 1000,
-      restore: (el) => {
-        delete el.dataset.restart;
-        clearResult();
-      },
-    });
+    showRestartCueUi(statusBar, { restore: () => clearResult() });
   }
 
   // やりかた帯・無操作促しの対象を決める段階（Issue #89）。0=強調なし（実行中・結果表示中）、

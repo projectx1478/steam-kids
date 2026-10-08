@@ -20,6 +20,7 @@ js/
   ui-seesaw.js # シーソーplay画面の描画（Issue #150）
   ui-screen.js # 操作画面の枠の共通部品（問い文の行・盤面・パネル・ボタン行。play・シーソーが使う。docs/components.md。Issue #343）
   ui-clear.js # クリア演出の共通部品（星→間→結果ダイアログ。使い方は docs/clear-component.md。Issue #342）
+  ui-retry.js # やり直しの流れの共通部品（失敗のゆれ shakeBoard・「スタート！」showRestartCue。Issue #344）
   seed-code.js # れんしゅうの絵コード（8種×4マス）⇔シード変換・絵SVG（Issue #69）
   ui-seedpick.js # れんしゅうのたねコード入力画面（Issue #69）
   ui-grid.js # SVGグリッド描画とハイライト
