@@ -25,7 +25,7 @@ export function showSuccess(slotEl, { view, restore, label = 'やったね！' }
       el.dataset.result = 'clear';
       const wrap = document.createElement('p');
       wrap.className =
-        'clear-reaction success-pop flex items-center justify-center gap-1 text-2xl font-bold text-amber-600';
+        'clear-reaction sk-clear-reaction success-pop flex items-center justify-center gap-1 text-2xl font-bold text-amber-600';
       wrap.innerHTML = `<svg viewBox="0 0 64 64" class="w-12 h-12 shrink-0" aria-hidden="true">
         <polygon points="32,4 39,24 60,24 43,37 49,58 32,46 15,58 21,37 4,24 25,24"
           fill="#fbbf24" stroke="#f59e0b" stroke-width="2" />
