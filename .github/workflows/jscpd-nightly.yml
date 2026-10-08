@@ -1,0 +1,77 @@
+name: jscpd nightly
+
+# 重複コードの検出（報告のみ）。毎晩 2:30 JST（直近25時間に main へのコミットがあった日だけ）と手動実行。
+# 失敗にしない（閾値なし）。Issue も起票しない。結果は Job Summary と artifact で見る。
+
+on:
+  schedule:
+    - cron: '30 17 * * *'   # UTC 17:30 = JST 2:30
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jscpd-nightly
+  cancel-in-progress: false
+
+jobs:
+  jscpd:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 50
+
+      - name: 直近にコミットがなければスキップ（手動実行は常に実行）
+        id: gate
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || \
+             [ -n "$(git log --since='25 hours ago' --format=%H | head -1)" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"; echo "コミットなしのためスキップ"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.run == 'true'
+        with:
+          node-version: 22
+
+      - name: 依存関係
+        if: steps.gate.outputs.run == 'true'
+        run: npm install --no-audit --no-fund
+
+      - name: 重複検出（報告のみ）
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          npx jscpd || true
+          {
+            echo "### 重複コードの検出（jscpd）"
+            if [ -f .verify/jscpd/jscpd-report.json ]; then
+              node -e '
+                const r = require("./.verify/jscpd/jscpd-report.json");
+                const t = r.statistics.total;
+                console.log(`- 重複 ${t.clones} 件、重複行 ${t.duplicatedLines}／${t.lines}（${t.percentage}%）、解析ファイル ${t.sources} 個`);
+                console.log("");
+                console.log("| ファイル1 | 行 | ファイル2 | 行 | 重複行数 |");
+                console.log("|---|---|---|---|---|");
+                for (const d of r.duplicates) {
+                  console.log(`| ${d.firstFile.name} | ${d.firstFile.start}-${d.firstFile.end} | ${d.secondFile.name} | ${d.secondFile.start}-${d.secondFile.end} | ${d.lines} |`);
+                }
+              '
+            else
+              echo "レポートが生成されませんでした。"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: レポートを保存
+        if: always() && steps.gate.outputs.run == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: jscpd-report
+          path: .verify/jscpd/
+          retention-days: 14
+          include-hidden-files: true
+          if-no-files-found: ignore
