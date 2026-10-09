@@ -8,6 +8,7 @@
 | --- | --- | --- | --- | --- |
 | クリア演出（星のトースト→間→結果ダイアログ＋紙吹雪） | `js/ui-clear.js` | `docs/clear-component.md` | ダイアログの自前生成、待ち時間の直書き、星サイズの直書き、`showSuccess`・紙吹雪・クリア記録・クリアログの直呼び | dialog 0・wait 0・star 0・showsuccess 0・confetti 2・clearrecord 0・clearlog 0 |
 | 操作画面の枠（問い文の行・盤面・操作パネル・ボタン行の骨格。縦・横・背の低い横向き） | `js/ui-screen.js` | 本表（下の「操作画面の枠」） | 旧クラス名（`play-screen`・`status-bar`・`board-area`・`controller-panel`・`action-row`）での枠の自前組み立て | screen 0（allow 2） |
+| 盤面の描画（マスの大きさ計算・`renderGrid` 呼び出し・盤面エリアの大きさが変わったときの描き直し） | `js/ui-board.js` | 本表（下の「盤面の描画」） | `renderGrid(`・`computeCellSize(` の直呼び（`js/ui-board.js`・`js/ui-grid.js` 以外） | board 0（excluded の `js/ui-demo.js` に 1） |
 | やり直しの流れ（失敗のゆれ・「もういちど」ボタン切替・「スタート！」） | `js/ui-retry.js` | `js/ui-retry.js` 先頭のコメント | 検査なし（登録表に足さない。Issue #344） | — |
 
 基準件数の正本は `test/forbidden-baseline.json`。`showsuccess 0`：`js/ui-predict.js`・`js/ui-tutorial.js` も `showClearToast` に移行済み（状態：移行完了）。`confetti 2` は `js/ui-reaction.js` の `showSuccess` 本体と `js/ui-seesaw.js` のアダプタ。
@@ -18,6 +19,14 @@
 - 変えてよい（画面ごと）：盤面の中身、パネルの中身、ボタンの数と文言。変えてはいけない：盤面が flex-1 で残り高さに縮むこと、問い文の行の高さ（20px 揃え）、ボタン高さ48px以上、横向きの `1fr＋320px` 2列、クリア演出の `controls`・`lockEl` に渡す要素とその位置・寸法、シーソーのボタン配置。
 - ボタン行の修飾：`actions.classList.add('sk-screen-actions--one-row')` で横向きでも1行（◀・▶ 各1/4幅、残りが主ボタン）。使用はシーソーのみ。
 - 状態：移行完了（tutorial・seedpick は例外）。置き換え済みは `js/ui-play.js`・`js/ui-seesaw.js`・`js/ui-predict.js`。`js/ui-seedpick.js` の `status-bar`（別用途の問い文）と `js/ui-tutorial.js` の `board-area`（結果の星を盤面に重ねる別骨格）は `allow-component:screen` で逃がしている（allow 2）。
+
+## 盤面の描画
+
+- 呼び方：`fitCellSize({ spec, boardArea, portraitMax, noSplit })`（マスの大きさ）／`drawBoard({ boardWrap, spec, cellSize, playerPos, labels, hide })` → `{ el, view }`（`spec` の項目を `renderGrid` にそのまま渡す。`hide.goal` で goal を描かない）／`observeBoard({ boardArea, fit, current, skipWhen, redraw })`（大きさが変わったら描き直す。`skipWhen` は画面ごと：実行中・結果表示中は描き直さない）。`MIN_CELL`・`computeCellSize`・`renderGrid` は `js/ui-grid.js` に残す。
+- 置き換え対象（Issue #345）：`js/ui-play.js`・`js/ui-tutorial.js`（`portraitMax` 56）・`js/ui-predict.js`（goal を描かない・`noSplit` で横向きでも上限64）。対象外：`js/ui-demo.js`（固定の大きさ・観察なし）、シーソー。
+- PR の分け方：1 PR・2段（段1＝部品＋play、段2＝tutorial・predict・禁止パターン・台帳）。
+- 状態：移行完了（`board 0`、`excluded` の `js/ui-demo.js` に 1）。
+- 予約：#338 で形の引数（仮 `spec.shape`）を受ける。`drawBoard` は `spec` の項目をそのまま通すので、口は #338 で足す（今は実装しない）。
 
 ## 禁止パターンの検査
 
@@ -38,8 +47,9 @@
 | clearrecord | クリア演出 | クリア記録の直呼び | `markLessonCleared(`・`saveResumePoint(` の呼び出し（同上） |
 | clearlog | クリア演出 | クリアログの直書き | `logEvent('clear'`・`logEvent('stage_clear'` |
 | screen | 操作画面の枠 | 枠の自前組み立て | `js/ui-screen.js` 以外で、`className` を含む行に `play-screen`・`status-bar`・`board-area`・`controller-panel`・`action-row` のいずれか（コメント行は数えない） |
+| board | 盤面の描画 | 盤面の描画の直呼び | `js/ui-board.js`・`js/ui-grid.js` 以外で、`renderGrid(`・`computeCellSize(` の呼び出し（定義行・import 行・コメント行は数えない） |
 
-部品の置き場は、その部品の id だけを数えない（`js/ui-clear.js` はクリア演出の id、`js/ui-screen.js` は `screen`。互いの id は数える）。
+部品の置き場は、その部品の id だけを数えない（`js/ui-clear.js` はクリア演出の id、`js/ui-screen.js` は `screen`、`js/ui-board.js`・`js/ui-grid.js` は `board`。互いの id は数える）。
 
 効果音（`playSfx`）と `clearResume` は数えない。トーストと結果ボタンの並びは目視。
 

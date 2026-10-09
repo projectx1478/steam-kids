@@ -4,8 +4,10 @@
 
 export const CLEAR = 'js/ui-clear.js'; // クリア演出の置き場
 export const SCREEN = 'js/ui-screen.js'; // 操作画面の枠の置き場
+export const BOARD = 'js/ui-board.js'; // 盤面の描画の置き場
+export const GRID = 'js/ui-grid.js'; // 盤面の描画の元（renderGrid・computeCellSize の定義）
 // 部品の置き場：そのファイルでは、その部品（登録表の 部品）の id だけを数えない。ほかの部品の id は数える。
-export const HOMES = { [CLEAR]: 'クリア演出', [SCREEN]: '操作画面の枠' };
+export const HOMES = { [CLEAR]: 'クリア演出', [SCREEN]: '操作画面の枠', [BOARD]: '盤面の描画', [GRID]: '盤面の描画' };
 
 // 検査の対象から外すファイル（理由1行つき）。最大2ファイル。増やすには悠さんの承認。
 // 外したファイルの中の検出件数も数え、基準ファイルの excluded に記録する。
@@ -50,6 +52,9 @@ const CLEARLOG_RES = [/\blogEvent\(\s*['"](clear|stage_clear)['"]/];
 // 5) 操作画面の枠の旧クラス名（className の行。コメント行は数えない）
 const SCREEN_RES = [/className.*(?<![\w-])(play-screen|status-bar|board-area|controller-panel|action-row)(?![\w-])/];
 
+// 6) 盤面の描画の直呼び（定義行・コメント行は数えない）
+const BOARD_RES = [/(?<!function\s+)\b(renderGrid|computeCellSize)\s*\(/];
+
 export function checkDialog(src) {
   return lineHits(src, DIALOG_RES, 'dialog');
 }
@@ -93,6 +98,9 @@ export function checkClearLog(src) {
 export function checkScreen(src) {
   return callHits(src, SCREEN_RES, 'screen');
 }
+export function checkBoard(src) {
+  return callHits(src, BOARD_RES, 'board');
+}
 
 const JS = ['js/'];
 // 登録表：{ id, 部品, 項目, 対象（先頭一致のパス。末尾 / 以外は完全一致）, 検出(file, src) → 行番号の配列 }
@@ -111,6 +119,7 @@ export const REGISTRY = [
   { id: 'clearrecord', 部品: 'クリア演出', 項目: 'クリア記録の直呼び', 対象: JS, 検出: (f, s) => checkClearRecord(s) },
   { id: 'clearlog', 部品: 'クリア演出', 項目: 'クリアログの直書き', 対象: JS, 検出: (f, s) => checkClearLog(s) },
   { id: 'screen', 部品: '操作画面の枠', 項目: '操作画面の枠の自前組み立て', 対象: JS, 検出: (f, s) => checkScreen(s) },
+  { id: 'board', 部品: '盤面の描画', 項目: '盤面の描画の直呼び', 対象: JS, 検出: (f, s) => checkBoard(s) },
 ];
 
 const inTarget = (file, targets) => targets.some((t) => (t.endsWith('/') ? file.startsWith(t) : file === t));

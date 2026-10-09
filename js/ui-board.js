@@ -3,13 +3,14 @@
 import { renderGrid, computeCellSize, splitMaxCell } from './ui-grid.js';
 
 // マスの大きさ。盤面エリアの実寸と盤面の行列数から決める。
-export function fitCellSize({ spec, boardArea, portraitMax }) {
+// noSplit を真にすると、横向きでも上限を広げない（computeCellSize の既定の上限のまま。predict）。
+export function fitCellSize({ spec, boardArea, portraitMax, noSplit = false }) {
   return computeCellSize({
     cols: spec.grid.cols,
     rows: spec.grid.rows,
     width: boardArea.clientWidth,
     height: boardArea.clientHeight,
-    maxCell: splitMaxCell(portraitMax),
+    ...(noSplit ? {} : { maxCell: splitMaxCell(portraitMax) }),
   });
 }
 
