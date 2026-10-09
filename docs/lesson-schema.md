@@ -215,6 +215,22 @@ MustMatterは、ギミックモジュールの`strip(spec)`（ギミックを除
 ギミックを1つも指定しない`generator`では、同一シードの生成結果はR1（Issue #68）と一致する
 （追加の乱数消費をしない）。予想ステップは自動生成しない（#104で全廃）。
 
+## `stageGen`・`gen`（盤面の生成と固定。Issue #337）
+
+手書きでない play ステップを、開発時に生成してレッスンへ書き込むための設定。実行時は読まない（遊ぶたびに生成しない）。
+`node tools/gen-stages.mjs --lesson <id>` で候補を表示し、`--write` で play ステップを書き込む。
+れんしゅう（`generator` 付き play）とは別のもので、併用はしない。
+
+- `stageGen`（レッスンの最上位。任意）：`ver`（生成器の版。整数≥1）、`stages`（play の総数。2〜8。4を超えるのは長尺試作のみ）、
+  `keepHandwritten`（手書きで残す play の stepId。先頭から連続。省略時は空）、`grid.cols`・`grid.rows`（`{min,max}`。3〜6）、
+  `walls`（`{min,max}`。0〜12。省略時0）、`gimmicks`（`items`・`ice`・`keys` のみ。`{min,max}`）、`teach`（必須性を判定するギミック）、
+  `shortestPath`（`{min,max}`。2〜16）、`minTurns`（0〜8。省略時0）、`allowedCommands`（上下左右の部分集合。省略時4方向）、`seedBase`（省略時1）。
+  表に無いキーは不合格。使わないマス（`shape`・`grid.holes`）は未対応（Issue #338）。
+- `gen`（生成した play ステップの中）：`{ "seed": <整数≥0>, "ver": <stageGen.ver と同じ> }`。手書きで残す play には付けない。
+- 生成の規則：`maxCommands` は最短手数ちょうど。最短手数は非減少で、真ん中あたりに「最短は前と同じで曲がり角が少ない」面を1つ置く。
+  回転・鏡写しで同じになる盤は除く。同じレッスンの中で盤を急に2段以上大きくしない。
+- 固定：同じ `seed`・`ver`・`stageGen` から再生成した盤が、書き込んだ盤と一致することをテストで確かめる。生成器を直して出力が変わるときは `ver` を上げて書き直す。
+
 ## `lessons/index.json`（単元マップ）
 
 レッスン選択画面（単元マップ＝「しま」）の一覧ファイル。レッスン本体ではない（Issue #58）。
@@ -294,6 +310,9 @@ MustMatterは、ギミックモジュールの`strip(spec)`（ギミックを除
 - `tutorial.repeatBox`はboolean（`groupRepeats`と同時`true`は不可）。`box`/`times`/`close`は`repeatBox`時のみ。
   `box`は開いている間に押せず、`times`/`close`は開いている間だけ、空の箱は`close`不可、
   箱を開いたままの`run`・`remove`は不可（Issue #139）
+- `stageGen` がある場合、各フィールドが上の範囲内で、未知のキーが無いこと。`stages` が `keepHandwritten` の数＋1以上で、4を超えるなら長尺試作の一覧にあること
+- `gen` は `stageGen` があるレッスンにだけ置け、`gen.ver` が `stageGen.ver` と一致し、`keepHandwritten` の play には無いこと
+- `stageGen.teach` が `items` のとき、`gen` を持つ play は、どんぐりを除いた盤の最短がその盤の最短より短いこと（どんぐりの必須性）
 - **検証NGの場合は再生成する。手で通さない**
 - `lessons/index.json`: 参照する `lessonId` が実在すること、レッスン本体の `unitId` と一致すること、
   同一 `lessonId` を複数の `unit` から参照しないこと

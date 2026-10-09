@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { generateMap } from '../js/engine-generate.js';
 import { isValidCode, codeToSeed } from '../js/seed-code.js';
 import { simulate, shortestSteps, shortestChips, boardSpec, chipCount, isRunCleared } from '../js/engine-grid.js';
+import { iceMustMatter, keysMustMatter } from './lib/must-matter.mjs';
+import { itemsMustMatter } from './gen/stage-gen.mjs';
 import { balance, solutions, difficulty } from '../js/engine-seesaw.js';
 import { GIMMICKS } from '../js/gimmicks/index.js';
 import { plainSegmentsText, plainReading, parseSegments, rubyGrade, textKanjiMaxGrade, KANJI_RE } from '../js/text-render.js';
@@ -298,7 +300,103 @@ function validateSeesaw(playSteps, add, maxPlay = MAX_PLAY) {
   }
 }
 
-function validateLesson(fileName, data, longTrialIds = []) {
+// stageGen・gen の検査（Issue #337。docs/lesson-schema.md）。実行時は読まない開発用の設定。
+const SG_KEYS = ['ver', 'stages', 'keepHandwritten', 'grid', 'walls', 'gimmicks', 'teach', 'shortestPath', 'minTurns', 'allowedCommands', 'seedBase'];
+const SG_GIMMICK_RANGES = { items: [1, 4], ice: [1, 4], keys: [1, 2] };
+const isInt = (v) => Number.isInteger(v);
+const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+
+function checkStageGen(data, steps, isLong, add) {
+  const sg = data.stageGen;
+  const label = 'stageGen';
+  const unknown = (obj, allowed, where) => {
+    for (const k of Object.keys(obj)) if (!allowed.includes(k)) add('stageGen の未知のキー', `${where}の ${k} は受け付けない`);
+  };
+  // {min,max} の検査。範囲 [lo,hi] 内の整数で min<=max。形が正しければ true。
+  const range = (v, lo, hi, where) => {
+    if (!isObj(v)) { add(label, `${where} が {min,max} でない`); return false; }
+    unknown(v, ['min', 'max'], where);
+    if (!isInt(v.min) || !isInt(v.max) || v.min < lo || v.max > hi || v.min > v.max) {
+      add(label, `${where}=${JSON.stringify(v)} が不正（整数の min<=max で ${lo}〜${hi}）`);
+      return false;
+    }
+    return true;
+  };
+  if (isObj(sg) && steps.some((s) => s.kind === 'seedPick')) {
+    add(label, 'れんしゅう型（seedPick）のレッスンには置けない');
+  }
+  if (sg !== undefined) {
+    if (!isObj(sg)) {
+      add(label, 'stageGen がオブジェクトでない');
+    } else {
+      unknown(sg, SG_KEYS, 'stageGen');
+      if (!isInt(sg.ver) || sg.ver < 1) add(label, `ver=${JSON.stringify(sg.ver)} は 1 以上の整数でない`);
+      const plays = steps.filter((s) => s.kind === 'play').map((s) => s.stepId);
+      const keep = sg.keepHandwritten ?? [];
+      let keepOk = Array.isArray(keep) && keep.every((k) => typeof k === 'string');
+      if (!keepOk) add(label, 'keepHandwritten が stepId の配列でない');
+      if (keepOk) {
+        if (new Set(keep).size !== keep.length) add(label, 'keepHandwritten に重複がある');
+        for (const k of keep) if (!plays.includes(k)) add(label, `keepHandwritten の ${k} は play の stepId にない`);
+        if (!keep.every((k, i) => k === plays[i])) add(label, 'keepHandwritten が先頭の play から連続していない');
+      }
+      if (!isInt(sg.stages) || sg.stages < 2 || sg.stages > 8) {
+        add(label, `stages=${JSON.stringify(sg.stages)} は 2〜8 の整数でない`);
+      } else {
+        if (sg.stages > MAX_PLAY && !isLong) add(label, `stages=${sg.stages} は longTrialIds に無いレッスンでは ${MAX_PLAY} まで`);
+        if (keepOk && sg.stages < keep.length + 1) add(label, `stages=${sg.stages} が keepHandwritten.length+1 (${keep.length + 1}) 未満`);
+      }
+      if (!isObj(sg.grid)) {
+        add(label, 'grid がオブジェクトでない');
+      } else {
+        unknown(sg.grid, ['cols', 'rows'], 'grid');
+        range(sg.grid.cols, 3, 6, 'grid.cols');
+        range(sg.grid.rows, 3, 6, 'grid.rows');
+      }
+      if ('walls' in sg) range(sg.walls, 0, 12, 'walls');
+      const gim = sg.gimmicks ?? {};
+      if (!isObj(gim)) {
+        add(label, 'gimmicks がオブジェクトでない');
+      } else {
+        for (const [k, v] of Object.entries(gim)) {
+          if (!(k in SG_GIMMICK_RANGES)) add('stageGen 未対応のギミック', `gimmicks の ${k} は未対応（items・ice・keys のみ）`);
+          else range(v, SG_GIMMICK_RANGES[k][0], SG_GIMMICK_RANGES[k][1], `gimmicks.${k}`);
+        }
+        const names = Object.keys(gim);
+        if (names.length === 0 && 'teach' in sg) add(label, 'gimmicks が空なのに teach がある');
+        else if (names.length > 0 && !('teach' in sg)) add(label, 'gimmicks があるのに teach がない');
+        else if ('teach' in sg && !names.includes(sg.teach)) add(label, `teach=${JSON.stringify(sg.teach)} が gimmicks にない`);
+      }
+      range(sg.shortestPath, 2, 16, 'shortestPath');
+      if ('minTurns' in sg && (!isInt(sg.minTurns) || sg.minTurns < 0 || sg.minTurns > 8)) {
+        add(label, `minTurns=${JSON.stringify(sg.minTurns)} は 0〜8 の整数でない`);
+      }
+      if ('allowedCommands' in sg) {
+        const a = sg.allowedCommands;
+        if (!Array.isArray(a) || a.length === 0 || a.some((c) => !COMMANDS.includes(c)) || new Set(a).size !== a.length) {
+          add(label, `allowedCommands=${JSON.stringify(a)} は上下左右の部分集合（1個以上・重複なし）でない`);
+        }
+      }
+      if ('seedBase' in sg && (!isInt(sg.seedBase) || sg.seedBase < 0)) {
+        add(label, `seedBase=${JSON.stringify(sg.seedBase)} は 0 以上の整数でない`);
+      }
+    }
+  }
+  for (const step of steps) {
+    if (!('gen' in step)) continue;
+    const where = `stepId="${step.stepId}" の gen`;
+    if (!isObj(step.gen)) { add('gen', `${where} がオブジェクトでない`); continue; }
+    unknown(step.gen, ['seed', 'ver'], where);
+    if (!isInt(step.gen.seed) || step.gen.seed < 0) add('gen', `${where}.seed=${JSON.stringify(step.gen.seed)} は 0 以上の整数でない`);
+    if (!isObj(sg)) { add('gen', `${where} があるのに stageGen が無い`); continue; }
+    if (step.gen.ver !== sg.ver) add('gen', `${where}.ver=${JSON.stringify(step.gen.ver)} が stageGen.ver=${JSON.stringify(sg.ver)} と違う`);
+    if (Array.isArray(sg.keepHandwritten) && sg.keepHandwritten.includes(step.stepId)) {
+      add('gen', `${where} が keepHandwritten の stepId にある`);
+    }
+  }
+}
+
+export function validateLesson(fileName, data, longTrialIds = []) {
   const errors = [];
   const add = (rule, detail) => errors.push(`${fileName}: ${rule}: ${detail}`);
 
@@ -322,6 +420,7 @@ function validateLesson(fileName, data, longTrialIds = []) {
   const maxPlay = isLong ? LONG_MAX_PLAY : MAX_PLAY;
 
   const steps = Array.isArray(data.steps) ? data.steps : [];
+  checkStageGen(data, steps, isLong, add);
   if (steps.some((s) => s.kind === 'seedPick')) {
     if (isLong) add('長尺試作とseedPick', 'longTrialIdsのレッスンはseedPick（れんしゅう）を持てない');
     validatePractice(steps, add);
@@ -441,20 +540,22 @@ function validateLesson(fileName, data, longTrialIds = []) {
         );
       }
       // 氷ステージは氷を壁扱いにしても到達できるなら、氷を踏まずにクリアできてしまう。
-      if (Array.isArray(play.ice) && play.ice.length > 0) {
-        const noIce = boardSpec({ ...play, walls: [...(play.walls || []), ...play.ice], ice: [] });
-        const noIceDist = play.groupRepeats ? shortestChips(noIce) : shortestSteps(noIce);
-        if (noIceDist <= play.maxCommands) {
-          add('こおりの必須性', `${label}こおりを踏まずにmaxCommands=${play.maxCommands}以内でゴールできる（最短${noIceDist}）`);
-        }
+      const iceCheck = iceMustMatter(play);
+      if (!iceCheck.matters) {
+        add('こおりの必須性', `${label}こおりを踏まずにmaxCommands=${play.maxCommands}以内でゴールできる（最短${iceCheck.dist}）`);
       }
     }
     // ドアは壁扱いにしても到達できるなら、かぎを取らずにクリアできてしまう（ドアが飾り）。
-    if (dist !== null && Array.isArray(play.doors) && play.doors.length > 0) {
-      const noDoor = boardSpec({ ...play, walls: [...(play.walls || []), ...play.doors], doors: [], keys: [] });
-      const noDoorDist = play.groupRepeats ? shortestChips(noDoor) : shortestSteps(noDoor);
-      if (noDoorDist <= play.maxCommands) {
-        add('かぎの必須性', `${label}かぎを取らずにmaxCommands=${play.maxCommands}以内でゴールできる（最短${noDoorDist}）`);
+    if (dist !== null) {
+      const keysCheck = keysMustMatter(play);
+      if (!keysCheck.matters) {
+        add('かぎの必須性', `${label}かぎを取らずにmaxCommands=${play.maxCommands}以内でゴールできる（最短${keysCheck.dist}）`);
+      }
+    }
+    // 生成したステップ（gen 付き）で teach=items のとき、どんぐりを除いた盤の最短が実際の最短より短いこと（Issue #337）。
+    if (dist !== null && dist !== Infinity && play.gen && data.stageGen?.teach === 'items' && !play.groupRepeats) {
+      if (!itemsMustMatter(play, dist)) {
+        add('どんぐりの必須性', `${label}どんぐりを除いても最短${dist}手のまま（どんぐりが最短経路に影響しない）`);
       }
     }
     // 周期ドアを「常に開」（ドアを無視）にした盤の最短と比べ、実際の最短が長くなければドアが飾り（待ち・寄り道が要らない）。
@@ -842,4 +943,5 @@ async function main() {
   console.log(`OK: ${files.length}件`);
 }
 
-main();
+// 直接実行されたときだけ全レッスンを検査する（test/stagegen-validate.test.mjs は validateLesson を import して使う）。
+if (path.resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url)) main();
