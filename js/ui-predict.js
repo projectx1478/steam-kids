@@ -7,7 +7,7 @@ import { logEvent } from './events.js';
 import { renderGrid, computeCellSize } from './ui-grid.js';
 import { COMMAND_LABELS, ORDER_BADGE_CLASS, renderOrderArrow } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
-import { renderInto } from './text-render.js';
+import { createOpScreen } from './ui-screen.js';
 import { createIdleNudge } from './ui-guide.js';
 import { goToStep, createPrimaryButton, playAnimation, setActiveNudge } from './ui-step.js';
 import { showHint } from './ui-reaction.js';
@@ -25,21 +25,15 @@ export function renderPredict(root, step) {
   const spec = getPlaySpec();
   const local = { selected: null, view: null, nudge: null, cellSize: 64 };
 
-  const opScreen = document.createElement('div');
-  opScreen.className = 'predict-screen flex flex-col flex-1 min-h-0 gap-2';
-  root.appendChild(opScreen);
-
-  // 問い文スロット（1行）。実行結果もここへ数秒だけトースト表示する（Issue #97）。
-  const statusBar = document.createElement('div');
-  statusBar.className = 'status-bar shrink-0 text-center';
-  opScreen.appendChild(statusBar);
+  // 画面の枠は共通部品（js/ui-screen.js。Issue #343・#355）。問い文スロット（statusBar＝questionEl）には
+  // 実行結果もここへ数秒だけトースト表示する（Issue #97）。
+  const screen = createOpScreen({ root, question: step.text });
+  const { frame: opScreen, questionEl: statusBar, boardArea, actions: actionsEl } = screen;
+  opScreen.classList.add('sk-screen-frame--predict');
+  actionsEl.classList.add('sk-screen-actions--predict');
 
   function renderQuestion() {
-    statusBar.innerHTML = '';
-    const q = document.createElement('p');
-    q.className = 'text-sm font-bold text-slate-700';
-    renderInto(q, step.text, S.readingLevel, S.furigana);
-    statusBar.appendChild(q);
+    screen.renderQuestion(step.text);
   }
 
   const commandRow = document.createElement('div');
@@ -53,18 +47,11 @@ export function renderPredict(root, step) {
     chip.textContent = COMMAND_LABELS[cmd];
     commandRow.appendChild(chip);
   });
-  opScreen.appendChild(commandRow);
-
-  const boardArea = document.createElement('div');
-  boardArea.className = 'board-area relative flex-1 min-h-0 flex items-center justify-center overflow-hidden';
-  opScreen.appendChild(boardArea);
+  commandRow.classList.add('predict-command-row');
+  opScreen.insertBefore(commandRow, boardArea);
 
   const boardWrap = document.createElement('div');
   boardArea.appendChild(boardWrap);
-
-  const actionsEl = document.createElement('div');
-  actionsEl.className = 'flex gap-2 justify-center shrink-0';
-  opScreen.appendChild(actionsEl);
 
   // 静的な盤面の再構築。選択前・もういちどの時のみ呼ぶ（結果表示中は足あとを残すため呼ばない）。
   function drawStatic(playerPos, labels) {
@@ -131,12 +118,12 @@ export function renderPredict(root, step) {
           showClearToast(statusBar, { view: local.view, restore: renderQuestion });
           actionsEl.innerHTML = '';
           actionsEl.appendChild(createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'));
-          actionsEl.appendChild(createPrimaryButton('もういちど よそう', showQuestion, 'retry-predict'));
+          actionsEl.appendChild(createPrimaryButton('もういちど', showQuestion, 'retry-predict'));
         } else {
           showHint(statusBar, { kind: 'predict', message: RETRY_HINT_MESSAGE, restore: renderQuestion });
           actionsEl.innerHTML = '';
           actionsEl.appendChild(createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'));
-          actionsEl.appendChild(createPrimaryButton('もういちど よそう', showQuestion, 'retry-predict'));
+          actionsEl.appendChild(createPrimaryButton('もういちど', showQuestion, 'retry-predict'));
         }
       },
     });
