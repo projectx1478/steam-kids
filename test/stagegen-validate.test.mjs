@@ -9,6 +9,7 @@ import { validateLesson } from '../tools/validate-lessons.mjs';
 
 const fx = JSON.parse(readFileSync('test/fixtures/stagegen-cases.json', 'utf-8'));
 const load = (id) => JSON.parse(readFileSync(`lessons/${id}.json`, 'utf-8'));
+const loadBase = () => JSON.parse(readFileSync('test/fixtures/donguri-01-base.json', 'utf-8'));
 const clone = (v) => JSON.parse(JSON.stringify(v));
 const withoutNotes = (board) => Object.fromEntries(Object.entries(board).filter(([k]) => !k.startsWith('_')));
 
@@ -20,7 +21,7 @@ function boardStep(stepId, board, gen) {
 
 function buildLesson(c) {
   const id = c.baseLesson ?? 'donguri-01-hirou';
-  const data = load(id);
+  const data = c.baseLesson ? load(c.baseLesson) : loadBase();
   const long = c.baseLongTrial ?? fx.baseLongTrial;
   if (!c.baseLesson) data.estimatedMinutes = long ? 8 : 5;
   data.stageGen = { ...clone(fx.baseStageGen), ...clone(c.patch ?? {}) };

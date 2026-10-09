@@ -1,7 +1,7 @@
 export const name =
   'C4 実機フィードバック一括対応: ヘッダー(もどる・えらぶ がめんへ)・反応統一・ヒント・もういちど・まとめ(Issue #91/#93/#104)';
 
-import { enterPlay, clearStage, clickRetry } from '../helpers.mjs';
+import { enterPlay, clearStage, clickRetry, routeLesson } from '../helpers.mjs';
 
 async function noLongLine(page) {
   const text = await page.locator('body').innerText();
@@ -118,7 +118,21 @@ export default async function run({ page, check }) {
   await check('retryで命令列は0個に戻る（前回の命令を残さない）', async () => (await page.$$('.command-chip')).length, 0);
 
   // --- item未回収ヒント（donguri-01-hirou）。items(1,3)/(2,3)を持つp2で検証する ---
-  await enterPlay(page, 'donguri-01-hirou');
+  const pg = { allowedCommands: ['up', 'down', 'left', 'right'], walls: [] };
+  await routeLesson(page, {
+    lessonId: 'c4-donguri-items',
+    unitId: 'donguri',
+    title: 'ひろう',
+    type: 'grid-runtime',
+    estimatedMinutes: 5,
+    steps: [
+      { stepId: 's1', kind: 'intro', text: 'どんぐりを ぜんぶ ひろおう', demo: { grid: { cols: 4, rows: 4 }, start: { x: 3, y: 0 }, goal: { x: 0, y: 3 }, walls: [], items: [{ x: 3, y: 2 }], commands: ['down', 'down', 'down', 'left', 'left', 'left'] } },
+      { stepId: 'p1', kind: 'play', ...pg, grid: { cols: 3, rows: 3 }, start: { x: 0, y: 2 }, goal: { x: 2, y: 0 }, items: [{ x: 1, y: 2 }], solution: ['right', 'right', 'up', 'up'], maxCommands: 6 },
+      { stepId: 'p2', kind: 'play', ...pg, grid: { cols: 4, rows: 4 }, start: { x: 0, y: 3 }, goal: { x: 3, y: 0 }, items: [{ x: 1, y: 3 }, { x: 2, y: 3 }], solution: ['right', 'right', 'right', 'up', 'up', 'up'], maxCommands: 8 },
+      { stepId: 's2', kind: 'summary', text: 'どんぐりを ぜんぶ とったら ゴール' },
+    ],
+  });
+  await enterPlay(page, 'c4-donguri-items');
   await check('donguri play(p1)に入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
   await clearStage(page, ['right', 'right', 'up', 'up']);
   await check('donguri play(p2)に入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
