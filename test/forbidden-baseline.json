@@ -7,7 +7,7 @@
     "confetti": 2,
     "clearrecord": 0,
     "clearlog": 0,
-    "screen": 1
+    "screen": 0
   },
   "allow": {
     "dialog": 0,
@@ -17,7 +17,7 @@
     "confetti": 0,
     "clearrecord": 0,
     "clearlog": 0,
-    "screen": 1
+    "screen": 2
   },
   "excluded": {
     "js/ui-summary.js": {

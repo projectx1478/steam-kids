@@ -139,7 +139,7 @@ export function renderTutorial(root, step) {
   mainCol.appendChild(guideRowEl);
 
   const boardArea = document.createElement('div');
-  boardArea.className = 'board-area relative flex-1 min-h-0 flex items-center justify-center overflow-hidden';
+  boardArea.className = 'board-area relative flex-1 min-h-0 flex items-center justify-center overflow-hidden'; // allow-component:screen 結果の星を盤面に重ねる別骨格
   mainCol.appendChild(boardArea);
   const boardWrap = document.createElement('div');
   boardArea.appendChild(boardWrap);

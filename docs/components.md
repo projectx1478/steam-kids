@@ -7,7 +7,7 @@
 | 部品 | 置き場 | 個別の説明 | 禁止パターン（部品の外で自前で組まない） | 基準件数（`patterns`） |
 | --- | --- | --- | --- | --- |
 | クリア演出（星のトースト→間→結果ダイアログ＋紙吹雪） | `js/ui-clear.js` | `docs/clear-component.md` | ダイアログの自前生成、待ち時間の直書き、星サイズの直書き、`showSuccess`・紙吹雪・クリア記録・クリアログの直呼び | dialog 0・wait 0・star 0・showsuccess 0・confetti 2・clearrecord 0・clearlog 0 |
-| 操作画面の枠（問い文の行・盤面・操作パネル・ボタン行の骨格。縦・横・背の低い横向き） | `js/ui-screen.js` | 本表（下の「操作画面の枠」） | 旧クラス名（`play-screen`・`status-bar`・`board-area`・`controller-panel`・`action-row`）での枠の自前組み立て | screen 3（allow 1） |
+| 操作画面の枠（問い文の行・盤面・操作パネル・ボタン行の骨格。縦・横・背の低い横向き） | `js/ui-screen.js` | 本表（下の「操作画面の枠」） | 旧クラス名（`play-screen`・`status-bar`・`board-area`・`controller-panel`・`action-row`）での枠の自前組み立て | screen 0（allow 2） |
 | やり直しの流れ（失敗のゆれ・「もういちど」ボタン切替・「スタート！」） | `js/ui-retry.js` | `js/ui-retry.js` 先頭のコメント | 検査なし（登録表に足さない。Issue #344） | — |
 
 基準件数の正本は `test/forbidden-baseline.json`。`showsuccess 0`：`js/ui-predict.js`・`js/ui-tutorial.js` も `showClearToast` に移行済み（状態：移行完了）。`confetti 2` は `js/ui-reaction.js` の `showSuccess` 本体と `js/ui-seesaw.js` のアダプタ。
@@ -17,7 +17,7 @@
 - 呼び方：`createOpScreen({ root, question })` → `{ frame, questionEl, boardArea, panel, actions, renderQuestion(text) }`。各要素に `data-sk-screen`（`frame`・`question`・`board`・`panel`・`actions`）、クラスは `sk-screen-*`。E2E は属性セレクタで探す。
 - 変えてよい（画面ごと）：盤面の中身、パネルの中身、ボタンの数と文言。変えてはいけない：盤面が flex-1 で残り高さに縮むこと、問い文の行の高さ（20px 揃え）、ボタン高さ48px以上、横向きの `1fr＋320px` 2列、クリア演出の `controls`・`lockEl` に渡す要素とその位置・寸法、シーソーのボタン配置。
 - ボタン行の修飾：`actions.classList.add('sk-screen-actions--one-row')` で横向きでも1行（◀・▶ 各1/4幅、残りが主ボタン）。使用はシーソーのみ。
-- 状態：移行中。置き換え済みは `js/ui-play.js`・`js/ui-seesaw.js`。未済は `js/ui-predict.js`（2件）・`js/ui-tutorial.js`（1件）で、後続 #355。`js/ui-seedpick.js` の `status-bar` は別用途の問い文で、`allow-component:screen` で逃がしている（allow 1）。#355 が済んだら `patterns.screen` を 0 に下げ、「移行完了」にする。
+- 状態：移行完了（tutorial・seedpick は例外）。置き換え済みは `js/ui-play.js`・`js/ui-seesaw.js`・`js/ui-predict.js`。`js/ui-seedpick.js` の `status-bar`（別用途の問い文）と `js/ui-tutorial.js` の `board-area`（結果の星を盤面に重ねる別骨格）は `allow-component:screen` で逃がしている（allow 2）。
 
 ## 禁止パターンの検査
 

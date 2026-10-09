@@ -107,6 +107,12 @@ test('ダミー：操作画面の枠の旧クラス名は赤、allow-component:s
   assert.ok(Object.hasOwn(sources, SCREEN));
 });
 
+test('ダミー：CRLF の行に付いた allow-component:screen も緑（#343-11A）', () => {
+  const bad = "el.className = 'board-area flex-1'; // allow-component:screen 結果の星を盤面に重ねる別骨格";
+  assert.deepEqual(checkScreen(`${bad}\r\nconst a = 1;\r\n`), [], 'CRLF');
+  assert.equal(checkScreen("el.className = 'board-area flex-1';\r\n").length, 1, 'CRLF・理由なし');
+});
+
 // ---- 件数の基準の赤緑（ダミーの登録表・ソース・基準で判定そのものを通す）----
 const reg = [
   { id: 'aa', 部品: 'クリア演出', 項目: 'a', 対象: ['js/'], 検出: (f, s) => s.split('\n').flatMap((l, i) => (/BAD/.test(l) && !/\/\/\s*allow-component:aa\s+\S/.test(l) ? [i + 1] : [])) },
