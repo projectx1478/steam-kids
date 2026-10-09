@@ -22,6 +22,11 @@ const BURST_SVG = `<svg viewBox="0 0 64 64" class="w-full h-full" aria-hidden="t
 const DIZZY_SVG = `<svg viewBox="0 0 64 64" class="w-full h-full" aria-hidden="true">
       ${[[32, 10], [10, 46], [54, 46]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="8" fill="#fde047" stroke="#f59e0b" stroke-width="3" />`).join('')}
     </svg>`;
+// 水に止まったときの水しぶき（岸側の1回。しずくが散る）。
+const SPLASH_MS = 900;
+const SPLASH_SVG = `<svg viewBox="0 0 64 64" class="w-full h-full" aria-hidden="true">
+      ${[[32, 16, 7], [16, 28, 5], [48, 28, 5], [24, 12, 4], [40, 12, 4]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#bfdbfe" stroke="#3b82f6" stroke-width="2" />`).join('')}
+    </svg>`;
 const CONFETTI_COUNT = 24;
 const CONFETTI_MS = 1500;
 const CONFETTI_COLORS = ['#f87171', '#fbbf24', '#34d399', '#38bdf8', '#a78bfa'];
@@ -214,7 +219,7 @@ window.__gridAnimLog = window.__gridAnimLog || [];
 // labels: [{id, x, y}] 予想ステップの選択肢ボタン
 // view: プレイヤー駒・足あとの差分更新API（アニメーション中はこちらのみ使う。draw全再構築はしない）
 //   view.moveTo(pos): 通常移動（450ms、reduced-motion時は即時）
-//   view.bounce(dir, kind): 衝突の演出（kind='wall'|'cushion'、250ms〜、reduced-motion時は何もしない。'wall'は約1.2秒の目回し星を出し、reduced-motion時は静止表示。Issue #168）
+//   view.bounce(dir, kind): 衝突の演出（kind='wall'|'cushion'|'water'、250ms〜。'water'は岸側に水しぶきを約0.9秒出し困り顔、失敗ではない、reduced-motion時は何もしない。'wall'は約1.2秒の目回し星を出し、reduced-motion時は静止表示。Issue #168）
 //   view.fallOver(): 壁衝突でロボットが横に倒れる（300ms ease-outで倒れ、倒れたまま保持。reduced-motion時は何もしない。Issue #214）
 //   view.footprint(pos): 通過マスに足あとを追加
 //   view.markCell(pos, kind): 盤面を再構築せず印を重ねる（予想の答え合わせ・playのヒント。Issue #91）
@@ -384,6 +389,37 @@ export function renderGrid(opts) {
       setFacing(dir);
       const reduce = prefersReducedMotion();
       if (kind === 'wall') showDizzy(reduce);
+      if (kind === 'water') {
+        // 水：失敗ではないが、困り顔のまま水しぶきを岸側（ロボットと水マスの境目）に1回出す。
+        // reduced-motion時は動かさず、しぶきを静止表示する（wallと同じ扱い）。
+        const [wx, wy] = NUDGE_BY_DIR[dir] ?? [0, 0];
+        const edge = pixelFor(pos);
+        const splash = document.createElement('div');
+        splash.className = 'grid-splash absolute pointer-events-none';
+        splash.style.top = '0';
+        splash.style.left = '0';
+        splash.style.width = `${CELL}px`;
+        splash.style.height = `${CELL}px`;
+        splash.style.transform = `translate(${edge.x + Math.sign(wx) * CELL * 0.5}px, ${edge.y + Math.sign(wy) * CELL * 0.5}px)`;
+        splash.innerHTML = SPLASH_SVG;
+        board.appendChild(splash);
+        setMood('puzzled');
+        if (!reduce) {
+          splash.animate([{ opacity: 1, scale: '0.5' }, { opacity: 1, scale: '1.15', offset: 0.35 }, { opacity: 0, scale: '1.3' }], { duration: SPLASH_MS, easing: 'ease-out' });
+        }
+        setTimeout(() => {
+          splash.remove();
+          if (token.isConnected) setMood('normal');
+        }, SPLASH_MS);
+        if (reduce) return;
+        const base = pixelFor(pos);
+        window.__gridAnimLog.push({ type: 'bounce', ms: BOUNCE_MS, kind });
+        token.animate(
+          [{ transform: `translate(${base.x}px, ${base.y}px)` }, { transform: `translate(${base.x + wx * 0.6}px, ${base.y + wy * 0.6}px)`, offset: 0.3 }, { transform: `translate(${base.x}px, ${base.y}px)` }],
+          { duration: BOUNCE_MS + 100, easing: 'ease-out' }
+        );
+        return;
+      }
       if (reduce) return;
       const base = pixelFor(pos);
       const [nx, ny] = NUDGE_BY_DIR[dir] ?? [0, 0];

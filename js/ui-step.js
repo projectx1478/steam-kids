@@ -358,6 +358,8 @@ export function createPrimaryButton(label, onClick, action) {
   return btn;
 }
 
+const WATER_DELTA = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+
 function dirAt(commands, idx, inner) {
   const entry = commands[idx];
   if (typeof entry === 'string') return entry;
@@ -387,9 +389,13 @@ export function createStepper(commands, spec, view, { onTick, onPickup }) {
       const to = result.path[i + 1];
       const bumped = result.bumped[i];
       const cushioned = !bumped && from.x === to.x && from.y === to.y;
-      playSfx(bumped ? 'bump' : cushioned ? 'cushion' : result.slid[i] ? 'slide' : 'step', { index: i });
+      // 水で止まったか：手前で止まった手（cushioned）の進行方向の先が盤の water か。engineの戻り値は増やさない。
+      const dir = dirAt(commands, result.stepOwner[i], result.innerOwner[i]);
+      const [ddx, ddy] = WATER_DELTA[dir] ?? [0, 0];
+      const watered = cushioned && (spec.water ?? []).some((c) => c.x === from.x + ddx && c.y === from.y + ddy);
+      playSfx(bumped ? 'bump' : watered ? 'splash' : cushioned ? 'cushion' : result.slid[i] ? 'slide' : 'step', { index: i });
       if (bumped || cushioned) {
-        view.bounce(dirAt(commands, result.stepOwner[i], result.innerOwner[i]), cushioned ? 'cushion' : 'wall');
+        view.bounce(dir, watered ? 'water' : cushioned ? 'cushion' : 'wall');
       } else {
         view.footprint(from);
         view.moveTo(to);

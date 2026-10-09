@@ -26,7 +26,7 @@
 - 置き換え対象（Issue #345）：`js/ui-play.js`・`js/ui-tutorial.js`（`portraitMax` 56）・`js/ui-predict.js`（goal を描かない・`noSplit` で横向きでも上限64）。対象外：`js/ui-demo.js`（固定の大きさ・観察なし）、シーソー。
 - PR の分け方：1 PR・2段（段1＝部品＋play、段2＝tutorial・predict・禁止パターン・台帳）。
 - 状態：移行完了（`board 0`、`excluded` の `js/ui-demo.js` に 1）。
-- 予約：#338 で形の引数（仮 `spec.shape`）を受ける。`drawBoard` は `spec` の項目をそのまま通すので、口は #338 で足す（今は実装しない）。
+- 水・橋（#338）：`drawBoard` は `spec.water`・`spec.waterMode`・`spec.bridge` を `renderGrid` に通す。描画は `js/gimmicks/water.js` の `render`（水＝`data-water`、橋＝`data-bridge`・`data-bridge-dir`〔h横/v縦〕。隣と2pxつなげる）。水で止まったときは `view.bounce(dir, 'water')`（水しぶき＋困り顔）と音 `splash`（`js/ui-step.js` が盤の `water` と進行方向で判定）。`generator.shape` は PR2。
 
 ## 禁止パターンの検査
 
