@@ -16,6 +16,7 @@
 
 - 呼び方：`createOpScreen({ root, question })` → `{ frame, questionEl, boardArea, panel, actions, renderQuestion(text) }`。各要素に `data-sk-screen`（`frame`・`question`・`board`・`panel`・`actions`）、クラスは `sk-screen-*`。E2E は属性セレクタで探す。
 - 変えてよい（画面ごと）：盤面の中身、パネルの中身、ボタンの数と文言。変えてはいけない：盤面が flex-1 で残り高さに縮むこと、問い文の行の高さ（20px 揃え）、ボタン高さ48px以上、横向きの `1fr＋320px` 2列、クリア演出の `controls`・`lockEl` に渡す要素とその位置・寸法、シーソーのボタン配置。
+- ボタン行の修飾：`actions.classList.add('sk-screen-actions--one-row')` で横向きでも1行（◀・▶ 各1/4幅、残りが主ボタン）。使用はシーソーのみ。
 - 状態：移行中。置き換え済みは `js/ui-play.js`・`js/ui-seesaw.js`。未済は `js/ui-predict.js`（2件）・`js/ui-tutorial.js`（1件）で、後続 #355。`js/ui-seedpick.js` の `status-bar` は別用途の問い文で、`allow-component:screen` で逃がしている（allow 1）。#355 が済んだら `patterns.screen` を 0 に下げ、「移行完了」にする。
 
 ## 禁止パターンの検査

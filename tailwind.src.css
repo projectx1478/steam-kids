@@ -435,6 +435,13 @@ dialog.result-row {
   }
 }
 
+/* ボタン行の修飾 sk-screen-actions--one-row（シーソー）：横向きでも3つのボタンを1行に並べる（Issue #354）。 */
+@media (orientation: landscape) {
+  .sk-screen-panel > .sk-screen-actions.sk-screen-actions--one-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr);
+  }
+}
+
 /* 動きを止める設定では、次に遊ぶレッスンを枠だけで示す（Issue #216）。 */
 @media (prefers-reduced-motion: reduce) {
   button.next-pulse {
