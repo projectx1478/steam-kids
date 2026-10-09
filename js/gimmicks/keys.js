@@ -160,6 +160,7 @@ export const keys = {
       overlap(kind, list, 'items', board.items);
       overlap(kind, list, 'ice', board.ice);
       overlap(kind, list, 'cushion', board.cushion);
+      overlap(kind, list, 'water', board.water);
     });
     overlap('keys', keyList, 'doors', doorList);
     const seen = new Set();

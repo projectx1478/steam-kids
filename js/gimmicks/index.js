@@ -7,5 +7,6 @@ import { keys } from './keys.js';
 import { switches } from './switches.js';
 import { paint } from './paint.js';
 import { periodic } from './periodic.js';
+import { water } from './water.js';
 
-export const GIMMICKS = [items, ice, cushion, keys, switches, paint, periodic];
+export const GIMMICKS = [items, ice, cushion, keys, switches, paint, periodic, water];

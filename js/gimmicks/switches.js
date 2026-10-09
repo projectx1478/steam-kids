@@ -121,6 +121,7 @@ export const switches = {
       ['items', board.items],
       ['ice', board.ice, true],
       ['cushion', board.cushion],
+      ['water', board.water],
       ['keys', board.keys],
       ['doors', board.doors],
     ].map(([name, pts, switchOk]) => [name, new Set(list(pts).map(keyOf)), switchOk === true]);

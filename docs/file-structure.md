@@ -15,6 +15,7 @@ js/
   state.js # 状態管理（Sオブジェクト）
   lesson-cmd-01.js # P0のレッスンデータ（レッスンJSONと同形状）
   engine-grid.js # grid-runtimeの純粋関数（命令列→経路・到達判定）
+  gimmicks/water.js # 水（川）ギミック。water・bridge・waterMode（cushion型／bump型）。仕様は docs/gimmicks.md（Issue #338）
   engine-generate.js # シードからgrid-runtime盤面を生成する純粋関数（PRNG・制約判定・予備盤面。Issue #68）
   engine-seesaw.js # predict-slider（シーソー）の純粋関数（おもさ×きょりの傾き判定。Issue #150）
   ui-seesaw.js # シーソーplay画面の描画（Issue #150）
