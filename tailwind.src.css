@@ -442,6 +442,43 @@ dialog.result-row {
   }
 }
 
+/* predict（Issue #355）：命令の行（predict-command-row）を問い文と盤面の間に置き、ボタン行 sk-screen-actions--predict は
+   縦向きは nowrap の1行、横向きは1列に縦積みにする。 */
+.sk-screen-actions--predict {
+  flex-wrap: nowrap;
+}
+.sk-screen-actions--predict > .primary-btn {
+  flex: 1 1 0;
+  min-height: 64px;
+  margin: 0;
+  white-space: nowrap;
+}
+@media (orientation: landscape) {
+  .sk-screen-frame.sk-screen-frame.sk-screen-frame--predict {
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+  .sk-screen-frame--predict > .predict-command-row {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .sk-screen-frame--predict > .predict-command-row ~ .sk-screen-board {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  .sk-screen-frame--predict > .predict-command-row ~ .sk-screen-panel {
+    grid-row: 1 / span 3;
+  }
+  .sk-screen-panel > .sk-screen-actions.sk-screen-actions--predict {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+  }
+  .sk-screen-actions--predict > .primary-btn {
+    flex: 0 0 auto;
+  }
+}
+
 /* 動きを止める設定では、次に遊ぶレッスンを枠だけで示す（Issue #216）。 */
 @media (prefers-reduced-motion: reduce) {
   button.next-pulse {
