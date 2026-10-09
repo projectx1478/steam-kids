@@ -3,7 +3,24 @@
   "unitId": "donguri",
   "title": "ひろう",
   "type": "grid-runtime",
-  "estimatedMinutes": 5,
+  "estimatedMinutes": 8,
+  "stageGen": {
+    "ver": 1,
+    "stages": 8,
+    "keepHandwritten": ["p1"],
+    "grid": {
+      "cols": { "min": 4, "max": 6 },
+      "rows": { "min": 3, "max": 6 }
+    },
+    "walls": { "min": 0, "max": 4 },
+    "gimmicks": {
+      "items": { "min": 1, "max": 3 }
+    },
+    "teach": "items",
+    "shortestPath": { "min": 4, "max": 16 },
+    "minTurns": 1,
+    "seedBase": 1
+  },
   "steps": [
     {
       "stepId": "s1",
@@ -50,33 +67,127 @@
     {
       "stepId": "p2",
       "kind": "play",
-      "grid": { "cols": 4, "rows": 4 },
-      "start": { "x": 0, "y": 3 },
-      "goal": { "x": 3, "y": 0 },
-      "walls": [],
-      "items": [
-        { "x": 1, "y": 3 },
-        { "x": 2, "y": 3 }
+      "grid": { "cols": 4, "rows": 3 },
+      "start": { "x": 1, "y": 1 },
+      "goal": { "x": 3, "y": 1 },
+      "walls": [
+        { "x": 1, "y": 0 },
+        { "x": 3, "y": 2 }
       ],
+      "items": [{ "x": 2, "y": 2 }],
       "allowedCommands": ["up", "down", "left", "right"],
-      "solution": ["right", "right", "right", "up", "up", "up"],
-      "maxCommands": 8
+      "solution": ["down", "right", "up", "right"],
+      "maxCommands": 4,
+      "gen": { "seed": 195, "ver": 1 }
     },
     {
       "stepId": "p3",
       "kind": "play",
-      "grid": { "cols": 5, "rows": 5 },
-      "start": { "x": 0, "y": 4 },
-      "goal": { "x": 4, "y": 0 },
-      "walls": [],
+      "grid": { "cols": 4, "rows": 4 },
+      "start": { "x": 1, "y": 0 },
+      "goal": { "x": 0, "y": 1 },
+      "walls": [{ "x": 2, "y": 0 }],
       "items": [
-        { "x": 1, "y": 4 },
-        { "x": 3, "y": 4 },
-        { "x": 4, "y": 2 }
+        { "x": 2, "y": 1 },
+        { "x": 1, "y": 1 },
+        { "x": 1, "y": 2 }
       ],
       "allowedCommands": ["up", "down", "left", "right"],
-      "solution": ["right", "right", "right", "right", "up", "up", "up", "up"],
-      "maxCommands": 10
+      "solution": ["down", "down", "up", "right", "left", "left"],
+      "maxCommands": 6,
+      "gen": { "seed": 131, "ver": 1 }
+    },
+    {
+      "stepId": "p4",
+      "kind": "play",
+      "grid": { "cols": 5, "rows": 3 },
+      "start": { "x": 3, "y": 0 },
+      "goal": { "x": 0, "y": 1 },
+      "walls": [
+        { "x": 2, "y": 2 },
+        { "x": 4, "y": 0 },
+        { "x": 0, "y": 2 }
+      ],
+      "items": [
+        { "x": 3, "y": 2 },
+        { "x": 1, "y": 1 }
+      ],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["down", "down", "up", "left", "left", "left"],
+      "maxCommands": 6,
+      "gen": { "seed": 6, "ver": 1 }
+    },
+    {
+      "stepId": "p5",
+      "kind": "play",
+      "grid": { "cols": 6, "rows": 4 },
+      "start": { "x": 4, "y": 2 },
+      "goal": { "x": 2, "y": 2 },
+      "walls": [{ "x": 1, "y": 2 }],
+      "items": [
+        { "x": 5, "y": 2 },
+        { "x": 4, "y": 0 },
+        { "x": 4, "y": 1 }
+      ],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["up", "up", "down", "down", "right", "left", "left", "left"],
+      "maxCommands": 8,
+      "gen": { "seed": 64, "ver": 1 }
+    },
+    {
+      "stepId": "p6",
+      "kind": "play",
+      "grid": { "cols": 5, "rows": 5 },
+      "start": { "x": 1, "y": 4 },
+      "goal": { "x": 0, "y": 3 },
+      "walls": [
+        { "x": 3, "y": 2 },
+        { "x": 4, "y": 1 }
+      ],
+      "items": [
+        { "x": 2, "y": 3 },
+        { "x": 1, "y": 0 }
+      ],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["up", "up", "up", "up", "down", "down", "down", "right", "left", "left"],
+      "maxCommands": 10,
+      "gen": { "seed": 59, "ver": 1 }
+    },
+    {
+      "stepId": "p7",
+      "kind": "play",
+      "grid": { "cols": 4, "rows": 5 },
+      "start": { "x": 0, "y": 1 },
+      "goal": { "x": 1, "y": 1 },
+      "walls": [
+        { "x": 1, "y": 0 },
+        { "x": 0, "y": 2 }
+      ],
+      "items": [
+        { "x": 0, "y": 3 },
+        { "x": 2, "y": 3 },
+        { "x": 3, "y": 1 }
+      ],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["right", "right", "right", "down", "down", "left", "left", "left", "right", "up", "up"],
+      "maxCommands": 11,
+      "gen": { "seed": 100, "ver": 1 }
+    },
+    {
+      "stepId": "p8",
+      "kind": "play",
+      "grid": { "cols": 4, "rows": 6 },
+      "start": { "x": 3, "y": 5 },
+      "goal": { "x": 0, "y": 4 },
+      "walls": [
+        { "x": 0, "y": 3 },
+        { "x": 1, "y": 2 }
+      ],
+      "items": [{ "x": 0, "y": 2 }],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["up", "up", "up", "up", "left", "left", "left", "down", "up", "right", "right", "down", "down", "down", "left", "left"],
+      "maxCommands": 16,
+      "gen": { "seed": 138, "ver": 1 }
     },
     { "stepId": "s2", "kind": "summary", "text": "どんぐりを ぜんぶ とったら ゴール" }
   ]

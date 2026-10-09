@@ -1,0 +1,83 @@
+{
+  "lessonId": "donguri-01-hirou",
+  "unitId": "donguri",
+  "title": "ひろう",
+  "type": "grid-runtime",
+  "estimatedMinutes": 5,
+  "steps": [
+    {
+      "stepId": "s1",
+      "kind": "intro",
+      "text": "どんぐりを ぜんぶ ひろおう",
+      "demo": {
+        "grid": { "cols": 4, "rows": 4 },
+        "start": { "x": 3, "y": 0 },
+        "goal": { "x": 0, "y": 3 },
+        "walls": [],
+        "items": [{ "x": 3, "y": 2 }],
+        "commands": ["down", "down", "down", "left", "left", "left"]
+      }
+    },
+    {
+      "stepId": "t1",
+      "kind": "tutorial",
+      "text": "どんぐりを とって ゴール",
+      "grid": { "cols": 3, "rows": 3 },
+      "start": { "x": 0, "y": 2 },
+      "goal": { "x": 1, "y": 0 },
+      "walls": [],
+      "items": [{ "x": 0, "y": 1 }],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "script": [
+        { "tap": "up" },
+        { "tap": "up" },
+        { "tap": "right" },
+        { "tap": "run" }
+      ]
+    },
+    {
+      "stepId": "p1",
+      "kind": "play",
+      "grid": { "cols": 3, "rows": 3 },
+      "start": { "x": 0, "y": 2 },
+      "goal": { "x": 2, "y": 0 },
+      "walls": [],
+      "items": [{ "x": 1, "y": 2 }],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["right", "right", "up", "up"],
+      "maxCommands": 6
+    },
+    {
+      "stepId": "p2",
+      "kind": "play",
+      "grid": { "cols": 4, "rows": 4 },
+      "start": { "x": 0, "y": 3 },
+      "goal": { "x": 3, "y": 0 },
+      "walls": [],
+      "items": [
+        { "x": 1, "y": 3 },
+        { "x": 2, "y": 3 }
+      ],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["right", "right", "right", "up", "up", "up"],
+      "maxCommands": 8
+    },
+    {
+      "stepId": "p3",
+      "kind": "play",
+      "grid": { "cols": 5, "rows": 5 },
+      "start": { "x": 0, "y": 4 },
+      "goal": { "x": 4, "y": 0 },
+      "walls": [],
+      "items": [
+        { "x": 1, "y": 4 },
+        { "x": 3, "y": 4 },
+        { "x": 4, "y": 2 }
+      ],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["right", "right", "right", "right", "up", "up", "up", "up"],
+      "maxCommands": 10
+    },
+    { "stepId": "s2", "kind": "summary", "text": "どんぐりを ぜんぶ とったら ゴール" }
+  ]
+}
