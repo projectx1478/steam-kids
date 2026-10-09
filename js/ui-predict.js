@@ -4,7 +4,7 @@
 import { S } from './state.js';
 import { boardSpec } from './engine-grid.js';
 import { logEvent } from './events.js';
-import { renderGrid, computeCellSize } from './ui-grid.js';
+import { fitCellSize, drawBoard, observeBoard } from './ui-board.js';
 import { COMMAND_LABELS, ORDER_BADGE_CLASS, renderOrderArrow } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
 import { createOpScreen } from './ui-screen.js';
@@ -55,23 +55,9 @@ export function renderPredict(root, step) {
 
   // 静的な盤面の再構築。選択前・もういちどの時のみ呼ぶ（結果表示中は足あとを残すため呼ばない）。
   function drawStatic(playerPos, labels) {
-    local.cellSize = computeCellSize({
-      cols: spec.grid.cols,
-      rows: spec.grid.rows,
-      width: boardArea.clientWidth,
-      height: boardArea.clientHeight,
-    });
-    boardWrap.innerHTML = '';
-    const { el, view } = renderGrid({
-      grid: spec.grid,
-      walls: spec.walls,
-      goal: null, // ゴールは描かない（Issue #80。星がゴール/答えだと誤解された）
-      items: spec.items,
-      playerPos,
-      labels,
-      cellSize: local.cellSize,
-    });
-    boardWrap.appendChild(el);
+    local.cellSize = fitCellSize({ spec, boardArea, noSplit: true });
+    // ゴールは描かない（Issue #80。星がゴール/答えだと誤解された）
+    const { view } = drawBoard({ boardWrap, spec, cellSize: local.cellSize, playerPos, labels, hide: { goal: true } });
     local.view = view;
   }
 
@@ -130,14 +116,11 @@ export function renderPredict(root, step) {
   });
 
   showQuestion();
-  new ResizeObserver(() => {
-    if (local.selected) return; // 結果表示中は盤面状態を保つ
-    const next = computeCellSize({
-      cols: spec.grid.cols,
-      rows: spec.grid.rows,
-      width: boardArea.clientWidth,
-      height: boardArea.clientHeight,
-    });
-    if (next !== local.cellSize) showQuestion();
-  }).observe(boardArea);
+  observeBoard({
+    boardArea,
+    fit: () => fitCellSize({ spec, boardArea, noSplit: true }),
+    current: () => local.cellSize,
+    skipWhen: () => !!local.selected, // 結果表示中は盤面状態を保つ
+    redraw: showQuestion,
+  });
 }

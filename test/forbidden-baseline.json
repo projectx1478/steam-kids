@@ -7,7 +7,8 @@
     "confetti": 2,
     "clearrecord": 0,
     "clearlog": 0,
-    "screen": 0
+    "screen": 0,
+    "board": 0
   },
   "allow": {
     "dialog": 0,
@@ -17,7 +18,8 @@
     "confetti": 0,
     "clearrecord": 0,
     "clearlog": 0,
-    "screen": 2
+    "screen": 2,
+    "board": 0
   },
   "excluded": {
     "js/ui-summary.js": {
@@ -28,7 +30,8 @@
       "confetti": 2,
       "clearrecord": 0,
       "clearlog": 0,
-      "screen": 0
+      "screen": 0,
+      "board": 0
     },
     "js/ui-demo.js": {
       "dialog": 0,
@@ -38,7 +41,8 @@
       "confetti": 1,
       "clearrecord": 0,
       "clearlog": 0,
-      "screen": 0
+      "screen": 0,
+      "board": 1
     }
   }
 }

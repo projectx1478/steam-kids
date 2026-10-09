@@ -24,6 +24,7 @@ js/
   seed-code.js # れんしゅうの絵コード（8種×4マス）⇔シード変換・絵SVG（Issue #69）
   ui-seedpick.js # れんしゅうのたねコード入力画面（Issue #69）
   ui-grid.js # SVGグリッド描画とハイライト
+  ui-board.js # 盤面の共通部品（マスの大きさ・描画・描き直しの観察）
   ui-commands.js # 命令パレット・命令列・個別削除・全消し
   ui-step.js # ステップ切替、ふりがなトグル
   ui-title.js # タイトル画面（はじめから／つづきから。起動時のみ。Issue #107・#218）

@@ -8,7 +8,7 @@ import path from 'node:path';
 import { CLEAR, SCREEN, EXCLUDES, REGISTRY, measure, judge } from './forbidden-registry.mjs';
 
 export { checkDialog, checkWait, checkStarJs, checkStarCss } from './forbidden-registry.mjs';
-import { checkDialog, checkWait, checkStarJs, checkStarCss, checkShowSuccess, checkConfetti, checkClearRecord, checkClearLog, checkScreen } from './forbidden-registry.mjs';
+import { checkDialog, checkWait, checkStarJs, checkStarCss, checkShowSuccess, checkConfetti, checkClearRecord, checkClearLog, checkScreen, checkBoard } from './forbidden-registry.mjs';
 
 function jsFiles(dir) {
   return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
@@ -105,6 +105,17 @@ test('ダミー：操作画面の枠の旧クラス名は赤、allow-component:s
     assert.deepEqual(checkScreen(ok), [], ok);
   }
   assert.ok(Object.hasOwn(sources, SCREEN));
+});
+
+test('ダミー：盤面の描画の直呼びは赤、allow-component:board 付き・定義・import・コメント行は緑', () => {
+  for (const bad of ['const { el } = renderGrid({ grid, cellSize });', 'const c = computeCellSize({ cols, rows, width, height });']) {
+    assert.equal(checkBoard(bad).length, 1, bad);
+    assert.deepEqual(checkBoard(`${bad} // allow-component:board 固定の大きさのデモ`), [], bad);
+    assert.equal(checkBoard(`${bad} // allow-component:wait 別のid`).length, 1, bad);
+  }
+  for (const ok of ['export function renderGrid(opts) {', "import { renderGrid, computeCellSize } from './ui-grid.js';", '// renderGrid( を呼ぶ', 'const s = fitCellSize({ spec, boardArea });']) {
+    assert.deepEqual(checkBoard(ok), [], ok);
+  }
 });
 
 test('ダミー：CRLF の行に付いた allow-component:screen も緑（#343-11A）', () => {

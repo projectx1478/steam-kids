@@ -4,7 +4,8 @@
 import { S } from './state.js';
 import { boardSpec, chipCount, isRunCleared } from './engine-grid.js';
 import { logEvent } from './events.js';
-import { renderGrid, shapeSvg, computeCellSize, splitMaxCell, prefersReducedMotion } from './ui-grid.js';
+import { shapeSvg, prefersReducedMotion } from './ui-grid.js';
+import { fitCellSize, drawBoard as drawBoardUi, observeBoard } from './ui-board.js';
 import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, vibrate } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
 import { createOpScreen } from './ui-screen.js';
@@ -284,31 +285,8 @@ export function renderPlay(root, step) {
   // 静的な盤面の再構築。アニメーション中には呼ばない（プレイヤー駒はview経由で差分更新する）。
   // 実行開始・もういちど双方でここを通るため、のこり表示の初期値リセットも兼ねる。
   function drawBoard(playerPos) {
-    local.cellSize = computeCellSize({
-      cols: spec.grid.cols,
-      rows: spec.grid.rows,
-      width: boardArea.clientWidth,
-      height: boardArea.clientHeight,
-      maxCell: splitMaxCell(),
-    });
-    boardWrap.innerHTML = '';
-    const { el, view } = renderGrid({
-      grid: spec.grid,
-      walls: spec.walls,
-      goal: spec.goal,
-      items: spec.items,
-      ice: spec.ice,
-      cushion: spec.cushion,
-      keys: spec.keys,
-      doors: spec.doors,
-      switches: spec.switches,
-      paint: spec.paint,
-      periodic: spec.periodic,
-      playerPos,
-      labels: [],
-      cellSize: local.cellSize,
-    });
-    boardWrap.appendChild(el);
+    local.cellSize = fitCellSize({ spec, boardArea });
+    const { view } = drawBoardUi({ boardWrap, spec, cellSize: local.cellSize, playerPos });
     local.view = view;
     local.remaining = spec.items.length;
     syncAcornTray();
@@ -776,16 +754,12 @@ export function renderPlay(root, step) {
       opScreen.addEventListener('pointerdown', () => setActiveHandHint(null), { once: true });
     }
   }
-  new ResizeObserver(() => {
+  observeBoard({
+    boardArea,
+    fit: () => fitCellSize({ spec, boardArea }),
+    current: () => local.cellSize,
     // 実行中・結果表示中は盤面状態を保つため再構築しない（Issue #93）。1コマ実行中も同様（Issue #111）。
-    if (local.running || local.stepping || local.resultShown) return;
-    const next = computeCellSize({
-      cols: spec.grid.cols,
-      rows: spec.grid.rows,
-      width: boardArea.clientWidth,
-      height: boardArea.clientHeight,
-      maxCell: splitMaxCell(),
-    });
-    if (next !== local.cellSize) drawBoard(spec.start);
-  }).observe(boardArea);
+    skipWhen: () => local.running || local.stepping || local.resultShown,
+    redraw: () => drawBoard(spec.start),
+  });
 }
