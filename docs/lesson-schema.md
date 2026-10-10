@@ -253,6 +253,9 @@ MustMatterは、ギミックモジュールの`strip(spec)`（ギミックを除
 }
 ```
 
+- `index.json` は `tracks`（大項目。`trackId`・`title`・`units`）の中に `units`（単元）を持つ2段。
+  `units` 直下の古い形も読める（`tracks` との併用は不可）。`longTrialIds` は直下。
+  大項目の表示名・色は #375 で決める（Issue #374）
 - `unitId` は各レッスンJSONの `unitId` と一致させる
 - `lessonIds` は同じ `unitId` を持つレッスンのファイル名（拡張子無し）の配列。1つの `lessonId` を
   複数の `unit` から参照しない
