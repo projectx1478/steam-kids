@@ -34,7 +34,7 @@
   `git diff --stat`とCIの「style.cssのビルド忘れ」チェックで確認してからコミットする
   （`.gitattributes`で`style.css -diff`のため、差分本文は出ない）
 - `lessons/index.json`はレッスン選択画面（単元マップ）の一覧ファイル（レッスン本体ではない）。
-  `units: [{unitId, title, lessonIds}]`構造（#58）。`validate-lessons.mjs`が参照整合性を検証する。
+  `tracks: [{trackId, title, units: [{unitId, title, lessonIds}]}]`の2段（#374）。`units`直下の古い形も読める（併用不可）。`validate-lessons.mjs`が参照整合性を検証する。
   レッスン追加時はレッスンJSON本体＋該当`unit.lessonIds`（または新規unit）を更新する
   （`.claude/skills/lesson-author/SKILL.md`手順4）
 - `.claude/verify/config.mjs`が`cmd-01-susumu`・`donguri-01-hirou`を凍結fixture（tutorial追加前）へ
