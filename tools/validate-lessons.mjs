@@ -287,6 +287,20 @@ function validatePractice(steps, add) {
     return;
   }
   if (!validateShape(play, add)) return;
+  // gimmickMix＝種類名（items・ice・keys）→追加の生成指定（空でないオブジェクト）。空・未知の種類・配列は不合格（Issue #266）。
+  const mix = play.generator.gimmickMix;
+  if (mix !== undefined) {
+    const kinds = isObj(mix) ? Object.keys(mix) : [];
+    if (kinds.length === 0) {
+      add('generator.gimmickMix', 'gimmickMixが空、またはオブジェクトでない');
+      return;
+    }
+    const bad = kinds.filter((k) => !UNIT_GIMMICKS.includes(k) || !isObj(mix[k]) || Object.keys(mix[k]).length === 0);
+    if (bad.length > 0) {
+      add('generator.gimmickMix', `${bad.join('・')} が不正（キーはitems・ice・keysのいずれかで、値は空でないオブジェクト）`);
+      return;
+    }
+  }
   for (let n = 0; n < PRACTICE_SAMPLE_SEEDS; n += 1) {
     const code = n.toString(8).padStart(4, '0');
     if (!isValidCode(code)) continue;

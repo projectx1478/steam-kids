@@ -7,6 +7,7 @@ import { KEY_COLORS } from './gimmicks/keys.js';
 
 const MAX_ATTEMPTS = 400;
 const ALLOWED = ['up', 'down', 'left', 'right'];
+const MIX_KINDS = ['items', 'ice', 'keys'];
 
 // 32bitシードから[0,1)の乱数列を返す数行のPRNG（外部ライブラリなし）。
 export function mulberry32(seed) {
@@ -177,8 +178,19 @@ function placeKeys(rng, pairCount, spec, free, mustMatter) {
 // 予備盤面（fallback: true。ギミックなし）を返す。generator.shape（"round"|"bumpy"|"glasses"）は
 // SHAPE_PRESETS の水・橋を結果の water・bridge に出し、start・goal・items・walls は陸から選ぶ。generator.shape（"round"|"bumpy"|"glasses"）は
 // SHAPE_PRESETS の水・橋（結果の water・bridge）を置き、start・goal・items・walls は陸から選ぶ。
-export function generateMap(generator, seed) {
+// generator.gimmickMix（Issue #266。種類名→追加の生成指定）があると、attempt前にrngから1回だけ1種類を引く
+// （items・ice・keysの固定順。未指定ならrngを使わない＝従来の盤面と同じ）。引いた種類が options.allowed
+// （Set。undefined＝全許可）にあれば指定をgeneratorへ上書きで足し、無ければ何も足さない（壁のみ）。
+// 結果の attempts＝試行回数（1〜MAX_ATTEMPTS。予備盤面はMAX_ATTEMPTS）。
+export function generateMap(baseGenerator, seed, options = {}) {
   const rng = mulberry32(seed);
+  let generator = baseGenerator;
+  const mix = baseGenerator.gimmickMix;
+  if (mix) {
+    const kinds = MIX_KINDS.filter((k) => Object.hasOwn(mix, k));
+    const picked = kinds[Math.floor(rng() * kinds.length)];
+    if (picked && (!options.allowed || options.allowed.has(picked))) generator = { ...baseGenerator, ...mix[picked] };
+  }
   const preset = generator.shape ? SHAPE_PRESETS[generator.shape] : null;
   const grid = generator.grid ?? preset?.grid;
   const waterKeys = new Set((preset?.water ?? []).map((p) => `${p.x},${p.y}`));
@@ -224,7 +236,8 @@ export function generateMap(generator, seed) {
       solution: cmds,
       maxCommands: cmds.length + (generator.maxCommandsSlack ?? 0),
       fallback: false,
+      attempts: attempt + 1,
     };
   }
-  return { ...FALLBACK, fallback: true };
+  return { ...FALLBACK, fallback: true, attempts: MAX_ATTEMPTS };
 }

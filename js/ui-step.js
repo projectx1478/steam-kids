@@ -18,6 +18,7 @@ import { renderSeedPick } from './ui-seedpick.js';
 import { generateMap } from './engine-generate.js';
 import { codeToSeed } from './seed-code.js';
 import { isLessonCleared } from './ui-picker.js';
+import { clearedGimmicks } from './gimmick-unlock.js';
 import { withDev } from './dev-mode.js';
 import { readResume, writeResume, clearResume } from './storage.js';
 
@@ -328,7 +329,15 @@ function renderStep() {
   activeAnimation = null;
   const step = currentStep();
   // generator付きplay：確定したたねから盤面を作ってステップへ差し込む（同じたね→同じ盤面。Issue #69）。
-  if (step.generator && S.seed != null) Object.assign(step, generateMap(step.generator, codeToSeed(S.seed)));
+  // 前のたねの盤のギミックが残らないよう、代入の前に ice・keys・doors を消す。混ぜるギミックはクリア済みの
+  // 種類だけ（units 未読込・失敗時は空＝壁のみ。Issue #266）。
+  if (step.generator && S.seed != null) {
+    delete step.ice;
+    delete step.keys;
+    delete step.doors;
+    const allowed = clearedGimmicks(S.units ?? [], isLessonCleared);
+    Object.assign(step, generateMap(step.generator, codeToSeed(S.seed), { allowed }));
+  }
   const root = stage();
   root.innerHTML = '';
   root.dataset.step = step.kind;
