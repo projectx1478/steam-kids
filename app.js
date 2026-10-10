@@ -8,6 +8,7 @@ import { initSteps, refreshHeader } from './js/ui-step.js';
 import { push } from './js/sync.js';
 import { registerServiceWorker } from './js/register-sw.js';
 import { renderUnitMap } from './js/ui-picker.js';
+import { unitsOf } from './js/index-units.js';
 import { renderTitle } from './js/ui-title.js';
 import { ensureDailyGate } from './js/ui-parental-gate.js';
 import { IS_DEV } from './js/dev-mode.js';
@@ -24,7 +25,7 @@ async function loadUnitInfo(lessonId) {
   try {
     const res = await fetch('./lessons/index.json');
     if (!res.ok) throw new Error(`index fetch failed: ${res.status}`);
-    const { units } = await res.json();
+    const units = unitsOf(await res.json());
     const unit = units.find((u) => u.lessonIds.includes(lessonId));
     return unit ? { title: unit.title, lessonIds: unit.lessonIds } : null;
   } catch {
@@ -53,7 +54,7 @@ async function loadUnits() {
   try {
     const res = await fetch('./lessons/index.json');
     if (!res.ok) throw new Error(`index fetch failed: ${res.status}`);
-    return (await res.json()).units;
+    return unitsOf(await res.json());
   } catch {
     return null;
   }
