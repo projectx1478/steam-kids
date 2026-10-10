@@ -170,3 +170,36 @@ test('長尺: seesaw proto-s play 8 は合格', () => {
 test('長尺: seesaw std-s play 5 は不合格', () => {
   ng(one('std-s', seesawLesson('std-s', [1, 1, 2, 2, 3], 5), []), '盤面の必須', 'seesaw std play 5');
 });
+
+// --- stageGen の別枠（Issue #369）：一覧に載せず、play≤stageGen.stages・steps≤12・minutes 8 ---
+const withGen = (l, stages = 8) => {
+  l.stageGen = { ver: 1, stages, keepHandwritten: [], grid: { cols: { min: 3, max: 6 }, rows: { min: 3, max: 6 } }, shortestPath: { min: 2, max: 16 } };
+  return l;
+};
+test('別枠: stageGen あり・一覧外で play 8・steps 11・min 8 は合格', () => {
+  ok(one('gen', withGen(gridLesson('gen', { dists: DIST8 })), []), '別枠 play 8');
+});
+test('別枠: steps 12（境界）は合格・13 は不合格', () => {
+  ok(one('gen', withGen(gridLesson('gen', { dists: DIST8, summaries: 2 })), []), 'steps 12');
+  ng(one('gen', withGen(gridLesson('gen', { dists: DIST8, summaries: 3 })), []), 'ステップ数', 'steps 13');
+});
+test('別枠: play 数が stages を超えると不合格（盤面の必須）', () => {
+  ng(one('gen', withGen(gridLesson('gen', { dists: DIST8 }), 6), []), '盤面の必須', 'play 8 > stages 6');
+});
+test('別枠: min 5 は不合格（所要時間）', () => {
+  ng(one('gen', withGen(gridLesson('gen', { dists: DIST8, minutes: 5 })), []), '所要時間', 'min 5');
+});
+test('別枠: stageGen が無ければ一覧外は従来どおり（play 5 は不合格）', () => {
+  ng(one('std', gridLesson('std', { dists: [4, 4, 5, 5, 6], minutes: 5 }), []), '盤面の必須', 'stageGen なし play 5');
+});
+test('別枠: stageGen と longTrialIds の両方でも別枠で見る（play ≤ stages）', () => {
+  ok(one('gen', withGen(gridLesson('gen', { dists: DIST8 })), ['gen']), '両方 play 8');
+  ng(one('gen', withGen(gridLesson('gen', { dists: DIST8 }), 6), ['gen']), '盤面の必須', '両方 play 8 > stages 6');
+});
+test('別枠: seedPick を持つ stageGen は別枠にならず stageGen で不合格（min 5 のまま）', () => {
+  const practice = JSON.parse(readFileSync('lessons/cmd-06-practice.json', 'utf-8'));
+  practice.lessonId = 'practice';
+  const r = one('practice', withGen(practice, 2), []);
+  ng(r, 'stageGen', 'seedPick+stageGen');
+  assert.equal(r.out.includes('所要時間'), false, 'seedPick には別枠を適用しない');
+});

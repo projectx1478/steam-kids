@@ -3,7 +3,24 @@
   "unitId": "keys",
   "title": "いろを えらぶ",
   "type": "grid-runtime",
-  "estimatedMinutes": 5,
+  "estimatedMinutes": 8,
+  "stageGen": {
+    "ver": 1,
+    "stages": 8,
+    "keepHandwritten": ["p1", "p2"],
+    "grid": {
+      "cols": { "min": 4, "max": 6 },
+      "rows": { "min": 3, "max": 6 }
+    },
+    "walls": { "min": 2, "max": 6 },
+    "gimmicks": {
+      "keys": { "min": 2, "max": 2 }
+    },
+    "teach": "keys",
+    "shortestPath": { "min": 9, "max": 16 },
+    "minTurns": 3,
+    "seedBase": 1
+  },
   "steps": [
     {
       "stepId": "s1",
@@ -13,9 +30,20 @@
         "grid": { "cols": 5, "rows": 2 },
         "start": { "x": 0, "y": 0 },
         "goal": { "x": 4, "y": 1 },
-        "walls": [{ "x": 0, "y": 1 }, { "x": 1, "y": 1 }, { "x": 3, "y": 0 }, { "x": 4, "y": 0 }],
-        "keys": [{ "x": 1, "y": 0, "color": "red" }, { "x": 2, "y": 0, "color": "blue" }],
-        "doors": [{ "x": 2, "y": 1, "color": "red" }, { "x": 3, "y": 1, "color": "blue" }],
+        "walls": [
+          { "x": 0, "y": 1 },
+          { "x": 1, "y": 1 },
+          { "x": 3, "y": 0 },
+          { "x": 4, "y": 0 }
+        ],
+        "keys": [
+          { "x": 1, "y": 0, "color": "red" },
+          { "x": 2, "y": 0, "color": "blue" }
+        ],
+        "doors": [
+          { "x": 2, "y": 1, "color": "red" },
+          { "x": 3, "y": 1, "color": "blue" }
+        ],
         "commands": ["right", "right", "down", "right", "right"]
       }
     },
@@ -26,11 +54,20 @@
       "grid": { "cols": 4, "rows": 2 },
       "start": { "x": 0, "y": 0 },
       "goal": { "x": 3, "y": 0 },
-      "walls": [{ "x": 1, "y": 1 }, { "x": 2, "y": 1 }, { "x": 3, "y": 1 }],
+      "walls": [
+        { "x": 1, "y": 1 },
+        { "x": 2, "y": 1 },
+        { "x": 3, "y": 1 }
+      ],
       "keys": [{ "x": 1, "y": 0, "color": "blue" }],
       "doors": [{ "x": 2, "y": 0, "color": "blue" }],
       "allowedCommands": ["up", "down", "left", "right"],
-      "script": [{ "tap": "right" }, { "tap": "right" }, { "tap": "right" }, { "tap": "run" }]
+      "script": [
+        { "tap": "right" },
+        { "tap": "right" },
+        { "tap": "right" },
+        { "tap": "run" }
+      ]
     },
     {
       "stepId": "p1",
@@ -39,9 +76,20 @@
       "grid": { "cols": 5, "rows": 3 },
       "start": { "x": 0, "y": 1 },
       "goal": { "x": 4, "y": 1 },
-      "walls": [{ "x": 2, "y": 0 }, { "x": 2, "y": 2 }, { "x": 3, "y": 0 }, { "x": 3, "y": 2 }],
-      "keys": [{ "x": 1, "y": 0, "color": "red" }, { "x": 1, "y": 2, "color": "blue" }],
-      "doors": [{ "x": 2, "y": 1, "color": "red" }, { "x": 3, "y": 1, "color": "blue" }],
+      "walls": [
+        { "x": 2, "y": 0 },
+        { "x": 2, "y": 2 },
+        { "x": 3, "y": 0 },
+        { "x": 3, "y": 2 }
+      ],
+      "keys": [
+        { "x": 1, "y": 0, "color": "red" },
+        { "x": 1, "y": 2, "color": "blue" }
+      ],
+      "doors": [
+        { "x": 2, "y": 1, "color": "red" },
+        { "x": 3, "y": 1, "color": "blue" }
+      ],
       "allowedCommands": ["up", "down", "left", "right"],
       "solution": ["right", "up", "down", "down", "up", "right", "right", "right"],
       "maxCommands": 10
@@ -53,12 +101,180 @@
       "grid": { "cols": 4, "rows": 4 },
       "start": { "x": 0, "y": 3 },
       "goal": { "x": 0, "y": 0 },
-      "walls": [{ "x": 0, "y": 2 }, { "x": 1, "y": 2 }, { "x": 2, "y": 2 }, { "x": 0, "y": 1 }, { "x": 2, "y": 0 }, { "x": 3, "y": 0 }],
-      "keys": [{ "x": 2, "y": 3, "color": "red" }, { "x": 1, "y": 1, "color": "blue" }],
-      "doors": [{ "x": 3, "y": 2, "color": "red" }, { "x": 1, "y": 0, "color": "blue" }],
+      "walls": [
+        { "x": 0, "y": 2 },
+        { "x": 1, "y": 2 },
+        { "x": 2, "y": 2 },
+        { "x": 0, "y": 1 },
+        { "x": 2, "y": 0 },
+        { "x": 3, "y": 0 }
+      ],
+      "keys": [
+        { "x": 2, "y": 3, "color": "red" },
+        { "x": 1, "y": 1, "color": "blue" }
+      ],
+      "doors": [
+        { "x": 3, "y": 2, "color": "red" },
+        { "x": 1, "y": 0, "color": "blue" }
+      ],
       "allowedCommands": ["up", "down", "left", "right"],
       "solution": ["right", "right", "right", "up", "up", "left", "left", "up", "left"],
       "maxCommands": 10
+    },
+    {
+      "stepId": "p3",
+      "kind": "play",
+      "grid": { "cols": 4, "rows": 4 },
+      "start": { "x": 0, "y": 3 },
+      "goal": { "x": 3, "y": 3 },
+      "walls": [
+        { "x": 3, "y": 1 },
+        { "x": 1, "y": 3 },
+        { "x": 1, "y": 0 }
+      ],
+      "keys": [
+        { "x": 1, "y": 1, "color": "blue" },
+        { "x": 0, "y": 0, "color": "red" }
+      ],
+      "doors": [
+        { "x": 1, "y": 2, "color": "blue" },
+        { "x": 2, "y": 2, "color": "red" }
+      ],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["up", "up", "up", "down", "right", "right", "down", "down", "right"],
+      "maxCommands": 9,
+      "gen": { "seed": 9, "ver": 1 }
+    },
+    {
+      "stepId": "p4",
+      "kind": "play",
+      "grid": { "cols": 4, "rows": 5 },
+      "start": { "x": 0, "y": 3 },
+      "goal": { "x": 2, "y": 0 },
+      "walls": [
+        { "x": 3, "y": 1 },
+        { "x": 2, "y": 1 },
+        { "x": 1, "y": 1 },
+        { "x": 1, "y": 2 },
+        { "x": 2, "y": 2 }
+      ],
+      "keys": [
+        { "x": 2, "y": 3, "color": "red" },
+        { "x": 0, "y": 0, "color": "red" }
+      ],
+      "doors": [
+        { "x": 0, "y": 1, "color": "red" },
+        { "x": 1, "y": 0, "color": "red" }
+      ],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["right", "right", "left", "left", "up", "up", "up", "right", "right"],
+      "maxCommands": 9,
+      "gen": { "seed": 3, "ver": 1 }
+    },
+    {
+      "stepId": "p5",
+      "kind": "play",
+      "grid": { "cols": 4, "rows": 5 },
+      "start": { "x": 3, "y": 2 },
+      "goal": { "x": 1, "y": 3 },
+      "walls": [
+        { "x": 1, "y": 4 },
+        { "x": 1, "y": 1 },
+        { "x": 3, "y": 1 },
+        { "x": 0, "y": 3 },
+        { "x": 2, "y": 1 },
+        { "x": 2, "y": 3 }
+      ],
+      "keys": [
+        { "x": 2, "y": 4, "color": "blue" },
+        { "x": 3, "y": 4, "color": "red" }
+      ],
+      "doors": [
+        { "x": 2, "y": 2, "color": "blue" },
+        { "x": 1, "y": 2, "color": "red" }
+      ],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["down", "down", "left", "right", "up", "up", "left", "left", "down"],
+      "maxCommands": 9,
+      "gen": { "seed": 15, "ver": 1 }
+    },
+    {
+      "stepId": "p6",
+      "kind": "play",
+      "grid": { "cols": 5, "rows": 4 },
+      "start": { "x": 3, "y": 2 },
+      "goal": { "x": 0, "y": 1 },
+      "walls": [
+        { "x": 4, "y": 3 },
+        { "x": 1, "y": 2 },
+        { "x": 2, "y": 3 },
+        { "x": 1, "y": 1 },
+        { "x": 1, "y": 3 }
+      ],
+      "keys": [
+        { "x": 3, "y": 3, "color": "blue" },
+        { "x": 4, "y": 0, "color": "red" }
+      ],
+      "doors": [
+        { "x": 1, "y": 0, "color": "blue" },
+        { "x": 0, "y": 0, "color": "red" }
+      ],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["down", "up", "up", "up", "right", "left", "left", "left", "left", "down"],
+      "maxCommands": 10,
+      "gen": { "seed": 198, "ver": 1 }
+    },
+    {
+      "stepId": "p7",
+      "kind": "play",
+      "grid": { "cols": 5, "rows": 4 },
+      "start": { "x": 0, "y": 0 },
+      "goal": { "x": 4, "y": 2 },
+      "walls": [
+        { "x": 4, "y": 1 },
+        { "x": 3, "y": 1 },
+        { "x": 1, "y": 2 },
+        { "x": 2, "y": 2 }
+      ],
+      "keys": [
+        { "x": 0, "y": 1, "color": "blue" },
+        { "x": 2, "y": 0, "color": "red" }
+      ],
+      "doors": [
+        { "x": 0, "y": 3, "color": "blue" },
+        { "x": 0, "y": 2, "color": "red" }
+      ],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["right", "right", "left", "left", "down", "down", "down", "right", "right", "right", "right", "up"],
+      "maxCommands": 12,
+      "gen": { "seed": 83, "ver": 1 }
+    },
+    {
+      "stepId": "p8",
+      "kind": "play",
+      "grid": { "cols": 6, "rows": 4 },
+      "start": { "x": 1, "y": 3 },
+      "goal": { "x": 4, "y": 1 },
+      "walls": [
+        { "x": 2, "y": 2 },
+        { "x": 3, "y": 1 },
+        { "x": 4, "y": 3 },
+        { "x": 5, "y": 1 },
+        { "x": 4, "y": 0 },
+        { "x": 2, "y": 1 }
+      ],
+      "keys": [
+        { "x": 2, "y": 0, "color": "blue" },
+        { "x": 3, "y": 0, "color": "red" }
+      ],
+      "doors": [
+        { "x": 2, "y": 3, "color": "blue" },
+        { "x": 3, "y": 3, "color": "red" }
+      ],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": ["up", "up", "up", "right", "right", "left", "left", "down", "down", "down", "right", "right", "up", "right", "up"],
+      "maxCommands": 15,
+      "gen": { "seed": 119, "ver": 1 }
     },
     { "stepId": "s2", "kind": "summary", "text": "じゅんばんを かんがえよう" }
   ]
