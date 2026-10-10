@@ -43,6 +43,11 @@ export const cushion = {
     return (spec.cushion ?? []).some((c) => c.x === pos.x && c.y === pos.y);
   },
 
+  // 解法関与チェック用。このギミックを除いた盤面specを返す（Issue #371）。
+  strip(spec) {
+    return { ...spec, cushion: [] };
+  },
+
   // 座標範囲はcheckBoard側で共通に行う。ここでは壁・start・goal・items・ice・cushion同士の重なりのみ。
   validate(board, add, label) {
     const list = Array.isArray(board.cushion) ? board.cushion : [];

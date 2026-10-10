@@ -76,6 +76,11 @@ export const switches = {
     );
   },
 
+  // 解法関与チェック用。このギミックを除いた盤面specを返す（Issue #371）。
+  strip(spec) {
+    return { ...spec, switches: [] };
+  },
+
   onStep({ pos, spec, view, run }) {
     const i = list(spec.switches).findIndex((s) => s.x === pos.x && s.y === pos.y);
     run.pressed ??= new Set();

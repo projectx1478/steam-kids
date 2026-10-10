@@ -1,7 +1,7 @@
 // 1盤の生成（Issue #337 段2）。js/engine-generate.js の骨格（配置→最短→制約判定→再試行）を tools/ に書き直したもの。
 // 入力は stageGen（docs/lesson-schema.md の予定仕様）。実行時は使わない。js/ は変えない。
 import { shortestPath, shortestSteps, simulate } from '../../js/engine-grid.js';
-import { GIMMICKS } from '../../js/gimmicks/index.js';
+import { GIMMICKS, mattersFor } from '../../js/gimmicks/index.js';
 import { KEY_COLORS } from '../../js/gimmicks/keys.js';
 import { mulberry32 } from '../../js/engine-generate.js';
 import { iceMustMatter, keysMustMatter } from '../lib/must-matter.mjs';
@@ -110,7 +110,7 @@ function placeKeys(rng, pairCount, spec, free) {
 // teach のギミックの必須性
 function teachMatters(teach, board) {
   const dist = board.solution.length;
-  if (teach === 'items') return itemsMustMatter(board, dist);
+  if (teach === 'items') return mattersFor('items', board, dist);
   const play = { ...board, maxCommands: dist };
   if (teach === 'ice') return iceMustMatter(play).matters;
   if (teach === 'keys') return keysMustMatter(play).matters;
