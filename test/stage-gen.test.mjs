@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { generateBoard, canonicalKey, metrics, itemsMustMatter, GEN_VERSION } from '../tools/gen/stage-gen.mjs';
 import { simulate, isRunCleared, shortestSteps } from '../js/engine-grid.js';
+import { mattersFor } from '../js/gimmicks/index.js';
 import { iceMustMatter, keysMustMatter } from '../tools/lib/must-matter.mjs';
 
 const base = {
@@ -16,6 +17,8 @@ const cases = {
   items: { ...base, gimmicks: { items: { min: 1, max: 3 } }, teach: 'items' },
   ice: { ...base, gimmicks: { ice: { min: 1, max: 2 } }, teach: 'ice' },
   keys: { ...base, gimmicks: { keys: { min: 1, max: 1 } }, teach: 'keys' },
+  cushion: { ...base, gimmicks: { ice: { min: 1, max: 2 }, cushion: { min: 1, max: 2 } }, teach: 'cushion' },
+  switches: { ...base, gimmicks: { switches: { min: 1, max: 2 } }, teach: 'switches' },
 };
 const SEEDS = 30;
 
@@ -36,6 +39,11 @@ test('stage-gen: 受理した盤は solution でクリアでき、必須性が�
       if (teach === 'items') assert.ok(itemsMustMatter(b, b.solution.length), `${tag}: どんぐり必須でない`);
       if (teach === 'ice') assert.ok(iceMustMatter(b).matters && b.ice.length > 0, `${tag}: こおり必須でない`);
       if (teach === 'keys') assert.ok(keysMustMatter(b).matters && b.doors.length > 0, `${tag}: かぎ必須でない`);
+      if (teach === 'cushion') assert.ok(mattersFor('cushion', b, b.solution.length) && b.cushion.length > 0 && b.ice.length > 0, `${tag}: クッション必須でない`);
+      if (teach === 'switches') {
+        assert.ok(mattersFor('switches', b, b.solution.length) && b.switches.length > 0, `${tag}: スイッチ必須でない`);
+        assert.ok(b.switches.every((sw) => sw.targets.length === 1 && !sw.mode), `${tag}: open・1組=スイッチ1+対象1`);
+      }
     }
     assert.ok(accepted >= SEEDS / 2, `${teach}: 受理が少ない (${accepted}/${SEEDS})`);
   }
@@ -65,4 +73,13 @@ test('stage-gen: canonicalKey は回転・鏡写しで不変、別の盤では�
   };
   assert.equal(canonicalKey(tr), canonicalKey(b));
   assert.notEqual(canonicalKey(generateBoard(cases.items, 2)), canonicalKey(b));
+});
+
+test('stage-gen: cushion・switches を指定しない盤は従来どおり（層を持たない）', () => {
+  for (const sg of [cases.items, cases.ice, cases.keys]) {
+    const b = generateBoard(sg, 1);
+    assert.equal(b.cushion, undefined);
+    assert.equal(b.switches, undefined);
+    assert.ok(!/\|u:|\|x:|\|t:/.test(canonicalKey(b)));
+  }
 });

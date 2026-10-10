@@ -2,7 +2,7 @@
 // 「パラメータ生成＋BFS検証」方式：乱数で配置→shortestPathで制約を判定→満たすまで再試行。
 // generatorのスキーマは docs/lesson-schema.md。ギミック（items/ice/keys）はIssue #70で対応。
 import { shortestPath, shortestSteps, simulate } from './engine-grid.js';
-import { GIMMICKS } from './gimmicks/index.js';
+import { mattersFor } from './gimmicks/index.js';
 import { KEY_COLORS } from './gimmicks/keys.js';
 
 const MAX_ATTEMPTS = 400;
@@ -96,7 +96,6 @@ function islandIds(land, bridge) {
 
 const inRange = (n, range) => n >= (range?.min ?? 0) && n <= (range?.max ?? Infinity);
 
-const stripOf = (key, spec) => GIMMICKS.find((g) => g.key === key).strip(spec);
 const countOf = (rng, range) => (range ? randInt(rng, range.min ?? 0, range.max ?? 0) : 0);
 
 // items/iceの乱数配置。start/goal/walls確定後の残りセル（free）の先頭から取る。返り値はspecへ
@@ -216,9 +215,9 @@ export function generateMap(generator, seed) {
     if (!cmds || !inRange(cmds.length, generator.shortestPath)) continue;
     if (countTurns(cmds) < (generator.minTurns ?? 0)) continue;
     if (generator.wallsMustMatter && shortestSteps({ ...spec, walls: [] }) >= cmds.length) continue;
-    if (generator.itemsMustMatter && shortestSteps(stripOf('items', spec)) >= cmds.length) continue;
-    if (generator.iceMustMatter && shortestSteps(stripOf('ice', spec)) === cmds.length) continue;
-    if (generator.keysMustMatter && shortestSteps(stripOf('keys', spec)) >= cmds.length) continue;
+    if (generator.itemsMustMatter && !mattersFor('items', spec, cmds.length)) continue;
+    if (generator.iceMustMatter && !mattersFor('ice', spec, cmds.length)) continue;
+    if (generator.keysMustMatter && !mattersFor('keys', spec, cmds.length)) continue;
     return {
       ...spec,
       allowedCommands: ALLOWED,
