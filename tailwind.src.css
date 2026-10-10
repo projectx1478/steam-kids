@@ -435,16 +435,6 @@ dialog.result-row {
   }
 }
 
-/* 縦向きの操作ボタン行（play・れんしゅう）も2列（2×2）にして、「▶ じっこう」などの文字切れを防ぐ（Issue #370）。
-   シーソー（--one-row）とpredict（--predict）は変えない。grid では justify-content:center が列の塊を中央寄せにするが、
-   列は minmax(0,1fr) でパネル幅いっぱいに広がるため見た目は変わらない。 */
-@media (orientation: portrait) {
-  .sk-screen-panel > .sk-screen-actions:not(.sk-screen-actions--one-row):not(.sk-screen-actions--predict) {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 /* ボタン行の修飾 sk-screen-actions--one-row（シーソー）：横向きでも3つのボタンを1行に並べる（Issue #354）。 */
 @media (orientation: landscape) {
   .sk-screen-panel > .sk-screen-actions.sk-screen-actions--one-row {
