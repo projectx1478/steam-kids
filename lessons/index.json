@@ -1,39 +1,51 @@
 {
   "longTrialIds": ["cmd-01-susumu-long"],
-  "units": [
+  "tracks": [
     {
-      "unitId": "commands",
-      "title": "めいれいでうごかす",
-      "lessonIds": ["cmd-01-susumu", "cmd-02-mijikaku", "cmd-03-naosu"],
-      "practiceIds": ["cmd-06-practice"],
-      "devOnlyIds": ["cmd-04-kurikaeshi", "cmd-05-kurikaeshi-donguri", "cmd-01-susumu-long"]
+      "trackId": "robot",
+      "title": "ロボットを うごかす",
+      "units": [
+        {
+          "unitId": "commands",
+          "title": "めいれいでうごかす",
+          "lessonIds": ["cmd-01-susumu", "cmd-02-mijikaku", "cmd-03-naosu"],
+          "practiceIds": ["cmd-06-practice"],
+          "devOnlyIds": ["cmd-04-kurikaeshi", "cmd-05-kurikaeshi-donguri", "cmd-01-susumu-long"]
+        },
+        {
+          "unitId": "donguri",
+          "title": "どんぐりひろい",
+          "lessonIds": ["donguri-01-hirou", "donguri-02-mawarimichi"],
+          "devOnlyIds": ["paint-01-nuru"]
+        },
+        {
+          "unitId": "ice",
+          "title": "こおりですべる",
+          "lessonIds": ["ice-01-suberu", "ice-02-kabe"]
+        },
+        {
+          "unitId": "keys",
+          "title": "かぎと ドア",
+          "lessonIds": ["key-01-kagi", "key-02-iro"]
+        },
+        {
+          "unitId": "switches",
+          "title": "スイッチと かべ",
+          "lessonIds": ["switch-01-suicchi", "switch-02-futatsu"],
+          "devOnlyIds": ["switch-03-suicchi-kagi", "switch-04-ryouhou", "switch-05-koori", "switch-06-kabe-deru", "switch-07-shuuki-door"]
+        }
+      ]
     },
     {
-      "unitId": "donguri",
-      "title": "どんぐりひろい",
-      "lessonIds": ["donguri-01-hirou", "donguri-02-mawarimichi"],
-      "devOnlyIds": ["paint-01-nuru"]
-    },
-    {
-      "unitId": "ice",
-      "title": "こおりですべる",
-      "lessonIds": ["ice-01-suberu", "ice-02-kabe"]
-    },
-    {
-      "unitId": "keys",
-      "title": "かぎと ドア",
-      "lessonIds": ["key-01-kagi", "key-02-iro"]
-    },
-    {
-      "unitId": "switches",
-      "title": "スイッチと かべ",
-      "lessonIds": ["switch-01-suicchi", "switch-02-futatsu"],
-      "devOnlyIds": ["switch-03-suicchi-kagi", "switch-04-ryouhou", "switch-05-koori", "switch-06-kabe-deru", "switch-07-shuuki-door"]
-    },
-    {
-      "unitId": "teko",
-      "title": "つりあい",
-      "lessonIds": ["teko-01-tsuriai"]
+      "trackId": "body",
+      "title": "からだで かんじる",
+      "units": [
+        {
+          "unitId": "teko",
+          "title": "つりあい",
+          "lessonIds": ["teko-01-tsuriai"]
+        }
+      ]
     }
   ]
 }

@@ -10,6 +10,7 @@ import { iceMustMatter, keysMustMatter } from './lib/must-matter.mjs';
 import { itemsMustMatter } from './gen/stage-gen.mjs';
 import { balance, solutions, difficulty } from '../js/engine-seesaw.js';
 import { GIMMICKS } from '../js/gimmicks/index.js';
+import { unitsOf } from '../js/index-units.js';
 import { plainSegmentsText, plainReading, parseSegments, rubyGrade, textKanjiMaxGrade, KANJI_RE } from '../js/text-render.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -863,13 +864,51 @@ function validateIndex(data, lessonById, fileIds = new Set()) {
   const errors = [];
   const add = (rule, detail) => errors.push(`index.json: ${rule}: ${detail}`);
 
-  if (!Array.isArray(data.units)) {
+  // 形の検査（Issue #374）。1件でも不合格なら平坦化以降の検査はせずに返す。
+  if (!('tracks' in data) && !('units' in data)) {
+    add('必須キー', 'tracks も units も無い');
+    return errors;
+  }
+  if ('tracks' in data && 'units' in data) {
+    add('tracksとunitsの併用', 'tracks と units（直下）を両方持っている');
+    return errors;
+  }
+  if ('tracks' in data) {
+    if (!Array.isArray(data.tracks) || data.tracks.length === 0) {
+      add('tracksの型', 'tracks が配列でない、または空配列');
+      return errors;
+    }
+    const seenTrackIds = new Set();
+    for (const [i, track] of data.tracks.entries()) {
+      if (track === null || typeof track !== 'object' || Array.isArray(track)) {
+        add('tracksの型', `tracks[${i}] がオブジェクトでない`);
+        continue;
+      }
+      for (const key of ['trackId', 'title', 'units']) {
+        if (!(key in track)) add('必須キー', `tracks[${i}] に ${key} がない`);
+      }
+      for (const key of ['trackId', 'title']) {
+        if (key in track && (typeof track[key] !== 'string' || track[key] === '')) {
+          add('tracksの型', `tracks[${i}].${key} が空文字か文字列でない`);
+        }
+      }
+      if (typeof track.trackId === 'string' && track.trackId !== '') {
+        if (seenTrackIds.has(track.trackId)) add('trackIdの重複', `trackId="${track.trackId}" が重複している`);
+        seenTrackIds.add(track.trackId);
+      }
+      if ('units' in track) {
+        if (!Array.isArray(track.units)) add('tracksの型', `tracks[${i}].units が配列でない`);
+        else if (track.units.length === 0) add('unitsが空', `trackId="${track.trackId}" の units が空配列`);
+      }
+    }
+    if (errors.length > 0) return errors;
+  } else if (!Array.isArray(data.units)) {
     add('必須キー', 'units が配列でない');
     return errors;
   }
 
   const seenLessonIds = new Set();
-  for (const unit of data.units) {
+  for (const unit of unitsOf(data)) {
     for (const key of ['unitId', 'title', 'lessonIds']) {
       if (!(key in unit)) add('必須キー', `unitId="${unit.unitId}" に ${key} がない`);
     }
