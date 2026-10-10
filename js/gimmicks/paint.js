@@ -91,6 +91,7 @@ export const paint = {
     }
     if (board.repeatBox === true || board.groupRepeats === true) add('盤面の妥当性', `${label}paint は repeatBox・groupRepeats と併用できない（4方向のみ）`);
     const walls = new Set(list(board.walls).map(keyOf));
+    const waterCells = new Set(list(board.water).map(keyOf));
     const seen = new Set();
     board.paint.forEach((c, i) => {
       if (!c || typeof c.x !== 'number' || typeof c.y !== 'number') {
@@ -99,6 +100,7 @@ export const paint = {
       }
       if (c.x < 0 || c.x >= grid.cols || c.y < 0 || c.y >= grid.rows) add('座標範囲', `${label}paint[${i}]=${JSON.stringify(c)} が盤外`);
       if (walls.has(keyOf(c))) add('盤面の妥当性', `${label}paint[${i}] が壁と重なる`);
+      if (waterCells.has(keyOf(c))) add('盤面の妥当性', `${label}paint[${i}] が水と重なる`);
       if (seen.has(keyOf(c))) add('盤面の妥当性', `${label}paint[${i}] が他のpaintと座標重複`);
       seen.add(keyOf(c));
     });

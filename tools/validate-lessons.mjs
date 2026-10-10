@@ -44,6 +44,8 @@ function checkBoard(board, add, label) {
   const items = Array.isArray(board.items) ? board.items : [];
   const ice = Array.isArray(board.ice) ? board.ice : [];
   const cushion = Array.isArray(board.cushion) ? board.cushion : [];
+  const waterList = Array.isArray(board.water) ? board.water : [];
+  const bridgeList = Array.isArray(board.bridge) ? board.bridge : [];
   const keys = Array.isArray(board.keys) ? board.keys : [];
   const doors = Array.isArray(board.doors) ? board.doors : [];
   const switchList = Array.isArray(board.switches) ? board.switches : [];
@@ -59,6 +61,8 @@ function checkBoard(board, add, label) {
     ...items.map((it, i) => [`items[${i}]`, it]),
     ...ice.map((c, i) => [`ice[${i}]`, c]),
     ...cushion.map((c, i) => [`cushion[${i}]`, c]),
+    ...waterList.map((c, i) => [`water[${i}]`, c]),
+    ...bridgeList.map((c, i) => [`bridge[${i}]`, c]),
     ...keys.map((c, i) => [`keys[${i}]`, c]),
     ...doors.map((c, i) => [`doors[${i}]`, c]),
     ...switchList.flatMap((s, i) => [

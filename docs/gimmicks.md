@@ -22,7 +22,7 @@
 - `stateKey(state)`：BFS（shortestSteps/shortestChips）の重複排除キー用の文字列
 - `strip?(spec)`：（任意）このギミックを除いた盤面specを返す。`js/engine-generate.js`の解法関与チェック
   （`wallsMustMatter`と同様の最短手数比較。Issue #70）用
-- `blocks?(state, pos, spec)`：（任意）posが通行不可なら真。壁と同様に動けない扱い（ドア・動く壁向け）。ギミックに`soft: true`があると、そのblocksに当たっても失敗（`blockedAt`）にならず手前で止まるだけ（クッション向け）
+- `blocks?(state, pos, spec)`：（任意）posが通行不可なら真。壁と同様に動けない扱い（ドア・動く壁向け）。ギミックに`soft: true`（または盤面specを受けて真偽を返す関数`soft(spec)`。水向け）があると、そのblocksに当たっても失敗（`blockedAt`）にならず手前で止まるだけ（クッション向け）
 - `redirect?(state, pos, dir, spec)`：（任意）posへ入った直後に続けて移動する先`{pos, dir}`かnull。返り先が盤内・非壁・非`blocks`なら1マスとして`path`へ積み（同一`stepOwner`。`simulate`の`slid[i]`が真）、再度問う。連鎖は`cols*rows`回で打ち切り（滑り・ワープ向け）
 - `onStep?({pos, spec, view, run})`：（任意）`createStepper`が1手進むたび（壁衝突を除く）に呼ぶUI更新用フック。`view.gimmickEls[key]`にrenderの戻り値が入る。`run`は実行1回ごとの作業領域。効果音名を返すと鳴らす（かぎ・ドアの開閉向け。Issue #62）
 - `dead?(state)`：（任意）真ならその状態から二度とクリアできない。BFS（shortestSteps/shortestChips/shortestPath）はその遷移を捨てる（枝刈りのみ。最短手数は変わらない。paint向け。Issue #286）
@@ -49,6 +49,13 @@
 - 移動規則：通行不可のマス（`blocks`＋`soft: true`）。歩きでも滑走でも、当たったらその手前で止まり、失敗にしない（`blockedAt`に入れず実行も止めない。命令1つは無駄になる）。`path`へは現在位置を重複で1つ積み、`simulate`の`bumped[i]`は偽。BFS（最短手数）は動けない手を遷移に採らない。壁・盤外は失敗（Issue #136）
 - 描画：該当セルに丸い桃色のクッションSVGを重ね`data-cushion="true"`を付ける。当たると`view.bounce`＋効果音`cushion`（`docs/learning-spec.md`）で続行する
 - 数値条件：壁・start・goal・items・ice・cushion同士の重なり不可、盤外不可。こおりの必須性検証（Issue #134）ではクッションも壁扱い
+
+## water（水）
+
+- JSONフィールド：`water`・`bridge`（任意・`{x, y}`の配列・既定`[]`）、`waterMode`（任意・`"cushion"`（既定）か`"bump"`）。`play`・`tutorial`で使える。`bridge`は描画専用（橋。動き・最短手数に影響しない）
+- 移動規則：水は通行不可のマス（`blocks`）。`waterMode`が`"cushion"`なら`soft`になり、当たったら手前で止まり失敗にしない（`## cushion`と同じ。命令1つは無駄）。`"bump"`なら壁と同じ失敗（`blockedAt`・`bumped`）。壁・盤外は従来どおり失敗。BFS（最短手数）は動けない手を採らない
+- 描画：（Issue #338 段1-2で追加）
+- 数値条件：水は盤内・重複不可で、壁・start・goal・items・ice・cushion・keys・doors・switches（targetsを含む）・paint・periodicと重ならない（併用自体は可）。橋は盤内・重複不可で、water・壁・cushion・doors・switches.targetsと重ならず、上下左右に水が1つ以上ある。`waterMode`は`"cushion"`/`"bump"`以外はNG、`water`が空のときの指定もNG
 
 ## keys（かぎとドア）
 

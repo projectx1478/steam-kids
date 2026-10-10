@@ -187,6 +187,7 @@ export const periodic = {
       ['items', list(board.items)],
       ['ice', list(board.ice)],
       ['cushion', list(board.cushion)],
+      ['water', list(board.water)],
       ['keys', list(board.keys)],
       ['doors', list(board.doors)],
       ['switches', list(board.switches)],

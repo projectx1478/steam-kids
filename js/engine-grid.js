@@ -77,7 +77,7 @@ export function makeMover(spec) {
   const isSoft = (p, states) => {
     if (!inBoard(p) || wallSet.has(`${p.x},${p.y}`)) return false;
     const list = blockers(p, states);
-    return list.length > 0 && list.every((g) => g.soft);
+    return list.length > 0 && list.every((g) => (typeof g.soft === 'function' ? g.soft(spec) : g.soft));
   };
 
   return (pos, dir, states) => {

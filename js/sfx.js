@@ -16,6 +16,7 @@ export const DURATIONS_MS = {
   tryAgain: 500,
   bump: 1350,
   cushion: 200,
+  splash: 300,
   pickup: 200,
   itemsLeft: 300,
   pickupLast: 450,
@@ -232,6 +233,12 @@ const SOUND = {
   cushion(ctx, now) {
     tone(ctx, now, { freq: 420, freqEnd: 620, duration: 0.1, type: 'sine', peak: 0.6 });
     tone(ctx, now + 0.1, { freq: 620, freqEnd: 400, duration: 0.1, type: 'sine', peak: 0.5 });
+  },
+  // splash: 水にぶつかった水しぶきの音。失敗ではないので、軽い「ぱしゃっ」（短い雑音＋上がる丸い音）。
+  splash(ctx, now) {
+    noiseSweep(ctx, now, { duration: 0.12, freqStart: 2500, freqEnd: 1200, peak: 0.6, q: 1.2 });
+    tone(ctx, now + 0.03, { freq: 500, freqEnd: 900, duration: 0.1, type: 'sine', peak: 0.4 });
+    tone(ctx, now + 0.12, { freq: 700, freqEnd: 1100, duration: 0.08, type: 'sine', peak: 0.3 });
   },
   pickup(ctx, now) {
     tone(ctx, now, { freq: 900, duration: 0.08, type: 'sine' });
