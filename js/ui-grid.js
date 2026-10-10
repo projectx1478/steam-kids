@@ -219,7 +219,7 @@ window.__gridAnimLog = window.__gridAnimLog || [];
 // labels: [{id, x, y}] 予想ステップの選択肢ボタン
 // view: プレイヤー駒・足あとの差分更新API（アニメーション中はこちらのみ使う。draw全再構築はしない）
 //   view.moveTo(pos): 通常移動（450ms、reduced-motion時は即時）
-//   view.bounce(dir, kind): 衝突の演出（kind='wall'|'cushion'|'water'、250ms〜。'water'は岸側に水しぶきを約0.9秒出し困り顔、失敗ではない、reduced-motion時は何もしない。'wall'は約1.2秒の目回し星を出し、reduced-motion時は静止表示。Issue #168）
+//   view.bounce(dir, kind): 衝突の演出（kind='wall'|'cushion'|'water'、250ms〜。'water'は岸側に水しぶきを約0.9秒出し困り顔、失敗ではない、reduced-motion時はしぶきを静止表示して約0.9秒で消す。'wall'は約1.2秒の目回し星を出し、reduced-motion時は静止表示。Issue #168）
 //   view.fallOver(): 壁衝突でロボットが横に倒れる（300ms ease-outで倒れ、倒れたまま保持。reduced-motion時は何もしない。Issue #214）
 //   view.footprint(pos): 通過マスに足あとを追加
 //   view.markCell(pos, kind): 盤面を再構築せず印を重ねる（予想の答え合わせ・playのヒント。Issue #91）

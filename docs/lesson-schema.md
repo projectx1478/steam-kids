@@ -207,6 +207,11 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 | `itemsMustMatter` | true＝itemsを外すと最短手数が短くなること（回収が遠回りを強いる） |
 | `iceMustMatter` | true＝iceを外すと最短手数が変わること（短絡・障害のどちらでも関与とみなす） |
 | `keysMustMatter` | true＝keys/doorsを外すと最短手数が短くなること（ドアが最短路を塞ぐ） |
+| `shape` | `"round"`（5×5）／`"bumpy"`（5×4）／`"glasses"`（6×4）。形のプリセット（Issue #338）。省略時は水なし |
+
+`shape`を指定すると、プリセットの水（`glasses`は橋も）が結果の`water`（・`bridge`）に出て、start・goal・items・walls・ice・keysは水を除いた陸から選ぶ（`waterMode`は常にcushion）。
+`shape`があるとき`generator.grid`は必須でプリセットの大きさと一致させる（省略・不一致は検証NG）。同じ`play`の`water`・`bridge`・`waterMode`と同時に置けない（検証NG）。
+`glasses`だけ、startとgoalを別の島（橋のマスを除いて分かれる左右の島）に置く（暗黙の規則。フィールドは増えない）。`shape`の水・橋の座標表は`js/engine-generate.js`の`SHAPE_PRESETS`。
 
 返り値は`play`相当`{grid, start, goal, walls, items, allowedCommands, solution, maxCommands, fallback}`。
 items/ice/keysを指定した場合は対応するフィールド（`items`/`ice`/`keys`/`doors`）も含む。各ギミックの

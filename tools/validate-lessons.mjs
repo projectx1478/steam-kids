@@ -3,7 +3,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { generateMap } from '../js/engine-generate.js';
+import { generateMap, SHAPE_PRESETS } from '../js/engine-generate.js';
 import { isValidCode, codeToSeed } from '../js/seed-code.js';
 import { simulate, shortestSteps, shortestChips, boardSpec, chipCount, isRunCleared } from '../js/engine-grid.js';
 import { iceMustMatter, keysMustMatter } from './lib/must-matter.mjs';
@@ -247,6 +247,33 @@ function checkSolution(play, add, label) {
 // 「れんしゅう」レッスン（seedPickとgenerator付きplayを持つ。Issue #69）の検証。盤面はシードから
 // 生成されるためcheckBoard等は使わず、generatorが実際に盤面を作れることをサンプルのたねで確かめる。
 const PRACTICE_SAMPLE_SEEDS = 40;
+// generator.shape（形のプリセット。Issue #338）の検査。値・generator.grid（必須でプリセットの大きさと一致）・
+// 同じplayの water/bridge/waterMode の直接指定との同時指定。NGがあれば false（例外にしない）。
+function validateShape(play, add) {
+  const { generator } = play;
+  if (generator.shape === undefined) return true;
+  const preset = Object.hasOwn(SHAPE_PRESETS, generator.shape) ? SHAPE_PRESETS[generator.shape] : null;
+  if (!preset) {
+    add('generator.shape', `shape=${JSON.stringify(generator.shape)} が不正（${Object.keys(SHAPE_PRESETS).join('/')}のいずれか）`);
+    return false;
+  }
+  let ok = true;
+  const grid = generator.grid;
+  if (!grid || typeof grid !== 'object') {
+    add('generator.grid', `shape="${generator.shape}" のときはgenerator.gridが必須（${preset.grid.cols}×${preset.grid.rows}）`);
+    ok = false;
+  } else if (grid.cols !== preset.grid.cols || grid.rows !== preset.grid.rows) {
+    add('generator.grid', `shape="${generator.shape}" は${preset.grid.cols}×${preset.grid.rows}（grid=${grid.cols}×${grid.rows}と違う）`);
+    ok = false;
+  }
+  for (const key of ['water', 'bridge', 'waterMode']) {
+    if (play[key] !== undefined) {
+      add('generator.shapeと直接指定', `generator.shapeと${key}は同時に置けない`);
+      ok = false;
+    }
+  }
+  return ok;
+}
 function validatePractice(steps, add) {
   const kinds = steps.map((s) => s.kind).join(',');
   if (kinds !== 'seedPick,play,summary') {
@@ -258,6 +285,7 @@ function validatePractice(steps, add) {
     add('generator', 'playにgeneratorがない');
     return;
   }
+  if (!validateShape(play, add)) return;
   for (let n = 0; n < PRACTICE_SAMPLE_SEEDS; n += 1) {
     const code = n.toString(8).padStart(4, '0');
     if (!isValidCode(code)) continue;

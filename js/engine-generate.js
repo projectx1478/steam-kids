@@ -45,6 +45,55 @@ const FALLBACK = {
   maxCommands: 10,
 };
 
+// generator.shape の形のプリセット（Issue #338。docs/lesson-schema.md）。水・橋の座標と盤の大きさ。
+// 水以外のマスは陸。start・goal・items・walls は水を除いた陸から選ぶ。apart＝startとgoalを別の陸の塊
+// （橋のマスを除いて分けた島）に置く暗黙の規則（glassesのみ）。
+const rows = (cols, ys) => ys.flatMap((y) => Array.from({ length: cols }, (_, x) => ({ x, y })));
+const pts = (list) => list.map(([x, y]) => ({ x, y }));
+export const SHAPE_PRESETS = {
+  round: {
+    grid: { cols: 5, rows: 5 },
+    water: pts([[0, 0], [1, 0], [3, 0], [4, 0], [0, 1], [4, 1], [0, 3], [4, 3], [0, 4], [1, 4], [3, 4], [4, 4]]),
+    bridge: [],
+  },
+  bumpy: {
+    grid: { cols: 5, rows: 4 },
+    water: pts([[0, 0], [1, 0], [2, 0], [4, 0], [0, 1], [2, 2], [3, 2], [2, 3]]),
+    bridge: [],
+  },
+  glasses: {
+    grid: { cols: 6, rows: 4 },
+    water: [...rows(6, [0, 3]), ...pts([[2, 2], [3, 2]])],
+    bridge: pts([[2, 1], [3, 1]]),
+    apart: true,
+  },
+};
+
+// 陸のマスを、橋のマスを除いてつながる塊ごとに分けた番号（橋のマスは -1）。
+function islandIds(land, bridge) {
+  const key = (p) => `${p.x},${p.y}`;
+  const bridgeSet = new Set(bridge.map(key));
+  const ids = new Map(bridge.map((p) => [key(p), -1]));
+  let next = 0;
+  for (const p of land) {
+    if (ids.has(key(p))) continue;
+    const stack = [p];
+    ids.set(key(p), next);
+    while (stack.length > 0) {
+      const c = stack.pop();
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const n = { x: c.x + dx, y: c.y + dy };
+        const k = key(n);
+        if (ids.has(k) || bridgeSet.has(k) || !land.some((q) => key(q) === k)) continue;
+        ids.set(k, next);
+        stack.push(n);
+      }
+    }
+    next += 1;
+  }
+  return ids;
+}
+
 const inRange = (n, range) => n >= (range?.min ?? 0) && n <= (range?.max ?? Infinity);
 
 const stripOf = (key, spec) => GIMMICKS.find((g) => g.key === key).strip(spec);
@@ -126,17 +175,30 @@ function placeKeys(rng, pairCount, spec, free, mustMatter) {
 // items/ice/keys（{min,max}の個数）と{items,ice,keys}MustMatterはIssue #70。MustMatterは各ギミックの
 // strip(spec)（ギミックを除いた盤面）との最短手数比較で判定（items/keysは「外すと短くなる」、iceは
 // 「手数が変わる」）。maxCommands＝最短手数＋maxCommandsSlack。再試行はMAX_ATTEMPTS回で、満たせなければ
-// 予備盤面（fallback: true。ギミックなし）を返す。
+// 予備盤面（fallback: true。ギミックなし）を返す。generator.shape（"round"|"bumpy"|"glasses"）は
+// SHAPE_PRESETS の水・橋を結果の water・bridge に出し、start・goal・items・walls は陸から選ぶ。generator.shape（"round"|"bumpy"|"glasses"）は
+// SHAPE_PRESETS の水・橋（結果の water・bridge）を置き、start・goal・items・walls は陸から選ぶ。
 export function generateMap(generator, seed) {
   const rng = mulberry32(seed);
-  const { grid } = generator;
+  const preset = generator.shape ? SHAPE_PRESETS[generator.shape] : null;
+  const grid = generator.grid ?? preset?.grid;
+  const waterKeys = new Set((preset?.water ?? []).map((p) => `${p.x},${p.y}`));
   const cells = [];
-  for (let y = 0; y < grid.rows; y += 1) for (let x = 0; x < grid.cols; x += 1) cells.push({ x, y });
+  for (let y = 0; y < grid.rows; y += 1) {
+    for (let x = 0; x < grid.cols; x += 1) if (!waterKeys.has(`${x},${y}`)) cells.push({ x, y });
+  }
+  const islands = preset?.apart ? islandIds(cells, preset.bridge) : null;
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
     const order = shuffle(rng, cells);
+    if (islands) {
+      const a = islands.get(`${order[0].x},${order[0].y}`);
+      const b = islands.get(`${order[1].x},${order[1].y}`);
+      if (a < 0 || b < 0 || a === b) continue;
+    }
     const wallCount = Math.min(randInt(rng, generator.walls?.min ?? 0, generator.walls?.max ?? 0), cells.length - 2);
     let spec = { grid, start: order[0], goal: order[1], walls: order.slice(2, 2 + wallCount), items: [] };
+    if (preset) spec = { ...spec, water: preset.water, ...(preset.bridge.length > 0 ? { bridge: preset.bridge } : {}) };
     let free = order.slice(2 + wallCount);
     if (generator.items || generator.ice) {
       const placed = placeGimmicks(rng, generator, free);

@@ -52,9 +52,9 @@
 
 ## water（水）
 
-- JSONフィールド：`water`・`bridge`（任意・`{x, y}`の配列・既定`[]`）、`waterMode`（任意・`"cushion"`（既定）か`"bump"`）。`play`・`tutorial`で使える。`bridge`は描画専用（橋。動き・最短手数に影響しない）
+- JSONフィールド：`water`・`bridge`（任意・`{x, y}`の配列・既定`[]`）、`waterMode`（任意・`"cushion"`（既定）か`"bump"`）。`play`・`tutorial`で使える（`intro.demo`は対象外）。`bridge`は描画専用（橋。動き・最短手数に影響しない）
 - 移動規則：水は通行不可のマス（`blocks`）。`waterMode`が`"cushion"`なら`soft`になり、当たったら手前で止まり失敗にしない（`## cushion`と同じ。命令1つは無駄）。`"bump"`なら壁と同じ失敗（`blockedAt`・`bumped`）。壁・盤外は従来どおり失敗。BFS（最短手数）は動けない手を採らない
-- 描画：（Issue #338 段1-2で追加）
+- 描画：水のセルに波のSVGを重ね`data-water="true"`、橋のセルに板橋のSVGを重ね`data-bridge="true"`・`data-bridge-dir`（`h`横／`v`縦。上下に水があれば横、左右に水があれば縦、それ以外は横）を付ける。隣り合うタイルは各辺2pxずつ広げて枠の色を見せずにつなげる。水で止まると`view.bounce(dir, 'water')`（水しぶき＋困り顔）と効果音`splash`
 - 数値条件：水は盤内・重複不可で、壁・start・goal・items・ice・cushion・keys・doors・switches（targetsを含む）・paint・periodicと重ならない（併用自体は可）。橋は盤内・重複不可で、water・壁・cushion・doors・switches.targetsと重ならず、上下左右に水が1つ以上ある。`waterMode`は`"cushion"`/`"bump"`以外はNG、`water`が空のときの指定もNG
 
 ## keys（かぎとドア）
