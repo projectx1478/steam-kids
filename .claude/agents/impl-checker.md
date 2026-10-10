@@ -32,7 +32,7 @@ model: sonnet
 
 ## 読み方と待ち方
 - 300行を超えるファイルは全文を読まない。`grep -n` で位置を出し、Read の offset/limit（または `sed -n 'a,bp'`）で範囲を読む。差分は `git --no-pager diff <ファイル>` で見る。
-- 待ちに `until` ループ・`sleep`・ポーリングを使わない。長い実行は1回のコマンドに timeout（240秒以内）を付ける。検証は `npm run verify:fast`（無ければ `check:static`・`validate:lessons`・`test:unit`）。
+- 待ちに `until` ループ・`sleep`・ポーリングを使わない。長い実行は1回のコマンドに timeout（240秒以内）を付ける。検証は自分で回さず、調整役が渡す command-runner の報告で判定する。報告が無いか DID NOT RUN なら、テストは「未確認」とする。
 
 ## 出力（最終返信の本文。固定形式。ファイルに書き出さない。ファイルは作らない・変えない）
 次の5項目をこの見出しで書く。直し方は書いてよいが、自分では直さない。
