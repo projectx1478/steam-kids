@@ -24,7 +24,7 @@ const MIN_STEPS = 4;
 const MAX_STEPS = 7;
 const MIN_PLAY = 2;
 const MAX_PLAY = 4;
-// 長尺試作（lessons/index.json の longTrialIds。Issue #319）だけに許す上限。MIN_*は共通。
+// 長尺試作（lessons/index.json の longTrialIds。Issue #319）と、stageGen を持つレッスン（seedPick なし。Issue #369）だけに許す上限。MIN_*は共通。
 const LONG_MAX_STEPS = 12;
 const LONG_MAX_PLAY = 8;
 const LONG_MINUTES = 8;
@@ -338,7 +338,7 @@ const SG_GIMMICK_RANGES = { items: [1, 4], ice: [1, 4], keys: [1, 2] };
 const isInt = (v) => Number.isInteger(v);
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
-function checkStageGen(data, steps, isLong, add) {
+function checkStageGen(data, steps, add) {
   const sg = data.stageGen;
   const label = 'stageGen';
   const unknown = (obj, allowed, where) => {
@@ -375,7 +375,6 @@ function checkStageGen(data, steps, isLong, add) {
       if (!isInt(sg.stages) || sg.stages < 2 || sg.stages > 8) {
         add(label, `stages=${JSON.stringify(sg.stages)} は 2〜8 の整数でない`);
       } else {
-        if (sg.stages > MAX_PLAY && !isLong) add(label, `stages=${sg.stages} は longTrialIds に無いレッスンでは ${MAX_PLAY} まで`);
         if (keepOk && sg.stages < keep.length + 1) add(label, `stages=${sg.stages} が keepHandwritten.length+1 (${keep.length + 1}) 未満`);
       }
       if (!isObj(sg.grid)) {
@@ -442,17 +441,24 @@ export function validateLesson(fileName, data, longTrialIds = []) {
     add('ID一致', `lessonId="${data.lessonId}" はファイル名"${idFromFile}"と不一致`);
   }
 
+  const steps = Array.isArray(data.steps) ? data.steps : [];
   // 長尺試作＝ファイル名由来のidが longTrialIds に載るレッスン（lessonIdでは引かない）。
   const isLong = longTrialIds.includes(idFromFile);
-  const minutes = isLong ? LONG_MINUTES : 5;
+  // stageGen の別枠（Issue #369）＝stageGen がオブジェクトで seedPick が無いレッスン。longTrialIds とは無関係で、あれば別枠を優先する。
+  const isGenLong = isObj(data.stageGen) && !steps.some((s) => s.kind === 'seedPick');
+  const wide = isLong || isGenLong;
+  const minutes = wide ? LONG_MINUTES : 5;
   if (data.estimatedMinutes !== minutes) {
     add('所要時間', `estimatedMinutes=${data.estimatedMinutes}（${minutes}である必要がある）`);
   }
-  const maxSteps = isLong ? LONG_MAX_STEPS : MAX_STEPS;
-  const maxPlay = isLong ? LONG_MAX_PLAY : MAX_PLAY;
+  const maxSteps = wide ? LONG_MAX_STEPS : MAX_STEPS;
+  // 別枠の play 上限は stageGen.stages。stages が不正なときは検査せず、stageGen 自体の不合格に任せる。
+  const sgStages = isGenLong ? data.stageGen.stages : undefined;
+  const maxPlay = isGenLong
+    ? (isInt(sgStages) && sgStages >= 2 && sgStages <= 8 ? sgStages : Infinity)
+    : (isLong ? LONG_MAX_PLAY : MAX_PLAY);
 
-  const steps = Array.isArray(data.steps) ? data.steps : [];
-  checkStageGen(data, steps, isLong, add);
+  checkStageGen(data, steps, add);
   if (steps.some((s) => s.kind === 'seedPick')) {
     if (isLong) add('長尺試作とseedPick', 'longTrialIdsのレッスンはseedPick（れんしゅう）を持てない');
     validatePractice(steps, add);

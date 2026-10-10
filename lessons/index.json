@@ -1,5 +1,5 @@
 {
-  "longTrialIds": ["cmd-01-susumu-long", "donguri-01-hirou"],
+  "longTrialIds": ["cmd-01-susumu-long"],
   "units": [
     {
       "unitId": "commands",

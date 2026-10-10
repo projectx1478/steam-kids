@@ -61,6 +61,7 @@
 
 **長尺試作（例外）**：ステージ数だけを変えた別IDの試作レッスン（例：cmd-01 を元にした8ステージ版）。
 「長尺試作の一覧」に載るIDだけが、下記の上限を緩められる。既存レッスンのステージ数は変えない。
+`stageGen` を持つレッスン（`seedPick` を持たないもの）も、一覧に載せずに緩められる（別枠）：play は `stageGen.stages` 個まで（最大8）、steps は12個まで、`estimatedMinutes` は8。
 一覧の置き場は `lessons/index.json` の最上位 `longTrialIds`（文字列配列。省略時は空。
 validate と集計側で同じ一覧を参照する）。一覧の照合はファイル名由来のIDで行う（`lessonId` では引かない）。
 
@@ -226,7 +227,7 @@ MustMatterは、ギミックモジュールの`strip(spec)`（ギミックを除
 `node tools/gen-stages.mjs --lesson <id>` で候補を表示し、`--write` で play ステップを書き込む。
 れんしゅう（`generator` 付き play）とは別のもので、併用はしない。
 
-- `stageGen`（レッスンの最上位。任意）：`ver`（生成器の版。整数≥1）、`stages`（play の総数。2〜8。4を超えるのは長尺試作のみ）、
+- `stageGen`（レッスンの最上位。任意）：`ver`（生成器の版。整数≥1）、`stages`（play の総数の上限。2〜8。4を超えてよい）、
   `keepHandwritten`（手書きで残す play の stepId。先頭から連続。省略時は空）、`grid.cols`・`grid.rows`（`{min,max}`。3〜6）、
   `walls`（`{min,max}`。0〜12。省略時0）、`gimmicks`（`items`・`ice`・`keys` のみ。`{min,max}`）、`teach`（必須性を判定するギミック）、
   `shortestPath`（`{min,max}`。2〜16）、`minTurns`（0〜8。省略時0）、`allowedCommands`（上下左右の部分集合。省略時4方向）、`seedBase`（省略時1）。
@@ -265,12 +266,13 @@ MustMatterは、ギミックモジュールの`strip(spec)`（ギミックを除
 - 必須キー（`lessonId` `unitId` `title` `type` `estimatedMinutes` `steps`）が揃っている
 - `lessonId` がファイル名と一致する
 - `text` は全てひらがなに展開した表示（よみレベル0相当）で20字以内
-- `steps` は4〜7個（長尺試作は4〜12個）
+- `steps` は4〜7個（長尺試作と `stageGen` を持つレッスン（seedPick なし）は4〜12個）
 - `grid-runtime` では `play` ステップが2〜4個であること（`predict`は0個でもよい。Issue #104）。
-  長尺試作は2〜8個
-- `estimatedMinutes` が5であること（長尺試作は8（仮。実測後に見直す）ちょうど。一覧のIDで5は不合格）
+  長尺試作は2〜8個。`stageGen` を持つレッスン（seedPick なし）は2〜`stageGen.stages` 個（最大8）
+- `estimatedMinutes` が5であること（長尺試作と `stageGen` を持つレッスン（seedPick なし）は8（仮。実測後に見直す）ちょうど。8でない場合は不合格）
 - `lessons/index.json` の `longTrialIds` は配列で、要素は文字列・重複なし、各IDに対応する
   `lessons/<id>.json` があること（一覧に載るのにJSONが無い場合は不合格）
+- `stageGen` を持つレッスンは `longTrialIds` に載せない（詰まりアラートを空にしないため）
 - 長尺試作（一覧のID）は `seedPick`（れんしゅう）を持てない（併用は不合格）
 - `answer` が `options` に存在し、`optionCells` の `id` 集合が `options` と一致すること
 - `predict.commands` を最初の `play`（`p1`）の盤面で実行した終点が `answer` の `optionCells` 座標と
@@ -315,7 +317,7 @@ MustMatterは、ギミックモジュールの`strip(spec)`（ギミックを除
 - `tutorial.repeatBox`はboolean（`groupRepeats`と同時`true`は不可）。`box`/`times`/`close`は`repeatBox`時のみ。
   `box`は開いている間に押せず、`times`/`close`は開いている間だけ、空の箱は`close`不可、
   箱を開いたままの`run`・`remove`は不可（Issue #139）
-- `stageGen` がある場合、各フィールドが上の範囲内で、未知のキーが無いこと。`stages` が `keepHandwritten` の数＋1以上で、4を超えるなら長尺試作の一覧にあること
+- `stageGen` がある場合、各フィールドが上の範囲内で、未知のキーが無いこと。`stages` が `keepHandwritten` の数＋1以上で、play の数が `stages` 以下であること
 - `gen` は `stageGen` があるレッスンにだけ置け、`gen.ver` が `stageGen.ver` と一致し、`keepHandwritten` の play には無いこと
 - `stageGen.teach` が `items` のとき、`gen` を持つ play は、どんぐりを除いた盤の最短がその盤の最短より短いこと（どんぐりの必須性）
 - **検証NGの場合は再生成する。手で通さない**

@@ -22,10 +22,14 @@ function boardStep(stepId, board, gen) {
 function buildLesson(c) {
   const id = c.baseLesson ?? 'donguri-01-hirou';
   const data = c.baseLesson ? load(c.baseLesson) : loadBase();
-  const long = c.baseLongTrial ?? fx.baseLongTrial;
-  if (!c.baseLesson) data.estimatedMinutes = long ? 8 : 5;
+  // stageGen を持つ例は別枠（minutes 8）。stageGen を外す例だけ 5。longTrialIds は常に空（別枠は一覧と無関係）。
+  if (!c.baseLesson) data.estimatedMinutes = c.removeStageGen ? 5 : 8;
+  if (c.minutes !== undefined) data.estimatedMinutes = c.minutes;
   data.stageGen = { ...clone(fx.baseStageGen), ...clone(c.patch ?? {}) };
   if (c.removeStageGen) delete data.stageGen;
+  if (c.removeSteps) data.steps = data.steps.filter((s) => !c.removeSteps.includes(s.stepId));
+  // padIntro: s1 の直後に intro をn個足して steps 数だけを増やす
+  for (let i = 0; i < (c.padIntro ?? 0); i++) data.steps.splice(1, 0, { ...clone(data.steps[0]), stepId: `s1x${i}` });
   for (const [stepId, sp] of Object.entries(c.stepPatch ?? {})) {
     const i = data.steps.findIndex((s) => s.stepId === stepId);
     data.steps[i] = sp.useKeepGenBoard ? boardStep(stepId, fx.keepGenBoard, sp.gen) : { ...data.steps[i], ...sp };
@@ -36,7 +40,7 @@ function buildLesson(c) {
     const lastPlay = data.steps.map((s) => s.kind).lastIndexOf('play');
     data.steps.splice(lastPlay + 1, 0, step);
   }
-  return { id, data, longTrialIds: long ? ['donguri-01-hirou'] : [] };
+  return { id, data, longTrialIds: [] };
 }
 
 // 検査名の一覧（"<file>: <検査名>: <詳細>" の検査名の部分）
