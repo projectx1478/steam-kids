@@ -237,6 +237,23 @@ export default async function run({ page, check }) {
   await assertNoNegativeWords(page, check, 'summary');
 
   // --- 不正解・複数回クリアでは別のカード文言になる（最短でもない） ---
+  // 実ファイルは #369 で生成面に変わるため、変更前の p1〜p3・s1・s2 を写したレッスンに差し替える（lessonId は実 id のまま）
+  const cmds4 = ['up', 'down', 'left', 'right'];
+  const txt = 'どんぐりを とって ゴールへ';
+  await routeLesson(page, {
+    lessonId: 'donguri-02-mawarimichi',
+    unitId: 'donguri',
+    title: 'まわりみち',
+    type: 'grid-runtime',
+    estimatedMinutes: 5,
+    steps: [
+      { stepId: 's1', kind: 'intro', text: 'いわを よけて どんぐりへ', demo: { grid: { cols: 4, rows: 3 }, start: { x: 0, y: 1 }, goal: { x: 3, y: 1 }, walls: [{ x: 1, y: 1 }], items: [], commands: ['up', 'right', 'right', 'down', 'right'] } },
+      { stepId: 'p1', kind: 'play', text: txt, grid: { cols: 5, rows: 5 }, start: { x: 0, y: 2 }, goal: { x: 4, y: 2 }, walls: [{ x: 2, y: 2 }, { x: 2, y: 1 }], items: [{ x: 2, y: 3 }, { x: 3, y: 3 }], allowedCommands: cmds4, solution: ['right', 'down', 'right', 'right', 'up', 'right'], maxCommands: 8 },
+      { stepId: 'p2', kind: 'play', text: txt, grid: { cols: 5, rows: 5 }, start: { x: 0, y: 1 }, goal: { x: 4, y: 1 }, walls: [{ x: 2, y: 0 }, { x: 2, y: 1 }, { x: 2, y: 2 }], items: [{ x: 1, y: 3 }, { x: 3, y: 3 }], allowedCommands: cmds4, solution: ['down', 'down', 'right', 'right', 'right', 'up', 'up', 'right'], maxCommands: 10 },
+      { stepId: 'p3', kind: 'play', text: txt, grid: { cols: 6, rows: 6 }, start: { x: 0, y: 2 }, goal: { x: 5, y: 2 }, walls: [{ x: 2, y: 1 }, { x: 2, y: 2 }, { x: 2, y: 3 }, { x: 4, y: 2 }, { x: 4, y: 3 }], items: [{ x: 1, y: 0 }, { x: 4, y: 1 }], allowedCommands: cmds4, solution: ['up', 'up', 'right', 'right', 'right', 'down', 'right', 'right', 'down'], maxCommands: 11 },
+      { stepId: 's2', kind: 'summary', text: 'いわを よけて まわりみち' },
+    ],
+  });
   await enterPlay(page, 'donguri-02-mawarimichi');
   await clearStage(page, ['right', 'down', 'right', 'right', 'up', 'right']); // p1(最短6)
   await clearStage(page, ['down', 'down', 'right', 'right', 'right', 'up', 'up', 'right']); // p2(最短8)

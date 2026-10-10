@@ -14,8 +14,9 @@ function straightCommands({ start, goal }) {
   return [...Array(Math.abs(goal.x - start.x)).fill(h), ...Array(Math.abs(goal.y - start.y)).fill(v)];
 }
 
-test('まわりみち: 各stageは直進のみだと壁にぶつかる', () => {
-  for (const stage of stages) {
+// 生成面（gen を持つ play）は直進が壁に当たるとは限らないので、手書きの面に限る
+test('まわりみち: 手書きの各stageは直進のみだと壁にぶつかる', () => {
+  for (const stage of stages.filter((s) => !s.gen)) {
     const result = simulate(straightCommands(stage), stage);
     assert.ok(result.blockedAt.length > 0, `${stage.stepId}: 直進でblockedAtが空`);
   }
