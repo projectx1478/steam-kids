@@ -426,12 +426,22 @@ dialog.result-row {
   }
 }
 
-/* 背の低い横向き（1024×600等）は、パレット・操作ボタンを1行4列にしてトレイの高さを確保する。 */
+/* 背の低い横向き（1024×600等）は、パレットを1行4列にしてトレイの高さを確保する。
+   操作ボタン行 sk-screen-actions は文字切れ防止のため4列にせず、2列（2×2）のままにする（Issue #370）。 */
 @media (orientation: landscape) and (max-height: 700px) {
   .sk-screen-panel > .palette-row,
-  .sk-screen-panel > .sk-screen-actions,
   .tutorial-side > .palette-row {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* 縦向きの操作ボタン行（play・れんしゅう）も2列（2×2）にして、「▶ じっこう」などの文字切れを防ぐ（Issue #370）。
+   シーソー（--one-row）とpredict（--predict）は変えない。grid では justify-content:center が列の塊を中央寄せにするが、
+   列は minmax(0,1fr) でパネル幅いっぱいに広がるため見た目は変わらない。 */
+@media (orientation: portrait) {
+  .sk-screen-panel > .sk-screen-actions:not(.sk-screen-actions--one-row):not(.sk-screen-actions--predict) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
