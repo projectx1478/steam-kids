@@ -55,6 +55,12 @@ export function canonicalKey(board) {
     ['w', board.walls ?? []], ['i', board.items ?? []], ['c', board.ice ?? []],
     ['k', board.keys ?? []], ['d', board.doors ?? []],
   ];
+  // cushion・switches の層は空でないときだけ足す（既存の正規形を変えない）
+  if (board.cushion?.length) layers.push(['u', board.cushion]);
+  if (board.switches?.length) {
+    layers.push(['x', board.switches.map(({ x, y }) => ({ x, y }))]);
+    layers.push(['t', board.switches.flatMap((s) => s.targets)]);
+  }
   let best = null;
   for (const f of flips) {
     const parts = layers.map(([tag, cells]) => {
@@ -107,6 +113,33 @@ function placeKeys(rng, pairCount, spec, free) {
   return { keys, doors };
 }
 
+// スイッチ（open・1組＝スイッチ1＋対象1）の配置。対象は現盤の最短経路上の1マス（壁になる）、スイッチは
+// 対象を壁扱いにしても盤が解ける空きマス。見つからなければ null。
+function placeSwitches(rng, pairCount, spec, free) {
+  const switches = [];
+  const used = new Set(
+    [spec.start, spec.goal, ...spec.walls, ...(spec.items ?? []), ...(spec.ice ?? []), ...(spec.cushion ?? []),
+      ...(spec.keys ?? []), ...(spec.doors ?? [])].map(keyOf)
+  );
+  const pool = free.filter((p) => !used.has(keyOf(p)));
+  for (let n = 0; n < pairCount; n += 1) {
+    const cur = { ...spec, switches };
+    const cmds = shortestPath(cur);
+    if (!cmds) return null;
+    const path = simulate(cmds, cur).path;
+    const candidates = path.filter((p, i) => i > 0 && i < path.length - 1 && !used.has(keyOf(p)));
+    if (candidates.length === 0) return null;
+    const target = candidates[Math.floor(rng() * candidates.length)];
+    const sw = pool.find((p) => !used.has(keyOf(p)) && keyOf(p) !== keyOf(target)
+      && shortestSteps({ ...spec, switches: [...switches, { x: p.x, y: p.y, targets: [{ x: target.x, y: target.y }] }] }) !== Infinity);
+    if (!sw) return null;
+    used.add(keyOf(sw));
+    used.add(keyOf(target));
+    switches.push({ x: sw.x, y: sw.y, targets: [{ x: target.x, y: target.y }] });
+  }
+  return switches;
+}
+
 // teach のギミックの必須性
 function teachMatters(teach, board) {
   const dist = board.solution.length;
@@ -114,6 +147,8 @@ function teachMatters(teach, board) {
   const play = { ...board, maxCommands: dist };
   if (teach === 'ice') return iceMustMatter(play).matters;
   if (teach === 'keys') return keysMustMatter(play).matters;
+  if (teach === 'cushion') return mattersFor('cushion', board, dist);
+  if (teach === 'switches') return mattersFor('switches', board, dist);
   return true;
 }
 
@@ -159,6 +194,22 @@ export function generateBoard(stageGen, seed) {
       const placed = placeKeys(rng, pairCount, spec, free);
       if (!placed) continue;
       spec = { ...spec, keys: placed.keys, doors: placed.doors };
+    }
+    // cushion→switches は既存の乱数消費の後ろ。範囲未指定なら乱数を引かない。
+    const cushionCount = gim.cushion ? countOf(rng, gim.cushion) : 0;
+    if (cushionCount > 0) {
+      const taken = new Set(
+        [...(spec.keys ?? []), ...(spec.doors ?? [])].map(keyOf)
+      );
+      const got = free.filter((p) => !taken.has(keyOf(p))).slice(0, cushionCount);
+      if (got.length < cushionCount) continue;
+      spec = { ...spec, cushion: got };
+    }
+    const switchCount = gim.switches ? countOf(rng, gim.switches) : 0;
+    if (switchCount > 0) {
+      const placed = placeSwitches(rng, switchCount, spec, free);
+      if (!placed) continue;
+      spec = { ...spec, switches: placed };
     }
     const cmds = shortestPath(spec);
     if (!cmds || !inRange(cmds.length, stageGen.shortestPath)) continue;

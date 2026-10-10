@@ -334,7 +334,7 @@ function validateSeesaw(playSteps, add, maxPlay = MAX_PLAY) {
 
 // stageGen・gen の検査（Issue #337。docs/lesson-schema.md）。実行時は読まない開発用の設定。
 const SG_KEYS = ['ver', 'stages', 'keepHandwritten', 'grid', 'walls', 'gimmicks', 'teach', 'shortestPath', 'minTurns', 'allowedCommands', 'seedBase'];
-const SG_GIMMICK_RANGES = { items: [1, 4], ice: [1, 4], keys: [1, 2] };
+const SG_GIMMICK_RANGES = { items: [1, 4], ice: [1, 4], keys: [1, 2], cushion: [1, 4], switches: [1, 2] };
 const isInt = (v) => Number.isInteger(v);
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
@@ -390,13 +390,15 @@ function checkStageGen(data, steps, add) {
         add(label, 'gimmicks がオブジェクトでない');
       } else {
         for (const [k, v] of Object.entries(gim)) {
-          if (!(k in SG_GIMMICK_RANGES)) add('stageGen 未対応のギミック', `gimmicks の ${k} は未対応（items・ice・keys のみ）`);
+          if (!(k in SG_GIMMICK_RANGES)) add('stageGen 未対応のギミック', `gimmicks の ${k} は未対応（items・ice・keys・cushion・switches のみ）`);
           else range(v, SG_GIMMICK_RANGES[k][0], SG_GIMMICK_RANGES[k][1], `gimmicks.${k}`);
         }
         const names = Object.keys(gim);
         if (names.length === 0 && 'teach' in sg) add(label, 'gimmicks が空なのに teach がある');
         else if (names.length > 0 && !('teach' in sg)) add(label, 'gimmicks があるのに teach がない');
         else if ('teach' in sg && !names.includes(sg.teach)) add(label, `teach=${JSON.stringify(sg.teach)} が gimmicks にない`);
+        if ('switches' in gim && 'keys' in gim) add(label, 'switches と keys は併用できない');
+        if (sg.teach === 'cushion' && !(isObj(gim.ice) && isInt(gim.ice.max) && gim.ice.max >= 1)) add(label, 'teach=cushion には gimmicks.ice（最大1以上）の併用が必要');
       }
       range(sg.shortestPath, 2, 16, 'shortestPath');
       if ('minTurns' in sg && (!isInt(sg.minTurns) || sg.minTurns < 0 || sg.minTurns > 8)) {
