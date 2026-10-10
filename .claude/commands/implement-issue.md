@@ -34,7 +34,7 @@ Issue #$ARGUMENTS を実装する。あなた（メインセッション）は�
 2. 直した差分（`git --no-pager diff <シナリオ>`）に、`check()` の削除、期待値の緩和、スキップが無い。あれば止まる。
 Bの修正後に、静的な再照合は回さない。確かめるのはCIの結果で行う（往復を減らすため）。
 
-**CIが落ちたときの分け方：** ログを読み、①ビルド忘れ（style.css）→ coder に `npm run build:css` を回させる、②シナリオの不備 → B、③本体の不具合 → A、のどれかに分ける。分けられなければ止まる。
+**CIが落ちたときの分け方：** ログの取得（`gh run view <id> --log-failed`）は `command-runner` に任せる。①②③の分類はメインが、ログを読んで行う。①ビルド忘れ（style.css）→ coder に `npm run build:css` を回させる、②シナリオの不備 → B、③本体の不具合 → A、のどれかに分ける。分けられなければ止まる。
 
 ## 打ち切り規則
 上の A・B の回数より先に当たったら、こちらで止まる。止まったら、`/run-issues` 経由なら決裁票に積み、停止の分類を付けて報告する。
@@ -69,13 +69,13 @@ Bの修正後に、静的な再照合は回さない。確かめるのはCIの�
 5. 盤面の最短手数・別解数・探索規模の確認が要る段では、coder に `node tools/analyze-board.mjs` を使わせる（使い捨てスクリプトを書かせない）。
 
 ### 3. 照合
-`impl-checker` を呼ぶ。返信の「成否」行（`本体: 逸脱あり|なし ／ テスト: 不備あり|なし|未確認`）で、停止の規則の A・B に分ける。
+coder の段が終わったら、`command-runner` に `npm run verify:fast`（無ければ `check:static`・`validate:lessons`・`test:unit` の3つ）を回させる。その報告を添えて `impl-checker` を呼ぶ。返信の「成否」行（`本体: 逸脱あり|なし ／ テスト: 不備あり|なし|未確認`）で、停止の規則の A・B に分ける。
 - A があれば、新しい coder に1回だけ直させ、再度照合する。
 - Bだけなら、先に進んでよい（CIで確かめる）。ただし「テスト: 不備あり」の指摘は、先に新しい coder に直させる。
 
 ### 4. push の前の検証
-変更の範囲に合わせて、coder の返信に次が含まれていることを確認する。含まれていなければ、新しい coder に実行させる。
-- `js/`・HTML・`tailwind.src.css` を変えた：`npm run verify:fast`（push の前に、最後の状態で1回）
+変更の範囲に合わせて、push の前の最後の状態で、`command-runner` に次を1回回させる。checker の指摘で coder が直した場合は、push の前にもう一度回させる。
+- `js/`・HTML・`tailwind.src.css` を変えた：`npm run verify:fast`
 - シナリオ・docs だけ：`check:static` のみ
 Tailwind のクラスを足したのに、`style.css` が `git --no-pager diff --stat` に無ければ、新しい coder に `npm run build:css` を回させる。
 
@@ -97,7 +97,7 @@ Tailwind のクラスを足したのに、`style.css` が `git --no-pager diff -
    - 悠さんが確認すること（`summary.md` の「実機で確認すること」。操作感・音・子どもの反応）
    - 設計議論の要約（決定事項のみ。原文・観察メモ・保護者の記述は含めない）
 3. `gh pr checks <PR番号> --watch` で、完了まで1回の呼び出しで待つ。待ち時間の上限で切れたら、もう1回だけ同じコマンドを実行する。確認のために何度も呼ばない。
-4. CI が落ちたら、停止の規則の「CIが落ちたときの分け方」に従う。
+4. CI が落ちたら、`command-runner` に `gh run view <id> --log-failed` を回させてログを取り、停止の規則の「CIが落ちたときの分け方」に従う。
 
 ### 7. 報告して停止
 次を報告して、停止する。
@@ -107,3 +107,11 @@ Tailwind のクラスを足したのに、`style.css` が `git --no-pager diff -
 - 設計と違った点
 - 事前許可の範囲で行った変更（無ければ「なし」）
 - **実測用の記録：** coder の呼び出し回数、A・B の修正回数、CIの実行回数、停止した回数とその理由。理由には分類（設計の穴／運用／予定どおり／既知の負債／予算不足／その他）を付ける（悠さんが `/usage` と合わせて、1 Issue あたりの費用を比べる材料にする）
+
+## 試験運用（command-runner）
+次の3 Issue で、`<MAIN>/review/autopilot/log.md` の「command-runner 試験運用」欄に、Issue ごとに1行記録する。
+- command-runner の Status と CI の結果が一致したか
+- DID NOT RUN を正しく出したか
+- `/usage` の前後：`/run-issues` の起動引数の値を「前」、次回の起動引数の値を「後」とする（Issue 単位の差。command-runner 単独の差は分けない）
+
+食い違いが1回でもあれば、止めて悠さんに報告する。3 Issue を記録し終えたら、この節を外す PR を出す。
