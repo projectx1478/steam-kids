@@ -15,17 +15,20 @@
         {
           "unitId": "donguri",
           "title": "どんぐりひろい",
+          "gimmicks": ["items"],
           "lessonIds": ["donguri-01-hirou", "donguri-02-mawarimichi"],
           "devOnlyIds": ["paint-01-nuru"]
         },
         {
           "unitId": "ice",
           "title": "こおりですべる",
+          "gimmicks": ["ice"],
           "lessonIds": ["ice-01-suberu", "ice-02-kabe"]
         },
         {
           "unitId": "keys",
           "title": "かぎと ドア",
+          "gimmicks": ["keys"],
           "lessonIds": ["key-01-kagi", "key-02-iro"]
         },
         {

@@ -860,7 +860,8 @@ export function validateLesson(fileName, data, longTrialIds = []) {
 
 // index.jsonはレッスン選択画面（単元マップ）用の一覧ファイル。参照するlessonIdが実在し、
 // unitIdがレッスン本体のunitIdと一致していることを確認する（Issue #58）。
-function validateIndex(data, lessonById, fileIds = new Set()) {
+const UNIT_GIMMICKS = ['items', 'ice', 'keys'];
+export function validateIndex(data,lessonById, fileIds = new Set()) {
   const errors = [];
   const add = (rule, detail) => errors.push(`index.json: ${rule}: ${detail}`);
 
@@ -911,6 +912,18 @@ function validateIndex(data, lessonById, fileIds = new Set()) {
   for (const unit of unitsOf(data)) {
     for (const key of ['unitId', 'title', 'lessonIds']) {
       if (!(key in unit)) add('必須キー', `unitId="${unit.unitId}" に ${key} がない`);
+    }
+    // gimmicks＝その単元をクリアすると解放されるギミックの種類（Issue #266）。省略時は空。
+    if ('gimmicks' in unit) {
+      if (!Array.isArray(unit.gimmicks)) {
+        add('gimmicks', `unitId="${unit.unitId}" の gimmicks が配列でない`);
+      } else {
+        for (const g of unit.gimmicks) {
+          if (!UNIT_GIMMICKS.includes(g)) {
+            add('gimmicks', `unitId="${unit.unitId}" の gimmicks に未知の値 ${JSON.stringify(g)}（許可: ${UNIT_GIMMICKS.join('・')}）`);
+          }
+        }
+      }
     }
     if (!Array.isArray(unit.lessonIds)) continue;
 
