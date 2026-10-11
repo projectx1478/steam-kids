@@ -50,10 +50,16 @@ function wallMarks(colors) {
 }
 
 // on＝橙の立体ブロック（影＋側面＋上面。上面に対象スイッチの印）。off＝踏んだ後の埋まった床（フラット。印なし）。
-function wallSvg(on, colors = []) {
+// outline＝toggleの沈んだ壁に残す点線の輪郭（また立つ印。Issue #388）。
+function wallSvg(on, colors = [], outline = false) {
   if (!on) {
     return `<svg viewBox="0 0 64 64" class="grid-switch-wall-svg absolute inset-0 w-full h-full pointer-events-none" aria-hidden="true">
-      <rect x="6" y="6" width="52" height="52" rx="8" fill="#d6c4a5" stroke="#b8a37f" stroke-width="2" />
+      <rect x="6" y="6" width="52" height="52" rx="8" fill="#d6c4a5" stroke="#b8a37f" stroke-width="2" />${
+        outline
+          ? `
+      <rect class="grid-switch-wall-outline" x="9" y="9" width="46" height="46" rx="6" fill="none" stroke="#7c6338" stroke-opacity="0.6" stroke-width="2.6" stroke-dasharray="5 4.5" stroke-linecap="round" />`
+          : ''
+      }
     </svg>`;
   }
   return `<svg viewBox="0 0 64 64" class="grid-switch-wall-svg absolute inset-0 w-full h-full pointer-events-none" aria-hidden="true">
@@ -86,10 +92,10 @@ function animateWall(svg, toSunk, easing) {
 }
 
 // 壁を縮小＋暗くして沈ませ（上面が下がり影が消える）、埋まった床の表示へ差し替える。reduced-motion時は即時に差し替える。
-function sinkWall(cell) {
+function sinkWall(cell, outline = false) {
   const svg = cell.querySelector('.grid-switch-wall-svg');
   if (!svg) return;
-  const flat = () => svg.replaceWith(fromHtml(wallSvg(false)));
+  const flat = () => svg.replaceWith(fromHtml(wallSvg(false, [], outline)));
   if (prefersReduced()) return flat();
   animateWall(svg, true, 'ease-in').finished.then(flat, flat);
 }
@@ -110,14 +116,19 @@ const fromHtml = (html) => Object.assign(document.createElement('template'), { i
 export const switches = {
   key: 'switches',
 
-  // state: { pressed: 踏んだスイッチの番号配列（昇順。不変更新） }
+  // state: { pressed: 踏んだスイッチの番号配列（昇順。不変更新）。toggleは「奇数回踏まれた」番号（入るたびに出し入れ。Issue #388） }
   initState() {
     return { pressed: [] };
   },
 
   enter(state, pos, spec) {
     const i = list(spec.switches).findIndex((s) => s.x === pos.x && s.y === pos.y);
-    if (i < 0 || state.pressed.includes(i)) return state;
+    if (i < 0) return state;
+    if (spec.switches[i].mode === 'toggle') {
+      const rest = state.pressed.filter((n) => n !== i);
+      return { pressed: state.pressed.includes(i) ? rest : [...rest, i].sort((a, b) => a - b) };
+    }
+    if (state.pressed.includes(i)) return state;
     return { pressed: [...state.pressed, i].sort((a, b) => a - b) };
   },
 
@@ -130,9 +141,12 @@ export const switches = {
   },
 
   // open：踏む前の対象が壁。close：踏んだ後の対象が壁（Issue #149）。
+  // toggle：奇数回踏んだ状態と初期（targets[].initial。省略はclosed＝壁）の入れ替え。壁＝（奇数回か）と（初期がopenか）が一致（Issue #388）。
   blocks(state, pos, spec) {
-    return list(spec.switches).some(
-      (s, i) => state.pressed.includes(i) === (s.mode === 'close') && list(s.targets).some((t) => t.x === pos.x && t.y === pos.y)
+    return list(spec.switches).some((s, i) =>
+      list(s.targets).some(
+        (t) => t.x === pos.x && t.y === pos.y && state.pressed.includes(i) === (s.mode === 'toggle' ? t.initial === 'open' : s.mode === 'close')
+      )
     );
   },
 
@@ -144,6 +158,39 @@ export const switches = {
   onStep({ pos, spec, view, run }) {
     const i = list(spec.switches).findIndex((s) => s.x === pos.x && s.y === pos.y);
     run.pressed ??= new Set();
+    if (i >= 0 && spec.switches[i].mode === 'toggle') {
+      // toggleは入るたびに入れ替える（Issue #388）。奇数回でレバーが右に倒れ・偶数回で直立に戻り、壁は浮き沈みする。
+      if (run.pressed.has(i)) run.pressed.delete(i);
+      else run.pressed.add(i);
+      const els = view.gimmickEls?.switches;
+      const sw = spec.switches[i];
+      const swCell = els?.switchCells.get(keyOf(sw));
+      if (swCell) {
+        swCell.dataset.switchPressed = String(run.pressed.has(i));
+        swCell.querySelector('.grid-switch-svg')?.replaceWith(fromHtml(switchSvg(run.pressed.has(i), switchColor(sw, i))));
+      }
+      list(sw.targets).forEach((t) => {
+        const cell = els?.wallCells.get(keyOf(t));
+        if (!cell) return;
+        // 前のアニメが残っていれば最終状態に揃えてから次を始める（連続タップ・滑走で重ならない）。
+        cell.getAnimations?.({ subtree: true }).forEach((a) => a.finish());
+        const on = run.pressed.has(i) === (t.initial === 'open');
+        cell.dataset.switchWall = on ? 'on' : 'off';
+        if (on) {
+          const colors = wallColors(spec.switches, t);
+          if (colors.length > 0) {
+            cell.dataset.color = colors[0];
+            cell.dataset.mark = markName(colors[0]);
+          }
+          raiseWall(cell, colors);
+        } else {
+          delete cell.dataset.color;
+          delete cell.dataset.mark;
+          sinkWall(cell, true);
+        }
+      });
+      return 'wallSink';
+    }
     if (i < 0 || run.pressed.has(i)) return undefined;
     run.pressed.add(i);
     const els = view.gimmickEls?.switches;
@@ -200,7 +247,22 @@ export const switches = {
     const points = [];
     swList.forEach((s, i) => {
       if (s.color !== undefined && !SWITCH_COLORS.includes(s.color)) add('盤面の妥当性', `${label}switches[${i}] のcolor=${JSON.stringify(s.color)} が不正（"red"か"blue"）`);
-      if (s.mode !== undefined && s.mode !== 'open' && s.mode !== 'close') add('盤面の妥当性', `${label}switches[${i}] のmode=${JSON.stringify(s.mode)} が不正（"open"か"close"）`);
+      if (s.mode !== undefined && s.mode !== 'open' && s.mode !== 'close' && s.mode !== 'toggle') add('盤面の妥当性', `${label}switches[${i}] のmode=${JSON.stringify(s.mode)} が不正（"open"か"close"か"toggle"）`);
+      // initialはtoggleのtargetsだけで有効（"closed"｜"open"。省略時closed）。toggleは単独で使う（Issue #388）。
+      list(s.targets).forEach((t, j) => {
+        if (t?.initial === undefined) return;
+        if (s.mode !== 'toggle') add('盤面の妥当性', `${label}switches[${i}].targets[${j}] のinitialはtoggleでのみ指定できる`);
+        else if (t.initial !== 'closed' && t.initial !== 'open') add('盤面の妥当性', `${label}switches[${i}].targets[${j}] のinitial=${JSON.stringify(t.initial)} が不正（"closed"か"open"）`);
+      });
+      if (s.mode === 'toggle') {
+        if (swList.some((o) => o.mode !== 'toggle')) add('盤面の妥当性', `${label}switches[${i}] のtoggle は他のmode（open・close）と併用できない`);
+        const mine = list(s.targets);
+        swList.forEach((o, j) => {
+          if (j !== i && list(o.targets).some((u) => mine.some((t) => t.x === u.x && t.y === u.y))) add('盤面の妥当性', `${label}switches[${i}] のtoggle は他のスイッチと対象を共有できない`);
+        });
+        const onIce = new Set(list(board.ice).map(keyOf));
+        if (onIce.has(keyOf(s))) add('盤面の妥当性', `${label}switches[${i}] のtoggle は氷の上に置けない`);
+      }
       // closeは初版では単独（openとの併用・複数スイッチによる対象の共有=ANDは不可。Issue #149）。
       if (s.mode === 'close') {
         if (swList.some((o) => (o.mode ?? 'open') !== 'close')) add('盤面の妥当性', `${label}switches[${i}] のclose はopenと併用できない`);
@@ -256,14 +318,15 @@ export const switches = {
       list(s.targets).forEach((t) => {
         const wall = cellAt(t);
         if (!wall || wallCells.has(keyOf(t))) return;
-        const closing = s.mode === 'close';
+        const toggle = s.mode === 'toggle';
+        const closing = s.mode === 'close' || (toggle && t.initial === 'open');
         wall.dataset.switchWall = closing ? 'off' : 'on';
         const colors = wallColors(swList, t);
         if (!closing && colors.length > 0) {
           wall.dataset.color = colors[0];
           wall.dataset.mark = markName(colors[0]);
         }
-        wall.insertAdjacentHTML('afterbegin', wallSvg(!closing, colors));
+        wall.insertAdjacentHTML('afterbegin', wallSvg(!closing, colors, toggle));
         wallCells.set(keyOf(t), wall);
       });
     });
