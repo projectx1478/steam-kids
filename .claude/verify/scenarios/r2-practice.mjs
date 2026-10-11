@@ -15,7 +15,8 @@ async function clearBySolution(page, code) {
     const step = { generator: null };
     const lesson = await (await fetch('/lessons/cmd-06-practice.json')).json();
     step.generator = lesson.steps.find((s) => s.kind === 'play').generator;
-    return generateMap(step.generator, codeToSeed(c)).solution;
+    // 新規プロフィール（クリア履歴なし）＝未解放の再現: アプリと同じく壁のみ許可
+    return generateMap(step.generator, codeToSeed(c), { allowed: new Set() }).solution;
   }, code);
   for (const c of solution) await page.click(`[data-command="${c}"]`);
   await page.click('[data-action="run"]');
