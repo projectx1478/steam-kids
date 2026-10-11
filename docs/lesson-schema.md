@@ -187,6 +187,7 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 単元マップは`units`の`lessonIds`を通しの順に並べ、前のレッスンをクリアすると次が開く（先頭は最初から開く。`practiceIds`は同単元の`lessonIds`を全クリアで開く）。
 `devOnlyIds`に載せたレッスンは通常の単元マップに出さず、開発者画面（`index.html?view=map&dev=1`。保護者ゲート解錠後のダッシュボードにリンク）だけに出す。
 開発者画面は全レッスンが開き、学習記録（events・tutorialDone・同期）を残さない。`lessons/*.json`は`lessonIds`・`practiceIds`・`devOnlyIds`のどれかに載せる（`validate-lessons`が検証）。
+単元の`gimmicks`（省略可。`items`・`ice`・`keys`の配列）は、その単元のレッスンを1本でもクリアすると練習の`generator`の`gimmickMix`で混ぜてよくなるギミックの種類。`practiceIds`・`devOnlyIds`はクリア判定に数えない。
 
 ## `generator`（シード生成の制約。Issue #68）
 
@@ -218,7 +219,9 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 items/ice/keysを指定した場合は対応するフィールド（`items`/`ice`/`keys`/`doors`）も含む。各ギミックの
 MustMatterは、ギミックモジュールの`strip(spec)`（ギミックを除いた盤面）との`shortestSteps`比較で判定する。
 乱数を進めて400回再試行し、満たせなければ手作りの予備盤面（`fallback: true`。ギミックなし）を返す。
-ギミックを1つも指定しない`generator`では、同一シードの生成結果はR1（Issue #68）と一致する
+`gimmickMix`（省略可）は種類名（`items`・`ice`・`keys`）→追加の生成指定のオブジェクト。seedから1種類を引き、解放済みなら指定を足す（未解放なら壁のみ）。省略時は従来どおりで同じseedは同じ盤面。
+`gimmickMix`付きのcmd-06練習は、iceを引くと稀（約0.2%）に予備盤面になる。回帰テストの固定シード0〜1023で既知は33・273（実測。承認時の「273・683」のうち683は、iceを2個まで許した旧設定での値で、現設定では予備盤面にならない）。
+ギミックを1つも指定しない・`gimmickMix`未指定の`generator`では、同一シードの生成結果はR1（Issue #68）と一致する
 （追加の乱数消費をしない）。予想ステップは自動生成しない（#104で全廃）。
 
 ## `stageGen`・`gen`（盤面の生成と固定。Issue #337）
