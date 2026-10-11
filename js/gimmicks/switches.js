@@ -110,14 +110,19 @@ const fromHtml = (html) => Object.assign(document.createElement('template'), { i
 export const switches = {
   key: 'switches',
 
-  // state: { pressed: 踏んだスイッチの番号配列（昇順。不変更新） }
+  // state: { pressed: 踏んだスイッチの番号配列（昇順。不変更新）。toggleは「奇数回踏まれた」番号（入るたびに出し入れ。Issue #388） }
   initState() {
     return { pressed: [] };
   },
 
   enter(state, pos, spec) {
     const i = list(spec.switches).findIndex((s) => s.x === pos.x && s.y === pos.y);
-    if (i < 0 || state.pressed.includes(i)) return state;
+    if (i < 0) return state;
+    if (spec.switches[i].mode === 'toggle') {
+      const rest = state.pressed.filter((n) => n !== i);
+      return { pressed: state.pressed.includes(i) ? rest : [...rest, i].sort((a, b) => a - b) };
+    }
+    if (state.pressed.includes(i)) return state;
     return { pressed: [...state.pressed, i].sort((a, b) => a - b) };
   },
 
@@ -130,9 +135,12 @@ export const switches = {
   },
 
   // open：踏む前の対象が壁。close：踏んだ後の対象が壁（Issue #149）。
+  // toggle：奇数回踏んだ状態と初期（targets[].initial。省略はclosed＝壁）の入れ替え。壁＝（奇数回か）と（初期がopenか）が一致（Issue #388）。
   blocks(state, pos, spec) {
-    return list(spec.switches).some(
-      (s, i) => state.pressed.includes(i) === (s.mode === 'close') && list(s.targets).some((t) => t.x === pos.x && t.y === pos.y)
+    return list(spec.switches).some((s, i) =>
+      list(s.targets).some(
+        (t) => t.x === pos.x && t.y === pos.y && state.pressed.includes(i) === (s.mode === 'toggle' ? t.initial === 'open' : s.mode === 'close')
+      )
     );
   },
 
@@ -144,6 +152,20 @@ export const switches = {
   onStep({ pos, spec, view, run }) {
     const i = list(spec.switches).findIndex((s) => s.x === pos.x && s.y === pos.y);
     run.pressed ??= new Set();
+    if (i >= 0 && spec.switches[i].mode === 'toggle') {
+      // toggleは入るたびに入れ替える（Issue #388）。段1はdata属性の更新のみ（レバー・壁のSVGとアニメは段3）。
+      if (run.pressed.has(i)) run.pressed.delete(i);
+      else run.pressed.add(i);
+      const els = view.gimmickEls?.switches;
+      const sw = spec.switches[i];
+      const swCell = els?.switchCells.get(keyOf(sw));
+      if (swCell) swCell.dataset.switchPressed = String(run.pressed.has(i));
+      list(sw.targets).forEach((t) => {
+        const cell = els?.wallCells.get(keyOf(t));
+        if (cell) cell.dataset.switchWall = run.pressed.has(i) === (t.initial === 'open') ? 'on' : 'off';
+      });
+      return 'wallSink';
+    }
     if (i < 0 || run.pressed.has(i)) return undefined;
     run.pressed.add(i);
     const els = view.gimmickEls?.switches;
@@ -200,7 +222,22 @@ export const switches = {
     const points = [];
     swList.forEach((s, i) => {
       if (s.color !== undefined && !SWITCH_COLORS.includes(s.color)) add('盤面の妥当性', `${label}switches[${i}] のcolor=${JSON.stringify(s.color)} が不正（"red"か"blue"）`);
-      if (s.mode !== undefined && s.mode !== 'open' && s.mode !== 'close') add('盤面の妥当性', `${label}switches[${i}] のmode=${JSON.stringify(s.mode)} が不正（"open"か"close"）`);
+      if (s.mode !== undefined && s.mode !== 'open' && s.mode !== 'close' && s.mode !== 'toggle') add('盤面の妥当性', `${label}switches[${i}] のmode=${JSON.stringify(s.mode)} が不正（"open"か"close"か"toggle"）`);
+      // initialはtoggleのtargetsだけで有効（"closed"｜"open"。省略時closed）。toggleは単独で使う（Issue #388）。
+      list(s.targets).forEach((t, j) => {
+        if (t?.initial === undefined) return;
+        if (s.mode !== 'toggle') add('盤面の妥当性', `${label}switches[${i}].targets[${j}] のinitialはtoggleでのみ指定できる`);
+        else if (t.initial !== 'closed' && t.initial !== 'open') add('盤面の妥当性', `${label}switches[${i}].targets[${j}] のinitial=${JSON.stringify(t.initial)} が不正（"closed"か"open"）`);
+      });
+      if (s.mode === 'toggle') {
+        if (swList.some((o) => o.mode !== 'toggle')) add('盤面の妥当性', `${label}switches[${i}] のtoggle は他のmode（open・close）と併用できない`);
+        const mine = list(s.targets);
+        swList.forEach((o, j) => {
+          if (j !== i && list(o.targets).some((u) => mine.some((t) => t.x === u.x && t.y === u.y))) add('盤面の妥当性', `${label}switches[${i}] のtoggle は他のスイッチと対象を共有できない`);
+        });
+        const onIce = new Set(list(board.ice).map(keyOf));
+        if (onIce.has(keyOf(s))) add('盤面の妥当性', `${label}switches[${i}] のtoggle は氷の上に置けない`);
+      }
       // closeは初版では単独（openとの併用・複数スイッチによる対象の共有=ANDは不可。Issue #149）。
       if (s.mode === 'close') {
         if (swList.some((o) => (o.mode ?? 'open') !== 'close')) add('盤面の妥当性', `${label}switches[${i}] のclose はopenと併用できない`);
