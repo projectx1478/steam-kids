@@ -143,6 +143,14 @@ export function resetSlot(slot) {
     // 無視
   }
   try {
+    const endSeenPrefix = keyFor('unitEndSeen.', slot);
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith(endSeenPrefix))
+      .forEach((k) => localStorage.removeItem(k));
+  } catch {
+    // 無視
+  }
+  try {
     const resumePrefix = keyFor('resume.', slot);
     Object.keys(localStorage)
       .filter((k) => k.startsWith(resumePrefix))
@@ -197,6 +205,23 @@ export function markTutorialDoneStored(lessonId) {
     localStorage.setItem(keyFor(`tutorialDone.${lessonId}`, getActiveSlot()), 'true');
   } catch {
     // 容量超過等は無視（チュートリアル表示が続くだけで機能上は問題ない）
+  }
+}
+
+// 単元をはじめて全クリアした印（Issue #267）。スロット単位。
+export function isUnitEndSeenStored(unitId) {
+  try {
+    return localStorage.getItem(keyFor(`unitEndSeen.${unitId}`, getActiveSlot())) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export function markUnitEndSeenStored(unitId) {
+  try {
+    localStorage.setItem(keyFor(`unitEndSeen.${unitId}`, getActiveSlot()), 'true');
+  } catch {
+    // 容量超過等は無視（演出がもう一度出るだけ）
   }
 }
 
