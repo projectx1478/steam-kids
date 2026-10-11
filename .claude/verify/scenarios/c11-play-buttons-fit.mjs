@@ -18,13 +18,20 @@ export default async function run({ page, check }) {
       page.evaluate(() =>
         [...document.querySelectorAll('[data-sk-screen="actions"] button')].map((b) => ({
           action: b.dataset.action,
-          overflow: b.scrollWidth - b.clientWidth,
+          // 文字の実際の描画範囲がボタンの外へ出た量（scrollWidthは字形の余白で数pxずれるため使わない）。
+          overflow: (() => {
+            const r = document.createRange();
+            r.selectNodeContents(b);
+            const t = r.getBoundingClientRect();
+            const bb = b.getBoundingClientRect();
+            return Math.max(bb.left - t.left, t.right - bb.right);
+          })(),
           w: b.getBoundingClientRect().width,
           h: b.getBoundingClientRect().height,
         }))
       );
     await check(`${w}x${h}: 4ボタンが並ぶ`, async () => (await buttons()).map((b) => b.action), ['remove-last', 'clear-all', 'step', 'run']);
-    await check(`${w}x${h}: 文字がボタンから溢れない（溢れpx）`, async () => (await buttons()).map((b) => `${b.action}:w${Math.round(b.w)}/o${Math.max(0, b.overflow)}`), []);
+    await check(`${w}x${h}: 文字がボタンから溢れない（溢れpx）`, async () => (await buttons()).map((b) => Math.max(0, Math.round(b.overflow))), [0, 0, 0, 0]);
     await check(`${w}x${h}: タップ領域が64px以上`, async () => (await buttons()).every((b) => b.w >= 63.5 && b.h >= 63.5));
     await check(`${w}x${h}: 操作行が画面幅に収まる`, async () =>
       page.evaluate(() => {
