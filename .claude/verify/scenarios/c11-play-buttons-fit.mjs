@@ -24,7 +24,7 @@ export default async function run({ page, check }) {
         }))
       );
     await check(`${w}x${h}: 4ボタンが並ぶ`, async () => (await buttons()).map((b) => b.action), ['remove-last', 'clear-all', 'step', 'run']);
-    await check(`${w}x${h}: 文字がボタンから溢れない（溢れpx）`, async () => (await buttons()).map((b) => Math.max(0, b.overflow)), [0, 0, 0, 0]);
+    await check(`${w}x${h}: 文字がボタンから溢れない（溢れpx）`, async () => (await buttons()).map((b) => `${b.action}:w${Math.round(b.w)}/o${Math.max(0, b.overflow)}`), []);
     await check(`${w}x${h}: タップ領域が64px以上`, async () => (await buttons()).every((b) => b.w >= 63.5 && b.h >= 63.5));
     await check(`${w}x${h}: 操作行が画面幅に収まる`, async () =>
       page.evaluate(() => {
