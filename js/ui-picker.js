@@ -249,7 +249,8 @@ async function createUnitIsland(unit, lessonStatus, ctx, onPick) {
 }
 
 // stage: 描画先のコンテナ要素。units: index.jsonのunits配列。onPick(lessonId): タップ時のコールバック。
-export async function renderUnitMap(stage, units, onPick) {
+// onBack: 省略時は従来の「タイトルへ」。指定時は「もどる」[data-action=map-back]（Issue #375）。
+export async function renderUnitMap(stage, units, onPick, onBack) {
   stage.innerHTML = '';
   stage.dataset.screen = 'picker';
 
@@ -299,6 +300,21 @@ export async function renderUnitMap(stage, units, onPick) {
     devLink.className = 'min-h-[48px] px-4 flex items-center rounded-lg bg-white shadow text-sm text-slate-500';
     devLink.textContent = 'ふつうの がめんへ';
     bottomContainer.appendChild(devLink);
+  } else if (onBack) {
+    const backBtn = document.createElement('button');
+    backBtn.type = 'button';
+    backBtn.dataset.action = 'map-back';
+    backBtn.className = 'min-h-[64px] px-8 py-3 rounded-lg bg-white text-slate-500 shadow text-base font-bold transition-transform duration-100 active:scale-95 disabled:opacity-40';
+    backBtn.textContent = 'もどる';
+    backBtn.addEventListener('click', () => {
+      if (backBtn.disabled) return;
+      backBtn.disabled = true;
+      stage.querySelectorAll('[data-lesson-id]').forEach((btn) => {
+        btn.disabled = true;
+      });
+      onBack();
+    });
+    bottomContainer.appendChild(backBtn);
   } else {
     // 通常時は「タイトルへ」ボタンを置く
     const titleBtn = document.createElement('button');
