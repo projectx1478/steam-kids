@@ -89,6 +89,8 @@ export function renderPlay(root, step) {
   // 実行結果もここへ数秒だけトースト表示する（Issue #97）。
   const screen = createOpScreen({ root, question: step.text ?? defaultText });
   const { frame: opScreen, questionEl: statusBar, boardArea, panel: controls, actions: actionsEl } = screen;
+  // 360px縦で4ボタンの文字を溢れさせないため、この行だけ間隔を詰める（Issue #385）。
+  actionsEl.classList.replace('gap-2', 'gap-1');
 
   let remainingEl = null;
   // renderAcornTray(): どんぐりの残数を「空き枠が埋まる絵」で示す（Issue #110）。
@@ -208,7 +210,7 @@ export function renderPlay(root, step) {
   runBtn.type = 'button';
   runBtn.dataset.action = 'run';
   runBtn.textContent = '▶ じっこう';
-  runBtn.className = 'btn-tactile px-3 bg-emerald-500 text-white text-base font-bold whitespace-nowrap break-keep disabled:opacity-40';
+  runBtn.className = 'btn-tactile px-2 bg-emerald-500 text-white text-base font-bold whitespace-nowrap break-keep disabled:opacity-40';
 
   // 実行が失敗したらrunBtn自体を橙色の「もういちど」に変える（目線を動かさずに押せる。Issue #91）。
   // 他のボタンをロックする間、押せるのはこれだけなのでパルス枠で目立たせる（Issue #106）。
