@@ -510,6 +510,19 @@ function findResumeIndex() {
   return index;
 }
 
+// 導入デモを「既習」として短くしてよいか（Issue #269）。units 未読込・単元不明は false。
+// commands 単元はいずれかのレッスンがクリア済みなら true。それ以外は gimmicks が1件以上あり、
+// そのすべてが解放済み（clearedGimmicks）なら true。gimmicks の無い単元は false。
+export function isIntroKnown(units, lessonId, isCleared) {
+  if (!Array.isArray(units)) return false;
+  const unit = units.find((u) => Array.isArray(u?.lessonIds) && u.lessonIds.includes(lessonId));
+  if (!unit) return false;
+  if (unit.unitId === 'commands') return unit.lessonIds.some((id) => isCleared(id));
+  if (!Array.isArray(unit.gimmicks) || unit.gimmicks.length === 0) return false;
+  const cleared = clearedGimmicks(units, isCleared);
+  return unit.gimmicks.every((g) => cleared.has(g));
+}
+
 function renderIntro(root, step) {
   const p = document.createElement('p');
   p.className = 'text-2xl text-center py-8';
@@ -517,7 +530,10 @@ function renderIntro(root, step) {
   root.appendChild(p);
   // ロボットが正解の道をたどってゴールへ到達する完成イメージ（本番とは別のstart/goal。
   // Issue #97）。demoが無い教材型は対象外。
-  if (step.demo) renderGoalDemo(root, step.demo);
+  // 既習のレッスン（isIntroKnown）は1回だけ再生して止める（Issue #269）。
+  if (step.demo) {
+    renderGoalDemo(root, step.demo, { once: isIntroKnown(S.units, S.lesson.lessonId, isLessonCleared) });
+  }
   // 途中再開（Issue #242）：保存があり、そのstepIdがレッスンにあり、未クリアのときだけ
   // 主ボタンを「つづきから」にし、「はじめから」（保存は触らない）を控えめに添える。
   const resumeIndex = findResumeIndex();
