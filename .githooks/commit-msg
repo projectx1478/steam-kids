@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# .githooks/commit-msg: コミットメッセージに「Co-Authored-By: Claude」（大文字小文字不問）があれば拒否する
+# 有効化: git config core.hooksPath .githooks（pre-commit・pre-pushと同じ）
+set -euo pipefail
+
+if grep -Eiq 'co-authored-by:[[:space:]]*claude' "$1"; then
+  echo "commit blocked: コミットメッセージに「Co-Authored-By: Claude」が含まれています。該当行を削除してください" >&2
+  exit 1
+fi
+
+exit 0
