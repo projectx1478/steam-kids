@@ -7,7 +7,8 @@ import { summarize, lessonAchievements } from './analytics.js';
 import { shortestSteps, shortestChips, boardSpec } from './engine-grid.js';
 import { stampSvg, flagSvg, medalSvg } from './ui-picker.js';
 import { play as playSfx } from './sfx.js';
-import { prefersReducedMotion, screenConfetti } from './ui-grid.js';
+import { prefersReducedMotion, screenConfetti, shapeSvg } from './ui-grid.js';
+import { isUnitEndSeenStored, markUnitEndSeenStored } from './storage.js';
 import { createPrimaryButton, goToStep } from './ui-step.js';
 import { codeStripHtml, randomCode } from './seed-code.js';
 import { withDev } from './dev-mode.js';
@@ -150,6 +151,33 @@ export function renderSummary(root) {
       flagMsg.textContent = `${S.unit.title} ぜんぶ クリア！`;
       flagWrap.appendChild(flagMsg);
       root.appendChild(flagWrap);
+
+      // 単元をはじめて全クリアした回だけ、寝姿のロボを出す（Issue #267）。見せたらその場で保存する。
+      const unitId = S.unit.unitId;
+      if (!isUnitEndSeenStored(unitId)) {
+        const sleepWrap = document.createElement('div');
+        sleepWrap.className = 'flex items-center justify-center gap-2 pointer-events-none';
+        sleepWrap.setAttribute('aria-hidden', 'true');
+        sleepWrap.dataset.unitSleep = '';
+        const robot = document.createElement('div');
+        robot.className = `h-16 w-16 ${prefersReducedMotion() ? '' : 'sleep-breath'}`;
+        robot.innerHTML = shapeSvg('player');
+        robot.querySelectorAll('[data-facing]').forEach((g) => {
+          g.style.display = g.dataset.facing === 'down' ? '' : 'none';
+        });
+        robot.querySelectorAll('[data-eyelid]').forEach((e) => {
+          e.style.transform = 'scaleY(1)';
+        });
+        const zz = document.createElement('span');
+        zz.className = 'text-sky-600 font-bold';
+        zz.textContent = 'z z';
+        const msg = document.createElement('span');
+        msg.className = 'text-slate-600 font-bold';
+        msg.textContent = 'おつかれさま';
+        sleepWrap.append(robot, zz, msg);
+        root.appendChild(sleepWrap);
+        markUnitEndSeenStored(unitId);
+      }
     }
 
   }

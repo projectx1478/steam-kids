@@ -321,6 +321,21 @@
     animation: flag-wave 1.2s ease-in-out infinite;
   }
 
+  /* 単元はじめて全クリアの寝姿ロボがゆっくり呼吸する演出（Issue #267）。 */
+  @keyframes sleep-breath {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.06);
+    }
+  }
+  .sleep-breath {
+    transform-origin: bottom center;
+    animation: sleep-breath 3s ease-in-out infinite;
+  }
+
   /* タイトル画面のロボットが上下にゆっくり浮く演出（Issue #107）。 */
   @keyframes float-slow {
     0%,
