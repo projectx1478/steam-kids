@@ -13,8 +13,6 @@ import { registerServiceWorker } from './js/register-sw.js';
 import { renderUnitMap } from './js/ui-picker.js';
 import { unitsOf, tracksOf } from './js/index-units.js';
 import { renderTrackSelect, playableTrackCount } from './js/ui-tracks.js';
-import { getEvents } from './js/events.js';
-import { summarize } from './js/analytics.js';
 import { renderTitle } from './js/ui-title.js';
 import { ensureDailyGate } from './js/ui-parental-gate.js';
 import { IS_DEV } from './js/dev-mode.js';
