@@ -632,11 +632,28 @@ export function validateLesson(fileName, data, longTrialIds = []) {
     const closeSwitches = Array.isArray(play.switches) && play.switches.length > 0 && play.switches.every((s) => s?.mode === 'close');
     // closeは罠：スイッチを無効化（踏んでも壁が出ない=スイッチ無し）した盤の最短より、実際の最短が長くなければ罠が無意味
     // （最短経路がスイッチを通らない、または出た壁が経路に効かない）。出現後の到達不能は上のゴール到達可能性で検出する。
+    const toggleSwitches = Array.isArray(play.switches) && play.switches.length > 0 && play.switches.every((s) => s?.mode === 'toggle');
     if (dist !== null && closeSwitches) {
       const disabled = boardSpec({ ...play, switches: [] });
       const disabledDist = play.groupRepeats ? shortestChips(disabled) : shortestSteps(disabled);
       if (!(dist > disabledDist)) {
         add('スイッチの罠の意味', `${label}スイッチ無効化盤の最短(${disabledDist})より最短(${dist})が長くない（出る壁が経路に効かない）`);
+      }
+    } else if (dist !== null && toggleSwitches) {
+      // toggle（Issue #388）。踏まない盤＝closedの壁だけを壁、openの壁を床に直した盤。
+      const closedOf = (s) => (Array.isArray(s.targets) ? s.targets : []).filter((t) => t?.initial !== 'open');
+      const noStep = boardSpec({ ...play, walls: [...(play.walls || []), ...play.switches.flatMap(closedOf)], switches: [] });
+      const noStepDist = play.groupRepeats ? shortestChips(noStep) : shortestSteps(noStep);
+      if (noStepDist <= play.maxCommands) {
+        add('スイッチの必須性', `${label}スイッチを踏まずにmaxCommands=${play.maxCommands}以内でゴールできる（最短${noStepDist}）`);
+      }
+      // トグルの意味：closedの壁をmode:"open"、openの壁を常時床にした盤の最短より、toggleの最短が厳密に長いこと（導入盤の免除なし）。
+      if (dist !== Infinity) {
+        const asOpen = boardSpec({ ...play, switches: play.switches.map((s) => ({ ...s, mode: 'open', targets: closedOf(s).map(({ x, y }) => ({ x, y })) })) });
+        const asOpenDist = play.groupRepeats ? shortestChips(asOpen) : shortestSteps(asOpen);
+        if (!(dist > asOpenDist)) {
+          add('トグルの意味', `${label}openに置き換えた盤の最短(${asOpenDist})より最短(${dist})が長くない（もう一度踏む・戻る手が要らず、toggleが飾り）`);
+        }
       }
     } else if (dist !== null && Array.isArray(play.switches) && play.switches.length > 0) {
       const targets = play.switches.flatMap((s) => (Array.isArray(s.targets) ? s.targets : []));
