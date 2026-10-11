@@ -27,7 +27,7 @@ export default async function run({ page, check }) {
   // 全クリア済みの時だけ★（robotだけ全クリア）
   const index = await loadIndex(page);
   const robot = index.tracks.find((t) => t.trackId === 'robot');
-  const ids = robot.units.flatMap((u) => u.lessonIds);
+  const ids = robot.units.flatMap((u) => [...u.lessonIds, ...(u.practiceIds ?? [])]);
   await page.evaluate((lessonIds) => {
     const p = JSON.parse(localStorage.getItem('steamkids.profile'));
     localStorage.setItem('steamkids.events', JSON.stringify(lessonIds.map((lessonId, i) => (

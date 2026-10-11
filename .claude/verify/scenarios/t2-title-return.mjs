@@ -20,14 +20,16 @@ export default async function run({ page, check }) {
   // --- 通常時: 「タイトルへ」ボタンが表示される ---
   await page.goto('/index.html?view=map');
   await check('選択画面が表示される', async () => page.getAttribute('#stage', 'data-screen'), 'picker');
-  await check('「タイトルへ」ボタンが表示される', async () => page.isVisible('button:has-text("タイトルへ")'));
-  const titleBtnBox = await page.locator('button:has-text("タイトルへ")').boundingBox();
-  await check('「タイトルへ」ボタンが64px以上', () => titleBtnBox.width >= 64 && titleBtnBox.height >= 64);
+  // 大項目が2つ以上の間は ?view=map の下ボタンは「もどる」（大項目選択へ。Issue #375）。大項目選択の「もどる」でタイトルへ戻る
+  await check('「もどる」ボタンが表示される', async () => page.isVisible('[data-action="map-back"]'));
+  const titleBtnBox = await page.locator('[data-action="map-back"]').boundingBox();
+  await check('「もどる」ボタンが64px以上', () => titleBtnBox.width >= 64 && titleBtnBox.height >= 64);
 
   // --- 「タイトルへ」を押すと title 画面へ遷移 ---
   const slotsBefore = await page.evaluate(() => JSON.parse(localStorage.getItem('steamkids.slots')));
-  await page.click('button:has-text("タイトルへ")');
-  await check('「タイトルへ」を押すと data-screen=title になる', async () => page.getAttribute('#stage', 'data-screen'), 'title');
+  await page.click('[data-action="map-back"]');
+  await page.click('[data-action="tracks-back"]');
+  await check('大項目選択の「もどる」を押すと data-screen=title になる', async () => page.getAttribute('#stage', 'data-screen'), 'title');
 
   // 設計3: スロット選択が初期化されている（保存値は変わらず）
   const slotsAfter = await page.evaluate(() => JSON.parse(localStorage.getItem('steamkids.slots')));
@@ -49,7 +51,8 @@ export default async function run({ page, check }) {
   // --- 「タイトルへ」経由でゲートが再要求されない ---
   // 「タイトルへ」を押して index.html へ遷移した直後、ゲート要素が非表示であることを確認（日付判定のため同日再読込では出ない）
   await page.goto('/index.html?view=map');
-  await page.click('button:has-text("タイトルへ")');
+  await page.click('[data-action="map-back"]');
+  await page.click('[data-action="tracks-back"]');
   await check('「タイトルへ」押下後、タイトル画面へ遷移する', async () => page.getAttribute('#stage', 'data-screen'), 'title');
   await check('タイトル画面でゲート要素が非表示', async () => !(await page.isVisible('#parental-gate')));
 
