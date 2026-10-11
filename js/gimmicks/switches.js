@@ -50,10 +50,16 @@ function wallMarks(colors) {
 }
 
 // on＝橙の立体ブロック（影＋側面＋上面。上面に対象スイッチの印）。off＝踏んだ後の埋まった床（フラット。印なし）。
-function wallSvg(on, colors = []) {
+// outline＝toggleの沈んだ壁に残す点線の輪郭（また立つ印。Issue #388）。
+function wallSvg(on, colors = [], outline = false) {
   if (!on) {
     return `<svg viewBox="0 0 64 64" class="grid-switch-wall-svg absolute inset-0 w-full h-full pointer-events-none" aria-hidden="true">
-      <rect x="6" y="6" width="52" height="52" rx="8" fill="#d6c4a5" stroke="#b8a37f" stroke-width="2" />
+      <rect x="6" y="6" width="52" height="52" rx="8" fill="#d6c4a5" stroke="#b8a37f" stroke-width="2" />${
+        outline
+          ? `
+      <rect class="grid-switch-wall-outline" x="9" y="9" width="46" height="46" rx="6" fill="none" stroke="#7c6338" stroke-opacity="0.6" stroke-width="2.6" stroke-dasharray="5 4.5" stroke-linecap="round" />`
+          : ''
+      }
     </svg>`;
   }
   return `<svg viewBox="0 0 64 64" class="grid-switch-wall-svg absolute inset-0 w-full h-full pointer-events-none" aria-hidden="true">
@@ -86,10 +92,10 @@ function animateWall(svg, toSunk, easing) {
 }
 
 // 壁を縮小＋暗くして沈ませ（上面が下がり影が消える）、埋まった床の表示へ差し替える。reduced-motion時は即時に差し替える。
-function sinkWall(cell) {
+function sinkWall(cell, outline = false) {
   const svg = cell.querySelector('.grid-switch-wall-svg');
   if (!svg) return;
-  const flat = () => svg.replaceWith(fromHtml(wallSvg(false)));
+  const flat = () => svg.replaceWith(fromHtml(wallSvg(false, [], outline)));
   if (prefersReduced()) return flat();
   animateWall(svg, true, 'ease-in').finished.then(flat, flat);
 }
@@ -153,16 +159,35 @@ export const switches = {
     const i = list(spec.switches).findIndex((s) => s.x === pos.x && s.y === pos.y);
     run.pressed ??= new Set();
     if (i >= 0 && spec.switches[i].mode === 'toggle') {
-      // toggleは入るたびに入れ替える（Issue #388）。段1はdata属性の更新のみ（レバー・壁のSVGとアニメは段3）。
+      // toggleは入るたびに入れ替える（Issue #388）。奇数回で右・偶数回で左にレバーが倒れ、壁は浮き沈みする。
       if (run.pressed.has(i)) run.pressed.delete(i);
       else run.pressed.add(i);
       const els = view.gimmickEls?.switches;
       const sw = spec.switches[i];
       const swCell = els?.switchCells.get(keyOf(sw));
-      if (swCell) swCell.dataset.switchPressed = String(run.pressed.has(i));
+      if (swCell) {
+        swCell.dataset.switchPressed = String(run.pressed.has(i));
+        swCell.querySelector('.grid-switch-svg')?.replaceWith(fromHtml(switchSvg(run.pressed.has(i), switchColor(sw, i))));
+      }
       list(sw.targets).forEach((t) => {
         const cell = els?.wallCells.get(keyOf(t));
-        if (cell) cell.dataset.switchWall = run.pressed.has(i) === (t.initial === 'open') ? 'on' : 'off';
+        if (!cell) return;
+        // 前のアニメが残っていれば最終状態に揃えてから次を始める（連続タップ・滑走で重ならない）。
+        cell.getAnimations?.({ subtree: true }).forEach((a) => a.finish());
+        const on = run.pressed.has(i) === (t.initial === 'open');
+        cell.dataset.switchWall = on ? 'on' : 'off';
+        if (on) {
+          const colors = wallColors(spec.switches, t);
+          if (colors.length > 0) {
+            cell.dataset.color = colors[0];
+            cell.dataset.mark = markName(colors[0]);
+          }
+          raiseWall(cell, colors);
+        } else {
+          delete cell.dataset.color;
+          delete cell.dataset.mark;
+          sinkWall(cell, true);
+        }
       });
       return 'wallSink';
     }
@@ -293,14 +318,15 @@ export const switches = {
       list(s.targets).forEach((t) => {
         const wall = cellAt(t);
         if (!wall || wallCells.has(keyOf(t))) return;
-        const closing = s.mode === 'close';
+        const toggle = s.mode === 'toggle';
+        const closing = s.mode === 'close' || (toggle && t.initial === 'open');
         wall.dataset.switchWall = closing ? 'off' : 'on';
         const colors = wallColors(swList, t);
         if (!closing && colors.length > 0) {
           wall.dataset.color = colors[0];
           wall.dataset.mark = markName(colors[0]);
         }
-        wall.insertAdjacentHTML('afterbegin', wallSvg(!closing, colors));
+        wall.insertAdjacentHTML('afterbegin', wallSvg(!closing, colors, toggle));
         wallCells.set(keyOf(t), wall);
       });
     });

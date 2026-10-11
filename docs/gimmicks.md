@@ -67,7 +67,7 @@
 
 ## switches（スイッチ）
 
-- JSONフィールド：`switches`（任意・`[{x, y, targets: [{x, y}], mode?}]`・既定`[]`）。`targets`は最初は壁で、スイッチを踏むと通れる（へこんで床に埋まる）。静的`walls`とは別フィールド。`mode`は省略時`"open"`（`"open"`か`"close"`以外は検証NG）。`"close"`は逆に、踏むと`targets`に壁が出る（初期は床）。`play`・`tutorial`・`intro.demo`で使える
+- JSONフィールド：`switches`（任意・`[{x, y, targets: [{x, y}], mode?}]`・既定`[]`）。`targets`は最初は壁で、スイッチを踏むと通れる（へこんで床に埋まる）。静的`walls`とは別フィールド。`mode`は省略時`"open"`（`"open"`・`"close"`・`"toggle"`のいずれか。それ以外は検証NG）。`targets`の要素は`{x, y, initial?}`（`initial`は`toggle`のみ有効）。`"close"`は逆に、踏むと`targets`に壁が出る（初期は床）。`play`・`tutorial`・`intro.demo`で使える
 - 移動規則：スイッチのマスへ入ると、その`targets`が通れる（1回で固定・戻らない）。踏む前の対象は`blocks`で壁と同じ失敗（歩き・こおりの滑走とも`blockedAt`）。BFSは踏んだスイッチ番号を状態に含む
 - AND：同じ座標を複数のスイッチが`targets`に持つと、全部踏むまで開かない（ORは非対応）
 - `switches[].color`：`"red"`｜`"blue"`。省略可。省略時はその盤面の`switches`の添字順に red, blue, red, blue…
@@ -75,6 +75,12 @@
 - スイッチ壁は立体の壁で、ON（立っている）と OFF（沈んで床と同じ高さ）を浮き沈みで表す。浮き沈みにはアニメーションを付け、`prefers-reduced-motion`では即時に切り替える
 - エディタ設定項目：位置・対象の壁・（任意）色。色を省略すると添字順に割り当てられる。保存時に`color`を明示してよい
 - close（壁が出る）：踏んだ後の`targets`が`blocks`で壁と同じ失敗。単独で使い、openとの併用・対象の共有（AND）は検証NG。対象が氷上は既存規則どおりNG。スイッチを無効化（スイッチ無し）した盤の最短より実際の最短が長くなければ検証NG（スイッチの罠の意味）。出現後にゴールへ届かないのはゴール到達可能性で検出。描画は初期が`data-switch-wall="off"`（床）、踏むと`"on"`（壁が立ち上がる。reduced-motion時は即時）
+- toggle（踏むたびに入れ替わる）：スイッチのマスへ入るたびに、`targets`すべての開閉が入れ替わる（奇数回で入れ替わった状態、偶数回で初期状態。留まっても数えない）。`initial`は`"closed"`（壁が立っている。省略時）｜`"open"`（最初から通れる）で、壁ごとに混在できる。1つの toggle が複数の壁を動かしてよい。`initial`が`toggle`以外の`targets`にある、または上記2語以外はNG。踏まれた回数の奇偶は`stateKey`（BFS）の状態に含む
+- toggle の併用禁止（検証NG）：toggle と open／close が同じ盤にある、toggle の`targets`が他のスイッチの`targets`と重なる（同じ壁を複数の toggle で共有しない）、対象が周期ドア・鍵の扉・水・クッション・氷と重なる、スイッチが氷・クッションの上にある。AND・周期ドア・鍵の扉とも併用しない
+- toggle の必須性と意味：スイッチを踏まない盤（closed の壁だけ壁、open の壁は床）で`maxCommands`以内に届くと検証NG（必須性。全部`open`の toggle はここで落ちる）。さらに、closed の壁を`mode:"open"`、open の壁を常時床に置き換えた盤の最短より、toggle の最短が厳密に長くなければ検証NG（トグルの意味。1回踏んで通るだけの盤は不可で、奥へ行って戻る＝もう1回踏む構造にする）
+- toggle の描画：レバーは奇数回で右・偶数回で左に倒れる（踏んだ回数の数字は出さない）。対象は`data-switch-wall="on"`（立っている）／`"off"`（沈んでいる）が踏むたびに入れ替わり、約0.5秒の浮き沈み。連続で踏んだときは前のアニメを最終状態に揃えてから次を始める。沈んだ壁には床の上に点線の輪郭（色 #7c6338・不透明度0.6・線幅約2.4px・破線）を残し、「また立つ」ことを示す。reduced-motion時は即時
+- toggle の生成：stageGen は toggle を生成しない（手書きの盤のみ。新しいレッスンは devOnly から）
+- エディタ設定項目（toggle。E6 向け）：スイッチの位置・対象の壁（複数可）・各壁の初期状態（`closed`／`open`。既定`closed`）・（任意）色。モードで`toggle`を選ぶと、他のスイッチ・mode との併用、氷・クッションの上への配置は選べない。保存時に`initial`を明示してよい
 - 描画：スイッチ・対象のセルにSVGを重ね`data-switch`（番号）/`data-switch-pressed`、対象は`data-switch-wall="on"`（踏むと`"off"`。約0.5秒で縮小＋暗くなって沈み、フラットな床表示になる。reduced-motion時は即時）。踏むと`pickup`音
 - 数値条件：盤面は6×6以内。`targets`は空不可。スイッチ・対象は壁・start・goal・items・cushion・keys・doors・互いと重なり不可（対象同士の共有のみ可）。iceはスイッチのみ重なり可（氷上スイッチは滑走中の通過で作動。対象は氷上不可）。対象を壁のまま（スイッチ無し）にして`maxCommands`以内に届くと検証NG（スイッチの必須性）
 
