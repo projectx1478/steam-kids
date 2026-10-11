@@ -1,11 +1,8 @@
-// isIntroKnown（js/ui-step.js）の単体テスト（Issue #269）。
+// isIntroKnown（js/gimmick-unlock.js）の単体テスト（Issue #269）。
 // リポジトリ直下で実行すること（npm run test:unit）。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-
-// js/dev-mode.js が import 時に location を参照するためスタブを先に定義する
-globalThis.location = { search: '' };
-const { isIntroKnown } = await import('../js/ui-step.js');
+import { isIntroKnown } from '../js/gimmick-unlock.js';
 
 const units = [
   { unitId: 'commands', lessonIds: ['c1', 'c2'] },

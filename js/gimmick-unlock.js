@@ -12,3 +12,16 @@ export function clearedGimmicks(units, isCleared) {
   }
   return out;
 }
+
+// 導入デモを「既習」として短くしてよいか（Issue #269）。units 未読込・単元不明は false。
+// commands 単元はいずれかのレッスンがクリア済みなら true。それ以外は gimmicks が1件以上あり、
+// そのすべてが解放済み（clearedGimmicks）なら true。gimmicks の無い単元は false。
+export function isIntroKnown(units, lessonId, isCleared) {
+  if (!Array.isArray(units)) return false;
+  const unit = units.find((u) => Array.isArray(u?.lessonIds) && u.lessonIds.includes(lessonId));
+  if (!unit) return false;
+  if (unit.unitId === 'commands') return unit.lessonIds.some((id) => isCleared(id));
+  if (!Array.isArray(unit.gimmicks) || unit.gimmicks.length === 0) return false;
+  const cleared = clearedGimmicks(units, isCleared);
+  return unit.gimmicks.every((g) => cleared.has(g));
+}
