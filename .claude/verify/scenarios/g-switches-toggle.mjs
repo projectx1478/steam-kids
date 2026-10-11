@@ -89,6 +89,8 @@ export default async function run({ page, check }) {
   await check('3回踏む(奇数)：壁が沈んでゴールできる(off・レバー右)', async () => [await wallState(page), await leverX(page)].join('/'), 'off/45');
 
   // ⑤ 連続で踏む（滑走・連続タップ相当）：前のアニメを最終状態に揃えてから次を始める＝アニメが重ならない
+  // 既定はreduced-motion（config.mjs）。アニメを数えるため動きを許可する。
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
   await enterPlay(page, lesson.lessonId);
   await stepN(page, 1);
   await check('連続1回目：沈むアニメ中（動作中3本・壁のSVGは1つ）', async () => JSON.stringify(await wallInfo(page)), JSON.stringify({ svgs: 1, top: 1, running: 3, all: 3 }));
