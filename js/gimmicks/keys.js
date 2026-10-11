@@ -1,6 +1,6 @@
 // keys（かぎとドア）ギミック：かぎのマスへ入るとその色を持ち、同じ色のドアが開いて通れる。
 // 未所持の色のドアは壁と同じ通行不可（当たると失敗）。かぎは消費しない（Issue #62）。
-// 色は色覚に配慮して形でも区別する（red=まる、blue=さんかく。かぎ・ドア両方）。
+// 色は色覚に配慮して形でも区別する（red=まる、blue=さんかく。かぎ。ドアは色のみ。Issue #387）。
 export const KEY_COLORS = ['red', 'blue'];
 
 // main=本体色、dark=影・縁、light=ハイライト。
@@ -12,7 +12,7 @@ const keyOf = (p) => `${p.x},${p.y}`;
 const ids = (list) => (Array.isArray(list) ? list : []);
 
 // 形の印（かぎの持ち手の中・ドアの飾り板の中）。中心(cx,cy)・大きさrで描く。
-function mark(color, cx, cy, r, fill) {
+export function mark(color, cx, cy, r, fill) {
   return color === 'red'
     ? `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${fill}" />`
     : `<path d="M${cx} ${cy - r} L${cx + r} ${cy + r * 0.8} L${cx - r} ${cy + r * 0.8} Z" fill="${fill}" stroke="${fill}" stroke-width="1.5" stroke-linejoin="round" />`;
@@ -36,7 +36,7 @@ function keySvg(color) {
     </svg>`;
 }
 
-// 四角い板張りの扉。しまっている時は色付きの扉＋中央の飾り板に大きな形の印、あいた時は扉が脇に
+// 四角い板張りの扉。しまっている時は色付きの扉、あいた時は扉が脇に
 // 開いて床が見える（Issue #146）。開閉はdata-door-open（keys.jsのonStep）で切り替える。
 function doorSvg(color, open) {
   const c = COLOR_HEX[color];
@@ -54,10 +54,6 @@ function doorSvg(color, open) {
       <rect x="14" y="33" width="16" height="18" rx="2" fill="none" stroke="${c.dark}" stroke-width="2" />
       <rect x="34" y="33" width="16" height="18" rx="2" fill="none" stroke="${c.dark}" stroke-width="2" />
       <rect x="11" y="8" width="42" height="3" fill="${c.light}" opacity="0.7" />
-      <g>
-        <circle cx="32" cy="31" r="10" fill="#fef3c7" stroke="#a16207" stroke-width="1.5" />
-        ${mark(color, 32, 31, 6, c.main)}
-      </g>
       <circle cx="49" cy="33" r="3" fill="#fbbf24" stroke="#a16207" stroke-width="1" />`;
   return `<svg viewBox="0 0 64 64" class="grid-door-svg absolute inset-0 w-full h-full pointer-events-none" aria-hidden="true">
       ${ledge}${frame}${inner}
@@ -179,6 +175,8 @@ export const keys = {
       const cell = board.querySelector(`.grid-cell[data-x="${k.x}"][data-y="${k.y}"]`);
       if (!cell) return;
       cell.dataset.key = k.color;
+      cell.dataset.color = k.color;
+      cell.dataset.mark = k.color === 'red' ? 'circle' : 'triangle';
       cell.insertAdjacentHTML('afterbegin', keySvg(k.color));
       keyEls.set(keyOf(k), cell.querySelector('.grid-key-svg'));
     });
@@ -186,6 +184,7 @@ export const keys = {
       const cell = board.querySelector(`.grid-cell[data-x="${d.x}"][data-y="${d.y}"]`);
       if (!cell) return;
       cell.dataset.door = d.color;
+      cell.dataset.color = d.color;
       cell.dataset.doorOpen = 'false';
       cell.insertAdjacentHTML('afterbegin', doorSvg(d.color, false));
       doorCells.set(keyOf(d), cell);
