@@ -89,6 +89,8 @@ export function renderPlay(root, step) {
   // 実行結果もここへ数秒だけトースト表示する（Issue #97）。
   const screen = createOpScreen({ root, question: step.text ?? defaultText });
   const { frame: opScreen, questionEl: statusBar, boardArea, panel: controls, actions: actionsEl } = screen;
+  // 360px縦で4ボタンの文字を溢れさせないため、この行だけ間隔を詰める（Issue #385）。
+  actionsEl.classList.replace('gap-2', 'gap-1');
 
   let remainingEl = null;
   // renderAcornTray(): どんぐりの残数を「空き枠が埋まる絵」で示す（Issue #110）。
@@ -194,7 +196,7 @@ export function renderPlay(root, step) {
   clearBtn.dataset.action = 'clear-all';
   clearBtn.textContent = 'ぜんぶ';
   clearBtn.className =
-    'min-w-[64px] min-h-[64px] px-3 rounded-lg bg-slate-200 text-sm whitespace-nowrap break-keep transition-transform duration-100 active:scale-95 disabled:opacity-40';
+    'min-w-[64px] min-h-[64px] px-2 rounded-lg bg-slate-200 text-sm whitespace-nowrap break-keep transition-transform duration-100 active:scale-95 disabled:opacity-40';
 
   // stepBtn: 1コマずつ実行（タップごとにstepper.advance()を1回呼ぶ。Issue #111）。
   const stepBtn = document.createElement('button');
@@ -202,13 +204,13 @@ export function renderPlay(root, step) {
   stepBtn.dataset.action = 'step';
   stepBtn.textContent = '👣 1コマ';
   stepBtn.className =
-    'btn-tactile px-3 bg-sky-500 text-white text-sm font-bold whitespace-nowrap break-keep disabled:opacity-40';
+    'btn-tactile px-1.5 bg-sky-500 text-white text-sm font-bold whitespace-nowrap break-keep disabled:opacity-40';
 
   const runBtn = document.createElement('button');
   runBtn.type = 'button';
   runBtn.dataset.action = 'run';
   runBtn.textContent = '▶ じっこう';
-  runBtn.className = 'btn-tactile px-4 bg-emerald-500 text-white text-lg font-bold whitespace-nowrap break-keep disabled:opacity-40';
+  runBtn.className = 'btn-tactile px-1.5 bg-emerald-500 text-white text-base font-bold whitespace-nowrap break-keep disabled:opacity-40';
 
   // 実行が失敗したらrunBtn自体を橙色の「もういちど」に変える（目線を動かさずに押せる。Issue #91）。
   // 他のボタンをロックする間、押せるのはこれだけなのでパルス枠で目立たせる（Issue #106）。
