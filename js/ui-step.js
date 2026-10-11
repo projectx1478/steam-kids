@@ -18,7 +18,7 @@ import { renderSeedPick } from './ui-seedpick.js';
 import { generateMap } from './engine-generate.js';
 import { codeToSeed } from './seed-code.js';
 import { isLessonCleared } from './ui-picker.js';
-import { clearedGimmicks } from './gimmick-unlock.js';
+import { clearedGimmicks, isIntroKnown } from './gimmick-unlock.js';
 import { withDev } from './dev-mode.js';
 import { readResume, writeResume, clearResume } from './storage.js';
 
@@ -517,7 +517,10 @@ function renderIntro(root, step) {
   root.appendChild(p);
   // ロボットが正解の道をたどってゴールへ到達する完成イメージ（本番とは別のstart/goal。
   // Issue #97）。demoが無い教材型は対象外。
-  if (step.demo) renderGoalDemo(root, step.demo);
+  // 既習のレッスン（isIntroKnown）は1回だけ再生して止める（Issue #269）。
+  if (step.demo) {
+    renderGoalDemo(root, step.demo, { once: isIntroKnown(S.units, S.lesson.lessonId, isLessonCleared) });
+  }
   // 途中再開（Issue #242）：保存があり、そのstepIdがレッスンにあり、未クリアのときだけ
   // 主ボタンを「つづきから」にし、「はじめから」（保存は触らない）を控えめに添える。
   const resumeIndex = findResumeIndex();

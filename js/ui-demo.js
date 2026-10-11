@@ -31,7 +31,8 @@ function toChip(entry) {
 
 // renderGoalDemo(container, demo) -> 追加したdemo-widget要素。
 // demo: { grid, start, goal, walls, items?, commands, showCommands?, fixFrom? }（lessons/*.jsonのintro.demo）。
-export function renderGoalDemo(container, demo) {
+// opts.once=true なら初回の1回だけ再生して止まる（既習レッスンの短い導入。Issue #269）。
+export function renderGoalDemo(container, demo, opts = {}) {
   const spec = boardSpec(demo);
   const wrap = document.createElement('div');
   wrap.className = 'demo-widget flex flex-col items-center gap-2 my-2';
@@ -120,7 +121,7 @@ export function renderGoalDemo(container, demo) {
   // 予約する（初回含めLOOP_MAX回で止まる。Issue #241）。
   function finish(loop) {
     view.confetti?.();
-    if (!loop || prefersReducedMotion() || playCount >= LOOP_MAX) return;
+    if (!loop || prefersReducedMotion() || playCount >= (opts.once ? 1 : LOOP_MAX)) return;
     loopTimer = setTimeout(() => {
       loopTimer = null;
       playCount += 1;
