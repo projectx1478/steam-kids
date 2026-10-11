@@ -20,7 +20,7 @@ const BOARDS = {
   'pass-toggle-mixed': {
     ...six,
     items: [{ x: 0, y: 1 }],
-    switches: [{ x: 3, y: 0, mode: 'toggle', targets: [{ x: 4, y: 1 }, { x: 1, y: 1, initial: 'open' }] }],
+    switches: [{ x: 3, y: 0, mode: 'toggle', targets: [{ x: 4, y: 1, initial: 'open' }, { x: 1, y: 1 }] }],
   },
   'fail-toggle-meaningless': { ...five, switches: [{ x: 1, y: 1, mode: 'toggle', targets: [{ x: 3, y: 1 }] }] },
   'fail-toggle-mixed': {
@@ -38,7 +38,7 @@ const BOARDS = {
   },
   'fail-toggle-mixed-meaningless': {
     ...six,
-    switches: [{ x: 3, y: 0, mode: 'toggle', targets: [{ x: 4, y: 1 }, { x: 1, y: 1, initial: 'open' }] }],
+    switches: [{ x: 3, y: 0, mode: 'toggle', targets: [{ x: 4, y: 1, initial: 'open' }, { x: 1, y: 1 }] }],
   },
 };
 
@@ -65,7 +65,7 @@ test('validate-lessons: 合格盤: toggleが意味を持つ（最短8手 > open�
   assert.equal(cleanP1(r), true, r.out);
 });
 
-test('validate-lessons: 合格盤: initial:open の混在（最短10手 > open置換8手）', () => {
+test('validate-lessons: 合格盤: initial:open の混在・奥で踏んで戻る（最短12手 > open置換10手）', () => {
   const r = validate(BOARDS['pass-toggle-mixed']);
   assert.equal(cleanP1(r), true, r.out);
 });
@@ -86,7 +86,7 @@ test('validate-lessons: NG検出: 全部open（踏まずに届く）', () => {
   assert.equal(ng(r, 'スイッチの必須性'), true, r.out);
 });
 
-test('validate-lessons: NG検出: 踏まずに出口へ行ける混在盤（アイテムなし）', () => {
+test('validate-lessons: NG検出: 踏まずに出口へ行ける混在盤（アイテムなし）はトグルの意味で落ちる', () => {
   const r = validate(BOARDS['fail-toggle-mixed-meaningless']);
-  assert.equal(ng(r, 'スイッチの必須性'), true, r.out);
+  assert.equal(ng(r, 'トグルの意味'), true, r.out);
 });
