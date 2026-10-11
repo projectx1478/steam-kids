@@ -6,7 +6,8 @@ const FADE_MS = 300;
 
 // renderTitle(stage, { canContinue, onNew, onContinue }): 「はじめから」「つづきから」押下で（reduced-motion時を除き）
 // 300msフェードアウトしてから対応するコールバックを呼ぶ。つづきからはデータのあるスロットが無ければdisabled（Issue #218）。
-export function renderTitle(stage, { canContinue, onNew, onContinue }) {
+// hintが真のときだけ、ロボットの横に「あたらしい ステージが あいたよ」の吹き出しを足す（Issue #282）。
+export function renderTitle(stage, { canContinue, onNew, onContinue, hint = false }) {
   stage.innerHTML = '';
   stage.dataset.screen = 'title';
 
@@ -22,7 +23,21 @@ export function renderTitle(stage, { canContinue, onNew, onContinue }) {
   const robot = document.createElement('div');
   robot.className = `w-32 h-32 ${prefersReducedMotion() ? '' : 'float-slow'}`;
   robot.innerHTML = shapeSvg('player');
-  wrap.appendChild(robot);
+  if (hint) {
+    // 押せない飾りの吹き出し（Issue #282）。ロボットの右に絶対配置し、高さを増やさない。
+    const robotWrap = document.createElement('div');
+    robotWrap.className = 'title-robotwrap';
+    robotWrap.appendChild(robot);
+    const bubble = document.createElement('div');
+    bubble.className = 'title-bubble';
+    bubble.dataset.role = 'bubble';
+    bubble.setAttribute('aria-hidden', 'true');
+    bubble.textContent = 'あたらしい ステージが あいたよ';
+    robotWrap.appendChild(bubble);
+    wrap.appendChild(robotWrap);
+  } else {
+    wrap.appendChild(robot);
+  }
 
   const buttons = [];
   const addButton = (action, label, className, onClick) => {

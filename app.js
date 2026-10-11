@@ -1,5 +1,8 @@
 import { S, initState, applySlot, ensureActiveSlot } from './js/state.js';
-import { loadSlots, createSlot } from './js/storage.js';
+import { loadSlots, createSlot, getActiveSlot, readLastHint, writeLastHint } from './js/storage.js';
+import { getEvents } from './js/events.js';
+import { summarize } from './js/analytics.js';
+import { lessonOrder, newHintLesson } from './js/unlock.js';
 import { displayName } from './js/slot-utils.js';
 import { renderSlotSelect, renderNameEntry } from './js/ui-slots.js';
 import { renderStory } from './js/ui-story.js';
@@ -10,8 +13,6 @@ import { registerServiceWorker } from './js/register-sw.js';
 import { renderUnitMap } from './js/ui-picker.js';
 import { unitsOf, tracksOf } from './js/index-units.js';
 import { renderTrackSelect, playableTrackCount } from './js/ui-tracks.js';
-import { getEvents } from './js/events.js';
-import { summarize } from './js/analytics.js';
 import { renderTitle } from './js/ui-title.js';
 import { ensureDailyGate } from './js/ui-parental-gate.js';
 import { IS_DEV } from './js/dev-mode.js';
@@ -139,12 +140,39 @@ async function showSlotSelect(mode) {
   });
 }
 
-function showTitle() {
+// 「おわる」の後の翌日の手がかり（Issue #282）。有効スロットに使用中のデータがあり、次に遊べる
+// レッスンが前回見せたものと違うときだけ、そのレッスンIDを返す。ensureActiveSlot()は呼ばない
+// （空きスロットが作られてcanContinueが真になるため）。失敗しても例外は投げずnullを返す。
+async function findTitleHint(occupied) {
+  try {
+    if (!occupied[getActiveSlot()]) return null;
+    const units = await loadUnits();
+    if (!units) return null;
+    const { lessons: lessonStatus } = summarize(getEvents(), Date.now());
+    const order = lessonOrder(units);
+    const clearedIds = new Set(order.filter((id) => lessonStatus[id]?.status === 'cleared'));
+    return newHintLesson(order, clearedIds, readLastHint());
+  } catch {
+    return null;
+  }
+}
+
+async function showTitle() {
+  const { occupied } = loadSlots();
+  const hintId = await findTitleHint(occupied);
   renderTitle(document.getElementById('stage'), {
-    canContinue: loadSlots().occupied.some(Boolean),
+    canContinue: occupied.some(Boolean),
     onNew: () => showSlotSelect('new'),
     onContinue: () => showSlotSelect('continue'),
+    hint: hintId !== null,
   });
+  if (hintId !== null) {
+    try {
+      writeLastHint(hintId);
+    } catch {
+      // 保存に失敗してもタイトルは出す。
+    }
+  }
 }
 
 // ?lesson=直リンクを含む全起動経路で、その日初回のみ保護者の合言葉を求める（Issue #217）。
@@ -163,7 +191,7 @@ if (lessonId) {
   await showTrackSelect();
 } else {
   // ?lesson=・?view=mapのどちらも無い起動時のみタイトル画面を挟む（Issue #107）。
-  showTitle();
+  await showTitle();
 }
 
 registerServiceWorker();
