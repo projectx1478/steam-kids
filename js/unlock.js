@@ -18,3 +18,10 @@ export function isPracticeUnlocked(unit, clearedIds) {
 export function firstPendingId(order, clearedIds) {
   return order.find((id) => !clearedIds.has(id)) ?? null;
 }
+
+// 「おわる」後のタイトルで手がかりを出すレッスン（Issue #282）。出さないときは null。
+export function newHintLesson(order, clearedIds, lastShownId) {
+  if (clearedIds.size === 0) return null;
+  const next = firstPendingId(order, clearedIds);
+  return next === null || next === lastShownId ? null : next;
+}

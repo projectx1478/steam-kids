@@ -133,6 +133,7 @@ export function createSlot(slot, label = null) {
 export function resetSlot(slot) {
   removeKey(keyFor('events', slot));
   removeKey(keyFor('sync', slot));
+  removeKey(keyFor('lastHint', slot));
   try {
     const prefix = keyFor('tutorialDone.', slot);
     Object.keys(localStorage)
@@ -171,6 +172,16 @@ export function writeResume(lessonId, stepId, ts = Date.now()) {
 
 export function clearResume(lessonId) {
   removeKey(keyFor(`resume.${lessonId}`, getActiveSlot()));
+}
+
+// 最後に手がかりを見せたレッスン（Issue #282）。値は lessonId の文字列1項目。壊れた値・型違いは null。
+export function readLastHint() {
+  const v = readJSON(keyFor('lastHint', getActiveSlot()), null);
+  return typeof v === 'string' && v !== '' ? v : null;
+}
+
+export function writeLastHint(lessonId) {
+  writeJSON(keyFor('lastHint', getActiveSlot()), lessonId);
 }
 
 export function isTutorialDoneStored(lessonId) {

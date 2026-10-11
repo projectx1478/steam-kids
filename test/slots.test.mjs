@@ -143,6 +143,33 @@ test('resetSlot: resume も消え、他スロットの resume は残る', () => 
   assert.equal(storage.readResume('L1').ts, 3);
 });
 
+test('lastHint: write→read、スロット分離、壊れた値・型違いは null', () => {
+  assert.equal(storage.readLastHint(), null);
+  storage.writeLastHint('L1');
+  assert.equal(storage.readLastHint(), 'L1');
+  storage.setActiveSlot(1);
+  assert.equal(storage.readLastHint(), null);
+  storage.setActiveSlot(0);
+  for (const raw of ['{broken', 'null', '1', '[]', '{}', '""']) {
+    store.set('steamkids.lastHint', raw);
+    assert.equal(storage.readLastHint(), null, raw);
+  }
+});
+
+test('resetSlot: lastHint も消え、他スロットの lastHint は残る', () => {
+  storage.createSlot(0, 'A');
+  storage.createSlot(1, 'B');
+  storage.setActiveSlot(0);
+  storage.writeLastHint('L1');
+  storage.setActiveSlot(1);
+  storage.writeLastHint('L2');
+  storage.resetSlot(0);
+  storage.setActiveSlot(0);
+  assert.equal(storage.readLastHint(), null);
+  storage.setActiveSlot(1);
+  assert.equal(storage.readLastHint(), 'L2');
+});
+
 test('resetSlot: 対象スロットのみ初期化し、他スロットに触れない', () => {
   storage.createSlot(0, 'A');
   const b = storage.createSlot(1, 'B');

@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { lessonOrder, isUnlocked, isPracticeUnlocked, firstPendingId } from '../js/unlock.js';
+import { lessonOrder, isUnlocked, isPracticeUnlocked, firstPendingId, newHintLesson } from '../js/unlock.js';
 
 const units = [
   { unitId: 'a', lessonIds: ['a1', 'a2'], practiceIds: ['ap'] },
@@ -22,6 +22,18 @@ test('isUnlocked: 先頭は解放済み、他は前のクリア後', () => {
   assert.equal(isUnlocked(order, new Set(), 'a2'), false);
   assert.equal(isUnlocked(order, new Set(['a1']), 'a2'), true);
   assert.equal(isUnlocked(order, new Set(['a1']), 'b1'), false);
+});
+
+test('newHintLesson: 0本クリアはnull、1本クリアは次の1本', () => {
+  assert.equal(newHintLesson(order, new Set(), null), null);
+  assert.equal(newHintLesson(order, new Set(['a1']), null), 'a2');
+});
+
+test('newHintLesson: 前回見せたものと同じ・全クリア・orderが空はnull', () => {
+  assert.equal(newHintLesson(order, new Set(['a1']), 'a2'), null);
+  assert.equal(newHintLesson(order, new Set(['a1']), 'zz'), 'a2');
+  assert.equal(newHintLesson(order, new Set(['a1', 'a2', 'b1']), null), null);
+  assert.equal(newHintLesson([], new Set(['a1']), null), null);
 });
 
 test('isUnlocked: 単元をまたいで解放される', () => {
