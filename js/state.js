@@ -12,6 +12,9 @@ export const S = {
   // 単元情報（{title, lessonIds}）。app.jsのstartLessonがlessons/index.jsonから設定する。
   // 取得失敗時はnullのまま（ヘッダーはレッスン名のみ表示。Issue #91）。
   unit: null,
+  // 単元の配列（lessons/index.jsonのunitsOf）。app.jsのstartLessonが設定する。未読込・失敗時はnull
+  // （練習のギミック解放はnullなら空＝壁のみ。Issue #266）。
+  units: null,
   // introの「そうさほうほう」から明示的にtutorialへ入る時だけtrue（tutorialの自動スキップを1回だけ回避。Issue #93・#236）。
   forceTutorial: false,
   // playの操作画面の下書き（stepId→commands）。確認ダイアログを全廃した代わりの誤タップ対策で、

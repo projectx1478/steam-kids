@@ -44,6 +44,10 @@ async function startLesson(lessonId) {
       S.unit = unit;
       refreshHeader();
     });
+    // 練習のギミック解放判定用の単元一覧も同様に遅らせない（Issue #266）。
+    loadUnits().then((units) => {
+      S.units = units;
+    });
     if (!IS_DEV) push();
   } catch {
     showError();

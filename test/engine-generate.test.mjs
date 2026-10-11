@@ -88,9 +88,9 @@ const hasOverlap = (m) => new Set(allPoints(m).map((p) => `${p.x},${p.y}`)).size
 test('engine-generate: ギミック未指定のgeneratorはR1と同一シードで同一マップ（Issue #70）', () => {
   // ゴールデン固定：R3改修前の出力。ギミック未指定ではrng消費も返り値も変えないことを直接確認する
   const golden = {
-    0: '{"grid":{"cols":5,"rows":5},"start":{"x":4,"y":0},"goal":{"x":0,"y":0},"walls":[{"x":1,"y":2},{"x":1,"y":0},{"x":1,"y":4},{"x":0,"y":3}],"items":[],"allowedCommands":["up","down","left","right"],"solution":["down","left","left","left","left","up"],"maxCommands":8,"fallback":false}',
-    1: '{"grid":{"cols":5,"rows":5},"start":{"x":0,"y":3},"goal":{"x":4,"y":4},"walls":[{"x":3,"y":0},{"x":0,"y":2},{"x":2,"y":3},{"x":1,"y":4},{"x":0,"y":4},{"x":4,"y":0}],"items":[],"allowedCommands":["up","down","left","right"],"solution":["right","up","right","right","right","down","down"],"maxCommands":9,"fallback":false}',
-    7: '{"grid":{"cols":5,"rows":5},"start":{"x":0,"y":3},"goal":{"x":1,"y":4},"walls":[{"x":3,"y":4},{"x":3,"y":3},{"x":0,"y":4},{"x":1,"y":3},{"x":4,"y":2},{"x":4,"y":0}],"items":[],"allowedCommands":["up","down","left","right"],"solution":["up","right","right","down","down","left"],"maxCommands":8,"fallback":false}',
+    0: '{"grid":{"cols":5,"rows":5},"start":{"x":4,"y":0},"goal":{"x":0,"y":0},"walls":[{"x":1,"y":2},{"x":1,"y":0},{"x":1,"y":4},{"x":0,"y":3}],"items":[],"allowedCommands":["up","down","left","right"],"solution":["down","left","left","left","left","up"],"maxCommands":8,"fallback":false,"attempts":11}',
+    1: '{"grid":{"cols":5,"rows":5},"start":{"x":0,"y":3},"goal":{"x":4,"y":4},"walls":[{"x":3,"y":0},{"x":0,"y":2},{"x":2,"y":3},{"x":1,"y":4},{"x":0,"y":4},{"x":4,"y":0}],"items":[],"allowedCommands":["up","down","left","right"],"solution":["right","up","right","right","right","down","down"],"maxCommands":9,"fallback":false,"attempts":3}',
+    7: '{"grid":{"cols":5,"rows":5},"start":{"x":0,"y":3},"goal":{"x":1,"y":4},"walls":[{"x":3,"y":4},{"x":3,"y":3},{"x":0,"y":4},{"x":1,"y":3},{"x":4,"y":2},{"x":4,"y":0}],"items":[],"allowedCommands":["up","down","left","right"],"solution":["up","right","right","down","down","left"],"maxCommands":8,"fallback":false,"attempts":3}',
   };
   for (const [s, json] of Object.entries(golden)) {
     assert.equal(JSON.stringify(generateMap(g, Number(s))), json, `シード${s}の生成結果がR1と一致`);

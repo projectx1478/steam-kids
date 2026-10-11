@@ -21,7 +21,12 @@
         "shortestPath": { "min": 4, "max": 8 },
         "minTurns": 2,
         "wallsMustMatter": true,
-        "maxCommandsSlack": 2
+        "maxCommandsSlack": 2,
+        "gimmickMix": {
+          "items": { "items": { "min": 1, "max": 2 }, "itemsMustMatter": true },
+          "ice": { "ice": { "min": 1, "max": 1 }, "iceMustMatter": true, "shortestPath": { "min": 2, "max": 8 } },
+          "keys": { "keys": { "min": 1, "max": 1 }, "keysMustMatter": true }
+        }
       }
     },
     {
