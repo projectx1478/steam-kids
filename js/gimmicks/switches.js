@@ -159,7 +159,7 @@ export const switches = {
     const i = list(spec.switches).findIndex((s) => s.x === pos.x && s.y === pos.y);
     run.pressed ??= new Set();
     if (i >= 0 && spec.switches[i].mode === 'toggle') {
-      // toggleは入るたびに入れ替える（Issue #388）。奇数回で右・偶数回で左にレバーが倒れ、壁は浮き沈みする。
+      // toggleは入るたびに入れ替える（Issue #388）。奇数回でレバーが右に倒れ・偶数回で直立に戻り、壁は浮き沈みする。
       if (run.pressed.has(i)) run.pressed.delete(i);
       else run.pressed.add(i);
       const els = view.gimmickEls?.switches;

@@ -31,7 +31,7 @@ const WALL = '.grid-cell[data-x="3"][data-y="1"]';
 const SW = '.grid-cell[data-x="1"][data-y="1"]';
 const wallState = (page) => page.$eval(WALL, (c) => c.dataset.switchWall);
 const pressed = (page) => page.$eval(SW, (c) => c.dataset.switchPressed);
-// レバーの向き：棒の先のx。左（偶数回・初期）＝32、右（奇数回）＝45。
+// レバーの向き：棒の先のx。直立（偶数回・初期）＝32、右に倒れる（奇数回）＝45。
 const leverX = (page) => page.$eval(`${SW} .grid-switch-svg line`, (l) => l.getAttribute('x2'));
 const outline = (page) =>
   page.$eval(WALL, (c) => {
@@ -61,10 +61,10 @@ export default async function run({ page, check }) {
   await routeLesson(page, lesson);
   await enterPlay(page, lesson.lessonId);
 
-  // ① 初期（偶数回＝0回）：壁が立つ・レバーは左・点線なし
+  // ① 初期（偶数回＝0回）：壁が立つ・レバーは直立・点線なし
   await check('初期：壁が立つ(on)・スイッチ未押下・レバー左・点線なし', async () => [await wallState(page), await pressed(page), await leverX(page), await outline(page)].join('/'), 'on/false/32/none');
 
-  // ② 1回踏む（奇数回）：壁が沈み、レバーが右、沈んだ壁に点線の輪郭
+  // ② 1回踏む（奇数回）：壁が沈み、レバーが右に倒れ、沈んだ壁に点線の輪郭
   await page.click('[data-command="left"]');
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="retry"]', { timeout: 10000 });
@@ -72,7 +72,7 @@ export default async function run({ page, check }) {
   await check('1回踏む(奇数)：壁が沈む(off)・スイッチ押下・レバー右', async () => [await wallState(page), await pressed(page), await leverX(page)].join('/'), 'off/true/45');
   await check('沈んだ壁に点線の輪郭（色・不透明度・線幅・破線）', () => outline(page), OUTLINE);
 
-  // ③ 2回踏む（偶数回）：壁が戻り、レバーが左、点線は消える
+  // ③ 2回踏む（偶数回）：壁が戻り、レバーが直立に戻り、点線は消える
   await clickRetry(page);
   await check('retryで初期（壁が立つ・レバー左）に戻る', async () => [await wallState(page), await leverX(page)].join('/'), 'on/32');
   for (const c of ['left', 'left', 'right']) await page.click(`[data-command="${c}"]`);
