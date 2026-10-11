@@ -1,7 +1,7 @@
-// keys（かぎとドア）：ドア開閉のDOM・効果音・失敗とクリア・色と形の区別(Issue #62)。実レッスンに依存しない。
+// keys（かぎとドア）：ドア開閉のDOM・効果音・失敗とクリア・色と形の区別(かぎ)・ドアは色のみ(Issue #62)。実レッスンに依存しない。
 import { routeLesson, enterPlay, clickRetry } from '../helpers.mjs';
 
-export const name = 'keys: data-door-open切替・key/door音・ドア衝突の失敗・色と形の区別(Issue #62)';
+export const name = 'keys: data-door-open切替・key/door音・ドア衝突の失敗・色と形の区別(かぎ)・ドアは色のみ(Issue #62)';
 
 const lesson = {
   lessonId: 'g-keys-flow',
@@ -40,7 +40,7 @@ export default async function run({ page, check }) {
   await check('かぎ2つ・ドア2つが描画される', async () => [(await page.$$('.grid-cell[data-key]')).length, (await page.$$('.grid-cell[data-door]')).length].join(), '2,2');
   await check('最初はドアが閉じている', async () => (await open(page)).join(), 'false,false');
   await check('色ごとに形が違う(かぎ)', async () => page.$$eval('.grid-key-svg', (s) => new Set(s.map((e) => e.querySelector('g').innerHTML)).size), 2);
-  await check('色ごとに形が違う(ドア)', async () => page.$$eval('.grid-door-svg', (s) => new Set(s.map((e) => e.querySelector('g').innerHTML)).size), 2);
+  await check('色ごとに色が違い印は無い(ドア)', async () => page.$$eval('.grid-cell[data-door]', (cs) => `colors=${new Set(cs.map((c) => c.dataset.color)).size},marks=${cs.filter((c) => 'mark' in c.dataset).length}`), 'colors=2,marks=0');
 
   // 失敗：かぎ無しでこおりを滑ってドアに衝突
   for (const c of ['right']) await page.click(`[data-command="${c}"]`);
