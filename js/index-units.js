@@ -6,3 +6,17 @@ export function unitsOf(index) {
   }
   return Array.isArray(index?.units) ? index.units : [];
 }
+
+// 大項目の配列 [{trackId, title, units}] を返す純関数（Issue #375）。tracks があればその順。
+// 旧形（units 直下）は1本の 'all' に包む。どちらも無ければ []。例外は投げない。
+export function tracksOf(index) {
+  if (Array.isArray(index?.tracks)) {
+    return index.tracks.map((t) => ({
+      trackId: t?.trackId,
+      title: typeof t?.title === 'string' ? t.title : '',
+      units: Array.isArray(t?.units) ? t.units : [],
+    }));
+  }
+  if (Array.isArray(index?.units)) return [{ trackId: 'all', title: '', units: index.units }];
+  return [];
+}

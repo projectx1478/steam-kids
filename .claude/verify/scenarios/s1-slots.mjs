@@ -59,6 +59,7 @@ export default async function run({ page, check }) {
   await check('空き枠はdisabled', () => page.isDisabled('[data-slot="2"]'));
   await check('最終プレイ日がM/Dで出る', async () => /^\d{1,2}\/\d{1,2}$/.test(await page.textContent('[data-slot="0"] .slot-played')));
   await page.click('[data-slot="1"]');
+  await page.click('[data-track-id="robot"]');
   await check('つづきからは単元マップへ(レッスンへ直接飛ばない)', async () => screen(page), 'picker');
   await check('Bは先頭だけにパルス', async () => page.$$eval('.next-pulse', (els) => els.map((e) => e.dataset.lessonId)), [FIRST]);
   await page.goto('/index.html?view=map');
