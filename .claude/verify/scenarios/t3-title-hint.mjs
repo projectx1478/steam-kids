@@ -16,6 +16,9 @@ export default async function run({ page, check }) {
   // スロット0にデータありの状態を作り、clearedLessonIds のレッスンをクリア済みにする（lastHint は消す）。
   const setup = async (clearedLessonIds) => {
     await page.goto('/index.html');
+    // 開いたページの showTitle（非同期）が終わる前にデータを書くと、そのページが手がかりを先に消費して
+    // lastHint を書いてしまう。タイトルの描画完了を待ってから書く。
+    await page.waitForSelector('#stage[data-screen="title"]');
     await page.evaluate((ids) => {
       Object.keys(localStorage)
         .filter((k) => k.includes('lastHint'))
