@@ -74,7 +74,7 @@ export default async function run({ page, check }) {
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="next"]', { timeout: 15000 });
   await check('扉のマスに入ると両方の扉が開く', () => doorsOpen(page), 'true,true');
-  await check('両方の枠が埋まったまま', () => filled(page), 'blue,red');
+  await check('両方の枠が埋まったまま', () => filled(page), 'red,blue');
 
   // --- carry・動きあり：弾む演出・鍵なし衝突で空き枠がゆれる ---
   await page.emulateMedia({ reducedMotion: 'no-preference' });
