@@ -4,8 +4,12 @@ import { SAMPLE_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, clampCellPx, wheelCellPx
 
 import { GIMMICKS } from '/js/gimmicks/index.js';
 import { buildPalette, iconSpec } from './palette.js';
+import { createState, setCellPx as setStateCellPx, place, erase, move, undo, redo, canUndo, canRedo } from './editor-state.js';
 
-const state = { spec: SAMPLE_SPEC, cellPx: CELL_PX_DEFAULT, selected: 'wall' };
+const state = createState(SAMPLE_SPEC, CELL_PX_DEFAULT);
+state.selected = 'wall';
+let notice = ''; // 直前の操作の結果（拒否の理由など）
+let moveFrom = null; // 「Shift+クリックで選んだ動かす元のマス」
 
 const ICON_CELL_PX = 32;
 // 消しゴムは盤面部品に無いので専用の SVG（見本のとおり）
@@ -43,9 +47,10 @@ function paletteRow(item) {
   return row;
 }
 
-// 選択状態の表示のみ（盤面へ置く操作は段4）
 function selectPalette(key) {
   state.selected = key;
+  moveFrom = null;
+  notice = '';
   for (const row of document.querySelectorAll('#plist .pi')) row.classList.toggle('sel', row.dataset.key === key);
   render();
 }
@@ -62,21 +67,69 @@ const boardWrap = document.getElementById('board');
 const boardArea = document.getElementById('boardArea');
 const zoomEl = document.getElementById('zoom');
 const statusEl = document.getElementById('status');
+const undoEl = document.getElementById('undo');
+const redoEl = document.getElementById('redo');
 
 function render() {
   drawBoard({ boardWrap, spec: state.spec, cellSize: state.cellPx, playerPos: state.spec.start });
   zoomEl.textContent = `${zoomPercent(state.cellPx)}%`;
   const { cols, rows } = state.spec.grid;
   const sel = buildPalette(GIMMICKS).find((p) => p.key === state.selected);
-  statusEl.textContent = `${cols}×${rows}（上限 ${EDITOR_MAX_SIZE}×${EDITOR_MAX_SIZE}）　マス ${state.cellPx}px　選択中: ${sel ? sel.label : '—'}`;
+  const moving = moveFrom ? `　動かす元: (${moveFrom.x},${moveFrom.y}) → 行き先をクリック` : '';
+  statusEl.textContent = `${cols}×${rows}（上限 ${EDITOR_MAX_SIZE}×${EDITOR_MAX_SIZE}）　マス ${state.cellPx}px　選択中: ${sel ? sel.label : '—'}${moving}${notice ? `　${notice}` : ''}`;
+  if (moveFrom) {
+    const cell = boardWrap.querySelector(`.grid-cell[data-x="${moveFrom.x}"][data-y="${moveFrom.y}"]`);
+    if (cell) cell.style.outline = '3px solid #7c3aed';
+  }
+  undoEl.disabled = !canUndo(state);
+  redoEl.disabled = !canRedo(state);
 }
 
 function setCellPx(value) {
   const next = clampCellPx(value);
   if (next === state.cellPx) return;
-  state.cellPx = next;
+  setStateCellPx(state, next);
   render();
 }
+
+// 操作の結果を状態行へ出して描き直す
+function apply(result) {
+  notice = result.ok ? '' : `できません: ${result.reason}`;
+  render();
+}
+
+function doUndo() { apply(undo(state)); }
+function doRedo() { apply(redo(state)); }
+
+// マスのクリック。Shift+クリック＝動かす元を選ぶ → 次のクリックが行き先。それ以外はパレットの選択どおり置く／消す。
+boardWrap.addEventListener('click', (e) => {
+  const cell = e.target.closest('.grid-cell');
+  if (!cell) return;
+  const x = Number(cell.dataset.x);
+  const y = Number(cell.dataset.y);
+  if (moveFrom) {
+    const from = moveFrom;
+    moveFrom = null;
+    apply(move(state, from.x, from.y, x, y));
+    return;
+  }
+  if (e.shiftKey) {
+    moveFrom = { x, y };
+    notice = '';
+    render();
+    return;
+  }
+  apply(state.selected === 'eraser' ? erase(state, x, y) : place(state, state.selected, x, y));
+});
+
+undoEl.addEventListener('click', doUndo);
+redoEl.addEventListener('click', doRedo);
+document.addEventListener('keydown', (e) => {
+  if (!(e.ctrlKey || e.metaKey)) return;
+  const k = e.key.toLowerCase();
+  if (k === 'z' && !e.shiftKey) { e.preventDefault(); doUndo(); }
+  else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); doRedo(); }
+});
 
 boardArea.addEventListener('wheel', (e) => {
   e.preventDefault();

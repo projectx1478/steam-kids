@@ -121,6 +121,8 @@
 ## 追加手順・検証規則
 
 - 盤面ギミックの追加：`js/gimmicks/<name>.js`＋登録1行＋本ファイルに1節＋`g-<name>-*.mjs`シナリオ（Issue #123以降）
+- 新しいギミックのオブジェクトには`label`（開発者向けの短い日本語名）を必ず付ける
+- ギミックの`label`は`validate(board, add, label)`の引数`label`（文言の接頭辞）とは別物
 - ギミックのシナリオは`routeLesson`（`.claude/verify/helpers.mjs`）のインライン最小盤面で書き、実レッスンに依存させない
 - 新規シナリオの命名は`g-<gimmick>-*`・`les-<lessonId>-*`。`e2e-run`（`docs/testing-guidelines.md`）で部分実行できる
 - こおりを持つplayステージは、こおりを壁扱いにしてもmaxCommands以内に届かないこと（`validate:lessons`が検証。Issue #134）
