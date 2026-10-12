@@ -1,7 +1,7 @@
 // 「れんしゅう」のたねコード（Issue #69）。8種類の絵×4マス＝4096通り。DOMに触れない部分（変換）と
 // 絵のSVG（自作。画像素材・外部取得なし）を持つ。コードは'0'〜'7'の4桁文字列（例: '0417'）で、
 // 学習ログのpayload.seedにもこの文字列を記録する。同じコードなら誰でも同じマップになる。
-export const CODE_LENGTH = 4;
+export const CODE_LENGTH = 3;
 export const PICTURE_COUNT = 8;
 
 const svg = (body) => `<svg viewBox="0 0 48 48" class="w-full h-full" aria-hidden="true">${body}</svg>`;
@@ -46,17 +46,31 @@ export const PICTURES = [
     '<path d="M24 14 L24 5 L30 3" fill="none" stroke="#15803d" stroke-width="3" stroke-linecap="round"/>') },
 ];
 
-// codeToSeed(code): '0417'形式の文字列→generateMapへ渡す32bitシード。8進4桁の数値へ拡散をかけ、
-// 隣り合うコードで似た盤面にならないようにする。
-export function codeToSeed(code) {
-  return Math.imul(parseInt(code, 8) + 1, 0x9e3779b1) >>> 0;
+// ばんごう（Issue #398）。'000'〜'999'の0埋め3桁文字列。絵のコード（旧4桁・8進）は廃止。
+// SEED_VER＝番号→盤面の対応の版（内部のみ。ログには出さない）。
+export const SEED_VER = 1;
+export const NUMBER_COUNT = 1000;
+
+// codeToSeed(code, opts): '123'形式の文字列→generateMapへ渡す32bitシード。10進の数値へ拡散をかけ、
+// 隣り合うコードで似た盤面にならないようにする。opts.ver/size/difficultyは #405 用の口
+// （size・difficultyは未使用。省略時は現行と同じ盤面）。
+export function codeToSeed(code, opts = {}) {
+  const { ver = SEED_VER } = opts;
+  if (ver !== SEED_VER) throw new Error(`未対応のSEED_VER: ${ver}`);
+  return Math.imul(parseInt(code, 10) + 1, 0x9e3779b1) >>> 0;
 }
 
 export function isValidCode(code) {
-  return typeof code === 'string' && new RegExp(`^[0-${PICTURE_COUNT - 1}]{${CODE_LENGTH}}$`).test(code);
+  return typeof code === 'string' && /^\d{3}$/.test(code);
+}
+
+// randomNumberCode(rand): 「おまかせ」用。0〜999を選んで3桁に0埋めする。randはテスト用の差し替え口。
+export function randomNumberCode(rand = Math.random) {
+  return String(Math.floor(rand() * NUMBER_COUNT)).padStart(3, '0');
 }
 
 // randomCode(rand): 「ちがう マップ」用のランダムなコード。randはテスト用の差し替え口。
+// （段2でui-seedpick・ui-summaryがrandomNumberCodeへ移るまでの旧UI用。絵は0〜7の3マス）
 export function randomCode(rand = Math.random) {
   let code = '';
   for (let i = 0; i < CODE_LENGTH; i += 1) code += Math.floor(rand() * PICTURE_COUNT);
