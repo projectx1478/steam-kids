@@ -17,6 +17,7 @@ const ICE_SVG = `<svg viewBox="0 0 64 64" class="grid-ice-svg absolute inset-0 w
 
 export const ice = {
   key: 'ice',
+  label: '氷',
 
   initState() {
     return {};

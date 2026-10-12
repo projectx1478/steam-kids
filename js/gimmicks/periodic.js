@@ -90,6 +90,7 @@ function paintDoor(cell, d, turn) {
 
 export const periodic = {
   key: 'periodic',
+  label: '周期ドア',
 
   // state: { turn: 手番（0〜cycle-1）, cycle: 全ドアのperiodの最小公倍数（ドア無しは1）, doors: spec.periodicの写し }
   initState(spec) {
