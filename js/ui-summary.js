@@ -10,7 +10,7 @@ import { play as playSfx } from './sfx.js';
 import { prefersReducedMotion, screenConfetti, shapeSvg } from './ui-grid.js';
 import { isUnitEndSeenStored, markUnitEndSeenStored } from './storage.js';
 import { createPrimaryButton, goToStep } from './ui-step.js';
-import { codeStripHtml, randomCode } from './seed-code.js';
+import { randomNumberCode } from './seed-code.js';
 import { withDev } from './dev-mode.js';
 
 const MAX_CARDS = 3;
@@ -91,22 +91,19 @@ export function renderSummary(root) {
     root.appendChild(cardsWrap);
   }
 
-  // れんしゅう：このマップのたね（絵のコード）を見せ、「ちがう マップ」でたね入力へ戻す（Issue #69）。
+  // れんしゅう：このマップのばんごうを「ばんごう 123」の1行で見せ、「おまかせ」で入力へ戻す（Issue #69・#398）。
   if (S.seed != null) {
     const seedBox = document.createElement('div');
     seedBox.className = 'seed-result flex flex-col items-center gap-1 my-2';
-    const seedLabel = document.createElement('p');
-    seedLabel.className = 'text-sm text-slate-600';
-    seedLabel.textContent = 'この マップの たね';
-    const seedStrip = document.createElement('div');
-    seedStrip.className = 'seed-strip flex gap-1';
-    seedStrip.dataset.seed = S.seed;
-    seedStrip.innerHTML = codeStripHtml(S.seed);
-    seedBox.append(seedLabel, seedStrip);
+    const seedNumber = document.createElement('p');
+    seedNumber.className = 'seed-number text-2xl font-bold text-slate-700';
+    seedNumber.dataset.seed = S.seed;
+    seedNumber.textContent = `ばんごう ${S.seed}`;
+    seedBox.append(seedNumber);
     root.appendChild(seedBox);
     root.appendChild(
-      createPrimaryButton('ちがう マップ', () => {
-        S.seedDraft = randomCode();
+      createPrimaryButton('おまかせ', () => {
+        S.seedDraft = randomNumberCode();
         goToStep(S.lesson.steps.findIndex((s) => s.kind === 'seedPick'));
       }, 'another-map')
     );

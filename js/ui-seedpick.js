@@ -1,11 +1,12 @@
-// seedPickステップ（れんしゅうのたねコード入力。Issue #69）。8種の絵から4マスをタップだけで埋める。
-// 操作画面（play）には置かず、専用の入力画面にする。コードが4マス揃うと「スタート」が押せる。
+// seedPickステップ（れんしゅうのばんごう入力。Issue #69・#398）。3桁の番号（000〜999）をテンキーで入れる。
+// 操作画面（play）には置かず、専用の入力画面にする。3桁揃うと「スタート」が押せる。
+// 「おまかせ」はテンキー右下。テンキーはこの画面だけの局所部品（docs/components.md の台帳に該当部品なし）。
 import { S } from './state.js';
-import { CODE_LENGTH, PICTURES, PICTURE_COUNT, randomCode } from './seed-code.js';
+import { CODE_LENGTH, randomNumberCode } from './seed-code.js';
 import { createPrimaryButton, goToStep } from './ui-step.js';
 
 export function renderSeedPick(root, step) {
-  // 空きマスは''。「ちがう マップ」・summaryからの戻りで渡されたコードがあれば初期値にする。
+  // 空きマスは''。summaryの「おまかせ」で渡された番号があれば初期値にする。
   const slots = S.seedDraft ? [...S.seedDraft] : Array(CODE_LENGTH).fill('');
   S.seedDraft = null;
   let cursor = Math.max(0, slots.indexOf(''));
@@ -20,9 +21,9 @@ export function renderSeedPick(root, step) {
   slotRow.className = 'seed-slots flex justify-center gap-2 my-3';
   root.appendChild(slotRow);
 
-  const palette = document.createElement('div');
-  palette.className = 'seed-palette grid grid-cols-4 gap-2 justify-items-center my-3';
-  root.appendChild(palette);
+  const keypad = document.createElement('div');
+  keypad.className = 'seed-keypad grid grid-cols-3 gap-2 justify-items-center mx-auto my-3 w-fit';
+  root.appendChild(keypad);
 
   const startBtn = createPrimaryButton('スタート', () => {
     S.seed = slots.join('');
@@ -37,11 +38,11 @@ export function renderSeedPick(root, step) {
       const slot = document.createElement('button');
       slot.type = 'button';
       slot.dataset.slot = String(i);
-      if (digit !== '') slot.dataset.picture = digit;
-      slot.className = `seed-slot btn-tactile w-16 h-16 p-1 rounded-xl border-4 bg-white ${
+      if (digit !== '') slot.dataset.digit = digit;
+      slot.className = `seed-slot btn-tactile w-16 h-16 rounded-xl border-4 bg-white text-3xl font-bold ${
         i === cursor ? 'border-sky-400' : 'border-slate-200'
       }`;
-      slot.innerHTML = digit === '' ? '' : PICTURES[Number(digit)].svg;
+      slot.textContent = digit;
       slot.addEventListener('click', () => {
         cursor = i;
         draw();
@@ -52,31 +53,52 @@ export function renderSeedPick(root, step) {
     startBtn.classList.toggle('opacity-40', startBtn.disabled);
   }
 
-  for (let d = 0; d < PICTURE_COUNT; d += 1) {
+  function keyButton(label, extraClass) {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.dataset.pictureBtn = String(d);
-    btn.setAttribute('aria-label', PICTURES[d].name);
-    btn.className = 'seed-picture btn-tactile w-16 h-16 p-1 rounded-xl bg-white border-2 border-slate-200';
-    btn.innerHTML = PICTURES[d].svg;
+    btn.className = `seed-key btn-tactile w-16 h-16 rounded-xl border-2 ${extraClass}`;
+    btn.textContent = label;
+    return btn;
+  }
+
+  function addDigitKey(d) {
+    const btn = keyButton(String(d), 'bg-white border-slate-200 text-3xl font-bold');
+    btn.dataset.key = String(d);
     btn.addEventListener('click', () => {
       slots[cursor] = String(d);
       const next = slots.indexOf('');
       cursor = next === -1 ? Math.min(cursor + 1, CODE_LENGTH - 1) : next;
       draw();
     });
-    palette.appendChild(btn);
+    keypad.appendChild(btn);
   }
 
-  root.appendChild(startBtn);
-  const randomBtn = createPrimaryButton('ちがう マップ', () => {
-    [...randomCode()].forEach((d, i) => {
+  [1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(addDigitKey);
+
+  // けす：いま選んでいるマスが入っていればそのマス、空なら一つ前のマスを消す。
+  const delBtn = keyButton('けす', 'bg-white border-slate-200 text-sm font-bold text-slate-700');
+  delBtn.dataset.key = 'del';
+  delBtn.addEventListener('click', () => {
+    const target = slots[cursor] !== '' ? cursor : Math.max(0, cursor - 1);
+    slots[target] = '';
+    cursor = target;
+    draw();
+  });
+  keypad.appendChild(delBtn);
+
+  addDigitKey(0);
+
+  const randomBtn = keyButton('おまかせ', 'bg-amber-500 border-amber-600 text-white text-sm font-bold');
+  randomBtn.dataset.action = 'random-code';
+  randomBtn.addEventListener('click', () => {
+    [...randomNumberCode()].forEach((d, i) => {
       slots[i] = d;
     });
     cursor = 0;
     draw();
-  }, 'random-code');
-  randomBtn.className = randomBtn.className.replace('bg-sky-500', 'bg-amber-500');
-  root.appendChild(randomBtn);
+  });
+  keypad.appendChild(randomBtn);
+
+  root.appendChild(startBtn);
   draw();
 }
