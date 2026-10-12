@@ -13,6 +13,8 @@
 
 基準件数の正本は `test/forbidden-baseline.json`。`showsuccess 0`：`js/ui-predict.js`・`js/ui-tutorial.js` も `showClearToast` に移行済み（状態：移行完了）。`confetti 2` は `js/ui-reaction.js` の `showSuccess` 本体と `js/ui-seesaw.js` のアダプタ。
 
+盤面エディタは子ども向け画面の部品ではなく、開発者用の独立ツールとして `tools/editor/` に置く（上の表には載せない）。
+
 ## 操作画面の枠
 
 - 呼び方：`createOpScreen({ root, question })` → `{ frame, questionEl, boardArea, panel, actions, renderQuestion(text) }`。各要素に `data-sk-screen`（`frame`・`question`・`board`・`panel`・`actions`）、クラスは `sk-screen-*`。E2E は属性セレクタで探す。
@@ -27,6 +29,8 @@
 - PR の分け方：1 PR・2段（段1＝部品＋play、段2＝tutorial・predict・禁止パターン・台帳）。
 - 状態：移行完了（`board 0`、`excluded` の `js/ui-demo.js` に 1）。
 - 水・橋（#338）：`drawBoard` は `spec.water`・`spec.waterMode`・`spec.bridge` を `renderGrid` に通す。描画は `js/gimmicks/water.js` の `render`（水＝`data-water`、橋＝`data-bridge`・`data-bridge-dir`〔h横/v縦〕。隣と2pxつなげる）。水で止まったときは `view.bounce(dir, 'water')`（水しぶき＋困り顔）と音 `splash`（`js/ui-step.js` が盤の `water` と進行方向で判定）。`generator.shape` は PR2。
+- 盤面エディタ（`tools/editor/`）は盤面を `drawBoard`（`js/ui-board.js`）経由で描き、`renderGrid(`・`computeCellSize(` を直呼びしない。
+- 盤面エディタのパレットは `GIMMICKS` の `key`・`label` から生成され、登録表に足せば自動で出る。
 
 ## 禁止パターンの検査
 

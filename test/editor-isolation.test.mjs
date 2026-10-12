@@ -36,6 +36,8 @@ test('editor-isolation: 127.0.0.1 に bind し、トップが開き、`..` は 4
     assert.equal(await get(addr.port, '/js/gimmicks/../../package.json'), 404);
     assert.equal(await get(addr.port, '/package.json'), 404);
     assert.equal(await get(addr.port, '/js/../lessons/x.json'), 404);
+    assert.equal(await get(addr.port, '/style.css'), 200);
+    assert.equal(await get(addr.port, '/style.css/x'), 404);
   } finally {
     await new Promise((r) => server.close(r));
   }
