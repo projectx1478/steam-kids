@@ -10,6 +10,7 @@ import { iceMustMatter, keysMustMatter } from './lib/must-matter.mjs';
 import { itemsMustMatter } from './gen/stage-gen.mjs';
 import { balance, solutions, difficulty } from '../js/engine-seesaw.js';
 import { GIMMICKS } from '../js/gimmicks/index.js';
+import { KEY_MODES } from '../js/gimmicks/keys.js';
 import { unitsOf } from '../js/index-units.js';
 import { plainSegmentsText, plainReading, parseSegments, rubyGrade, textKanjiMaxGrade, KANJI_RE } from '../js/text-render.js';
 
@@ -290,7 +291,13 @@ function validatePractice(steps, add) {
   // gimmickMix＝種類名（items・ice・keys）→追加の生成指定（空でないオブジェクト）。空・未知の種類・配列は不合格（Issue #266）。
   const mix = play.generator.gimmickMix;
   if (mix !== undefined) {
-    const kinds = isObj(mix) ? Object.keys(mix) : [];
+    // keyMode（Issue #391）は種類名ではなく、keys 用の指定。値は remote／carry、gimmickMix.keys が要る。
+    const hasKeyMode = isObj(mix) && 'keyMode' in mix;
+    if (hasKeyMode) {
+      if (!KEY_MODES.includes(mix.keyMode)) add('generator.gimmickMix', `keyMode=${JSON.stringify(mix.keyMode)} が不正（${KEY_MODES.join('・')}のどちらか）`);
+      if (!('keys' in mix)) add('generator.gimmickMix', 'keyMode は gimmickMix.keys があるときだけ指定できる');
+    }
+    const kinds = isObj(mix) ? Object.keys(mix).filter((k) => k !== 'keyMode') : [];
     if (kinds.length === 0) {
       add('generator.gimmickMix', 'gimmickMixが空、またはオブジェクトでない');
       return;
@@ -348,7 +355,7 @@ function validateSeesaw(playSteps, add, maxPlay = MAX_PLAY) {
 }
 
 // stageGen・gen の検査（Issue #337。docs/lesson-schema.md）。実行時は読まない開発用の設定。
-const SG_KEYS = ['ver', 'stages', 'keepHandwritten', 'grid', 'walls', 'gimmicks', 'teach', 'shortestPath', 'minTurns', 'allowedCommands', 'seedBase'];
+const SG_KEYS = ['ver', 'stages', 'keepHandwritten', 'grid', 'walls', 'gimmicks', 'teach', 'shortestPath', 'minTurns', 'allowedCommands', 'seedBase', 'keyMode'];
 const SG_GIMMICK_RANGES = { items: [1, 4], ice: [1, 4], keys: [1, 2], cushion: [1, 4], switches: [1, 2] };
 const isInt = (v) => Number.isInteger(v);
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -412,6 +419,10 @@ function checkStageGen(data, steps, add) {
         if (names.length === 0 && 'teach' in sg) add(label, 'gimmicks が空なのに teach がある');
         else if (names.length > 0 && !('teach' in sg)) add(label, 'gimmicks があるのに teach がない');
         else if ('teach' in sg && !names.includes(sg.teach)) add(label, `teach=${JSON.stringify(sg.teach)} が gimmicks にない`);
+        if ('keyMode' in sg) {
+          if (!KEY_MODES.includes(sg.keyMode)) add(label, `keyMode=${JSON.stringify(sg.keyMode)} が不正（${KEY_MODES.join('・')}のどちらか）`);
+          if (!('keys' in gim)) add(label, 'keyMode は gimmicks.keys があるときだけ指定できる');
+        }
         if ('switches' in gim && 'keys' in gim) add(label, 'switches と keys は併用できない');
         if (sg.teach === 'cushion' && !(isObj(gim.ice) && isInt(gim.ice.max) && gim.ice.max >= 1)) add(label, 'teach=cushion には gimmicks.ice（最大1以上）の併用が必要');
       }

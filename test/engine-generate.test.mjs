@@ -185,3 +185,29 @@ test('engine-generate: 複合ギミックの生成（items+ice+keys。300シー�
   assert.equal(unsolved, 0, '300件すべてsolutionでクリアできる');
   assert.equal(notMattering, 0, 'すべてのギミックが解法に関与している');
 });
+
+test('engine-generate: gimmickMix.keyMode は keys を引いた盤にだけ付き、盤・解は変わらない（300シード。Issue #391）', () => {
+  const mix = {
+    items: { items: { min: 1, max: 2 }, itemsMustMatter: true },
+    ice: { ice: { min: 1, max: 1 }, iceMustMatter: true },
+    keys: { keys: { min: 1, max: 1 }, keysMustMatter: true },
+  };
+  const plain = { ...r3, grid: G6, gimmickMix: mix };
+  const withMode = { ...plain, gimmickMix: { ...mix, keyMode: 'remote' } };
+  let withKeys = 0;
+  for (let s = 0; s < 300; s += 1) {
+    const a = generateMap(plain, s);
+    const b = generateMap(withMode, s);
+    if (!a.keys?.length) {
+      assert.equal('keyMode' in b, false, `seed=${s}: keys が無い盤に keyMode は付かない`);
+      assert.deepEqual(b, a);
+      continue;
+    }
+    withKeys += 1;
+    assert.equal('keyMode' in a, false, `seed=${s}: 無指定なら付かない`);
+    assert.equal(b.keyMode, 'remote', `seed=${s}`);
+    const { keyMode: _k, ...rest } = b;
+    assert.deepEqual(rest, a, `seed=${s}: keyMode の有無で盤・解は同じ`);
+  }
+  assert.ok(withKeys > 0, 'keys を引いた盤がある');
+});
