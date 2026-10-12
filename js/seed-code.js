@@ -5,7 +5,7 @@ export const CODE_LENGTH = 3;
 // ばんごう（Issue #398）。'000'〜'999'の0埋め3桁文字列。絵のコード（旧4桁・8進）は廃止。
 // SEED_VER＝番号→盤面の対応の版（内部のみ。ログには出さない）。
 export const SEED_VER = 1;
-export const NUMBER_COUNT = 1000;
+const NUMBER_COUNT = 1000;
 
 // codeToSeed(code, opts): '123'形式の文字列→generateMapへ渡す32bitシード。10進の数値へ拡散をかけ、
 // 隣り合うコードで似た盤面にならないようにする。opts.ver/size/difficultyは #405 用の口
