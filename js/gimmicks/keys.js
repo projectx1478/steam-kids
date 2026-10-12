@@ -219,8 +219,6 @@ export const keys = {
       else if (!KEY_MODES.includes(board.keyMode)) add('盤面の妥当性', `${label}keyMode=${JSON.stringify(board.keyMode)} が不正（${KEY_MODES.join('・')}のどちらか）`);
     }
     if (keyList.length === 0 && doorList.length === 0) return;
-    const grid = board.grid || {};
-    if (grid.cols > 6 || grid.rows > 6) add('盤面の妥当性', `${label}かぎ・ドアのある盤面は6×6以内（${grid.cols}×${grid.rows}）`);
     const colorOk = (kind, list) =>
       list.forEach((c, i) => {
         if (!KEY_COLORS.includes(c.color)) add('盤面の妥当性', `${label}${kind}[${i}] のcolor=${JSON.stringify(c.color)} が不正`);

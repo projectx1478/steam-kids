@@ -44,7 +44,7 @@ test('validate-lessons: paintは他ギミックと併用できない（items・i
 });
 
 test('validate-lessons: paintの盤サイズ・repeatBox/groupRepeats・目標の妥当性', () => {
-  assert.ok(ng(validate((p) => { p.grid = { cols: 7, rows: 4 }; }), '6×6以内'));
+  assert.ok(ng(validate((p) => { p.grid = { cols: 21, rows: 4 }; }), '20×20以内'));
   assert.ok(ng(validate((p) => { p.repeatBox = true; }), 'repeatBox・groupRepeats と併用できない'));
   assert.ok(ng(validate((p) => { p.groupRepeats = true; }), 'repeatBox・groupRepeats と併用できない'));
   assert.ok(ng(validate((p) => { p.paint = []; }), 'paint が空'));

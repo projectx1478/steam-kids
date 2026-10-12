@@ -174,7 +174,6 @@ export const periodic = {
       return;
     }
     const grid = board.grid || {};
-    if (grid.cols > 6 || grid.rows > 6) add('盤面の妥当性', `${label}periodicのある盤面は6×6以内（${grid.cols}×${grid.rows}）`);
     if (list(board.paint).length > 0) add('盤面の妥当性', `${label}periodic は paint と併用できない`);
     // 周期をまたぐ箱・同方向まとめは手番とずれるため、周期ドア盤では使わせない（初期は禁止で簡潔に）。
     if (board.repeatBox === true || board.groupRepeats === true) {

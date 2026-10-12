@@ -205,7 +205,7 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 | `maxCommandsSlack` | `maxCommands`＝最短手数＋この値 |
 | `items` | `{min, max}` どんぐり（アイテム）の数（Issue #70） |
 | `ice` | `{min, max}` こおりのマス数（Issue #70） |
-| `keys` | `{min, max}` かぎとドアの組数。1組＝同色のかぎ1＋ドア1。盤は6×6以内にすること（手書きルールと同じ。Issue #70） |
+| `keys` | `{min, max}` かぎとドアの組数。1組＝同色のかぎ1＋ドア1。盤の大きさの上限は盤面共通の20×20（Issue #70・#389） |
 | `itemsMustMatter` | true＝itemsを外すと最短手数が短くなること（回収が遠回りを強いる） |
 | `iceMustMatter` | true＝iceを外すと最短手数が変わること（短絡・障害のどちらでも関与とみなす） |
 | `keysMustMatter` | true＝keys/doorsを外すと最短手数が短くなること（ドアが最短路を塞ぐ） |
