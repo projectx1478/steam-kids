@@ -309,7 +309,7 @@ function validatePractice(steps, add) {
     }
   }
   for (let n = 0; n < PRACTICE_SAMPLE_SEEDS; n += 1) {
-    const code = n.toString(8).padStart(4, '0');
+    const code = String(n).padStart(3, '0');
     if (!isValidCode(code)) continue;
     const map = generateMap(play.generator, codeToSeed(code));
     if (map.fallback) add('generatorの生成失敗', `たね${code}で制約を満たす盤面が作れず予備盤面になる`);
