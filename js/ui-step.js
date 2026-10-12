@@ -491,6 +491,7 @@ export function playAnimation(commands, spec, view, { onTick, onDone, onPickup }
 export function saveResumePoint() {
   const steps = S.lesson.steps;
   if (steps[0]?.kind !== 'intro') return;
+  if (stagePicked) return;
   const next = steps[S.stepIndex + 1];
   if (!next || !['play', 'predict', 'seedPick'].includes(next.kind)) return;
   writeResume(S.lesson.lessonId, next.stepId);
@@ -510,7 +511,45 @@ function findResumeIndex() {
   return index;
 }
 
+// ステージ番号を選んで始めたときだけtrue。stage_clearでの再開点（saveResumePoint）を書かない（Issue #399）。
+let stagePicked = false;
+
+// クリア済みでステージ数が3以上のintroに、1〜Nの丸（ステージ番号）を足す。★・手数・時間・クリア印は付けない。
+// 選んだステージのplayへ直接入る。再開点もクリア記録も触らない（Issue #399）。
+function renderStagePicker(root) {
+  const playIndexes = [];
+  S.lesson.steps.forEach((s, i) => {
+    if (s.kind === 'play') playIndexes.push(i);
+  });
+  if (playIndexes.length < 3 || !isLessonCleared(S.lesson.lessonId)) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'stage-picker my-2';
+  wrap.dataset.role = 'stage-picker';
+  const label = document.createElement('p');
+  label.className = 'text-center text-base text-slate-600 mb-2';
+  label.textContent = 'ばんごうを えらんで あそぶ';
+  const grid = document.createElement('div');
+  grid.className = 'grid grid-cols-[repeat(4,64px)] gap-3 justify-center';
+  playIndexes.forEach((stepIndex, n) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.stageNo = String(n + 1);
+    b.className =
+      'stage-no btn-tactile w-16 h-16 rounded-full bg-white shadow border-2 border-sky-300 text-2xl font-bold text-sky-700';
+    b.textContent = String(n + 1);
+    b.addEventListener('click', () => {
+      vibrate();
+      stagePicked = true;
+      goToStep(stepIndex);
+    });
+    grid.appendChild(b);
+  });
+  wrap.append(label, grid);
+  root.appendChild(wrap);
+}
+
 function renderIntro(root, step) {
+  stagePicked = false;
   const p = document.createElement('p');
   p.className = 'text-2xl text-center py-8';
   renderInto(p, step.text, S.readingLevel, S.furigana);
@@ -523,6 +562,7 @@ function renderIntro(root, step) {
   }
   // 途中再開（Issue #242）：保存があり、そのstepIdがレッスンにあり、未クリアのときだけ
   // 主ボタンを「つづきから」にし、「はじめから」（保存は触らない）を控えめに添える。
+  renderStagePicker(root);
   const resumeIndex = findResumeIndex();
   if (resumeIndex !== -1) {
     const resumeBtn = createPrimaryButton('つづきから', () => goToStep(resumeIndex, { resumed: true }), 'resume');
