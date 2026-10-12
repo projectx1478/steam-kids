@@ -5,6 +5,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { Worker } from 'node:worker_threads';
 
 export const EDITOR_HOST = '127.0.0.1';
 export const DEFAULT_PORT = 5173;
@@ -48,9 +49,99 @@ export function resolveRequest(urlPath) {
   return file.startsWith(EDITOR_DIR + path.sep) ? file : null;
 }
 
-export function createEditorServer() {
+export const ANALYZE_TIMEOUT_MS = 10_000; // 判定の打ち切り（仮置き。#389 子A の実測後に見直す）
+const WORKER_FILE = path.join(EDITOR_DIR, 'validate-worker.mjs');
+const BODY_MAX_BYTES = 1_000_000;
+const ID_RE = /^[a-z0-9-]+$/;
+const MAX_GRID = 20; // checkBoard の上限と同じ
+
+const isPoint = (p) => !!p && Number.isInteger(p.x) && Number.isInteger(p.y);
+
+// 判定 API の入力検査。問題があれば messages（空なら OK）。
+export function checkAnalyzeInput(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return ['body は {spec, lessonId?, index?} の JSON オブジェクトにしてください'];
+  const { spec, lessonId, index } = body;
+  const out = [];
+  if (!spec || typeof spec !== 'object' || Array.isArray(spec)) return ['spec（盤面 JSON）がありません'];
+  const g = spec.grid;
+  if (!g || typeof g !== 'object') out.push('spec.grid がありません');
+  else if (!Number.isInteger(g.cols) || !Number.isInteger(g.rows) || g.cols < 1 || g.rows < 1 || g.cols > MAX_GRID || g.rows > MAX_GRID) {
+    out.push(`spec.grid は 1〜${MAX_GRID} の整数の cols×rows にしてください`);
+  }
+  if (!isPoint(spec.start)) out.push('spec.start（{x,y}）がありません');
+  if (!isPoint(spec.goal)) out.push('spec.goal（{x,y}）がありません');
+  if (lessonId !== undefined && (typeof lessonId !== 'string' || !ID_RE.test(lessonId))) out.push('lessonId は ^[a-z0-9-]+$ にしてください');
+  if (index !== undefined && !(Number.isInteger(index) && index >= 0)) out.push('index は 0 以上の整数にしてください');
+  return out;
+}
+
+// spec を worker_threads で判定する。timeoutMs を超えたら打ち切り、status:'timeout'（他の値は null）。
+export function runAnalyze(spec, { timeoutMs = ANALYZE_TIMEOUT_MS, workerFile = WORKER_FILE } = {}) {
+  return new Promise((resolve) => {
+    const worker = new Worker(workerFile, { workerData: { spec } });
+    let done = false;
+    const finish = (value) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      worker.terminate();
+      resolve(value);
+    };
+    const timer = setTimeout(() => finish({ status: 'timeout', clearable: null, shortest: null, matters: null, turns: null, gradient: [], messages: [] }), timeoutMs);
+    worker.once('message', (m) => {
+      if (m && m.ok) finish({ status: 'ok', gradient: [], ...m.result });
+      else finish({ status: 'ok', clearable: false, shortest: null, matters: null, turns: null, gradient: [], messages: [`判定中にエラー: ${m && m.error}`] });
+    });
+    worker.once('error', (e) => finish({ status: 'ok', clearable: false, shortest: null, matters: null, turns: null, gradient: [], messages: [`判定中にエラー: ${e.message}`] }));
+  });
+}
+
+function sendJson(res, status, obj) {
+  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+  res.end(JSON.stringify(obj));
+}
+
+function readBody(req) {
+  return new Promise((resolve) => {
+    const chunks = [];
+    let size = 0;
+    req.on('data', (c) => {
+      size += c.length;
+      if (size > BODY_MAX_BYTES) { resolve(null); req.destroy(); return; }
+      chunks.push(c);
+    });
+    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    req.on('error', () => resolve(null));
+  });
+}
+
+// POST /api/analyze。400（壊れた入力・上限超過）／404（lessonId なし）／200。
+async function handleAnalyze(req, res, opts) {
+  const raw = await readBody(req);
+  if (raw === null) return sendJson(res, 400, { messages: ['body が大きすぎます'] });
+  let body;
+  try { body = JSON.parse(raw); } catch { return sendJson(res, 400, { messages: ['JSON として読めません'] }); }
+  const problems = checkAnalyzeInput(body);
+  if (problems.length > 0) return sendJson(res, 400, { messages: problems });
+  const { lessonId, index } = body;
+  if (lessonId !== undefined) {
+    let steps;
+    try {
+      const lessonsDir = process.env.LESSONS_DIR || path.join(ROOT, 'lessons');
+      steps = JSON.parse(await fs.promises.readFile(path.join(lessonsDir, `${lessonId}.json`), 'utf8')).steps;
+    } catch { return sendJson(res, 404, { messages: [`lessonId=${lessonId} のレッスンがありません`] }); }
+    if (index !== undefined && !(Array.isArray(steps) && index < steps.length)) return sendJson(res, 400, { messages: ['index が範囲外です'] });
+  }
+  sendJson(res, 200, await runAnalyze(body.spec, opts));
+}
+
+export function createEditorServer(opts = {}) {
   return http.createServer((req, res) => {
     const notFound = () => { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('Not Found'); };
+    if (req.method === 'POST' && new URL(req.url, 'http://localhost').pathname === '/api/analyze') {
+      handleAnalyze(req, res, opts).catch(() => sendJson(res, 500, { messages: ['内部エラー'] }));
+      return;
+    }
     if (req.method !== 'GET' && req.method !== 'HEAD') return notFound();
     const file = resolveRequest(new URL(req.url, 'http://localhost').pathname);
     if (!file) return notFound();
@@ -63,9 +154,9 @@ export function createEditorServer() {
 }
 
 // host が 127.0.0.1 以外なら拒否する。port 0 は試験用（空きポート）。
-export function startEditorServer({ host = EDITOR_HOST, port = DEFAULT_PORT } = {}) {
+export function startEditorServer({ host = EDITOR_HOST, port = DEFAULT_PORT, ...opts } = {}) {
   if (host !== EDITOR_HOST) throw new Error(`エディタは ${EDITOR_HOST} のみに bind できます（指定: ${host}）`);
-  const server = createEditorServer();
+  const server = createEditorServer(opts);
   return new Promise((resolve, reject) => {
     server.once('error', reject);
     server.listen(port, EDITOR_HOST, () => resolve(server));

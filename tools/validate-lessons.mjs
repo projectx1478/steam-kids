@@ -6,8 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { generateMap, SHAPE_PRESETS } from '../js/engine-generate.js';
 import { isValidCode, codeToSeed } from '../js/seed-code.js';
 import { simulate, shortestSteps, shortestChips, boardSpec, chipCount, isRunCleared } from '../js/engine-grid.js';
-import { iceMustMatter, keysMustMatter } from './lib/must-matter.mjs';
-import { itemsMustMatter } from './gen/stage-gen.mjs';
+import { iceMustMatter, keysMustMatter, periodicMustMatter, paintMustMatter, itemsMustMatter } from './lib/must-matter.mjs';
 import { balance, solutions, difficulty } from '../js/engine-seesaw.js';
 import { GIMMICKS } from '../js/gimmicks/index.js';
 import { expandGroupSwitches } from '../js/gimmicks/switches.js';
@@ -773,17 +772,14 @@ export function validateLesson(fileName, data, longTrialIds = []) {
     }
     // 周期ドアを「常に開」（ドアを無視）にした盤の最短と比べ、実際の最短が長くなければドアが飾り（待ち・寄り道が要らない）。
     // 「常に開の最短 <= maxCommands なら不合格」は、ドアは通行を狭めるだけで常に成立してしまうため、paintの必須性と同じ比較にした。
-    if (dist !== null && dist !== Infinity && Array.isArray(play.periodic) && play.periodic.length > 0) {
-      const alwaysOpen = boardSpec({ ...play, periodic: [] });
-      const alwaysOpenDist = play.groupRepeats ? shortestChips(alwaysOpen) : shortestSteps(alwaysOpen);
-      if (!(dist > alwaysOpenDist)) {
-        add('周期ドアの必須性', `${label}周期ドアを常に開とみなした最短(${alwaysOpenDist})より最短(${dist})が長くない（待ち・寄り道が要らず、ドアが飾り）`);
-      }
+    const periodicCheck = periodicMustMatter(play, dist);
+    if (!periodicCheck.matters) {
+      add('周期ドアの必須性', `${label}周期ドアを常に開とみなした最短(${periodicCheck.dist})より最短(${dist})が長くない（待ち・寄り道が要らず、ドアが飾り）`);
     }
     // paint：目標が最短経路（塗り無しの最短）より大きいこと（塗りが飾りでない）と、maxCommands＝最短ちょうど。
     if (dist !== null && Array.isArray(play.paint) && play.paint.length > 0) {
-      const noPaintDist = shortestSteps(boardSpec({ ...play, paint: [] }));
-      if (!(dist > noPaintDist)) add('paintの必須性', `${label}目標の塗りが最短経路より大きくない（塗り無しの最短${noPaintDist}、塗りありの最短${dist}）`);
+      const paintCheck = paintMustMatter(play, dist);
+      if (!paintCheck.matters) add('paintの必須性', `${label}目標の塗りが最短経路より大きくない（塗り無しの最短${paintCheck.dist}、塗りありの最短${dist}）`);
       if (dist !== Infinity && play.maxCommands !== dist) add('paintの手数', `${label}maxCommands=${play.maxCommands} が最短${dist}手と一致しない`);
     }
     if (!groupNg) checkSwitchMatters(play, dist, add, label);

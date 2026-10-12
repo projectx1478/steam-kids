@@ -76,6 +76,17 @@ export function occupants(spec, x, y) {
   return out;
 }
 
+// 判定結果の世代番号。判定を送る直前に nextGeneration で番号を取り、返ってきた結果は shouldApplyResult が真のときだけ表示する
+// （後から送った判定があれば、古い結果は捨てる）。
+export function nextGeneration(state) {
+  state.generation = (state.generation || 0) + 1;
+  return state.generation;
+}
+
+export function shouldApplyResult(state, generation) {
+  return generation === (state.generation || 0);
+}
+
 // 盤面サイズを変える。EDITOR_MAX_SIZE 超過・1 未満・非整数、要素が盤外になる場合は拒否。
 export function setGrid(state, cols, rows) {
   if (!Number.isInteger(cols) || !Number.isInteger(rows) || cols < 1 || rows < 1) return ng('盤面サイズは1以上の整数');
