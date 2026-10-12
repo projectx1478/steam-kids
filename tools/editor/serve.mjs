@@ -37,6 +37,8 @@ export function resolveRequest(urlPath) {
   try { p = decodeURIComponent(urlPath); } catch { return null; }
   if (p.includes('..') || p.includes('\\') || p.includes('\0')) return null;
   if (p === '/') p = '/index.html';
+  // 盤面部品（renderGrid 等）が使うクラスの定義。ルートの style.css（生成物）だけを読み取り専用で返す
+  if (p === '/style.css') return path.join(ROOT, 'style.css');
   if (p.startsWith('/js/')) {
     if (!p.endsWith('.js')) return null;
     const file = path.resolve(JS_DIR, p.slice('/js/'.length));
