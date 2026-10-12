@@ -118,6 +118,10 @@ export function checkBoard(board, add, label) {
   const switchList = Array.isArray(board.switches) ? board.switches : [];
   const groupWallList = Array.isArray(board.groupWalls) ? board.groupWalls : [];
 
+  if (!Number.isInteger(grid.cols) || !Number.isInteger(grid.rows) || grid.cols < 1 || grid.cols > 20 || grid.rows < 1 || grid.rows > 20) {
+    add('盤面の妥当性', `${label}盤面の大きさは20×20以内（${grid.cols}×${grid.rows}）`);
+  }
+
   if (!Array.isArray(board.allowedCommands) || board.allowedCommands.some((c) => !COMMANDS.includes(c))) {
     add('命令語彙', `${label}allowedCommands=${JSON.stringify(board.allowedCommands)} が不正`);
   }
@@ -204,6 +208,10 @@ function checkDemo(intro, playSteps, add) {
   const wallKeySet = new Set(walls.map((w) => `${w.x},${w.y}`));
   const items = Array.isArray(demo.items) ? demo.items : [];
   const label = `stepId="${intro.stepId}" のdemo`;
+
+  if (!Number.isInteger(grid.cols) || !Number.isInteger(grid.rows) || grid.cols < 1 || grid.cols > 20 || grid.rows < 1 || grid.rows > 20) {
+    add('盤面の妥当性', `${label} 盤面の大きさは20×20以内（${grid.cols}×${grid.rows}）`);
+  }
 
   if ('showCommands' in demo && typeof demo.showCommands !== 'boolean') {
     add('demoの型', `${label} showCommands=${JSON.stringify(demo.showCommands)} はboolean以外`);

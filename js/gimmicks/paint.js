@@ -46,7 +46,7 @@ export const paint = {
     return true;
   },
 
-  // 6×6・手数12でも32bit上限に掛からないよう、ビットマスクではなく塗ったマス番号の昇順列を使う。
+  // 6×6相当・手数12でも32bit上限に掛からないよう、ビットマスクではなく塗ったマス番号の昇順列を使う。
   stateKey(state) {
     return `paint:${[...state.painted].sort((a, b) => a - b).join(',')}`;
   },
@@ -78,7 +78,7 @@ export const paint = {
     return undefined;
   },
 
-  // 盤面の妥当性。目標は盤内・壁と重ならず、startとgoalを含む。paint単独（かべ以外のギミックと併用不可）、6×6以内。
+  // 盤面の妥当性。目標は盤内・壁と重ならず、startとgoalを含む。paint単独（かべ以外のギミックと併用不可）。盤面の大きさの上限は盤面共通（20×20）。
   validate(board, add, label) {
     if (board.paint === undefined) return;
     if (!Array.isArray(board.paint) || board.paint.length === 0) {
@@ -86,7 +86,6 @@ export const paint = {
       return;
     }
     const grid = board.grid || {};
-    if (grid.cols > 6 || grid.rows > 6) add('盤面の妥当性', `${label}paintのある盤面は6×6以内（${grid.cols}×${grid.rows}）`);
     for (const field of ['items', 'ice', 'cushion', 'warp', 'keys', 'doors', 'switches', 'periodic']) {
       if (list(board[field]).length > 0) add('盤面の妥当性', `${label}paint は${field}と併用できない（paint単独。かべのみ可）`);
     }

@@ -5,7 +5,7 @@ export const EDITOR_MAX_SIZE = 6; // 盤面サイズ上限（#389 後に 20）
 
 // cellPx（1マスの px）。renderGrid は cellSize を検査せずそのまま使うので、範囲はエディタ側で決める。
 export const CELL_PX_MIN = 8; // js/ui-grid.js の MIN_CELL と同じ
-export const CELL_PX_MAX = 128; // 200%。6×6 でも 1280×800 の盤面エリアに収まる（6*128+28=796）
+export const CELL_PX_MAX = 128; // 200%。現行の最大 6×6 でも 1280×800 の盤面エリアに収まる（6*128+28=796）。盤面の上限は 20×20（#389）
 export const CELL_PX_DEFAULT = 64; // 100%。renderGrid の DEFAULT_CELL と同じ
 
 // 正の整数に丸めて範囲内に収める。数でない値・NaN は既定値。

@@ -249,8 +249,6 @@ export const switches = {
   validate(board, add, label) {
     const swList = list(board.switches);
     if (swList.length === 0) return;
-    const grid = board.grid || {};
-    if (grid.cols > 6 || grid.rows > 6) add('盤面の妥当性', `${label}スイッチのある盤面は6×6以内（${grid.cols}×${grid.rows}）`);
     // 他ギミックのvalidateは相手にswitchesを見ないため、こちらで全方向の重なりを担保する。
     const others = [
       ['壁', board.walls],
