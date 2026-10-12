@@ -2,9 +2,31 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>盤面エディタ（開発者用）</title>
+<!-- 盤面部品が使うクラスの定義（ルートの style.css）。エディタ自身の見た目は editor.css -->
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/editor.css">
 </head>
-<body>
-<p>開発者用</p>
+<body class="editor-body">
+<div id="topbar">
+  <span class="dev-badge">開発者用</span>
+  <h1>盤面エディタ</h1>
+  <button type="button" class="btn" id="undo" disabled>元に戻す</button>
+  <button type="button" class="btn" id="redo" disabled>やり直し</button>
+  <span class="sp"></span>
+  <span class="hint">ホイールで拡大縮小</span>
+  <span class="zoom" id="zoom">100%</span>
+  <button type="button" class="btn" id="zoom-reset">100%に戻す</button>
+</div>
+<div id="cols">
+  <aside id="palette"><div class="hd">パレット</div><div class="empty">（準備中）</div></aside>
+  <main id="center">
+    <div id="boardArea"><div id="board"></div></div>
+    <div id="status"></div>
+  </main>
+  <aside id="settings"><div class="hd">せってい</div><div class="empty">設定なし<br><span class="note">（#404 で選んだ物の設定欄を入れる空枠）</span></div></aside>
+</div>
+<script type="module" src="/editor.js"></script>
 </body>
 </html>
