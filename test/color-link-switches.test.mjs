@@ -70,6 +70,18 @@ for (const k of 'abcdefghi') {
   });
 }
 
+test('validate 検査(e): groupWalls が周期ドア・paint と重なると NG（理由は(e)の1件だけ）', () => {
+  const r = run(load('v-e-periodic-fail'));
+  assert.equal(r.groupNg, true, JSON.stringify(r.errors));
+  assert.equal(r.errors.filter((e) => /groupWalls\[0\] が.*と重なる/.test(e)).length, 1, JSON.stringify(r.errors));
+  assert.ok(r.errors.some((e) => e.includes('periodicと重なる')), JSON.stringify(r.errors));
+  const p = load('v-e-periodic-fail');
+  delete p.periodic;
+  p.paint = [{ x: 2, y: 1 }];
+  const rp = run(p);
+  assert.ok(rp.errors.some((e) => e.includes('paintと重なる')), JSON.stringify(rp.errors));
+});
+
 test('validate: 必須性の節は展開後の盤を見る（group 盤 A・B は NG なし）', () => {
   for (const name of ['board-A-new', 'board-B-new']) {
     const r = run(load(name));

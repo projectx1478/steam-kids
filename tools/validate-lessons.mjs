@@ -38,7 +38,7 @@ function inGrid(grid, p) {
   return p.x >= 0 && p.x < grid.cols && p.y >= 0 && p.y < grid.rows;
 }
 
-// 色連動スイッチ（Issue #392）の検査 (a)〜(h) と (e)。(i) の座標は checkBoard の coordChecks 側。
+// 色連動スイッチ（Issue #392）の検査 (a)〜(h) と (e)。(i) の座標（整数・盤内）は checkBoard 側で、coordChecks の後の別ループで検査する。
 // 展開前の盤を見る。NG を1件でも出したら true を返す（呼び出し側が必須性・罠の意味の節を飛ばす）。
 const GROUP_MAX_LEN = 8;
 const validGroup = (g) => typeof g === 'string' && g.length >= 1 && g.length <= GROUP_MAX_LEN;
@@ -84,6 +84,8 @@ function checkGroupSwitches(board, add, label) {
     ['bridge', pts(board.bridge)],
     ['keys', pts(board.keys)],
     ['doors', pts(board.doors)],
+    ['paint', pts(board.paint)],
+    ['periodic', pts(board.periodic)],
     ['スイッチ', pts(sws)],
     ['スイッチの対象', sws.flatMap((s) => pts(s?.targets))],
   ].map(([name, list]) => [name, new Set(list.map(keyOf))]);
