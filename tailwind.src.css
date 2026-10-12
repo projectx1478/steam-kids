@@ -541,6 +541,46 @@ dialog.result-row {
   }
 }
 
+/* 鍵トレイ行（carry盤。Issue #391）：問い文の直下に別行。横向きの左右分割では問い文・トレイ・盤面を左列に積む。 */
+@media (orientation: landscape) {
+  .sk-screen-frame.sk-screen-frame.sk-screen-frame--keys {
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+  .sk-screen-frame--keys > .sk-key-tray-row {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .sk-screen-frame--keys > .sk-key-tray-row ~ .sk-screen-board {
+    grid-row: 3;
+  }
+  .sk-screen-frame--keys > .sk-key-tray-row ~ .sk-screen-panel {
+    grid-row: 1 / span 3;
+  }
+}
+
+/* 鍵なしで扉に当たったとき、持っていない色の空き枠を一瞬ゆらす（reduced-motionでは付けない。Issue #391）。 */
+@keyframes key-slot-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  15% {
+    transform: translateX(-5px);
+  }
+  35% {
+    transform: translateX(5px);
+  }
+  55% {
+    transform: translateX(-3px);
+  }
+  75% {
+    transform: translateX(3px);
+  }
+}
+.key-slot-shake {
+  animation: key-slot-shake 400ms ease-in-out;
+}
+
 /* 動きを止める設定では、次に遊ぶレッスンを枠だけで示す（Issue #216）。 */
 @media (prefers-reduced-motion: reduce) {
   button.next-pulse {

@@ -25,6 +25,7 @@ import {
 import { showHint, diagnose } from './ui-reaction.js';
 import { showClearSequence, recordClear } from './ui-clear.js';
 import { paintMiniBoard } from './gimmicks/paint.js';
+import { renderKeyTray, resetKeyTray } from './gimmicks/keys.js';
 import { clearToast } from './ui-toast.js';
 import { setRetryButton, shakeBoard, showRestartCue as showRestartCueUi } from './ui-retry.js';
 
@@ -91,6 +92,14 @@ export function renderPlay(root, step) {
   const { frame: opScreen, questionEl: statusBar, boardArea, panel: controls, actions: actionsEl } = screen;
   // 360px縦で4ボタンの文字を溢れさせないため、この行だけ間隔を詰める（Issue #385）。
   actionsEl.classList.replace('gap-2', 'gap-1');
+
+  // 鍵トレイ行（Issue #391）。carry盤だけ、問い文の行の直下に別行で置く（remote盤・tutorial・demo・predictには出さない）。
+  // トースト（問い文の行の差し替え）で消えないよう、questionElの外（兄弟）に置く。
+  const keyTrayEl = renderKeyTray(spec);
+  if (keyTrayEl) {
+    statusBar.after(keyTrayEl);
+    opScreen.classList.add('sk-screen-frame--keys');
+  }
 
   let remainingEl = null;
   // renderAcornTray(): どんぐりの残数を「空き枠が埋まる絵」で示す（Issue #110）。
@@ -292,6 +301,7 @@ export function renderPlay(root, step) {
     local.view = view;
     local.remaining = spec.items.length;
     syncAcornTray();
+    resetKeyTray(keyTrayEl);
   }
 
   // resetToFresh(): 命令列をfreshCommands（なおす系は初期の「ずれた」列、それ以外は空）へ戻す。

@@ -63,6 +63,63 @@ function doorSvg(color, open) {
     </svg>`;
 }
 
+const prefersReduce = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+const slotOf = (color) => typeof document === 'undefined' ? null : document.querySelector(`.key-slot[data-color="${color}"]`);
+
+// carry盤の鍵トレイ（Issue #391）。持っていない色は点線の空き枠（鍵の色で薄く着色）、持った色は盤面と同じ鍵を縮小して入れる。
+// 表示専用。keyModeがcarryで、かぎのある盤面のときだけ作る（それ以外はnull）。色の数だけ最初から出す。
+export function renderKeyTray(spec) {
+  const colors = KEY_COLORS.filter((c) => ids(spec.keys).some((k) => k.color === c));
+  if ((spec.keyMode ?? 'carry') !== 'carry' || colors.length === 0) return null;
+  const tray = document.createElement('div');
+  tray.className = 'sk-key-tray-row key-tray flex items-center justify-center gap-3 shrink-0 -mt-1.5';
+  colors.forEach((color) => {
+    const slot = document.createElement('span');
+    slot.className = 'key-slot relative inline-flex w-12 h-12 rounded-xl border-2';
+    slot.dataset.color = color;
+    tray.appendChild(slot);
+  });
+  resetKeyTray(tray);
+  return tray;
+}
+
+function emptyKeySlot(slot) {
+  const c = COLOR_HEX[slot.dataset.color];
+  delete slot.dataset.filled;
+  slot.classList.remove('bg-amber-50');
+  slot.classList.add('border-dashed');
+  slot.style.borderColor = `${c.main}99`;
+  slot.style.backgroundColor = `${c.main}22`;
+  slot.innerHTML = '';
+}
+
+// トレイを（演出無しで）全部空き枠へ戻す。drawBoard・もういちどで使う。
+export function resetKeyTray(tray) {
+  tray?.querySelectorAll('.key-slot').forEach(emptyKeySlot);
+}
+
+function fillKeySlot(color) {
+  const slot = slotOf(color);
+  if (!slot) return;
+  slot.dataset.filled = 'true';
+  slot.classList.remove('border-dashed');
+  slot.classList.add('bg-amber-50');
+  slot.style.borderColor = '';
+  slot.style.backgroundColor = '';
+  slot.innerHTML = keySvg(color);
+  if (!prefersReduce()) slot.firstElementChild.classList.add('spring-in');
+}
+
+// 鍵なしで扉に当たったとき、持っていない色の空き枠を一瞬ゆらす（reduced-motionでは動かさない）。
+function shakeKeySlot(color) {
+  const slot = slotOf(color);
+  if (!slot || slot.dataset.filled === 'true' || prefersReduce()) return;
+  slot.classList.remove('key-slot-shake');
+  void slot.offsetWidth;
+  slot.classList.add('key-slot-shake');
+  slot.addEventListener('animationend', () => slot.classList.remove('key-slot-shake'), { once: true });
+}
+
 // ドアを開いた見た目にして、開く音を鳴らす（既に開いているドアは何もしない）。
 function openDoors(els, doors) {
   let opened = 0;
@@ -128,7 +185,8 @@ export const keys = {
     const found = ids(spec.keys).find((k) => k.x === pos.x && k.y === pos.y);
     if (!found || run.held.has(found.color)) return undefined;
     run.held.add(found.color);
-    const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (carry) fillKeySlot(found.color);
+    const reduce = prefersReduce();
     const keyEl = els?.keyEls.get(keyOf(found));
     if (keyEl) {
       if (reduce) keyEl.remove();
@@ -141,6 +199,14 @@ export const keys = {
     }
     if (!carry) openDoors(els, ids(spec.doors).filter((d) => d.color === found.color));
     return 'key';
+  },
+
+  // createStepperが衝突（bumped）した手で呼ぶ。targetは進もうとしたマス。carryで鍵なしのドアに当たったら
+  // トレイの空き枠をゆらす（音・文言は足さない。Issue #391）。
+  onBump({ target, spec, run }) {
+    if ((spec.keyMode ?? 'carry') !== 'carry') return;
+    const door = ids(spec.doors).find((d) => d.x === target.x && d.y === target.y);
+    if (door && !(run.held ?? new Set()).has(door.color)) shakeKeySlot(door.color);
   },
 
   // 座標範囲はcheckBoard側で共通に行う。色・対応するかぎ・重なり・盤の大きさを見る。
