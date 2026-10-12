@@ -222,6 +222,8 @@ export function generateMap(baseGenerator, seed, options = {}) {
       const placedKeys = placeKeys(rng, pairCount, spec, free, Boolean(generator.keysMustMatter));
       if (!placedKeys) continue;
       spec = { ...spec, keys: placedKeys.keys, doors: placedKeys.doors };
+      // keyMode（Issue #391）は指定されたときだけ盤へ付ける（乱数は引かない。無指定＝carry）
+      if (baseGenerator.gimmickMix?.keyMode) spec = { ...spec, keyMode: baseGenerator.gimmickMix.keyMode };
     }
     const cmds = shortestPath(spec);
     if (!cmds || !inRange(cmds.length, generator.shortestPath)) continue;

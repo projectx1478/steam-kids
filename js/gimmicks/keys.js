@@ -2,6 +2,9 @@
 // 未所持の色のドアは壁と同じ通行不可（当たると失敗）。かぎは消費しない（Issue #62）。
 // 色は色覚に配慮して形でも区別する（red=まる、blue=さんかく。かぎ。ドアは色のみ。Issue #387）。
 export const KEY_COLORS = ['red', 'blue'];
+// keyMode（Issue #391）。remote＝かぎのマスへ入った瞬間に同色のドアが開く（従来）。carry＝取っても開かず、
+// 持っている色のドアのマスへ入ったときに開く（省略時）。通行可否・最短手数は同じで、onStepの描画だけが違う。
+export const KEY_MODES = ['remote', 'carry'];
 
 // main=本体色、dark=影・縁、light=ハイライト。
 const COLOR_HEX = {
@@ -60,6 +63,82 @@ function doorSvg(color, open) {
     </svg>`;
 }
 
+const prefersReduce = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+const slotOf = (color) => typeof document === 'undefined' ? null : document.querySelector(`.key-slot[data-color="${color}"]`);
+
+// carry盤の鍵トレイ（Issue #391）。持っていない色は点線の空き枠（鍵の色で薄く着色）、持った色は盤面と同じ鍵を縮小して入れる。
+// 表示専用。keyModeがcarryで、かぎのある盤面のときだけ作る（それ以外はnull）。色の数だけ最初から出す。
+export function renderKeyTray(spec) {
+  const colors = KEY_COLORS.filter((c) => ids(spec.keys).some((k) => k.color === c));
+  if ((spec.keyMode ?? 'carry') !== 'carry' || colors.length === 0) return null;
+  const tray = document.createElement('div');
+  tray.className = 'sk-key-tray-row key-tray flex items-center justify-center gap-3 shrink-0 -mt-1.5';
+  colors.forEach((color) => {
+    const slot = document.createElement('span');
+    slot.className = 'key-slot relative inline-flex w-12 h-12 rounded-xl border-2';
+    slot.dataset.color = color;
+    tray.appendChild(slot);
+  });
+  resetKeyTray(tray);
+  return tray;
+}
+
+function emptyKeySlot(slot) {
+  const c = COLOR_HEX[slot.dataset.color];
+  delete slot.dataset.filled;
+  slot.classList.remove('bg-amber-50');
+  slot.classList.add('border-dashed');
+  slot.style.borderColor = `${c.main}99`;
+  slot.style.backgroundColor = `${c.main}22`;
+  slot.innerHTML = '';
+}
+
+// トレイを（演出無しで）全部空き枠へ戻す。drawBoard・もういちどで使う。
+export function resetKeyTray(tray) {
+  tray?.querySelectorAll('.key-slot').forEach(emptyKeySlot);
+}
+
+function fillKeySlot(color) {
+  const slot = slotOf(color);
+  if (!slot) return;
+  slot.dataset.filled = 'true';
+  slot.classList.remove('border-dashed');
+  slot.classList.add('bg-amber-50');
+  slot.style.borderColor = '';
+  slot.style.backgroundColor = '';
+  slot.innerHTML = keySvg(color);
+  if (!prefersReduce()) slot.firstElementChild.classList.add('spring-in');
+}
+
+// 鍵なしで扉に当たったとき、持っていない色の空き枠を一瞬ゆらす（reduced-motionでは動かさない）。
+function shakeKeySlot(color) {
+  const slot = slotOf(color);
+  if (!slot || slot.dataset.filled === 'true' || prefersReduce()) return;
+  slot.classList.remove('key-slot-shake');
+  void slot.offsetWidth;
+  slot.classList.add('key-slot-shake');
+  slot.addEventListener('animationend', () => slot.classList.remove('key-slot-shake'), { once: true });
+}
+
+// ドアを開いた見た目にして、開く音を鳴らす（既に開いているドアは何もしない）。
+function openDoors(els, doors) {
+  let opened = 0;
+  doors.forEach((d) => {
+    const cell = els?.doorCells.get(keyOf(d));
+    if (cell?.dataset.doorOpen === 'true') return;
+    opened += 1;
+    if (!cell) return;
+    cell.dataset.doorOpen = 'true';
+    cell.querySelector('.grid-door-svg')?.replaceWith(
+      Object.assign(document.createElement('template'), { innerHTML: doorSvg(d.color, true) }).content.firstElementChild
+    );
+  });
+  // ドアが開く音はかぎ取得の直後に重ならないよう約0.25s遅らせる。sfx.jsはブラウザ前提
+  // （localStorage使用）なため動的import。Nodeの単体テストはonStepを呼ばないためここでのみ
+  // sfx.jsへ依存する（Issue #158）
+  if (opened > 0) setTimeout(() => import('../sfx.js').then(({ play }) => play('door')), 250);
+}
+
 export const keys = {
   key: 'keys',
 
@@ -95,12 +174,19 @@ export const keys = {
   // createStepperが1手進むたびに呼ぶ（engineの状態とは独立にUIの開閉を更新する）。
   // runはstepper1回の実行ごとの作業領域。戻り値は鳴らす効果音名（無ければundefined）。
   onStep({ pos, spec, view, run }) {
-    const found = ids(spec.keys).find((k) => k.x === pos.x && k.y === pos.y);
+    const carry = (spec.keyMode ?? 'carry') === 'carry';
+    const els = view.gimmickEls?.keys;
     run.held ??= new Set();
+    // carry：持っている色のドアのマスへ入ったとき開く（開いたドアは開いたまま）
+    if (carry) {
+      const door = ids(spec.doors).find((d) => d.x === pos.x && d.y === pos.y);
+      if (door && run.held.has(door.color)) openDoors(els, [door]);
+    }
+    const found = ids(spec.keys).find((k) => k.x === pos.x && k.y === pos.y);
     if (!found || run.held.has(found.color)) return undefined;
     run.held.add(found.color);
-    const els = view.gimmickEls?.keys;
-    const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (carry) fillKeySlot(found.color);
+    const reduce = prefersReduce();
     const keyEl = els?.keyEls.get(keyOf(found));
     if (keyEl) {
       if (reduce) keyEl.remove();
@@ -111,26 +197,26 @@ export const keys = {
         setTimeout(() => keyEl.remove(), 400);
       }
     }
-    const doors = ids(spec.doors).filter((d) => d.color === found.color);
-    doors.forEach((d) => {
-      const cell = els?.doorCells.get(keyOf(d));
-      if (!cell) return;
-      cell.dataset.doorOpen = 'true';
-      cell.querySelector('.grid-door-svg')?.replaceWith(
-        Object.assign(document.createElement('template'), { innerHTML: doorSvg(d.color, true) }).content.firstElementChild
-      );
-    });
-    // ドアが開く音はかぎ取得の直後に重ならないよう約0.25s遅らせる。sfx.jsはブラウザ前提
-    // （localStorage使用）なため動的import。Nodeの単体テストはonStepを呼ばないためここでのみ
-    // sfx.jsへ依存する（Issue #158）
-    if (doors.length > 0) setTimeout(() => import('../sfx.js').then(({ play }) => play('door')), 250);
+    if (!carry) openDoors(els, ids(spec.doors).filter((d) => d.color === found.color));
     return 'key';
+  },
+
+  // createStepperが衝突（bumped）した手で呼ぶ。targetは進もうとしたマス。carryで鍵なしのドアに当たったら
+  // トレイの空き枠をゆらす（音・文言は足さない。Issue #391）。
+  onBump({ target, spec, run }) {
+    if ((spec.keyMode ?? 'carry') !== 'carry') return;
+    const door = ids(spec.doors).find((d) => d.x === target.x && d.y === target.y);
+    if (door && !(run.held ?? new Set()).has(door.color)) shakeKeySlot(door.color);
   },
 
   // 座標範囲はcheckBoard側で共通に行う。色・対応するかぎ・重なり・盤の大きさを見る。
   validate(board, add, label) {
     const keyList = ids(board.keys);
     const doorList = ids(board.doors);
+    if ('keyMode' in board) {
+      if (keyList.length === 0 && doorList.length === 0) add('盤面の妥当性', `${label}keyModeはkeys・doorsのある盤面だけに指定できる`);
+      else if (!KEY_MODES.includes(board.keyMode)) add('盤面の妥当性', `${label}keyMode=${JSON.stringify(board.keyMode)} が不正（${KEY_MODES.join('・')}のどちらか）`);
+    }
     if (keyList.length === 0 && doorList.length === 0) return;
     const grid = board.grid || {};
     if (grid.cols > 6 || grid.rows > 6) add('盤面の妥当性', `${label}かぎ・ドアのある盤面は6×6以内（${grid.cols}×${grid.rows}）`);

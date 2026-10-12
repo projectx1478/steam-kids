@@ -83,3 +83,20 @@ test('stage-gen: cushion・switches を指定しない盤は従来どおり（�
     assert.ok(!/\|u:|\|x:|\|t:/.test(canonicalKey(b)));
   }
 });
+
+test('stage-gen: keyMode は指定したときだけ盤に付き、盤・解は keyMode の有無で変わらない(Issue #391)', () => {
+  for (let seed = 0; seed < SEEDS; seed += 1) {
+    const plain = generateBoard(cases.keys, seed);
+    const remote = generateBoard({ ...cases.keys, keyMode: 'remote' }, seed);
+    const carry = generateBoard({ ...cases.keys, keyMode: 'carry' }, seed);
+    assert.equal(Boolean(plain), Boolean(remote));
+    if (!plain) continue;
+    assert.equal('keyMode' in plain, false, '無指定なら付かない');
+    assert.equal(remote.keyMode, 'remote');
+    assert.equal(carry.keyMode, 'carry');
+    const { keyMode: _r, ...r } = remote;
+    const { keyMode: _c, ...c } = carry;
+    assert.deepEqual(r, plain, 'remote 指定でも盤・解は同じ');
+    assert.deepEqual(c, plain, 'carry 指定でも盤・解は同じ');
+  }
+});

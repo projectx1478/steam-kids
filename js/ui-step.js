@@ -424,6 +424,10 @@ export function createStepper(commands, spec, view, { onTick, onPickup }) {
           if (sfx) playSfx(sfx);
         }
       }
+      if (bumped) {
+        const target = { x: from.x + ddx, y: from.y + ddy };
+        for (const g of GIMMICKS) g.onBump?.({ target, spec, view, run: (runStates[g.key] ??= {}) });
+      }
       onTick(result.stepOwner[i], to, result.innerOwner[i], result.roundOwner[i]);
       // 壁・盤外にぶつかった手で実行を止める。残りの手は再生しない（Issue #136）。クッションは止まらない。
       if (bumped || i === result.path.length - 2) {

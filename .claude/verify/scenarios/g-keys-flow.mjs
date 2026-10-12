@@ -20,6 +20,7 @@ const lesson = {
       goal: { x: 4, y: 1 },
       walls: [{ x: 2, y: 0 }, { x: 2, y: 2 }, { x: 3, y: 0 }, { x: 3, y: 2 }],
       ice: [{ x: 1, y: 1 }],
+      keyMode: 'remote',
       keys: [{ x: 0, y: 0, color: 'red' }, { x: 0, y: 2, color: 'blue' }],
       doors: [{ x: 2, y: 1, color: 'red' }, { x: 3, y: 1, color: 'blue' }],
       allowedCommands: ['up', 'down', 'left', 'right'],
