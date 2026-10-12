@@ -9,7 +9,7 @@ import { boardToStep, collectCandidates, pickStages, MAX_SEEDS } from '../tools/
 // 書き込む形の比較用（ギミックの無いフィールドは省略されているので、無い＝空として揃える）
 const norm = (s) => ({
   grid: s.grid, start: s.start, goal: s.goal, walls: s.walls, items: s.items ?? [], ice: s.ice ?? [],
-  keys: s.keys ?? [], doors: s.doors ?? [], allowedCommands: s.allowedCommands, solution: s.solution, maxCommands: s.maxCommands,
+  keys: s.keys ?? [], doors: s.doors ?? [], keyMode: s.keyMode, allowedCommands: s.allowedCommands, solution: s.solution, maxCommands: s.maxCommands,
 });
 
 // lessons/*.json の全 gen 付きステップを再生成して照合（PR1 では対象 0 件）

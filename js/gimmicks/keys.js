@@ -2,6 +2,9 @@
 // 未所持の色のドアは壁と同じ通行不可（当たると失敗）。かぎは消費しない（Issue #62）。
 // 色は色覚に配慮して形でも区別する（red=まる、blue=さんかく。かぎ。ドアは色のみ。Issue #387）。
 export const KEY_COLORS = ['red', 'blue'];
+// keyMode（Issue #391）。remote＝かぎのマスへ入った瞬間に同色のドアが開く（従来）。carry＝取っても開かず、
+// 持っている色のドアのマスへ入ったときに開く（省略時）。通行可否・最短手数は同じで、onStepの描画だけが違う。
+export const KEY_MODES = ['remote', 'carry'];
 
 // main=本体色、dark=影・縁、light=ハイライト。
 const COLOR_HEX = {
@@ -60,6 +63,25 @@ function doorSvg(color, open) {
     </svg>`;
 }
 
+// ドアを開いた見た目にして、開く音を鳴らす（既に開いているドアは何もしない）。
+function openDoors(els, doors) {
+  let opened = 0;
+  doors.forEach((d) => {
+    const cell = els?.doorCells.get(keyOf(d));
+    if (cell?.dataset.doorOpen === 'true') return;
+    opened += 1;
+    if (!cell) return;
+    cell.dataset.doorOpen = 'true';
+    cell.querySelector('.grid-door-svg')?.replaceWith(
+      Object.assign(document.createElement('template'), { innerHTML: doorSvg(d.color, true) }).content.firstElementChild
+    );
+  });
+  // ドアが開く音はかぎ取得の直後に重ならないよう約0.25s遅らせる。sfx.jsはブラウザ前提
+  // （localStorage使用）なため動的import。Nodeの単体テストはonStepを呼ばないためここでのみ
+  // sfx.jsへ依存する（Issue #158）
+  if (opened > 0) setTimeout(() => import('../sfx.js').then(({ play }) => play('door')), 250);
+}
+
 export const keys = {
   key: 'keys',
 
@@ -95,11 +117,17 @@ export const keys = {
   // createStepperが1手進むたびに呼ぶ（engineの状態とは独立にUIの開閉を更新する）。
   // runはstepper1回の実行ごとの作業領域。戻り値は鳴らす効果音名（無ければundefined）。
   onStep({ pos, spec, view, run }) {
-    const found = ids(spec.keys).find((k) => k.x === pos.x && k.y === pos.y);
+    const carry = (spec.keyMode ?? 'carry') === 'carry';
+    const els = view.gimmickEls?.keys;
     run.held ??= new Set();
+    // carry：持っている色のドアのマスへ入ったとき開く（開いたドアは開いたまま）
+    if (carry) {
+      const door = ids(spec.doors).find((d) => d.x === pos.x && d.y === pos.y);
+      if (door && run.held.has(door.color)) openDoors(els, [door]);
+    }
+    const found = ids(spec.keys).find((k) => k.x === pos.x && k.y === pos.y);
     if (!found || run.held.has(found.color)) return undefined;
     run.held.add(found.color);
-    const els = view.gimmickEls?.keys;
     const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
     const keyEl = els?.keyEls.get(keyOf(found));
     if (keyEl) {
@@ -111,19 +139,7 @@ export const keys = {
         setTimeout(() => keyEl.remove(), 400);
       }
     }
-    const doors = ids(spec.doors).filter((d) => d.color === found.color);
-    doors.forEach((d) => {
-      const cell = els?.doorCells.get(keyOf(d));
-      if (!cell) return;
-      cell.dataset.doorOpen = 'true';
-      cell.querySelector('.grid-door-svg')?.replaceWith(
-        Object.assign(document.createElement('template'), { innerHTML: doorSvg(d.color, true) }).content.firstElementChild
-      );
-    });
-    // ドアが開く音はかぎ取得の直後に重ならないよう約0.25s遅らせる。sfx.jsはブラウザ前提
-    // （localStorage使用）なため動的import。Nodeの単体テストはonStepを呼ばないためここでのみ
-    // sfx.jsへ依存する（Issue #158）
-    if (doors.length > 0) setTimeout(() => import('../sfx.js').then(({ play }) => play('door')), 250);
+    if (!carry) openDoors(els, ids(spec.doors).filter((d) => d.color === found.color));
     return 'key';
   },
 
@@ -131,6 +147,10 @@ export const keys = {
   validate(board, add, label) {
     const keyList = ids(board.keys);
     const doorList = ids(board.doors);
+    if ('keyMode' in board) {
+      if (keyList.length === 0 && doorList.length === 0) add('盤面の妥当性', `${label}keyModeはkeys・doorsのある盤面だけに指定できる`);
+      else if (!KEY_MODES.includes(board.keyMode)) add('盤面の妥当性', `${label}keyMode=${JSON.stringify(board.keyMode)} が不正（${KEY_MODES.join('・')}のどちらか）`);
+    }
     if (keyList.length === 0 && doorList.length === 0) return;
     const grid = board.grid || {};
     if (grid.cols > 6 || grid.rows > 6) add('盤面の妥当性', `${label}かぎ・ドアのある盤面は6×6以内（${grid.cols}×${grid.rows}）`);

@@ -16,6 +16,7 @@
     "gimmicks": {
       "keys": { "min": 2, "max": 2 }
     },
+    "keyMode": "remote",
     "teach": "keys",
     "shortestPath": { "min": 9, "max": 16 },
     "minTurns": 3,
@@ -44,6 +45,7 @@
           { "x": 2, "y": 1, "color": "red" },
           { "x": 3, "y": 1, "color": "blue" }
         ],
+        "keyMode": "remote",
         "commands": ["right", "right", "down", "right", "right"]
       }
     },
@@ -61,6 +63,7 @@
       ],
       "keys": [{ "x": 1, "y": 0, "color": "blue" }],
       "doors": [{ "x": 2, "y": 0, "color": "blue" }],
+      "keyMode": "remote",
       "allowedCommands": ["up", "down", "left", "right"],
       "script": [
         { "tap": "right" },
@@ -90,6 +93,7 @@
         { "x": 2, "y": 1, "color": "red" },
         { "x": 3, "y": 1, "color": "blue" }
       ],
+      "keyMode": "remote",
       "allowedCommands": ["up", "down", "left", "right"],
       "solution": ["right", "up", "down", "down", "up", "right", "right", "right"],
       "maxCommands": 10
@@ -117,6 +121,7 @@
         { "x": 3, "y": 2, "color": "red" },
         { "x": 1, "y": 0, "color": "blue" }
       ],
+      "keyMode": "remote",
       "allowedCommands": ["up", "down", "left", "right"],
       "solution": ["right", "right", "right", "up", "up", "left", "left", "up", "left"],
       "maxCommands": 10
@@ -140,6 +145,7 @@
         { "x": 1, "y": 2, "color": "blue" },
         { "x": 2, "y": 2, "color": "red" }
       ],
+      "keyMode": "remote",
       "allowedCommands": ["up", "down", "left", "right"],
       "solution": ["up", "up", "up", "down", "right", "right", "down", "down", "right"],
       "maxCommands": 9,
@@ -166,6 +172,7 @@
         { "x": 0, "y": 1, "color": "red" },
         { "x": 1, "y": 0, "color": "red" }
       ],
+      "keyMode": "remote",
       "allowedCommands": ["up", "down", "left", "right"],
       "solution": ["right", "right", "left", "left", "up", "up", "up", "right", "right"],
       "maxCommands": 9,
@@ -193,6 +200,7 @@
         { "x": 2, "y": 2, "color": "blue" },
         { "x": 1, "y": 2, "color": "red" }
       ],
+      "keyMode": "remote",
       "allowedCommands": ["up", "down", "left", "right"],
       "solution": ["down", "down", "left", "right", "up", "up", "left", "left", "down"],
       "maxCommands": 9,
@@ -219,6 +227,7 @@
         { "x": 1, "y": 0, "color": "blue" },
         { "x": 0, "y": 0, "color": "red" }
       ],
+      "keyMode": "remote",
       "allowedCommands": ["up", "down", "left", "right"],
       "solution": ["down", "up", "up", "up", "right", "left", "left", "left", "left", "down"],
       "maxCommands": 10,
@@ -244,6 +253,7 @@
         { "x": 0, "y": 3, "color": "blue" },
         { "x": 0, "y": 2, "color": "red" }
       ],
+      "keyMode": "remote",
       "allowedCommands": ["up", "down", "left", "right"],
       "solution": ["right", "right", "left", "left", "down", "down", "down", "right", "right", "right", "right", "up"],
       "maxCommands": 12,
@@ -271,6 +281,7 @@
         { "x": 2, "y": 3, "color": "blue" },
         { "x": 3, "y": 3, "color": "red" }
       ],
+      "keyMode": "remote",
       "allowedCommands": ["up", "down", "left", "right"],
       "solution": ["up", "up", "up", "right", "right", "left", "left", "down", "down", "down", "right", "right", "up", "right", "up"],
       "maxCommands": 15,

@@ -25,7 +25,8 @@
         "gimmickMix": {
           "items": { "items": { "min": 1, "max": 2 }, "itemsMustMatter": true },
           "ice": { "ice": { "min": 1, "max": 1 }, "iceMustMatter": true, "shortestPath": { "min": 2, "max": 8 } },
-          "keys": { "keys": { "min": 1, "max": 1 }, "keysMustMatter": true }
+          "keys": { "keys": { "min": 1, "max": 1 }, "keysMustMatter": true },
+          "keyMode": "remote"
         }
       }
     },

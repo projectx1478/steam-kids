@@ -19,7 +19,8 @@ const seedCount = Math.min(1000, positiveIntOr(process.env.GENERATE_SEEDS, 1000)
 const ALL = new Set(['items', 'ice', 'keys']);
 
 test('gimmickMix: cmd-06 の p1 に items・ice・keys の gimmickMix がある', () => {
-  assert.deepEqual(Object.keys(mixGenerator.gimmickMix), ['items', 'ice', 'keys']);
+  assert.deepEqual(Object.keys(mixGenerator.gimmickMix), ['items', 'ice', 'keys', 'keyMode']);
+  assert.equal(mixGenerator.gimmickMix.keyMode, 'remote', 'Issue #391: cmd-06 は remote を明示');
 });
 
 test('gimmickMix: 同じ seed・同じ allowed なら同じ盤面（決定性）', () => {

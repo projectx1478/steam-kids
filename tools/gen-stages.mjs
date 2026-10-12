@@ -102,6 +102,7 @@ export function boardToStep(board, stepId, gen) {
   if (board.items?.length) step.items = board.items;
   if (board.ice?.length) step.ice = board.ice;
   if (board.keys?.length) { step.keys = board.keys; step.doors = board.doors; }
+  if (board.keyMode) step.keyMode = board.keyMode;
   step.allowedCommands = board.allowedCommands;
   step.solution = board.solution;
   step.maxCommands = board.maxCommands;

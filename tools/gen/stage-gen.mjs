@@ -194,6 +194,8 @@ export function generateBoard(stageGen, seed) {
       const placed = placeKeys(rng, pairCount, spec, free);
       if (!placed) continue;
       spec = { ...spec, keys: placed.keys, doors: placed.doors };
+      // keyMode（Issue #391）は指定されたときだけ盤へ付ける（乱数は引かない。無指定＝carry）
+      if (stageGen.keyMode) spec = { ...spec, keyMode: stageGen.keyMode };
     }
     // cushion→switches は既存の乱数消費の後ろ。範囲未指定なら乱数を引かない。
     const cushionCount = gim.cushion ? countOf(rng, gim.cushion) : 0;
