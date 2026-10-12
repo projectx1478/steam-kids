@@ -193,7 +193,7 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 
 `js/engine-generate.js`の`generateMap(generator, seed)`へ渡す制約。同じシードなら同じ盤面。れんしゅう（Issue #69）は`steps`が`seedPick`（`text`のみ）→`generator`付き`play`（盤面フィールドを持たない）→`summary`で、
 `lessons/index.json`の単元`practiceIds`に載せる。たね入力で確定したコードから`play`の盤面をその都度生成して差し込む
-（`js/seed-code.js`・`js/ui-seedpick.js`・`js/ui-step.js`）。検証は`tools/validate-lessons.mjs`が40個のたねで生成できることを確認する。
+（`js/seed-code.js`・`js/ui-seedpick.js`・`js/ui-step.js`）。入力は3桁の番号（`'000'`〜`'999'`、0埋め3桁の文字列。保存しない）。検証は`tools/validate-lessons.mjs`が`'000'`〜`'039'`の40個のたねで生成できることを確認する。
 
 | フィールド | 意味 |
 | --- | --- |
