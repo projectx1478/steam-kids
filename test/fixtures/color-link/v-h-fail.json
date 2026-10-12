@@ -1,0 +1,15 @@
+{
+  "_note": "検査(h) 不合格。group の長さが9（上限8を超える）。スイッチと groupWalls で同じ値にしてあるので (b)(f) の不一致には当たらない。型違反（数値 1 など）と長さ0も同じ (h)。予想：(h) の NG（スイッチ側 group と groupWalls[0].group の2か所を別々に1件ずつ出すか1件にまとめるかは実装次第。理由は (h) のみ。未実装のため実行しない。段1で実測）。",
+  "stepId": "vh-fail",
+  "kind": "play",
+  "text": "検査h 不合格",
+  "grid": { "cols": 4, "rows": 3 },
+  "start": { "x": 0, "y": 1 },
+  "goal": { "x": 3, "y": 1 },
+  "walls": [{ "x": 2, "y": 0 }, { "x": 2, "y": 2 }],
+  "groupWalls": [{ "x": 2, "y": 1, "group": "ABCDEFGHI" }],
+  "switches": [{ "x": 0, "y": 2, "color": "red", "group": "ABCDEFGHI" }],
+  "allowedCommands": ["up", "down", "left", "right"],
+  "solution": ["down", "up", "right", "right", "right"],
+  "maxCommands": 5
+}

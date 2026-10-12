@@ -1,0 +1,15 @@
+{
+  "_note": "検査(a) 合格。スイッチは group だけを持ち targets を持たない。予想：NG なし（未実装のため実行しない。段1で実測）。",
+  "stepId": "va-pass",
+  "kind": "play",
+  "text": "検査a 合格",
+  "grid": { "cols": 4, "rows": 3 },
+  "start": { "x": 0, "y": 1 },
+  "goal": { "x": 3, "y": 1 },
+  "walls": [{ "x": 2, "y": 0 }, { "x": 2, "y": 2 }],
+  "groupWalls": [{ "x": 2, "y": 1, "group": "A" }],
+  "switches": [{ "x": 0, "y": 2, "color": "red", "group": "A" }],
+  "allowedCommands": ["up", "down", "left", "right"],
+  "solution": ["down", "up", "right", "right", "right"],
+  "maxCommands": 5
+}

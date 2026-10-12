@@ -6,6 +6,24 @@ import { mark } from './keys.js';
 const keyOf = (p) => `${p.x},${p.y}`;
 const list = (v) => (Array.isArray(v) ? v : []);
 
+// 色連動（Issue #392）：group を持つスイッチの targets を、同じ group の groupWalls のマスにする（ロード時の展開）。
+// group は外す。targets を既に持つスイッチは上書きしない（検査 (a) の対象）。冪等（group が無くなるので2回目は何もしない）。
+// group スイッチが無い step は同じオブジェクトをそのまま返す。
+export function expandGroupSwitches(step) {
+  const sws = step?.switches;
+  if (!Array.isArray(sws) || !sws.some((s) => typeof s?.group === 'string')) return step;
+  const walls = list(step.groupWalls);
+  return {
+    ...step,
+    switches: sws.map((s) => {
+      if (typeof s?.group !== 'string') return s;
+      const { group, ...rest } = s;
+      if (Array.isArray(s.targets)) return rest;
+      return { ...rest, targets: walls.filter((w) => w?.group === group).map(({ x, y }) => ({ x, y })) };
+    }),
+  };
+}
+
 // スイッチ・壁の色と形の印（Issue #387）。色は switches[].color（省略時は添字順 red,blue,red…）。
 const SWITCH_COLORS = ['red', 'blue'];
 const HEX = { red: { main: '#ef4444', dark: '#b91c1c' }, blue: { main: '#3b82f6', dark: '#1e40af' } };
@@ -271,7 +289,7 @@ export const switches = {
           if (j > i && list(o.targets).some((u) => mine.some((t) => t.x === u.x && t.y === u.y))) add('盤面の妥当性', `${label}switches[${i}] のclose は他のスイッチと対象を共有できない（AND不可）`);
         });
       }
-      if (!Array.isArray(s.targets) || s.targets.length === 0) add('盤面の妥当性', `${label}switches[${i}] のtargetsが空`);
+      if (typeof s.group !== 'string' && (!Array.isArray(s.targets) || s.targets.length === 0)) add('盤面の妥当性', `${label}switches[${i}] のtargetsが空`);
       points.push([`switches[${i}]`, s]);
       list(s.targets).forEach((t, j) => points.push([`switches[${i}].targets[${j}]`, t]));
     });

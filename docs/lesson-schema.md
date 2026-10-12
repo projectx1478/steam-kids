@@ -99,7 +99,7 @@ DOM判定用に箱チップへ`data-round`（0始まりの現在周。実行外�
 
 `play.items`（任意・マス座標`{x, y}`の配列・既定`[]`）を指定すると、盤面に回収対象（どんぐり）
 を置く。クリア条件は「ゴール到達」から「ゴール到達 **かつ** 全item回収」に変わる（items未指定時
-は従来通りゴール到達のみ）。item同士・item-壁の座標重複は不可（`validate-lessons.mjs`が検証）。`ice`（こおり）も座標範囲・壁/start/goal/items/ice同士の重複不可、`cushion`（クッション）も同様（仕様は`docs/gimmicks.md`）。`switches`（スイッチ。`[{x, y, targets: [{x, y, initial?}], mode?, color?}]`）の`mode`は`"open"`（省略時）｜`"close"`｜`"toggle"`で、`initial`（`"closed"`既定｜`"open"`）は`toggle`の`targets`だけに指定でき、`targets`の要素は`{x, y}`の上位互換（仕様と併用禁止は`docs/gimmicks.md`の`## switches`）。`water`・`bridge`（`{x, y}`の配列。水・橋。省略時`[]`）と`waterMode`（`"cushion"`既定／`"bump"`）も同様（`docs/gimmicks.md`の`## water`）。`play.paint`（任意・`{x, y}`の配列＝目標の模様。クリアは「ゴール到達かつ最後の塗り＝目標」。全回収との違いは`docs/gimmicks.md`の`## paint`）。
+は従来通りゴール到達のみ）。item同士・item-壁の座標重複は不可（`validate-lessons.mjs`が検証）。`ice`（こおり）も座標範囲・壁/start/goal/items/ice同士の重複不可、`cushion`（クッション）も同様（仕様は`docs/gimmicks.md`）。`switches`（スイッチ。`[{x, y, targets: [{x, y, initial?}], mode?, color?}]`）の`mode`は`"open"`（省略時）｜`"close"`｜`"toggle"`で、`initial`（`"closed"`既定｜`"open"`）は`toggle`の`targets`だけに指定でき、`targets`の要素は`{x, y}`の上位互換（仕様と併用禁止は`docs/gimmicks.md`の`## switches`）。`switches[].group`（任意・文字列）と盤面トップの`groupWalls`（任意・`{x, y, group}`の配列・省略時`[]`）の仕様は`docs/gimmicks.md`の`## switches`。`water`・`bridge`（`{x, y}`の配列。水・橋。省略時`[]`）と`waterMode`（`"cushion"`既定／`"bump"`）も同様（`docs/gimmicks.md`の`## water`）。`play.paint`（任意・`{x, y}`の配列＝目標の模様。クリアは「ゴール到達かつ最後の塗り＝目標」。全回収との違いは`docs/gimmicks.md`の`## paint`）。
 `maxCommands`はゴール到達と全item回収の両方を満たす最短経路の手数（`groupRepeats`時はチップ数）
 で判定される（Issue #60）。
 

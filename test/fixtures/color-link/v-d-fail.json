@@ -1,0 +1,15 @@
+{
+  "_note": "検査(d) 不合格。group と mode:\"close\" の併用（\"toggle\" でも同じくNG）。それ以外は合格盤と同じ。予想：(d) の NG 1件だけ（未実装のため実行しない。段1で実測）。",
+  "stepId": "vd-fail",
+  "kind": "play",
+  "text": "検査d 不合格",
+  "grid": { "cols": 4, "rows": 3 },
+  "start": { "x": 0, "y": 1 },
+  "goal": { "x": 3, "y": 1 },
+  "walls": [{ "x": 2, "y": 0 }, { "x": 2, "y": 2 }],
+  "groupWalls": [{ "x": 2, "y": 1, "group": "A" }],
+  "switches": [{ "x": 0, "y": 2, "color": "red", "group": "A", "mode": "close" }],
+  "allowedCommands": ["up", "down", "left", "right"],
+  "solution": ["down", "up", "right", "right", "right"],
+  "maxCommands": 5
+}
