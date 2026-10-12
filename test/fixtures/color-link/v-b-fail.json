@@ -1,0 +1,14 @@
+{
+  "_note": "検査(b) 不合格。group A のスイッチがあるが groupWalls を盤ごと省いてある（対応する壁が1枚も無い）。(f) には当たらない（余った groupWalls が無い）。予想：(b) の NG 1件だけ（未実装のため実行しない。段1で実測）。",
+  "stepId": "vb-fail",
+  "kind": "play",
+  "text": "検査b 不合格",
+  "grid": { "cols": 4, "rows": 3 },
+  "start": { "x": 0, "y": 1 },
+  "goal": { "x": 3, "y": 1 },
+  "walls": [{ "x": 2, "y": 0 }, { "x": 2, "y": 2 }],
+  "switches": [{ "x": 0, "y": 2, "color": "red", "group": "A" }],
+  "allowedCommands": ["up", "down", "left", "right"],
+  "solution": ["right", "right", "right"],
+  "maxCommands": 3
+}

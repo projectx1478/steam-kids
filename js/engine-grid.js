@@ -1,5 +1,6 @@
 // grid-runtimeの純粋関数。DOMに触れない。命令列と盤面仕様から経路と到達判定を返す。
 import { GIMMICKS } from './gimmicks/index.js';
+import { expandGroupSwitches } from './gimmicks/switches.js';
 
 const MOVES = {
   up: (p) => ({ x: p.x, y: p.y - 1 }),
@@ -11,7 +12,8 @@ const COMMANDS = Object.keys(MOVES);
 
 // step（play/tutorial/intro.demo相当のオブジェクト）から盤面specを組み立てる。grid/walls/items/ice
 // を既定値で補う。未知のフィールド（将来のギミック用データ）もそのまま通す（Issue #123）。
-export function boardSpec(step) {
+export function boardSpec(rawStep) {
+  const step = expandGroupSwitches(rawStep); // 色連動スイッチの group を targets に展開（Issue #392。冪等）
   return {
     ...step,
     grid: step.grid || {},

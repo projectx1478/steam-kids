@@ -1,0 +1,15 @@
+{
+  "_note": "盤Aの新フィールド版（参考。実行しない）。board-A-equiv.json と同じ位置。group A の1スイッチが離れた2枚(3,1)(4,3)を開く。(3,1)だけが必須",
+  "stepId": "pA",
+  "kind": "play",
+  "text": "かべは どうなる？",
+  "grid": { "cols": 6, "rows": 4 },
+  "start": { "x": 0, "y": 1 },
+  "goal": { "x": 5, "y": 1 },
+  "walls": [{ "x": 3, "y": 0 }, { "x": 3, "y": 2 }, { "x": 3, "y": 3 }],
+  "groupWalls": [{ "x": 3, "y": 1, "group": "A" }, { "x": 4, "y": 3, "group": "A" }],
+  "switches": [{ "x": 1, "y": 3, "color": "red", "group": "A" }],
+  "allowedCommands": ["up", "down", "left", "right"],
+  "solution": ["down", "down", "right", "right", "up", "up", "right", "right", "right"],
+  "maxCommands": 9
+}

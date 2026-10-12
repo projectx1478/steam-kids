@@ -1,0 +1,15 @@
+{
+  "_note": "検査(i) 不合格。groupWalls の座標 x=4 が盤(cols=4 → x は 0〜3)の外。整数ではない座標（例 x:2.5）も同じ (i)。スイッチ側は group A で groupWalls も group A なので (b)(f) には当たらない。予想：(i) の NG 1件だけ（未実装のため実行しない。段1で実測）。",
+  "stepId": "vi-fail",
+  "kind": "play",
+  "text": "検査i 不合格",
+  "grid": { "cols": 4, "rows": 3 },
+  "start": { "x": 0, "y": 1 },
+  "goal": { "x": 3, "y": 1 },
+  "walls": [{ "x": 2, "y": 0 }, { "x": 2, "y": 2 }],
+  "groupWalls": [{ "x": 4, "y": 1, "group": "A" }],
+  "switches": [{ "x": 0, "y": 2, "color": "red", "group": "A" }],
+  "allowedCommands": ["up", "down", "left", "right"],
+  "solution": ["down", "up", "right", "right", "right"],
+  "maxCommands": 5
+}
