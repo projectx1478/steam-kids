@@ -115,6 +115,21 @@ export default async function run({ page, check }) {
   await page.waitForSelector('#stage[data-step="play"]');
   await check('2を押すとp2から始まる', () => readStepId(page), 'p2');
 
+  // --- 8を選んで最終ステージをクリア：clear・再開点は不変、結果画面にクリア系の文言が出ない ---
+  await openIntro(page, l8.lessonId);
+  const clearsBefore8 = await countEvents(page, 'clear');
+  await page.click('[data-stage-no="8"]');
+  await page.waitForSelector('#stage[data-step="play"]');
+  await check('8を押すとp8から始まる', () => readStepId(page), 'p8');
+  await clearStage(page, SOL);
+  await page.waitForSelector('#stage[data-step="summary"]');
+  await check('8を選んでクリアしてもclear数が増えない', () => countEvents(page, 'clear'), clearsBefore8);
+  await check('8を選んでクリアしても再開点が変わらない', () => readResume(page), { stepId: 'p2', ts: 1 });
+  await check('結果画面に「ステージを クリア」が出ない', () =>
+    page.evaluate(() => document.body.innerText.includes('ステージを クリア')), false);
+  await check('結果画面に「1かいで ゴール」が出ない', () =>
+    page.evaluate(() => document.body.innerText.includes('1かいで ゴール')), false);
+
   // --- ステージ数3：丸が3個 ---
   await clearAll(page, l3.lessonId, 3);
   await openIntro(page, l3.lessonId);

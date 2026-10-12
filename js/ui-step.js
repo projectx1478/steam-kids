@@ -511,8 +511,12 @@ function findResumeIndex() {
   return index;
 }
 
-// ステージ番号を選んで始めたときだけtrue。stage_clearでの再開点（saveResumePoint）を書かない（Issue #399）。
+// ステージ番号を選んで始めたときだけtrue。再開点（saveResumePoint）を書かず、最終ステージでも
+// clearイベントの記録・再開点の消去をしない（recordClearがisStagePickedで見る。Issue #399）。
 let stagePicked = false;
+export function isStagePicked() {
+  return stagePicked;
+}
 
 // クリア済みでステージ数が3以上のintroに、1〜Nの丸（ステージ番号）を足す。★・手数・時間・クリア印は付けない。
 // 選んだステージのplayへ直接入る。再開点もクリア記録も触らない（Issue #399）。
