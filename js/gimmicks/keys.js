@@ -141,6 +141,7 @@ function openDoors(els, doors) {
 
 export const keys = {
   key: 'keys',
+  label: 'かぎ・ドア',
 
   // state: { held: 所持している色の配列（ソート済み。不変更新） }
   initState() {

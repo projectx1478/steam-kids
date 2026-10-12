@@ -133,6 +133,7 @@ const fromHtml = (html) => Object.assign(document.createElement('template'), { i
 
 export const switches = {
   key: 'switches',
+  label: 'スイッチ・切替壁',
 
   // state: { pressed: 踏んだスイッチの番号配列（昇順。不変更新）。toggleは「奇数回踏まれた」番号（入るたびに出し入れ。Issue #388） }
   initState() {

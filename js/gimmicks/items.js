@@ -7,6 +7,7 @@
 // enterで新たに回収したインデックス。simulate()のpickups用。初期状態では空配列） }
 export const items = {
   key: 'items',
+  label: 'どんぐり',
 
   initState(spec) {
     const list = spec.items ?? [];

@@ -30,6 +30,7 @@ const bridgeSvg = (vertical) => `<svg viewBox="0 0 64 64" class="grid-bridge-svg
 
 export const water = {
   key: 'water',
+  label: '水・橋',
   soft: (spec) => spec.waterMode !== 'bump',
 
   initState() {
