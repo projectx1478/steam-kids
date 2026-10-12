@@ -1,0 +1,15 @@
+{
+  "_note": "検査(a) 不合格。同じスイッチが group と targets の両方を持つ。それ以外は合格盤と同じ（targets は(1,0)で、壁・groupWalls と重ならない。color あり・mode 省略・groupWalls あり・スイッチ1つ）。予想：(a) の NG 1件だけ（未実装のため実行しない。段1で実測）。",
+  "stepId": "va-fail",
+  "kind": "play",
+  "text": "検査a 不合格",
+  "grid": { "cols": 4, "rows": 3 },
+  "start": { "x": 0, "y": 1 },
+  "goal": { "x": 3, "y": 1 },
+  "walls": [{ "x": 2, "y": 0 }, { "x": 2, "y": 2 }],
+  "groupWalls": [{ "x": 2, "y": 1, "group": "A" }],
+  "switches": [{ "x": 0, "y": 2, "color": "red", "group": "A", "targets": [{ "x": 1, "y": 0 }] }],
+  "allowedCommands": ["up", "down", "left", "right"],
+  "solution": ["down", "up", "right", "right", "right"],
+  "maxCommands": 5
+}

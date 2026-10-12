@@ -41,6 +41,8 @@ kids-player（出典コミット`74adf54`）の`service-worker.js`から移植�
 キャッシュの内容を変える変更（`APP_SHELL`に含まれるファイルの追加・削除、分岐規則の変更）を
 行うPRでは、両方の値を同時に上げること。
 
+`tools/editor/`は`service-worker.js`の`APP_SHELL`に載せず、公開サイトの配信物から除外する（PagesはActions配信。設定変更は人が行う）。
+
 ## フォントサブセットの作り方（Issue #110）
 
 `fonts/mplusrounded1c-800.woff2`はM PLUS Rounded 1c ExtraBold（OFL）を教育漢字1026字＋かな・

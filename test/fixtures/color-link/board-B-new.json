@@ -1,0 +1,21 @@
+{
+  "_note": "盤Bの新フィールド版（参考。実行しない）。赤=group R が(2,1)、青=group B が(4,2)。青スイッチ(3,1)は赤の壁の先にあり、赤を先に踏む順番が必須",
+  "stepId": "pB",
+  "kind": "play",
+  "text": "あかと あおの スイッチ",
+  "grid": { "cols": 6, "rows": 4 },
+  "start": { "x": 0, "y": 0 },
+  "goal": { "x": 5, "y": 3 },
+  "walls": [
+    { "x": 2, "y": 0 }, { "x": 2, "y": 2 }, { "x": 2, "y": 3 },
+    { "x": 4, "y": 0 }, { "x": 4, "y": 1 }, { "x": 4, "y": 3 }
+  ],
+  "groupWalls": [{ "x": 2, "y": 1, "group": "R" }, { "x": 4, "y": 2, "group": "B" }],
+  "switches": [
+    { "x": 0, "y": 2, "color": "red", "group": "R" },
+    { "x": 3, "y": 1, "color": "blue", "group": "B" }
+  ],
+  "allowedCommands": ["up", "down", "left", "right"],
+  "solution": ["down", "down", "right", "up", "right", "right", "down", "right", "right", "down"],
+  "maxCommands": 10
+}

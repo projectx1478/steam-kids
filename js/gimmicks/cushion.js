@@ -21,6 +21,7 @@ const keyOf = (p) => `${p.x},${p.y}`;
 
 export const cushion = {
   key: 'cushion',
+  label: 'クッション',
   soft: true,
 
   initState() {

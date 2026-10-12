@@ -22,6 +22,7 @@ const FADE_MS = 300;
 
 export const paint = {
   key: 'paint',
+  label: 'ぬりマス',
 
   // state: { painted: Set<number>（塗ったマスの y*cols+x）, target: Set<number>|null（目標。paint無しはnull）, cols }
   initState(spec) {
