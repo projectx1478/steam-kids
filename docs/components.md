@@ -13,7 +13,9 @@
 
 基準件数の正本は `test/forbidden-baseline.json`。`showsuccess 0`：`js/ui-predict.js`・`js/ui-tutorial.js` も `showClearToast` に移行済み（状態：移行完了）。`confetti 2` は `js/ui-reaction.js` の `showSuccess` 本体と `js/ui-seesaw.js` のアダプタ。
 
-歯車メニュー（ヘッダー右上の歯車＝64px→「ほごしゃの かた」→確認パネル「すすむ／やめる」→`dashboard.html`。開閉・覆い・確認パネル）は `js/ui-menu.js`（`initMenu`）。`<dialog>` は使わず `hidden` 切替（Issue #389 段A。拡大の項目は段Bで足す）。
+歯車メニュー（ヘッダー右上の歯車＝64px→「ほごしゃの かた」→確認パネル「すすむ／やめる」→`dashboard.html`。開閉・覆い・確認パネル）は `js/ui-menu.js`（`initMenu`）。`<dialog>` は使わず `hidden` 切替（Issue #389 段A）。拡大の3項目（おおきく／ちいさく／ぜんぶみる）は段Bで足し、`getActiveZoom()` が拡大できる盤（既定でマス24px未満）のときだけ出す。
+
+盤面の拡大縮小（CSS transform で再描画しない。倍率 1→1.5→2→3・ホイール・2本指ピンチ・拡大中の1本指ドラッグ〔直接操作型は2本指のみ〕・実行中の追従・実行後は戻さない・拡大中だけ `touch-action:none`）は `js/ui-zoom.js`（`createZoom({ boardArea, boardWrap, direct })`。ui-play・ui-tutorial・ui-predict が接続、`onDraw` を `drawBoard` の後に呼ぶ）。
 
 盤面エディタは子ども向け画面の部品ではなく、開発者用の独立ツールとして `tools/editor/` に置く（上の表には載せない）。
 
@@ -26,7 +28,7 @@
 
 ## 盤面の描画
 
-- 呼び方：`fitCellSize({ spec, boardArea, portraitMax, noSplit })`（マスの大きさ）／`drawBoard({ boardWrap, spec, cellSize, playerPos, labels, hide })` → `{ el, view }`（`spec` の項目を `renderGrid` にそのまま渡す。`hide.goal` で goal を描かない）／`observeBoard({ boardArea, fit, current, skipWhen, redraw })`（大きさが変わったら描き直す。`skipWhen` は画面ごと：実行中・結果表示中は描き直さない）。`MIN_CELL`・`computeCellSize`・`renderGrid` は `js/ui-grid.js` に残す。
+- 呼び方：`fitCellSize({ spec, boardArea, portraitMax, noSplit })`（`{ cellSize, gap, pad }`。既定のすき間4px・余白4pxでマス24px未満になる盤だけ、すき間1px・余白2pxで計算し直す。#389）／`drawBoard({ boardWrap, spec, cellSize, gap, pad, playerPos, labels, hide })` → `{ el, view }`（`spec` の項目を `renderGrid` にそのまま渡す。`hide.goal` で goal を描かない）／`observeBoard({ boardArea, fit, current, skipWhen, redraw })`（大きさが変わったら描き直す。`skipWhen` は画面ごと：実行中・結果表示中は描き直さない）。`MIN_CELL`・`computeCellSize`・`renderGrid` は `js/ui-grid.js` に残す。
 - 置き換え対象（Issue #345）：`js/ui-play.js`・`js/ui-tutorial.js`（`portraitMax` 56）・`js/ui-predict.js`（goal を描かない・`noSplit` で横向きでも上限64）。対象外：`js/ui-demo.js`（固定の大きさ・観察なし）、シーソー。
 - PR の分け方：1 PR・2段（段1＝部品＋play、段2＝tutorial・predict・禁止パターン・台帳）。
 - 状態：移行完了（`board 0`、`excluded` の `js/ui-demo.js` に 1）。

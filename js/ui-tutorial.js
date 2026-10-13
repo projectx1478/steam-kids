@@ -6,6 +6,7 @@ import { isTutorialDoneStored, markTutorialDoneStored } from './storage.js';
 import { simulate, boardSpec, isRunCleared } from './engine-grid.js';
 import { splitMaxCell } from './ui-grid.js';
 import { fitCellSize, drawBoard as drawBoardUi, observeBoard } from './ui-board.js';
+import { createZoom } from './ui-zoom.js';
 import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, COMMAND_LABELS, vibrate } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
 import { renderInto } from './text-render.js';
@@ -144,6 +145,7 @@ export function renderTutorial(root, step) {
   mainCol.appendChild(boardArea);
   const boardWrap = document.createElement('div');
   boardArea.appendChild(boardWrap);
+  const zoom = createZoom({ boardArea, boardWrap });
 
   // 「やったね！」の表示先。盤面に重ねて配置し、レイアウトを動かさない。
   const resultSlot = document.createElement('div');
@@ -199,14 +201,17 @@ export function renderTutorial(root, step) {
   closeBtn.className = 'btn-tactile px-4 bg-emerald-500 text-white text-lg font-bold whitespace-nowrap break-keep shrink-0 disabled:opacity-40';
 
   function drawBoard() {
-    local.cellSize = fitTutorialCell();
-    const { view } = drawBoardUi({ boardWrap, spec, cellSize: local.cellSize, playerPos: spec.start });
+    local.fit = fitTutorialCell();
+    local.cellSize = local.fit.cellSize;
+    const { view } = drawBoardUi({ boardWrap, spec, ...local.fit, playerPos: spec.start });
+    zoom.onDraw({ spec, fit: local.fit, view, playerPos: spec.start });
     local.view = view;
   }
 
   // 縦向きの上限は TUTORIAL_CELL_MAX（操作パネルが大きいため）。横向きは通常どおり。
   function fitTutorialCell() {
-    return Math.min(splitMaxCell(TUTORIAL_CELL_MAX), fitCellSize({ spec, boardArea }));
+    const fit = fitCellSize({ spec, boardArea });
+    return { ...fit, cellSize: Math.min(splitMaxCell(TUTORIAL_CELL_MAX), fit.cellSize) };
   }
 
   function drawQueue() {
@@ -512,7 +517,7 @@ export function renderTutorial(root, step) {
   observeBoard({
     boardArea,
     fit: fitTutorialCell,
-    current: () => local.cellSize,
+    current: () => local.fit,
     skipWhen: () => local.running,
     redraw: () => {
       drawBoard();

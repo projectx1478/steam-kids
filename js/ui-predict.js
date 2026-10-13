@@ -5,6 +5,7 @@ import { S } from './state.js';
 import { boardSpec } from './engine-grid.js';
 import { logEvent } from './events.js';
 import { fitCellSize, drawBoard, observeBoard } from './ui-board.js';
+import { createZoom } from './ui-zoom.js';
 import { COMMAND_LABELS, ORDER_BADGE_CLASS, renderOrderArrow } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
 import { createOpScreen } from './ui-screen.js';
@@ -52,12 +53,15 @@ export function renderPredict(root, step) {
 
   const boardWrap = document.createElement('div');
   boardArea.appendChild(boardWrap);
+  const zoom = createZoom({ boardArea, boardWrap });
 
   // 静的な盤面の再構築。選択前・もういちどの時のみ呼ぶ（結果表示中は足あとを残すため呼ばない）。
   function drawStatic(playerPos, labels) {
-    local.cellSize = fitCellSize({ spec, boardArea, noSplit: true });
+    local.fit = fitCellSize({ spec, boardArea, noSplit: true });
+    local.cellSize = local.fit.cellSize;
     // ゴールは描かない（Issue #80。星がゴール/答えだと誤解された）
-    const { view } = drawBoard({ boardWrap, spec, cellSize: local.cellSize, playerPos, labels, hide: { goal: true } });
+    const { view } = drawBoard({ boardWrap, spec, ...local.fit, playerPos, labels, hide: { goal: true } });
+    zoom.onDraw({ spec, fit: local.fit, view, playerPos });
     local.view = view;
   }
 
@@ -119,7 +123,7 @@ export function renderPredict(root, step) {
   observeBoard({
     boardArea,
     fit: () => fitCellSize({ spec, boardArea, noSplit: true }),
-    current: () => local.cellSize,
+    current: () => local.fit,
     skipWhen: () => !!local.selected, // 結果表示中は盤面状態を保つ
     redraw: showQuestion,
   });
