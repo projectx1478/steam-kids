@@ -21,6 +21,23 @@
 </div>
 <div id="cols">
   <aside id="palette"><div class="hd">パレット</div><div id="plist"></div></aside>
+  <aside id="steps">
+    <div class="hd">レッスンの面</div>
+    <div class="steps-ctl">
+      <select id="lesson-select"><option value="">レッスンを選ぶ</option></select>
+      <div class="steps-btns">
+        <button type="button" class="btn sm" id="step-up" disabled>↑</button>
+        <button type="button" class="btn sm" id="step-down" disabled>↓</button>
+        <button type="button" class="btn sm" id="step-dup" disabled>複製して追加</button>
+        <button type="button" class="btn sm" id="step-replace" disabled>この盤面で置き換え</button>
+        <button type="button" class="btn sm" id="step-pin" disabled>固定する</button>
+        <button type="button" class="btn sm" id="step-del" disabled>削除</button>
+        <button type="button" class="btn sm" id="lesson-save" disabled>保存</button>
+      </div>
+    </div>
+    <div id="step-list"></div>
+    <div id="step-warn"></div>
+  </aside>
   <main id="center">
     <div id="boardArea"><div id="board"></div></div>
     <div id="status"></div>

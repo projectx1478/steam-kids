@@ -158,3 +158,113 @@ export function move(state, fromX, fromY, toX, toY) {
   target.y = toY;
   return commit(state, next);
 }
+
+// ---- レッスンの面（steps）の一覧と並べ替え（#402 段2）。盤面の編集履歴（上の state）とは別の { lessonId, steps, selected }。----
+// 盤面の編集は state.spec で行い、「置き換え」で選択中の面へ書き戻す。固定は stageGen の面（gen を持つ）から gen を外す。
+const META_KEYS = ['stepId', 'kind', 'text', 'solution', 'maxCommands', 'allowedCommands', 'gen', 'shape'];
+
+export function createLessonState(lessonId, steps) {
+  return { lessonId, steps: clone(steps), selected: null };
+}
+
+export const hasBoard = (step) => !!(step && step.grid && step.start && step.goal);
+
+// 選択中の面を動かした後も同じ面を選び続ける（identity で追う）
+function reselect(ls, chosen) {
+  const i = chosen ? ls.steps.indexOf(chosen) : -1;
+  ls.selected = i >= 0 ? i : null;
+}
+const inRange = (ls, index) => Number.isInteger(index) && index >= 0 && index < ls.steps.length;
+
+// 面を選ぶ。盤面を持たない面（intro など）は拒否。成功時は編集へ渡す面（コピー）を value で返す。
+export function selectStep(ls, index) {
+  if (!inRange(ls, index)) return ng('その番号の面は無い');
+  if (!hasBoard(ls.steps[index])) return ng('盤面を持たない面は選べない');
+  ls.selected = index;
+  return { ok: true, value: clone(ls.steps[index]) };
+}
+
+// 盤面編集の state を別の盤面で読み直す（履歴は作り直し。cellPx は保つ）
+export function loadSpec(state, spec) {
+  const first = clone(spec);
+  state.spec = first;
+  state.history = [clone(first)];
+  state.cursor = 0;
+  return ok();
+}
+
+// 面を delta（-1＝上、+1＝下）だけ動かす。端は拒否。
+export function moveStep(ls, index, delta) {
+  if (!inRange(ls, index)) return ng('その番号の面は無い');
+  const to = index + delta;
+  if (delta !== -1 && delta !== 1) return ng('動かせるのは1つずつ');
+  if (to < 0 || to >= ls.steps.length) return ng('これ以上動かせない');
+  const chosen = ls.selected === null ? null : ls.steps[ls.selected];
+  [ls.steps[index], ls.steps[to]] = [ls.steps[to], ls.steps[index]];
+  reselect(ls, chosen);
+  return ok();
+}
+
+// 面を置き換える。spec は編集中の盤面（面の形のまま）。stepId・kind は元の面のまま。
+export function replaceStep(ls, index, spec) {
+  if (!inRange(ls, index)) return ng('その番号の面は無い');
+  if (!hasBoard(spec)) return ng('盤面（grid・start・goal）が無い');
+  const old = ls.steps[index];
+  const next = clone(spec);
+  next.stepId = old.stepId;
+  next.kind = old.kind;
+  ls.steps[index] = next;
+  return ok();
+}
+
+export function removeStep(ls, index) {
+  if (!inRange(ls, index)) return ng('その番号の面は無い');
+  if (ls.steps.length === 1) return ng('最後の1面は消せない');
+  const chosen = ls.selected === null ? null : ls.steps[ls.selected];
+  ls.steps.splice(index, 1);
+  reselect(ls, chosen);
+  return ok();
+}
+
+// 複製して index の直後に追加する。stepId は重ならない名前（<元>-copy, -copy2 ...）にする。追加した面を選ぶ。
+export function duplicateStep(ls, index) {
+  if (!inRange(ls, index)) return ng('その番号の面は無い');
+  const copy = clone(ls.steps[index]);
+  const ids = new Set(ls.steps.map((s) => s.stepId));
+  let id = `${copy.stepId}-copy`;
+  for (let n = 2; ids.has(id); n++) id = `${copy.stepId}-copy${n}`;
+  copy.stepId = id;
+  ls.steps.splice(index + 1, 0, copy);
+  ls.selected = index + 1;
+  return ok();
+}
+
+// stageGen の面を固定する。盤面は面に書き出し済みなので、seed・shape（gen）を捨てるだけ。元は git に残る。
+export function pinStep(ls, index) {
+  if (!inRange(ls, index)) return ng('その番号の面は無い');
+  const step = ls.steps[index];
+  if (!('gen' in step) && !('shape' in step)) return ng('固定する面ではない（gen が無い）');
+  delete step.gen;
+  delete step.shape;
+  return ok();
+}
+
+// 盤面の部分だけを並び順に依らない文字列にする（同盤面の判定用）
+function canon(v) {
+  if (Array.isArray(v)) return `[${v.map(canon).sort().join(',')}]`;
+  if (v && typeof v === 'object') return `{${Object.keys(v).sort().map((k) => `${k}:${canon(v[k])}`).join(',')}}`;
+  return JSON.stringify(v);
+}
+
+// 同じ盤面の面の組 [[index, ...], ...]（2面以上）。警告だけで保存は止めない。
+export function duplicateBoards(steps) {
+  const groups = new Map();
+  steps.forEach((s, i) => {
+    if (!hasBoard(s)) return;
+    const board = {};
+    for (const [k, v] of Object.entries(s)) if (!META_KEYS.includes(k)) board[k] = v;
+    const key = canon(board);
+    groups.set(key, [...(groups.get(key) || []), i]);
+  });
+  return [...groups.values()].filter((g) => g.length > 1);
+}

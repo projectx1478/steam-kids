@@ -138,3 +138,98 @@ test('editor-state: EDITOR_MAX_SIZE を超える盤面の変更は拒否', () =>
   assert.equal(setGrid(s, EDITOR_MAX_SIZE, EDITOR_MAX_SIZE).ok, true);
   assert.deepEqual(s.spec.grid, { cols: 6, rows: 6 });
 });
+
+// ---- #402 段2: レッスンの面の一覧・並べ替え・固定 ----
+import { createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards } from '../tools/editor/editor-state.js';
+
+const board = (extra = {}) => ({ grid: { cols: 3, rows: 3 }, start: { x: 0, y: 0 }, goal: { x: 2, y: 2 }, walls: [{ x: 1, y: 1 }], ...extra });
+const lessonSteps = () => [
+  { stepId: 'i1', kind: 'intro', text: 'せつめい', demo: board() },
+  { stepId: 'p1', kind: 'play', ...board(), solution: ['right'], maxCommands: 5 },
+  { stepId: 'p2', kind: 'play', ...board({ walls: [{ x: 0, y: 1 }] }), gen: { seed: 3, ver: 1 } },
+  { stepId: 'p3', kind: 'play', ...board({ walls: [{ x: 0, y: 2 }] }) },
+];
+
+test('editor-state(面): 選択は盤面のある面だけ。盤面なしと範囲外は拒否', () => {
+  const ls = createLessonState('x', lessonSteps());
+  assert.equal(selectStep(ls, 0).ok, false);
+  assert.equal(selectStep(ls, 9).ok, false);
+  assert.equal(ls.selected, null);
+  const r = selectStep(ls, 1);
+  assert.equal(r.ok, true);
+  assert.equal(ls.selected, 1);
+  r.value.walls.push({ x: 2, y: 0 });
+  assert.equal(ls.steps[1].walls.length, 1); // 返り値はコピー
+  const st = fresh();
+  loadSpec(st, ls.steps[1]);
+  assert.equal(st.cursor, 0);
+  assert.equal(st.history.length, 1);
+  assert.deepEqual(st.spec, ls.steps[1]);
+});
+
+test('editor-state(面): 上下移動は選択中の面を追い続け、端は拒否', () => {
+  const ls = createLessonState('x', lessonSteps());
+  selectStep(ls, 1);
+  assert.equal(moveStep(ls, 1, -1).ok, true);
+  assert.deepEqual(ls.steps.map((s) => s.stepId), ['p1', 'i1', 'p2', 'p3']);
+  assert.equal(ls.selected, 0);
+  assert.equal(moveStep(ls, 0, -1).ok, false);
+  assert.equal(moveStep(ls, 3, 1).ok, false);
+  assert.equal(moveStep(ls, 1, 2).ok, false);
+  moveStep(ls, 1, 1); // 選択外の2面が入れ替わっても選択は p1 のまま
+  assert.equal(ls.steps[ls.selected].stepId, 'p1');
+});
+
+test('editor-state(面): 複製して追加は stepId が重ならず、直後に入って選ばれる', () => {
+  const ls = createLessonState('x', lessonSteps());
+  assert.equal(duplicateStep(ls, 1).ok, true);
+  assert.equal(ls.steps[2].stepId, 'p1-copy');
+  assert.equal(ls.selected, 2);
+  duplicateStep(ls, 1);
+  assert.equal(ls.steps[2].stepId, 'p1-copy2');
+  assert.equal(new Set(ls.steps.map((s) => s.stepId)).size, ls.steps.length);
+  assert.equal(duplicateStep(ls, 99).ok, false);
+});
+
+test('editor-state(面): 置き換えは盤面だけ差し替え stepId・kind を保つ。盤面なしは拒否', () => {
+  const ls = createLessonState('x', lessonSteps());
+  const st = fresh();
+  assert.equal(replaceStep(ls, 3, { walls: [] }).ok, false);
+  assert.equal(replaceStep(ls, 3, st.spec).ok, true);
+  assert.equal(ls.steps[3].stepId, 'p3');
+  assert.equal(ls.steps[3].kind, 'play');
+  assert.deepEqual(ls.steps[3].grid, st.spec.grid);
+  assert.equal(replaceStep(ls, 7, st.spec).ok, false);
+});
+
+test('editor-state(面): 削除は選択を追い、最後の1面は拒否', () => {
+  const ls = createLessonState('x', lessonSteps());
+  selectStep(ls, 3);
+  assert.equal(removeStep(ls, 1).ok, true);
+  assert.equal(ls.steps[ls.selected].stepId, 'p3');
+  removeStep(ls, ls.selected);
+  assert.equal(ls.selected, null);
+  const one = createLessonState('x', [lessonSteps()[1]]);
+  assert.equal(removeStep(one, 0).ok, false);
+  assert.equal(one.steps.length, 1);
+});
+
+test('editor-state(面): 固定は gen を捨てて盤面は変えない。gen が無い面は拒否', () => {
+  const ls = createLessonState('x', lessonSteps());
+  const before = JSON.parse(JSON.stringify(ls.steps[2]));
+  assert.equal(pinStep(ls, 2).ok, true);
+  assert.equal('gen' in ls.steps[2], false);
+  delete before.gen;
+  assert.deepEqual(ls.steps[2], before);
+  assert.equal(pinStep(ls, 2).ok, false);
+  assert.equal(pinStep(ls, 3).ok, false);
+});
+
+test('editor-state(面): 同盤面の重複を並び順に依らず検出（solution・gen の違いは無視）', () => {
+  const steps = lessonSteps();
+  steps.push({ stepId: 'p4', kind: 'play', ...board({ walls: [{ x: 1, y: 1 }] }), solution: ['down'], gen: { seed: 1, ver: 1 } });
+  steps.push({ stepId: 'p5', kind: 'play', ...board({ walls: [{ x: 0, y: 2 }, { x: 1, y: 1 }] }) });
+  steps.push({ stepId: 'p6', kind: 'play', ...board({ walls: [{ x: 1, y: 1 }, { x: 0, y: 2 }] }) });
+  assert.deepEqual(duplicateBoards(steps), [[1, 4], [5, 6]]);
+  assert.deepEqual(duplicateBoards(lessonSteps()), []);
+});
