@@ -22,15 +22,37 @@
          防ぐための配置分離（確認ダイアログ全廃の代わり。Issue #95） -->
     <button id="home-btn" type="button" data-action="home" aria-label="えらぶ がめんへ" style="display:none"
       class="min-w-[64px] min-h-[64px] flex items-center justify-center rounded-lg bg-white shadow text-xl transition-transform duration-100 active:scale-95 disabled:opacity-40">🏠</button>
-    <a href="dashboard.html" aria-label="保護者のかたへ"
-      class="dashboard-link min-w-[48px] min-h-[48px] flex items-center justify-center rounded-lg text-slate-300 opacity-60">
-      <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+    <!-- 歯車メニュー（Issue #389）。🏠との間隔24px（ml-4＋gap-2）で誤タップを防ぐ。
+         開いている間は #menu-overlay が全面を覆い、盤面・じっこうボタンへのタップを受け止める。 -->
+    <div class="relative z-50 ml-4">
+      <button id="gear-btn" type="button" aria-label="せってい" aria-haspopup="true" aria-expanded="false"
+        class="min-w-[64px] min-h-[64px] flex items-center justify-center rounded-lg bg-white shadow text-slate-500 transition-transform duration-100 active:scale-95">
+        <svg viewBox="0 0 24 24" class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
         <circle cx="12" cy="12" r="3" />
         <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.6 1H21a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.6 1z" />
       </svg>
-    </a>
+      </button>
+      <div id="gear-menu" hidden class="absolute right-0 top-full mt-1.5 w-[200px] bg-white rounded-xl shadow-lg p-2">
+        <div class="flex flex-col gap-1">
+          <button id="menu-guardian" type="button" class="w-full min-h-[64px] text-xs text-slate-500 underline">ほごしゃの かた</button>
+          <button id="menu-close" type="button" class="w-full min-h-[64px] rounded-lg bg-slate-200 text-slate-700 font-bold text-lg">とじる</button>
+        </div>
+      </div>
+    </div>
     </div>
   </header>
+  <div id="menu-overlay" hidden class="fixed inset-0 z-40 bg-slate-900/45"></div>
+  <div id="guardian-confirm" hidden class="fixed inset-0 z-[60]">
+    <div class="w-full h-full flex items-center justify-center bg-slate-900/25">
+      <div class="w-[300px] max-w-[90vw] bg-white rounded-2xl shadow-xl p-4 flex flex-col gap-4">
+        <p class="text-lg font-bold text-slate-700 text-center">おとなの かたへ</p>
+        <div class="flex gap-3 justify-center">
+          <button id="guardian-go" type="button" class="min-h-[64px] min-w-[112px] rounded-lg bg-sky-500 text-white font-bold text-lg">すすむ</button>
+          <button id="guardian-cancel" type="button" class="min-h-[64px] min-w-[112px] rounded-lg bg-slate-200 text-slate-700 font-bold text-lg">やめる</button>
+        </div>
+      </div>
+    </div>
+  </div>
   <main id="stage" class="bg-white rounded-2xl shadow p-2 sm:p-4 flex-1 min-h-0 flex flex-col overflow-y-auto"></main>
 </div>
 <script type="module" src="app.js"></script>

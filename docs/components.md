@@ -13,6 +13,8 @@
 
 基準件数の正本は `test/forbidden-baseline.json`。`showsuccess 0`：`js/ui-predict.js`・`js/ui-tutorial.js` も `showClearToast` に移行済み（状態：移行完了）。`confetti 2` は `js/ui-reaction.js` の `showSuccess` 本体と `js/ui-seesaw.js` のアダプタ。
 
+歯車メニュー（ヘッダー右上の歯車＝64px→「ほごしゃの かた」→確認パネル「すすむ／やめる」→`dashboard.html`。開閉・覆い・確認パネル）は `js/ui-menu.js`（`initMenu`）。`<dialog>` は使わず `hidden` 切替（Issue #389 段A。拡大の項目は段Bで足す）。
+
 盤面エディタは子ども向け画面の部品ではなく、開発者用の独立ツールとして `tools/editor/` に置く（上の表には載せない）。
 
 ## 操作画面の枠
