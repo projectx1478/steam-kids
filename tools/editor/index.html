@@ -31,12 +31,20 @@
         <button type="button" class="btn sm" id="step-dup" disabled>複製して追加</button>
         <button type="button" class="btn sm" id="step-replace" disabled>この盤面で置き換え</button>
         <button type="button" class="btn sm" id="step-pin" disabled>固定する</button>
+        <button type="button" class="btn sm" id="step-add" disabled>この盤面を面として追加</button>
         <button type="button" class="btn sm" id="step-del" disabled>削除</button>
         <button type="button" class="btn sm" id="lesson-save" disabled>保存</button>
       </div>
     </div>
+    <div class="drafts-ctl">
+      <input type="text" id="draft-name" placeholder="下書きの名前（a-z 0-9 -）" maxlength="60">
+      <button type="button" class="btn sm" id="draft-save">下書き保存</button>
+      <select id="draft-select"><option value="">下書きを選ぶ</option></select>
+      <button type="button" class="btn sm" id="draft-load" disabled>読み込む</button>
+    </div>
     <div id="step-list"></div>
     <div id="step-warn"></div>
+    <div id="save-ng"></div>
   </aside>
   <main id="center">
     <div id="boardArea"><div id="board"></div></div>

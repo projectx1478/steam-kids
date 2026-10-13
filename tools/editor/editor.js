@@ -4,7 +4,7 @@ import { SAMPLE_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, cla
 
 import { GIMMICKS } from '/js/gimmicks/index.js';
 import { buildPalette, iconSpec } from './palette.js';
-import { createState, setCellPx as setStateCellPx, place, erase, move, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard } from './editor-state.js';
+import { createState, setCellPx as setStateCellPx, place, erase, move, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard, addDraftStep, explainSaveNg } from './editor-state.js';
 
 const state = createState(SAMPLE_SPEC, CELL_PX_DEFAULT);
 state.selected = 'wall';
@@ -175,9 +175,11 @@ document.getElementById('zoom-reset').addEventListener('click', () => setCellPx(
 // ---- レッスンの面（読み込み・選択・複製・置き換え・削除・上下・固定・保存）。ブラウザ保存は使わない。----
 let lesson = null; // createLessonState の値
 let lessonDirty = false;
+let placedIds = new Set(); // 下書きの配置・置き換えで触れた面の stepId（保存 NG の「自分の面が原因か」の判定用）
 const lessonSelectEl = document.getElementById('lesson-select');
 const stepListEl = document.getElementById('step-list');
 const stepWarnEl = document.getElementById('step-warn');
+const saveNgEl = document.getElementById('save-ng');
 const stepBtn = (id) => document.getElementById(id);
 
 function renderSteps() {
@@ -203,6 +205,7 @@ function renderSteps() {
   stepBtn('step-down').disabled = !has || sel === lesson.steps.length - 1;
   stepBtn('step-pin').disabled = !has || !('gen' in lesson.steps[sel]);
   stepBtn('lesson-save').disabled = !lesson || !lessonDirty;
+  stepBtn('step-add').disabled = !lesson;
 }
 
 function lessonResult(result) {
@@ -227,6 +230,8 @@ function chooseStep(i) {
 async function loadLesson(id) {
   lesson = null;
   lessonDirty = false;
+  placedIds = new Set();
+  saveNgEl.replaceChildren();
   if (!id) { renderSteps(); return; }
   try {
     const res = await fetch(`/api/lessons/${encodeURIComponent(id)}`);
@@ -251,12 +256,24 @@ async function loadLessonList() {
   } catch { notice = 'レッスン一覧を読めません'; render(); }
 }
 
+function showSaveNg(items) {
+  saveNgEl.replaceChildren(...items.map((it) => {
+    const d = document.createElement('div');
+    if (it.own) d.className = 'own';
+    d.textContent = `[${it.label}] ${it.message}`;
+    return d;
+  }));
+}
+
 async function saveLesson() {
   try {
     const res = await fetch(`/api/lessons/${encodeURIComponent(lesson.lessonId)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lesson.keepHandwritten ? { steps: lesson.steps, keepHandwritten: lesson.keepHandwritten } : lesson.steps) });
     const body = await res.json();
-    if (res.ok) { lessonDirty = false; notice = '保存しました'; }
-    else notice = `保存しません: ${(body.messages || []).join(' / ')}`;
+    if (res.ok) { lessonDirty = false; placedIds = new Set(); notice = '保存しました'; saveNgEl.replaceChildren(); }
+    else {
+      notice = '保存しません（下の検査結果を見てください）';
+      showSaveNg(explainSaveNg(body.messages || [], [...placedIds]));
+    }
   } catch { notice = '保存できません（サーバーに接続できません）'; }
   renderSteps();
   render();
@@ -275,7 +292,7 @@ stepBtn('step-dup').addEventListener('click', () => {
 });
 stepBtn('step-replace').addEventListener('click', () => {
   const r = replaceStep(lesson, lesson.selected, state.spec);
-  if (r.ok) loadSpec(state, lesson.steps[lesson.selected]);
+  if (r.ok) { loadSpec(state, lesson.steps[lesson.selected]); placedIds.add(lesson.steps[lesson.selected].stepId); }
   lessonResult(r);
 });
 stepBtn('step-pin').addEventListener('click', () => {
@@ -292,3 +309,49 @@ stepBtn('lesson-save').addEventListener('click', saveLesson);
 loadLessonList();
 renderPalette();
 scheduleAnalyze();
+
+// ---- 下書き（tools/editor/drafts/ へ保存。GET/PUT /api/drafts）。保存時は検査せず、面として置く（置き換え・追加）→ 保存のときに検査される。----
+const draftNameEl = document.getElementById('draft-name');
+const draftSelectEl = document.getElementById('draft-select');
+const draftLoadEl = document.getElementById('draft-load');
+
+async function loadDraftList() {
+  try {
+    const names = await (await fetch('/api/drafts')).json();
+    draftSelectEl.replaceChildren(new Option('下書きを選ぶ', ''), ...names.map((n) => new Option(n, n)));
+  } catch { notice = '下書き一覧を読めません'; render(); }
+}
+
+async function saveDraft() {
+  const name = draftNameEl.value.trim();
+  try {
+    const res = await fetch(`/api/drafts/${encodeURIComponent(name)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(state.spec) });
+    const body = await res.json();
+    notice = res.ok ? `下書き ${name} を保存しました` : `下書きを保存できません: ${(body.messages || []).join(' / ')}`;
+    if (res.ok) await loadDraftList();
+  } catch { notice = '下書きを保存できません（サーバーに接続できません）'; }
+  render();
+}
+
+async function loadDraft() {
+  const name = draftSelectEl.value;
+  if (!name) return;
+  if (boardDirty() && !window.confirm('盤面の編集が置き換えられていません。捨てて下書きを読み込みますか？')) return;
+  try {
+    const res = await fetch(`/api/drafts/${encodeURIComponent(name)}`);
+    const body = await res.json();
+    if (res.ok) { loadSpec(state, body.spec); draftNameEl.value = name; moveFrom = null; notice = `下書き ${name} を読み込みました`; scheduleAnalyze(); }
+    else notice = `読めません: ${(body.messages || []).join(' / ')}`;
+  } catch { notice = '下書きを読めません（サーバーに接続できません）'; }
+  render();
+}
+
+draftSelectEl.addEventListener('change', () => { draftLoadEl.disabled = !draftSelectEl.value; });
+document.getElementById('draft-save').addEventListener('click', saveDraft);
+draftLoadEl.addEventListener('click', loadDraft);
+stepBtn('step-add').addEventListener('click', () => {
+  const r = addDraftStep(lesson, state.spec, draftNameEl.value.trim() || 'draft', lesson.selected);
+  if (r.ok) { placedIds.add(lesson.steps[lesson.selected].stepId); loadSpec(state, lesson.steps[lesson.selected]); scheduleAnalyze(); }
+  lessonResult(r);
+});
+loadDraftList();

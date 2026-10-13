@@ -325,12 +325,71 @@ async function handleLessons(req, res, pathname, opts) {
   sendJson(res, 200, { ok: true });
 }
 
+// ---- 下書き（#402 段3）。tools/editor/drafts/<name>.json。数の上限なし・保存時は検査しない（形だけ：JSON のオブジェクト）。
+// 実レッスンの面として置くとき（置き換え・追加→ PUT /api/lessons/:id）に validate が走る。----
+const draftsDirOf = (opts) => opts.draftsDir || path.join(EDITOR_DIR, 'drafts');
+
+// :name の検査。問題があれば messages（空なら OK）。
+export function checkDraftName(name) {
+  if (typeof name !== 'string' || !ID_RE.test(name)) return ['name は ^[a-z0-9-]+$ にしてください'];
+  return [];
+}
+
+// 下書きを読む。無ければ null。
+export async function readDraft(name, dir) {
+  const file = lessonFileOf(dir, name);
+  if (!file) return null;
+  try { return JSON.parse(await fs.promises.readFile(file, 'utf8')); } catch { return null; }
+}
+
+// 下書きを書く（同名は上書き）。spec は JSON のオブジェクトであること（形だけ）。戻り値 messages（空なら書いた）。
+export async function writeDraft(name, spec, dir) {
+  const problems = checkDraftName(name);
+  if (problems.length > 0) return problems;
+  if (!spec || typeof spec !== 'object' || Array.isArray(spec)) return ['body は盤面 JSON（オブジェクト）にしてください'];
+  const file = lessonFileOf(dir, name);
+  if (!file) return ['パスが不正です'];
+  await fs.promises.mkdir(dir, { recursive: true });
+  await fs.promises.writeFile(file, `${JSON.stringify(spec, null, 2)}\n`, 'utf8');
+  return [];
+}
+
+async function handleDrafts(req, res, pathname, opts) {
+  const dir = draftsDirOf(opts);
+  if (pathname === '/api/drafts') {
+    if (req.method !== 'GET') return sendJson(res, 404, { messages: ['Not Found'] });
+    let names = [];
+    try { names = (await fs.promises.readdir(dir)).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)).filter((n) => ID_RE.test(n)).sort(); } catch { /* 無ければ空 */ }
+    return sendJson(res, 200, names);
+  }
+  let name;
+  try { name = decodeURIComponent(pathname.slice('/api/drafts/'.length)); } catch { return sendJson(res, 400, { messages: ['name が不正です'] }); }
+  const problems = checkDraftName(name);
+  if (problems.length > 0) return sendJson(res, 400, { messages: problems });
+  if (req.method === 'GET') {
+    const spec = await readDraft(name, dir);
+    return spec === null ? sendJson(res, 404, { messages: [`下書き ${name} がありません`] }) : sendJson(res, 200, { ok: true, name, spec });
+  }
+  if (req.method !== 'PUT') return sendJson(res, 404, { messages: ['Not Found'] });
+  const text = await readBody(req);
+  if (text === null) return sendJson(res, 400, { messages: ['body が大きすぎます'] });
+  let body;
+  try { body = JSON.parse(text); } catch { return sendJson(res, 400, { messages: ['JSON として読めません'] }); }
+  const ng = await writeDraft(name, body, dir);
+  if (ng.length > 0) return sendJson(res, 400, { messages: ng });
+  sendJson(res, 200, { ok: true });
+}
+
 export function createEditorServer(opts = {}) {
   return http.createServer((req, res) => {
     const notFound = () => { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('Not Found'); };
     const pathname = new URL(req.url, 'http://localhost').pathname;
     if (pathname === '/api/lessons' || pathname.startsWith('/api/lessons/')) {
       handleLessons(req, res, pathname, opts).catch(() => sendJson(res, 500, { messages: ['内部エラー'] }));
+      return;
+    }
+    if (pathname === '/api/drafts' || pathname.startsWith('/api/drafts/')) {
+      handleDrafts(req, res, pathname, opts).catch(() => sendJson(res, 500, { messages: ['内部エラー'] }));
       return;
     }
     if (req.method === 'POST' && pathname === '/api/analyze') {
