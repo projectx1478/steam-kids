@@ -233,3 +233,38 @@ test('editor-state(面): 同盤面の重複を並び順に依らず検出（solu
   assert.deepEqual(duplicateBoards(steps), [[1, 4], [5, 6]]);
   assert.deepEqual(duplicateBoards(lessonSteps()), []);
 });
+
+// ---- #402-11A: 固定は stageGen.keepHandwritten に足す。置き換え・複製は gen を外す ----
+test('editor-state(面): stageGen のレッスンの固定は keepHandwritten に先頭から連続で足す。途中からは断る', () => {
+  const steps = [
+    { stepId: 'p1', kind: 'play', ...board() },
+    { stepId: 'p2', kind: 'play', ...board({ walls: [{ x: 0, y: 1 }] }), gen: { seed: 1, ver: 1 } },
+    { stepId: 'p3', kind: 'play', ...board({ walls: [{ x: 0, y: 2 }] }), gen: { seed: 2, ver: 1 } },
+  ];
+  const ls = createLessonState('x', steps, ['p1']);
+  const skip = pinStep(ls, 2);
+  assert.equal(skip.ok, false);
+  assert.match(skip.reason, /それより前を全部固定してから/);
+  assert.deepEqual(ls.keepHandwritten, ['p1']);
+  assert.ok('gen' in ls.steps[2], '断ったら面は変わらない');
+  assert.equal(pinStep(ls, 1).ok, true);
+  assert.deepEqual(ls.keepHandwritten, ['p1', 'p2']);
+  assert.equal(pinStep(ls, 2).ok, true);
+  assert.deepEqual(ls.keepHandwritten, ['p1', 'p2', 'p3']);
+  assert.ok(ls.steps.every((s) => !('gen' in s)));
+  // stageGen の無いレッスン（keepHandwritten なし）は従来どおり gen を捨てるだけ
+  const plain = createLessonState('x', lessonSteps());
+  assert.equal(plain.keepHandwritten, null);
+  assert.equal(pinStep(plain, 2).ok, true);
+});
+
+test('editor-state(面): 置き換え・複製は gen を外して手書きの面にする', () => {
+  const ls = createLessonState('x', lessonSteps(), []);
+  const st = fresh();
+  assert.equal(replaceStep(ls, 2, { ...st.spec, gen: { seed: 3, ver: 1 } }).ok, true);
+  assert.equal('gen' in ls.steps[2], false);
+  const ls2 = createLessonState('x', lessonSteps(), []);
+  assert.equal(duplicateStep(ls2, 2).ok, true);
+  assert.equal('gen' in ls2.steps[3], false);
+  assert.equal('gen' in ls2.steps[2], true, '元の面の gen は残る');
+});

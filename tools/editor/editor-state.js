@@ -163,8 +163,9 @@ export function move(state, fromX, fromY, toX, toY) {
 // 盤面の編集は state.spec で行い、「置き換え」で選択中の面へ書き戻す。固定は stageGen の面（gen を持つ）から gen を外す。
 const META_KEYS = ['stepId', 'kind', 'text', 'solution', 'maxCommands', 'allowedCommands', 'gen', 'shape'];
 
-export function createLessonState(lessonId, steps) {
-  return { lessonId, steps: clone(steps), selected: null };
+// keepHandwritten は stageGen のあるレッスンだけ配列（stageGen.keepHandwritten のコピー）。無いレッスンは null。
+export function createLessonState(lessonId, steps, keepHandwritten = null) {
+  return { lessonId, steps: clone(steps), selected: null, keepHandwritten: Array.isArray(keepHandwritten) ? [...keepHandwritten] : null };
 }
 
 export const hasBoard = (step) => !!(step && step.grid && step.start && step.goal);
@@ -213,6 +214,7 @@ export function replaceStep(ls, index, spec) {
   const next = clone(spec);
   next.stepId = old.stepId;
   next.kind = old.kind;
+  delete next.gen; // 手書きの面にする（gen 付きだと再生成で消える）
   ls.steps[index] = next;
   return ok();
 }
@@ -234,18 +236,23 @@ export function duplicateStep(ls, index) {
   let id = `${copy.stepId}-copy`;
   for (let n = 2; ids.has(id); n++) id = `${copy.stepId}-copy${n}`;
   copy.stepId = id;
+  delete copy.gen; // 手書きの面にする（gen 付きだと再生成で消える）
   ls.steps.splice(index + 1, 0, copy);
   ls.selected = index + 1;
   return ok();
 }
 
-// stageGen の面を固定する。盤面は面に書き出し済みなので、seed・shape（gen）を捨てるだけ。元は git に残る。
+// stageGen の面を固定する。盤面は面に書き出し済みなので、gen を捨てて stageGen.keepHandwritten（先頭の play から連続）に足す。元は git に残る。
 export function pinStep(ls, index) {
   if (!inRange(ls, index)) return ng('その番号の面は無い');
   const step = ls.steps[index];
-  if (!('gen' in step) && !('shape' in step)) return ng('固定する面ではない（gen が無い）');
+  if (!('gen' in step)) return ng('固定する面ではない（gen が無い）');
+  if (Array.isArray(ls.keepHandwritten)) {
+    const plays = ls.steps.filter((s) => s.kind === 'play').map((s) => s.stepId);
+    if (step.kind !== 'play' || plays[ls.keepHandwritten.length] !== step.stepId) return ng('それより前を全部固定してから固定する（固定は先頭の面から順に）');
+    ls.keepHandwritten.push(step.stepId);
+  }
   delete step.gen;
-  delete step.shape;
   return ok();
 }
 

@@ -232,7 +232,7 @@ async function loadLesson(id) {
     const res = await fetch(`/api/lessons/${encodeURIComponent(id)}`);
     const body = await res.json();
     if (!res.ok) { notice = `読めません: ${(body.messages || []).join(' / ')}`; }
-    else { lesson = createLessonState(id, body.steps); notice = ''; }
+    else { lesson = createLessonState(id, body.steps, body.keepHandwritten); notice = ''; }
   } catch { notice = '読めません（サーバーに接続できません）'; }
   renderSteps();
   render();
@@ -253,7 +253,7 @@ async function loadLessonList() {
 
 async function saveLesson() {
   try {
-    const res = await fetch(`/api/lessons/${encodeURIComponent(lesson.lessonId)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lesson.steps) });
+    const res = await fetch(`/api/lessons/${encodeURIComponent(lesson.lessonId)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lesson.keepHandwritten ? { steps: lesson.steps, keepHandwritten: lesson.keepHandwritten } : lesson.steps) });
     const body = await res.json();
     if (res.ok) { lessonDirty = false; notice = '保存しました'; }
     else notice = `保存しません: ${(body.messages || []).join(' / ')}`;
