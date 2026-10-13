@@ -4,9 +4,7 @@
 
 **steam-kids** — 小学生向けインタラクティブSTEAM学習アプリ。
 
-説明を読ませず、**手を動かして考え、返ってくる結果から学ぶ**ことで概念を獲得させる。教材をJSONで
-量産できる基盤を作り、学習履歴を保護者・教師が確認して教材改善に使える状態を目指す。
-家庭利用（小学校低学年）から開始し、授業・校内配布へ展開することを前提に設計する。
+説明を読ませず、**手を動かして考え、返ってくる結果から学ぶ**ことで概念を獲得させる。教材はJSONで量産でき、学習履歴は保護者・教師が教材改善に使える状態を目指す。家庭利用から授業・校内配布へ展開する前提で設計する。
 
 公開URL: https://projectx1478.github.io/steam-kids/
 
@@ -23,10 +21,10 @@
 
 | 項目 | 内容 |
 | --- | --- |
-| 第一ユーザー | 小学校低学年（1〜3年生）以上。学年相当の漢字はふりがな付きで読める。UIを幼く見せる演出は避ける |
-| 将来ユーザー | 小学生全般、授業での一斉利用 |
+| 第一ユーザー | 小学校低学年（1〜3年生）以上。学年相当の漢字はふりがな付きで読める。UIは幼く見せない |
+| 将来ユーザー | 小学生全般・授業の一斉利用 |
 | 端末 | Amazon Fire タブレット、iPad、GIGA端末、PCブラウザ |
-| 画面 | タブレット横向きを基準。縦でも破綻しないこと |
+| 画面 | 横向き基準。縦でも破綻しない |
 | 回線 | オフラインで学習継続可能。オンライン時のみ同期 |
 
 ### 学習体験の固定仕様
@@ -34,59 +32,23 @@
 すべての教材に共通する作法（Brilliant.orgをモデルに独自調整。Issue #154）。
 借りるもの： 短い段階を積む／操作して結果を見る／答えを言わない。
 借りないもの： 予想の言語化／選択肢での予想／長い説明文。
-**次の3原則を満たし、2つの操作モデルのいずれかに属さない教材は作らない。**
+**次の3原則を満たし、2つの操作モデル（計画型／直接操作型。`docs/learning-spec.md`）のいずれかに属さない教材は作らない。**
 
 1. **手を動かして考える** — 読ませる説明（説明文）は先に置かない。見せる説明（見本アニメ・光る手がかり・指ガイド）は先に置いてよい。答えを選ばせて正誤を判定する択一UIは使わず（Issue #104。操作ボタン・道具の選択・◀▶での位置調整は含まない）。操作・配置そのものを考えの表明とする
 2. **結果が画面と音で返る** — 正誤・点数で評価しない（完了スタンプは可。Issue #58）。成功はロボットの喜び・演出・効果音、失敗はやさしい反応で示す
 3. **つまずきが次の手がかりになる** — 正解の道・答えは見せない。止まった命令・ぶつかったマス・塗り残しなど事実の手がかりだけを盤面に示す（短い事実の文は添えてよい）。「もういちど」「1手もどる」はノーリスクで即時に行える
 
-| 操作モデル | 流れ | 向く教材 |
-| --- | --- | --- |
-| 計画型 | 予想を組む（命令を並べる・おもりを置く）→実行（一括／1コマ／ためす）→ズレを見る | プログラミング、手順、てこ |
-| 直接操作型 | 1手動かす→盤面が即変化→行き詰まりから考え直す | 一筆書き、迷路、色ぬり、つなぐ |
-
-直接操作型は「1手もどる」「さいしょから」を常時置き、行き詰まり時は未達成部分をやさしく点滅させる（答えは見せない）。
-DO/DON'T判定表とUI規則（判定可能な数値条件）は `docs/ui-rules.md`。子ども画面のUIを変更するとき読む。
-
-教材型5種の一覧と `grid-runtime` の詳細仕様、初回単元の内容は `docs/learning-spec.md`。
-実装済みの教材型は `grid-runtime`・`predict-slider`（シーソー）。`kind: "predict"` は現行レッスンで使わない（#104）。
-
 ## 2. 技術設計
 
-### 全体アーキテクチャ
+### 全体アーキテクチャ・フロントエンド
 
-```
-単元テーマ
-  ↓  Claude Code（開発時のみ）
-レッスンJSON  →  スキーマ検証  →  リポジトリに蓄積
-  ↓
-学習エンジン（固定・静的サイト）
-  ↓
-イベントログ（localStorage）→ 同期 → ダッシュボード
-```
+バニラJSでビルドなし／`style.css`は生成物（`tailwind.src.css`を編集して再ビルド）／画像は自作SVG／Service Workerでオフライン対応。アーキテクチャ図と技術選定の詳細は`docs/file-structure.md`。
+**教材追加はJSONの追加のみで完結すること。**
 
-学習エンジンのコードは固定。**教材追加はJSONの追加のみで完結すること。**
+### 教材データ・同期
 
-### フロントエンド
-
-- **フレームワーク**: バニラ JavaScript（ES Modules）。JSのビルドステップは導入しない
-- **UI状態管理**: S オブジェクトパターン（単一オブジェクト、直接変更）
-- **スタイリング**: Tailwind CSS。**開発時のみCLIでビルドし、生成物 `style.css` をコミットする**
-  - 実行時にCDNから取得しない（オフライン要件）
-  - `style.css` は自動生成物。直接編集せず `tailwind.src.css` を編集して再ビルドする
-  - Tailwindはバージョンを固定指定する（`package-lock.json` はGit除外のため）
-- **ホスティング**: GitHub Pages（public リポジトリ・無料枠）
-- 画像素材を使わず、すべて自作SVGで描画する（権利・容量・配布の自由度）
-- **Service Worker**でオフライン対応・更新反映を行う（方式は `docs/caching.md`）
-
-### 教材データ
-
-- リポジトリ内の `lessons/*.json`
-- スキーマ・検証ルールは `docs/lesson-schema.md`
-
-### 同期・バックエンド・機密情報管理・保護者ゲート
-
-同期方式・バックエンド（Cloudflare Workers + D1）・秘密情報・保護者ゲート（`dashboard.html`の合言葉。端末内PBKDF2照合でオフライン可。#37）は `docs/design-sync.md`。
+- 教材は `lessons/*.json`（スキーマ・検証ルールは `docs/lesson-schema.md`）
+- 同期・バックエンド（Cloudflare Workers + D1）・秘密情報・保護者ゲート（`dashboard.html`の合言葉。端末内PBKDF2照合でオフライン可。#37）は `docs/design-sync.md`
 
 ### プライバシー要件
 
@@ -99,10 +61,6 @@ DO/DON'T判定表とUI規則（判定可能な数値条件）は `docs/ui-rules.
 - 広告・解析タグを入れない
 - 外部共有は**単元単位の匿名集計のみ**。個人単位のデータを出さない
 
-### 授業展開に向けた制約・ロードマップ
-
-制約とP0〜P5のロードマップは `docs/roadmap.md`。
-
 ### ファイル構成
 
 `index.html`・`dashboard.html`・`app.js`・`js/`（ES Modules）・`lessons/`・`tools/`・`docs/`・`workers/`等。ファイル別の役割は `docs/file-structure.md`。
@@ -111,11 +69,11 @@ DO/DON'T判定表とUI規則（判定可能な数値条件）は `docs/ui-rules.
 
 ### Git ワークフロー
 
-ブランチ・PR運用はAGENTS.md「GitHub運用」。人が作業するときのブランチ名は`feature/XXX`・`fix/XXX`。
+ブランチ・PR運用はAGENTS.md「GitHub運用」。
 
 ### 検証コマンド
 
-軽量チェックは手元とCI（`.github/workflows/checks.yml`）で実行し、E2Eは手元で実行せずCIで実行する（`config.mjs`の`ciOnly`が手元実行を止める）。
+軽量チェックは手元とCIで実行し、E2EはCIのみ（`config.mjs`の`ciOnly`が手元実行を止める）。
 
 | 種別 | コマンド | 実行場所 |
 | --- | --- | --- |
@@ -124,38 +82,18 @@ DO/DON'T判定表とUI規則（判定可能な数値条件）は `docs/ui-rules.
 | Lint | なし | - |
 | 型チェック | なし | - |
 | ビルド | `npx tailwindcss@3.4.19 -i tailwind.src.css -o style.css --minify` | 手元＋CI |
-| E2E/実機確認 | `npm run verify:e2e` | CI実行（実装中＝`e2e-run.yml`、PR＝`e2e-pr.yml`、全件＝`e2e-nightly.yml`） |
+| E2E/実機確認 | `npm run verify:e2e` | CI実行（実装中＝`e2e-run`・PR＝`e2e-pr`・全件＝`e2e-nightly`） |
 | レッスンJSON検証 | `npm run validate:lessons` | 手元＋CI |
 
-夜間CI失敗ラベル：`e2e-nightly`。運用は`docs/testing-guidelines.md`、スモーク・固有の注意は`docs/testing-steam-kids.md`。
+夜間CI失敗ラベル：`e2e-nightly`。運用・スモークの注意は`docs/testing-guidelines.md`・`docs/testing-steam-kids.md`。
 
-影響範囲確認：レッスンJSONやDOM契約（`data-action`等）を変更するときは、`grep -lE '<lessonId|data-action名>' .claude/verify/scenarios/*`で影響シナリオを列挙する。`.claude/verify/config.mjs`の凍結fixture（cmd-01・donguri-01）の対象かも確認する。
+影響範囲確認：レッスンJSONやDOM契約を変える時は`.claude/verify/scenarios/`をgrepして影響シナリオを列挙し、凍結fixture（cmd-01・donguri-01）の対象かも確認する。
 
 ### ギミックの追加手順・検証規則
 
-追加手順・シナリオ命名・`solution`必須等は `docs/gimmicks.md`「追加手順・検証規則」。
-
-### コーディング規則
-
-- **ファイル名**: 小文字統一
-- **変数命名**: camelCase
-- **クラス**: PascalCase
-- **定数**: UPPER_SNAKE_CASE
-- **コメント**: 最小限（WHY が非自明な場合のみ）
-
-### 他プロジェクトからのコード再利用
-
-project-template の PROJECT.md の4条件を満たす場合のみコピー可。出典コメント
-（コミットハッシュ）を冒頭に必須記載し、以後は独立資産として扱う。
+→ `docs/gimmicks.md`「追加手順・検証規則」。コーディング規則・ラベル分類・コード再利用は `docs/dev-rules.md`。
 
 ## 4. Issue 管理
-
-### ラベル分類
-
-- `feature`: 新機能
-- `bug`: バグ修正
-- `refactor`: リファクタリング
-- `docs`: ドキュメント
 
 Issueには理由ではなく**判定可能な数値条件**を書く（0.6秒、20字以内、絶対方向4種など）。
 1 Issue = 1 PR = 1セッション。完了条件は画面上で確認できる形で書く。
@@ -163,29 +101,30 @@ Issueには理由ではなく**判定可能な数値条件**を書く（0.6秒�
 ## 5. AI 運用ルール（Claude Code）
 
 - **人間の責務**: 仕様確定、コードレビュー、Merge判定、実機での子どもの反応確認（AI代理不可）
-- PR作成の報告には「次は`/clear`してから」を添える（1 Issue = 1セッション。#123）
+- PR作成の報告には「次は`/clear`してから」を添える（#123）
 
 ## 6. ロードマップ
 
-P0（実機で到達）→P1（JSON外出し）→P2（ログ・ダッシュボード）→P3（同期）→P4（生成フロー）→P5（3本完走）。詳細は `docs/roadmap.md`。**P0を実機で試すまで、以降を作り込まない。**
+P0〜P5のロードマップは `docs/roadmap.md`。**P0を実機で試すまで、以降を作り込まない。**
 
 ## 7. 関連ドキュメント（docs/）
 
-- `docs/ui-rules.md` — 子ども画面のUI規則。UI変更時に読む
-- `docs/gimmicks.md` — 盤面ギミックの仕様。ギミック追加・変更時に読む
-- `docs/learning-spec.md` — 教材型5種・`grid-runtime`仕様・初回単元。教材実装・レッスン追加時に読む
-- `docs/lesson-schema.md` — レッスンJSON・イベント・プロファイルのスキーマ。教材・イベント追加時に読む
-- `docs/authoring-rules.md` — 教材文言の禁止事項と使用可能な文字。レッスン文言を書く時に読む
-- `docs/dashboard.md` — ダッシュボードの表示内容と詰まりアラート条件。ダッシュボード変更時に読む
-- `docs/design-sync.md` — 同期方式、バックエンド、秘密情報、保護者ゲート。同期・ゲート変更時に読む
-- `docs/caching.md` — Service Workerの方式・版数管理。SW・キャッシュ変更時に読む
-- `docs/file-structure.md` — ファイル別の役割。ファイルの新設・移動時に読む
-- `docs/roadmap.md` — 授業展開の制約とP0〜P5。フェーズ計画を検討する時に読む
-- `docs/testing-guidelines.md` — 検証の運用（E2EはCIのみ・手元ガード・夜間失敗対応）。検証時に読む
-- `docs/testing-steam-kids.md` — steam-kids固有の検証事項。スモークを変える時に読む
-- `docs/principles-review.md` — 三原則・運用ルールの見直し結果（案A〜G）。入口・難度・終わり方を変える時に読む
-- `docs/foundation-review.md` — 根幹（Brilliantモデル・操作モデル・長さ等）の見直し結果と検証計画。根幹に関わる変更を検討する時に読む
-- `docs/components.md` — 共通部品の台帳と禁止パターン。クリア演出など共通部品を使う・足す時に読む
+- `docs/ui-rules.md` — 子ども画面のUI変更時に読む
+- `docs/gimmicks.md` — ギミック追加・変更時に読む
+- `docs/learning-spec.md` — 教材実装・レッスン追加時に読む
+- `docs/lesson-schema.md` — 教材・イベント追加時に読む
+- `docs/authoring-rules.md` — レッスン文言を書く時に読む
+- `docs/dashboard.md` — ダッシュボード変更時に読む
+- `docs/design-sync.md` — 同期・ゲート変更時に読む
+- `docs/caching.md` — SW・キャッシュ変更時に読む
+- `docs/file-structure.md` — ファイルの新設・移動時に読む
+- `docs/dev-rules.md` — コーディング規則・ラベル分類・コード再利用
+- `docs/roadmap.md` — フェーズ計画を検討する時に読む
+- `docs/testing-guidelines.md` — 検証時に読む
+- `docs/testing-steam-kids.md` — スモークを変える時に読む
+- `docs/principles-review.md` — 入口・難度・終わり方を変える時に読む
+- `docs/foundation-review.md` — 根幹に関わる変更を検討する時に読む
+- `docs/components.md` — 共通部品を使う・足す時に読む
 
 ## 8. 未決事項
 
