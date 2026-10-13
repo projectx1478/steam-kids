@@ -16,6 +16,7 @@ import { renderTrackSelect, playableTrackCount } from './js/ui-tracks.js';
 import { renderTitle } from './js/ui-title.js';
 import { ensureDailyGate } from './js/ui-parental-gate.js';
 import { IS_DEV } from './js/dev-mode.js';
+import { initMenu } from './js/ui-menu.js';
 
 function showError() {
   const p = document.createElement('p');
@@ -174,6 +175,8 @@ async function showTitle() {
     }
   }
 }
+
+initMenu();
 
 // ?lesson=直リンクを含む全起動経路で、その日初回のみ保護者の合言葉を求める（Issue #217）。
 await ensureDailyGate();

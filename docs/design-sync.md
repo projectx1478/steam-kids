@@ -122,7 +122,7 @@ CREATE TABLE guardians (learnerId TEXT PRIMARY KEY, passHash TEXT NOT NULL, upda
 
 ## 保護者ゲート（ダッシュボード保護）
 
-Issue #37・#38対応（いずれも実装済み）。`dashboard.html` は子ども画面の歯車リンクから無認証で
+Issue #37・#38対応（いずれも実装済み）。`dashboard.html` は子ども画面の歯車（現在は歯車メニュー→確認パネル経由）から無認証で
 入れ、呼び名編集・同期操作・リンクコード発行/入力まで子どもが実行できてしまう不備があった。
 kids-player の管理画面保護（Issue #66）に準拠する。
 
