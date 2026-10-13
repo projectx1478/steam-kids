@@ -44,6 +44,11 @@ export function formatMetrics(result) {
     lines.push(`${label}の必須: ${matters[key] ? '必須' : '飾り（NG）'}`);
   }
   lines.push(`曲がる回数（一例）: ${result.turns === null || result.turns === undefined ? '—' : result.turns}`);
+  const gradient = result.gradient || [];
+  if (gradient.length > 0) {
+    const chain = gradient.map((g) => `${g.index + 1}面目=${g.shortest}${g.ok ? '' : '（警告）'}`).join(' → ');
+    lines.push(`勾配（最短手数）: ${chain}${gradient.some((g) => !g.ok) ? ' ※保存はできます' : ''}`);
+  }
   for (const m of result.messages || []) lines.push(`! ${m}`);
   return lines;
 }

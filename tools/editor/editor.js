@@ -111,7 +111,7 @@ async function analyzeNow() {
   showMetrics(formatMetrics(null));
   let lines;
   try {
-    const res = await fetch('/api/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ spec: state.spec }) });
+    const res = await fetch('/api/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lesson && lesson.selected !== null ? { spec: state.spec, lessonId: lesson.lessonId, index: lesson.selected } : { spec: state.spec }) });
     const body = await res.json();
     lines = res.ok ? formatMetrics(body) : ['未判定', ...(body.messages || []).map((m) => `! ${m}`)];
   } catch {
