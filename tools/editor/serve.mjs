@@ -4,8 +4,9 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Worker } from 'node:worker_threads';
+import { formatLesson } from '../gen-stages.mjs';
 
 export const EDITOR_HOST = '127.0.0.1';
 export const DEFAULT_PORT = 5173;
@@ -135,10 +136,149 @@ async function handleAnalyze(req, res, opts) {
   sendJson(res, 200, await runAnalyze(body.spec, opts));
 }
 
+// ---- レッスンの読み書き（#402 段1）。書き込み先は lessons/<id>.json と退避置き場だけ。index.json・新規作成は不可 ----
+export const SAVE_TIMEOUT_MS = 10_000; // 保存検査の打ち切り（ANALYZE_TIMEOUT_MS と同じ仮置き）
+export const BACKUP_KEEP = 10; // レッスンごとの退避の保持数
+const SAVE_WORKER_CODE = `
+const { parentPort, workerData } = require('node:worker_threads');
+(async () => {
+  try {
+    const { validateLesson, validateIndex } = await import(workerData.validateUrl);
+    const { id, data, longTrialIds, indexData, lessons, fileIds } = workerData;
+    const errors = validateLesson(id + '.json', data, longTrialIds);
+    if (indexData) errors.push(...validateIndex(indexData, new Map(lessons), new Set(fileIds)));
+    parentPort.postMessage({ ok: true, errors });
+  } catch (e) {
+    parentPort.postMessage({ ok: false, error: String(e && e.message ? e.message : e) });
+  }
+})();
+`;
+const VALIDATE_URL = pathToFileURL(path.join(ROOT, 'tools', 'validate-lessons.mjs')).href;
+
+const lessonsDirOf = (opts) => opts.lessonsDir || process.env.LESSONS_DIR || path.join(ROOT, 'lessons');
+const backupsDirOf = (opts) => opts.backupsDir || path.join(EDITOR_DIR, 'backups');
+
+// :id の検査。問題があれば messages（空なら OK）。index は書き込み・読み出しの対象外。
+export function checkLessonId(id) {
+  if (typeof id !== 'string' || !ID_RE.test(id)) return ['id は ^[a-z0-9-]+$ にしてください'];
+  if (id === 'index') return ['index は対象外です（index.json には書き込めません）'];
+  return [];
+}
+
+// dir 直下の <id>.json の絶対パス。dir の外に出るなら null。
+function lessonFileOf(dir, id) {
+  const base = path.resolve(dir);
+  const file = path.resolve(base, `${id}.json`);
+  return path.dirname(file) === base ? file : null;
+}
+
+const pad2 = (n) => String(n).padStart(2, '0');
+export function backupStamp(d = new Date()) {
+  return `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}-${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`;
+}
+
+// 書く前の退避。backups/<id>-<YYYYMMDD-HHmmss>.json にコピーし、レッスンごとに新しい方から BACKUP_KEEP 件だけ残す。
+export async function backupLesson(id, raw, backupsDir, now = new Date()) {
+  await fs.promises.mkdir(backupsDir, { recursive: true });
+  const stamp = backupStamp(now);
+  const re = new RegExp(`^${id}-(\\d{8}-\\d{6})(?:-(\\d+))?\\.json$`);
+  // 古い順: 時刻部分（文字列＝時系列順）→ 同秒の連番（数値。素の名前は 1 扱い）
+  const seqOf = (f) => Number(re.exec(f)[2] || 1);
+  const stampOf = (f) => re.exec(f)[1];
+  // 同秒の連番は、残っている最大の次から振る（古い名前が消えた後に空いた名前を再利用して順序が崩れるのを防ぐ）
+  let n = Math.max(0, ...(await fs.promises.readdir(backupsDir)).filter((f) => re.test(f) && stampOf(f) === stamp).map(seqOf)) + 1;
+  let name;
+  for (;; n++) {
+    name = n === 1 ? `${id}-${stamp}.json` : `${id}-${stamp}-${n}.json`;
+    try { await fs.promises.writeFile(path.join(backupsDir, name), raw, { encoding: 'utf8', flag: 'wx' }); break; } catch (e) {
+      if (e.code !== 'EEXIST') throw e;
+    }
+  }
+  const mine = (await fs.promises.readdir(backupsDir)).filter((f) => re.test(f))
+    .sort((a, b) => (stampOf(a) < stampOf(b) ? -1 : stampOf(a) > stampOf(b) ? 1 : seqOf(a) - seqOf(b)));
+  for (const f of mine.slice(0, Math.max(0, mine.length - BACKUP_KEEP))) await fs.promises.unlink(path.join(backupsDir, f));
+  return path.join(backupsDir, name);
+}
+
+async function readAllLessons(dir) {
+  const files = (await fs.promises.readdir(dir)).filter((f) => f.endsWith('.json') && f !== 'index.json');
+  const lessons = new Map();
+  for (const f of files) {
+    try { lessons.set(f.slice(0, -5), JSON.parse(await fs.promises.readFile(path.join(dir, f), 'utf8'))); } catch { /* 読めないファイルは飛ばす */ }
+  }
+  return { files, lessons };
+}
+
+// validateLesson・validateIndex をメモリ上で worker_threads から呼ぶ。timeoutMs で打ち切り（timeout:true）。
+export function runSaveValidate(payload, timeoutMs = SAVE_TIMEOUT_MS) {
+  return new Promise((resolve) => {
+    const worker = new Worker(SAVE_WORKER_CODE, { eval: true, workerData: { ...payload, validateUrl: VALIDATE_URL } });
+    let done = false;
+    const finish = (value) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      worker.terminate();
+      resolve(value);
+    };
+    const timer = setTimeout(() => finish({ timeout: true, errors: [] }), timeoutMs);
+    worker.once('message', (m) => finish(m && m.ok ? { timeout: false, errors: m.errors } : { timeout: false, errors: [`検査中にエラー: ${m && m.error}`] }));
+    worker.once('error', (e) => finish({ timeout: false, errors: [`検査中にエラー: ${e.message}`] }));
+  });
+}
+
+async function handleLessons(req, res, pathname, opts) {
+  const dir = lessonsDirOf(opts);
+  if (pathname === '/api/lessons') {
+    if (req.method !== 'GET') return sendJson(res, 404, { messages: ['Not Found'] });
+    const { lessons } = await readAllLessons(dir);
+    return sendJson(res, 200, [...lessons].sort(([a], [b]) => (a < b ? -1 : 1)).map(([id, d]) => ({ lessonId: id, title: d.title, unitId: d.unitId, stepCount: Array.isArray(d.steps) ? d.steps.length : 0 })));
+  }
+  let id;
+  try { id = decodeURIComponent(pathname.slice('/api/lessons/'.length)); } catch { return sendJson(res, 400, { messages: ['id が不正です'] }); }
+  const idProblems = checkLessonId(id);
+  if (idProblems.length > 0) return sendJson(res, 400, { messages: idProblems });
+  const file = lessonFileOf(dir, id);
+  if (!file) return sendJson(res, 400, { messages: ['パスが不正です'] });
+  let raw;
+  try { raw = await fs.promises.readFile(file, 'utf8'); } catch { return sendJson(res, 404, { messages: [`${id} のレッスンがありません`] }); }
+  let current;
+  try { current = JSON.parse(raw); } catch { return sendJson(res, 400, { messages: [`${id}.json: JSONとして読めません`] }); }
+  if (req.method === 'GET') return sendJson(res, 200, { ok: true, lessonId: id, steps: current.steps });
+  if (req.method !== 'PUT') return sendJson(res, 404, { messages: ['Not Found'] });
+
+  const text = await readBody(req);
+  if (text === null) return sendJson(res, 400, { messages: ['body が大きすぎます'] });
+  let body;
+  try { body = JSON.parse(text); } catch { return sendJson(res, 400, { messages: ['JSON として読めません'] }); }
+  if (!Array.isArray(body) || body.length === 0) return sendJson(res, 400, { messages: ['body は steps 全体（空でない配列）の JSON にしてください'] });
+
+  const next = { ...current, steps: body };
+  const { files, lessons } = await readAllLessons(dir);
+  lessons.set(id, next);
+  let indexData = null;
+  try { indexData = JSON.parse(await fs.promises.readFile(path.join(dir, 'index.json'), 'utf8')); } catch { return sendJson(res, 400, { messages: ['index.json: 読めません（検査できないため保存しません）'] }); }
+  const longTrialIds = Array.isArray(indexData.longTrialIds) ? indexData.longTrialIds.filter((x) => typeof x === 'string') : [];
+  const fileIds = new Set([...files.map((f) => f.slice(0, -5)), id]);
+  const result = await runSaveValidate({ id, data: next, longTrialIds, indexData, lessons: [...lessons], fileIds: [...fileIds] }, opts.saveTimeoutMs);
+  if (result.timeout) return sendJson(res, 400, { messages: ['検査が時間内に終わらなかったため保存しません（時間切れ）'] });
+  if (result.errors.length > 0) return sendJson(res, 400, { messages: result.errors });
+
+  await backupLesson(id, raw, backupsDirOf(opts));
+  const out = `${formatLesson(next)}\n`;
+  await fs.promises.writeFile(file, raw.includes('\r\n') ? out.replace(/\n/g, '\r\n') : out, 'utf8');
+  sendJson(res, 200, { ok: true });
+}
+
 export function createEditorServer(opts = {}) {
   return http.createServer((req, res) => {
     const notFound = () => { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('Not Found'); };
-    if (req.method === 'POST' && new URL(req.url, 'http://localhost').pathname === '/api/analyze') {
+    const pathname = new URL(req.url, 'http://localhost').pathname;
+    if (pathname === '/api/lessons' || pathname.startsWith('/api/lessons/')) {
+      handleLessons(req, res, pathname, opts).catch(() => sendJson(res, 500, { messages: ['内部エラー'] }));
+      return;
+    }
+    if (req.method === 'POST' && pathname === '/api/analyze') {
       handleAnalyze(req, res, opts).catch(() => sendJson(res, 500, { messages: ['内部エラー'] }));
       return;
     }

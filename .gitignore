@@ -66,3 +66,7 @@ review/lesson-ideas/round2/
 # 設計議論（/design-issue）の議論原文。公開しない
 review/design/
 review/autopilot/
+
+# 盤面エディタ（開発者用）の下書き・レッスン退避。公開しない
+tools/editor/drafts/
+tools/editor/backups/
