@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Worker } from 'node:worker_threads';
 import { formatLesson } from '../gen-stages.mjs';
+import { shortestSteps, shortestChips, boardSpec } from '../../js/engine-grid.js';
 
 export const EDITOR_HOST = '127.0.0.1';
 export const DEFAULT_PORT = 5173;
@@ -116,6 +117,47 @@ function readBody(req) {
   });
 }
 
+// 勾配（難易度の順序）。validate-lessons.mjs の「難易度の順序」検査と同じ規則・文言：最短手数が前の面より短ければ警告（同じ最短は許す）。
+// 編集中の面（steps の index 番目を spec で置き換えたもの）を、前後の play と比べる。下書きは比べない。
+// repeatBox の面は箱なしの最短のみ。groupRepeats の面と通常の面は混ぜない（種類が違う隣は比べない）。
+// 戻り値 { gradient:[{lessonId,index,shortest,ok}], messages }。gradient は前・編集中・後の順で、ok は直前の面より短くないこと。
+export function computeGradient({ lessonId, index, steps, spec, shortest }) {
+  const none = { gradient: [], messages: [] };
+  if (!Array.isArray(steps) || !Number.isInteger(index) || index < 0 || index >= steps.length) return none;
+  if (typeof shortest !== 'number' || shortest === Infinity) return none;
+  const grouped = !!spec.groupRepeats;
+  const distOf = (play) => {
+    if (!play || !play.start || !play.goal || !play.grid || !play.grid.cols || !play.grid.rows) return null;
+    if (!!play.groupRepeats !== grouped) return null;
+    const board = boardSpec({ ...play, allowedCommands: play.allowedCommands ?? ['up', 'down', 'left', 'right'] });
+    const d = grouped ? shortestChips(board) : shortestSteps(board);
+    return d === Infinity ? null : d;
+  };
+  const neighbor = (from, dir) => {
+    for (let i = from + dir; i >= 0 && i < steps.length; i += dir) {
+      if (steps[i] && steps[i].kind === 'play') return i;
+    }
+    return -1;
+  };
+  const labelOf = (i, step) => (step && step.stepId) || `index=${i}`;
+  const entries = [];
+  const prevI = neighbor(index, -1);
+  const nextI = neighbor(index, 1);
+  if (prevI >= 0) { const d = distOf(steps[prevI]); if (d !== null) entries.push({ i: prevI, shortest: d, label: labelOf(prevI, steps[prevI]) }); }
+  entries.push({ i: index, shortest, label: (spec && spec.stepId) || labelOf(index, steps[index]) });
+  if (nextI >= 0) { const d = distOf(steps[nextI]); if (d !== null) entries.push({ i: nextI, shortest: d, label: labelOf(nextI, steps[nextI]) }); }
+  const messages = [];
+  const gradient = entries.map((e, k) => {
+    const prev = k > 0 ? entries[k - 1] : null;
+    const ok = !prev || !(e.shortest < prev.shortest);
+    if (!ok) {
+      messages.push(`難易度の順序: stepId="${e.label}" の最短(${e.shortest})がstepId="${prev.label}"の最短(${prev.shortest})より短い（ステージが進むほど難易度は非減少である必要がある）`);
+    }
+    return { lessonId, index: e.i, shortest: e.shortest, ok };
+  });
+  return { gradient, messages };
+}
+
 // POST /api/analyze。400（壊れた入力・上限超過）／404（lessonId なし）／200。
 async function handleAnalyze(req, res, opts) {
   const raw = await readBody(req);
@@ -125,15 +167,21 @@ async function handleAnalyze(req, res, opts) {
   const problems = checkAnalyzeInput(body);
   if (problems.length > 0) return sendJson(res, 400, { messages: problems });
   const { lessonId, index } = body;
+  let steps = null;
   if (lessonId !== undefined) {
-    let steps;
     try {
       const lessonsDir = process.env.LESSONS_DIR || path.join(ROOT, 'lessons');
       steps = JSON.parse(await fs.promises.readFile(path.join(lessonsDir, `${lessonId}.json`), 'utf8')).steps;
     } catch { return sendJson(res, 404, { messages: [`lessonId=${lessonId} のレッスンがありません`] }); }
     if (index !== undefined && !(Array.isArray(steps) && index < steps.length)) return sendJson(res, 400, { messages: ['index が範囲外です'] });
   }
-  sendJson(res, 200, await runAnalyze(body.spec, opts));
+  const result = await runAnalyze(body.spec, opts);
+  if (result.status === 'ok' && steps && index !== undefined) {
+    const g = computeGradient({ lessonId, index, steps, spec: body.spec, shortest: result.shortest });
+    result.gradient = g.gradient;
+    result.messages = [...(result.messages || []), ...g.messages];
+  }
+  sendJson(res, 200, result);
 }
 
 // ---- レッスンの読み書き（#402 段1）。書き込み先は lessons/<id>.json と退避置き場だけ。index.json・新規作成は不可 ----
