@@ -153,6 +153,12 @@ test('backupLesson: 名前は <id>-YYYYMMDD-HHmmss、同じ秒は連番、別レ
     for (let i = 0; i < BACKUP_KEEP + 3; i++) await backupLesson('ice-01-suberu', `v${i}`, tmp, now);
     const files = listBackups(tmp);
     assert.ok(files.includes('ice-01-20261013-080509.json'), '別レッスン（接頭辞が同じ id）の退避は残る');
-    assert.equal(files.filter((f) => f.startsWith('ice-01-suberu-')).length, BACKUP_KEEP);
+    const mine = files.filter((f) => f.startsWith('ice-01-suberu-'));
+    assert.equal(mine.length, BACKUP_KEEP);
+    // 残るのは最新の10件（v3..v12）。同秒の連番 -10 以降を含み、最古（素の名前・-2・-3）が消える
+    const kept = mine.map((f) => fs.readFileSync(path.join(tmp, f), 'utf8')).sort((a, b) => Number(a.slice(1)) - Number(b.slice(1)));
+    assert.deepEqual(kept, Array.from({ length: BACKUP_KEEP }, (_, i) => `v${i + 3}`));
+    assert.ok(!mine.includes('ice-01-suberu-20261013-080509.json'), '最古（素の名前）は消える');
+    assert.ok(mine.includes('ice-01-suberu-20261013-080509-13.json'), '最後に書いた退避が残る');
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });

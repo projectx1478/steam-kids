@@ -181,15 +181,21 @@ export function backupStamp(d = new Date()) {
 export async function backupLesson(id, raw, backupsDir, now = new Date()) {
   await fs.promises.mkdir(backupsDir, { recursive: true });
   const stamp = backupStamp(now);
-  let name = `${id}-${stamp}.json`;
-  for (let n = 2; ; n++) {
+  const re = new RegExp(`^${id}-(\\d{8}-\\d{6})(?:-(\\d+))?\\.json$`);
+  // 古い順: 時刻部分（文字列＝時系列順）→ 同秒の連番（数値。素の名前は 1 扱い）
+  const seqOf = (f) => Number(re.exec(f)[2] || 1);
+  const stampOf = (f) => re.exec(f)[1];
+  // 同秒の連番は、残っている最大の次から振る（古い名前が消えた後に空いた名前を再利用して順序が崩れるのを防ぐ）
+  let n = Math.max(0, ...(await fs.promises.readdir(backupsDir)).filter((f) => re.test(f) && stampOf(f) === stamp).map(seqOf)) + 1;
+  let name;
+  for (;; n++) {
+    name = n === 1 ? `${id}-${stamp}.json` : `${id}-${stamp}-${n}.json`;
     try { await fs.promises.writeFile(path.join(backupsDir, name), raw, { encoding: 'utf8', flag: 'wx' }); break; } catch (e) {
       if (e.code !== 'EEXIST') throw e;
-      name = `${id}-${stamp}-${n}.json`;
     }
   }
-  const re = new RegExp(`^${id}-\\d{8}-\\d{6}(-\\d+)?\\.json$`);
-  const mine = (await fs.promises.readdir(backupsDir)).filter((f) => re.test(f)).sort();
+  const mine = (await fs.promises.readdir(backupsDir)).filter((f) => re.test(f))
+    .sort((a, b) => (stampOf(a) < stampOf(b) ? -1 : stampOf(a) > stampOf(b) ? 1 : seqOf(a) - seqOf(b)));
   for (const f of mine.slice(0, Math.max(0, mine.length - BACKUP_KEEP))) await fs.promises.unlink(path.join(backupsDir, f));
   return path.join(backupsDir, name);
 }
