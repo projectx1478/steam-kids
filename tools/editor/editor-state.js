@@ -242,6 +242,30 @@ export function duplicateStep(ls, index) {
   return ok();
 }
 
+// 下書き（盤面 JSON）を面として index の直後に追加する（index が null なら末尾）。stepId は重ならない名前（<base>, <base>2 ...）、kind は play。追加した面を選ぶ。
+export function addDraftStep(ls, spec, baseId, index = null) {
+  if (!hasBoard(spec)) return ng('盤面（grid・start・goal）が無い');
+  const at = index === null ? ls.steps.length : index + 1;
+  if (!Number.isInteger(at) || at < 0 || at > ls.steps.length) return ng('その番号の面は無い');
+  const next = clone(spec);
+  const base = String(baseId || next.stepId || 'draft');
+  const ids = new Set(ls.steps.map((s) => s.stepId));
+  let id = base;
+  for (let n = 2; ids.has(id); n++) id = `${base}${n}`;
+  next.stepId = id;
+  next.kind = 'play';
+  delete next.gen;
+  ls.steps.splice(at, 0, next);
+  ls.selected = at;
+  return ok();
+}
+
+// 保存 NG の文言を「自分の面（placedIds）が原因か」で分ける。検査名（「検査名: 文言」の頭）・stepId・数値は文言のまま出す。
+export function explainSaveNg(messages, placedIds) {
+  const own = (m) => placedIds.some((id) => m.includes(`stepId="${id}"`) || m.includes(`"${id}"`));
+  return messages.map((m) => ({ message: m, own: own(m), label: own(m) ? '自分の面が原因' : 'ほかの面・レッスン全体が原因の可能性' }));
+}
+
 // stageGen の面を固定する。盤面は面に書き出し済みなので、gen を捨てて stageGen.keepHandwritten（先頭の play から連続）に足す。元は git に残る。
 export function pinStep(ls, index) {
   if (!inRange(ls, index)) return ng('その番号の面は無い');

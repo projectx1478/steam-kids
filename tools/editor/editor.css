@@ -52,3 +52,8 @@
 .st .tag { margin-left: auto; color: #b45309; }
 #step-warn { padding: 6px 8px; font-size: 12px; color: #b45309; border-top: 1px solid #e2e8f0; }
 #step-warn:empty { display: none; }
+.drafts-ctl { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 8px; border-top: 1px solid #e2e8f0; }
+.drafts-ctl input { flex: 1 1 100%; font-size: 12px; }
+#save-ng { padding: 6px 8px; font-size: 12px; color: #b91c1c; border-top: 1px solid #e2e8f0; }
+#save-ng:empty { display: none; }
+#save-ng .own { font-weight: bold; }
