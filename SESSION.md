@@ -83,6 +83,8 @@
 - Cloudflareの `account_id` は `e869e1d895a7144f62de9105d5374a4a`
   （`workers/steam-kids-sync/wrangler.toml` に記載済み）
 
+- 自動進行の状態（review/design・autopilot・handoff）は非公開リポジトリ `steam-kids-state` と `tools/autopilot-state.mjs` で同期し、手元とクラウドの同時稼働は lock（12時間）で防ぐ（#442）
+
 ## 未決事項（PROJECT.md「8. 未決事項」・Issue #3にも記載）
 
 - ダッシュボードの認証方法（校内配布時の教師向け保護。話が出た時点で決める）
