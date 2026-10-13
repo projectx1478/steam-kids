@@ -3,6 +3,7 @@
 //   matters: true なら必須（外した盤の最短が maxCommands を超える。または対象のギミックが無い）
 //   dist: 外した盤の最短（対象のギミックが無いときは null）
 import { shortestSteps, shortestChips, boardSpec } from '../../js/engine-grid.js';
+import { GIMMICKS } from '../../js/gimmicks/index.js';
 
 function shortest(play, spec) {
   return play.groupRepeats ? shortestChips(spec) : shortestSteps(spec);
@@ -22,4 +23,27 @@ export function keysMustMatter(play) {
   const noDoor = boardSpec({ ...play, walls: [...(play.walls || []), ...play.doors], doors: [], keys: [] });
   const dist = shortest(play, noDoor);
   return { matters: !(dist <= play.maxCommands), dist };
+}
+
+// 周期ドアを「常に開」にした盤の最短より、実際の最短（dist）が長くなければドアが飾り。
+// dist が null / Infinity、または周期ドアが無いときは判定しない（matters: true, dist: null）。
+export function periodicMustMatter(play, dist) {
+  if (dist === null || dist === Infinity || !(Array.isArray(play.periodic) && play.periodic.length > 0)) return { matters: true, dist: null };
+  const alwaysOpen = boardSpec({ ...play, periodic: [] });
+  const alwaysOpenDist = shortest(play, alwaysOpen);
+  return { matters: dist > alwaysOpenDist, dist: alwaysOpenDist };
+}
+
+// paint の塗りを外した盤の最短より、実際の最短（dist）が長くなければ塗りが飾り。
+// dist が null、または paint が無いときは判定しない。
+export function paintMustMatter(play, dist) {
+  if (dist === null || !(Array.isArray(play.paint) && play.paint.length > 0)) return { matters: true, dist: null };
+  const noPaintDist = shortestSteps(boardSpec({ ...play, paint: [] }));
+  return { matters: dist > noPaintDist, dist: noPaintDist };
+}
+
+// どんぐりの必須性：どんぐりを除いた盤の最短 < 実際の最短 (generateMap の itemsMustMatter と同じ向き)
+export function itemsMustMatter(spec, dist) {
+  const strip = GIMMICKS.find((g) => g.key === 'items').strip(spec);
+  return shortestSteps(strip) < dist;
 }

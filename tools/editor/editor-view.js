@@ -26,6 +26,28 @@ export function zoomPercent(cellPx) {
   return Math.round((cellPx / CELL_PX_DEFAULT) * 100);
 }
 
+export const ANALYZE_DEBOUNCE_MS = 300; // 編集が止まってから判定を送るまで
+
+// 必須を表示するギミック名（POST /api/analyze の matters のキー）
+export const MATTER_LABELS = { ice: 'こおり', keys: 'かぎ', items: 'どんぐり', periodic: '周期ドア', paint: 'ぬり', switches: 'スイッチ' };
+
+// 判定結果（POST /api/analyze の応答）を表示用の文字列の配列にする。result が null＝判定中。
+// 打ち切り（status:'timeout'）は「未判定」とし、OK に見せない。
+export function formatMetrics(result) {
+  if (!result) return ['判定中…'];
+  if (result.status === 'timeout') return ['未判定（時間切れ）'];
+  const lines = [result.clearable ? 'クリア: できる' : 'クリア: できない'];
+  lines.push(`最短手数: ${result.shortest === null || result.shortest === undefined ? '—' : result.shortest}`);
+  const matters = result.matters || {};
+  for (const [key, label] of Object.entries(MATTER_LABELS)) {
+    if (matters[key] === null || matters[key] === undefined) continue;
+    lines.push(`${label}の必須: ${matters[key] ? '必須' : '飾り（NG）'}`);
+  }
+  lines.push(`曲がる回数（一例）: ${result.turns === null || result.turns === undefined ? '—' : result.turns}`);
+  for (const m of result.messages || []) lines.push(`! ${m}`);
+  return lines;
+}
+
 // 表示用の例盤面（既存の盤面 JSON と同じ形。lessons/*.json の demo・step と同じ項目）。
 export const SAMPLE_SPEC = {
   grid: { cols: 5, rows: 5 },

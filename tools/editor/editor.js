@@ -1,10 +1,10 @@
 // 盤面エディタ（開発者用）の画面。盤面は js/ui-board.js の drawBoard 経由で描く。
 import { drawBoard } from '/js/ui-board.js';
-import { SAMPLE_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, clampCellPx, wheelCellPx, zoomPercent } from './editor-view.js';
+import { SAMPLE_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clampCellPx, wheelCellPx, zoomPercent, formatMetrics } from './editor-view.js';
 
 import { GIMMICKS } from '/js/gimmicks/index.js';
 import { buildPalette, iconSpec } from './palette.js';
-import { createState, setCellPx as setStateCellPx, place, erase, move, undo, redo, canUndo, canRedo } from './editor-state.js';
+import { createState, setCellPx as setStateCellPx, place, erase, move, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult } from './editor-state.js';
 
 const state = createState(SAMPLE_SPEC, CELL_PX_DEFAULT);
 state.selected = 'wall';
@@ -92,10 +92,44 @@ function setCellPx(value) {
   render();
 }
 
+// 判定（POST /api/analyze）。編集が止まってから約300ms後に送り、世代番号で古い結果を捨てる。ブラウザ保存は使わない。
+const metricsEl = document.createElement('div');
+metricsEl.id = 'metrics';
+statusEl.after(metricsEl);
+let analyzeTimer = null;
+
+function showMetrics(lines) {
+  metricsEl.replaceChildren(...lines.map((t) => {
+    const d = document.createElement('div');
+    d.textContent = t;
+    return d;
+  }));
+}
+
+async function analyzeNow() {
+  const gen = nextGeneration(state);
+  showMetrics(formatMetrics(null));
+  let lines;
+  try {
+    const res = await fetch('/api/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ spec: state.spec }) });
+    const body = await res.json();
+    lines = res.ok ? formatMetrics(body) : ['未判定', ...(body.messages || []).map((m) => `! ${m}`)];
+  } catch {
+    lines = ['未判定（判定サーバーに接続できません）'];
+  }
+  if (shouldApplyResult(state, gen)) showMetrics(lines);
+}
+
+function scheduleAnalyze() {
+  clearTimeout(analyzeTimer);
+  analyzeTimer = setTimeout(analyzeNow, ANALYZE_DEBOUNCE_MS);
+}
+
 // 操作の結果を状態行へ出して描き直す
 function apply(result) {
   notice = result.ok ? '' : `できません: ${result.reason}`;
   render();
+  if (result.ok) scheduleAnalyze();
 }
 
 function doUndo() { apply(undo(state)); }
@@ -139,3 +173,4 @@ boardArea.addEventListener('wheel', (e) => {
 document.getElementById('zoom-reset').addEventListener('click', () => setCellPx(CELL_PX_DEFAULT));
 
 renderPalette();
+scheduleAnalyze();

@@ -26,11 +26,8 @@ function shuffle(rng, list) {
   return a;
 }
 
-// どんぐりの必須性：どんぐりを除いた盤の最短 < 実際の最短 (generateMap の itemsMustMatter と同じ向き)
-export function itemsMustMatter(spec, dist) {
-  const strip = GIMMICKS.find((g) => g.key === 'items').strip(spec);
-  return shortestSteps(strip) < dist;
-}
+// どんぐりの必須性は tools/lib/must-matter.mjs へ移動（既存の import 先を変えないため再 export）
+export { itemsMustMatter } from '../lib/must-matter.mjs';
 
 // 最短の手数と曲がり角数（難しさの主・補助指標）
 export function metrics(board) {
