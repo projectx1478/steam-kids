@@ -162,3 +162,32 @@ test('backupLesson: 名前は <id>-YYYYMMDD-HHmmss、同じ秒は連番、別レ
     assert.ok(mine.includes('ice-01-suberu-20261013-080509-13.json'), '最後に書いた退避が残る');
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });
+
+test('PUT: { steps, keepHandwritten } は stageGen.keepHandwritten を保存する。stageGen の無いレッスンは 400', async () => {
+  const { tmp, lessonsDir, backupsDir } = setup();
+  try {
+    await withServer({ lessonsDir, backupsDir }, async (port) => {
+      const sg = 'donguri-02-mawarimichi';
+      const file = path.join(lessonsDir, `${sg}.json`);
+      const lesson = JSON.parse(fs.readFileSync(file, 'utf8'));
+      const got = await call(port, 'GET', `/api/lessons/${sg}`);
+      assert.deepEqual(got.json.keepHandwritten, ['p1', 'p2']);
+      assert.equal((await call(port, 'GET', `/api/lessons/${ID}`)).json.keepHandwritten, null);
+      const steps = JSON.parse(JSON.stringify(lesson.steps));
+      delete steps.find((s) => s.stepId === 'p3').gen;
+      const r = await call(port, 'PUT', `/api/lessons/${sg}`, { steps, keepHandwritten: ['p1', 'p2', 'p3'] });
+      assert.equal(r.status, 200, JSON.stringify(r.json));
+      const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
+      assert.deepEqual(saved.stageGen.keepHandwritten, ['p1', 'p2', 'p3']);
+      assert.equal('gen' in saved.steps.find((s) => s.stepId === 'p3'), false);
+      // 連続でない keepHandwritten は検査で断られ、ファイルは変わらない
+      const before = fs.readFileSync(file, 'utf8');
+      const ng = await call(port, 'PUT', `/api/lessons/${sg}`, { steps, keepHandwritten: ['p1', 'p3'] });
+      assert.equal(ng.status, 400);
+      assert.equal(fs.readFileSync(file, 'utf8'), before);
+      // stageGen の無いレッスンに keepHandwritten は保存できない
+      const none = await call(port, 'PUT', `/api/lessons/${ID}`, { steps: JSON.parse(fs.readFileSync(path.join(lessonsDir, `${ID}.json`), 'utf8')).steps, keepHandwritten: [] });
+      assert.equal(none.status, 400);
+    });
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});

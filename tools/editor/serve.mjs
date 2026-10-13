@@ -244,16 +244,23 @@ async function handleLessons(req, res, pathname, opts) {
   try { raw = await fs.promises.readFile(file, 'utf8'); } catch { return sendJson(res, 404, { messages: [`${id} のレッスンがありません`] }); }
   let current;
   try { current = JSON.parse(raw); } catch { return sendJson(res, 400, { messages: [`${id}.json: JSONとして読めません`] }); }
-  if (req.method === 'GET') return sendJson(res, 200, { ok: true, lessonId: id, steps: current.steps });
+  if (req.method === 'GET') return sendJson(res, 200, { ok: true, lessonId: id, steps: current.steps, keepHandwritten: current.stageGen && typeof current.stageGen === 'object' ? (current.stageGen.keepHandwritten ?? []) : null });
   if (req.method !== 'PUT') return sendJson(res, 404, { messages: ['Not Found'] });
 
   const text = await readBody(req);
   if (text === null) return sendJson(res, 400, { messages: ['body が大きすぎます'] });
   let body;
   try { body = JSON.parse(text); } catch { return sendJson(res, 400, { messages: ['JSON として読めません'] }); }
-  if (!Array.isArray(body) || body.length === 0) return sendJson(res, 400, { messages: ['body は steps 全体（空でない配列）の JSON にしてください'] });
+  // body は steps 全体（配列）。stageGen のあるレッスンは { steps, keepHandwritten } でも受け、stageGen.keepHandwritten を差し替える。
+  const withKeep = body !== null && typeof body === 'object' && !Array.isArray(body);
+  const steps = withKeep ? body.steps : body;
+  if (!Array.isArray(steps) || steps.length === 0 || (withKeep && !Array.isArray(body.keepHandwritten))) {
+    return sendJson(res, 400, { messages: ['body は steps 全体（空でない配列）、または { steps, keepHandwritten }（keepHandwritten は配列）の JSON にしてください'] });
+  }
+  if (withKeep && !(current.stageGen && typeof current.stageGen === 'object')) return sendJson(res, 400, { messages: ['stageGen の無いレッスンには keepHandwritten を保存できません'] });
 
-  const next = { ...current, steps: body };
+  const next = { ...current, steps };
+  if (withKeep) next.stageGen = { ...current.stageGen, keepHandwritten: body.keepHandwritten };
   const { files, lessons } = await readAllLessons(dir);
   lessons.set(id, next);
   let indexData = null;
