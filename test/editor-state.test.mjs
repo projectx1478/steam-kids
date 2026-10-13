@@ -136,7 +136,8 @@ test('editor-state: EDITOR_MAX_SIZE を超える盤面の変更は拒否', () =>
   assert.equal(setGrid(s, 3, 3).ok, false); // ゴールなど要素が盤外になる
   assert.deepEqual(s.spec.grid, { cols: 5, rows: 5 });
   assert.equal(setGrid(s, EDITOR_MAX_SIZE, EDITOR_MAX_SIZE).ok, true);
-  assert.deepEqual(s.spec.grid, { cols: 6, rows: 6 });
+  assert.deepEqual(s.spec.grid, { cols: 20, rows: 20 });
+  assert.equal(EDITOR_MAX_SIZE, 20);
 });
 
 // ---- #402 段2: レッスンの面の一覧・並べ替え・固定 ----

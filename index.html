@@ -34,6 +34,12 @@
       </button>
       <div id="gear-menu" hidden class="absolute right-0 top-full mt-1.5 w-[200px] bg-white rounded-xl shadow-lg p-2">
         <div class="flex flex-col gap-1">
+          <!-- 拡大の3項目（Issue #389 段B）。24px未満の盤だけ ui-menu.js が出す。語は「拡大」「縮小」を使わない。 -->
+          <div id="menu-zoom" hidden><div class="flex flex-col gap-1">
+            <button id="zoom-in" type="button" aria-label="おおきく" class="w-full min-h-[64px] rounded-lg bg-sky-100 text-slate-700 font-bold text-lg flex items-center justify-center gap-2 disabled:opacity-40"><svg viewBox="0 0 24 24" class="w-8 h-8 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="10" r="6" /><path d="M15 15l6 6" /><path d="M7 10h6M10 7v6" /></svg><span>おおきく</span></button>
+            <button id="zoom-out" type="button" aria-label="ちいさく" class="w-full min-h-[64px] rounded-lg bg-sky-100 text-slate-700 font-bold text-lg flex items-center justify-center gap-2 disabled:opacity-40"><svg viewBox="0 0 24 24" class="w-8 h-8 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="10" r="6" /><path d="M15 15l6 6" /><path d="M7 10h6" /></svg><span>ちいさく</span></button>
+            <button id="zoom-all" type="button" aria-label="ぜんぶみる" class="w-full min-h-[64px] rounded-lg bg-sky-100 text-slate-700 font-bold text-lg flex items-center justify-center gap-2 disabled:opacity-40"><svg viewBox="0 0 24 24" class="w-8 h-8 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="10" r="6" /><path d="M15 15l6 6" /><rect x="7.5" y="7.5" width="5" height="5" rx="1" /></svg><span>ぜんぶみる</span></button>
+          </div></div>
           <button id="menu-guardian" type="button" class="w-full min-h-[64px] text-xs text-slate-500 underline">ほごしゃの かた</button>
           <button id="menu-close" type="button" class="w-full min-h-[64px] rounded-lg bg-slate-200 text-slate-700 font-bold text-lg">とじる</button>
         </div>

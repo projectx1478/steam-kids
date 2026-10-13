@@ -29,3 +29,13 @@ Service Workerの配信経路は単体テスト`test/service-worker.test.mjs`（
 ## 4. 手元ガード
 
 `.claude/verify/config.mjs`の`ciOnly`で有効化している。解除・変更するときはIssueで決める。
+
+## 5. 盤面の描画の計測（Issue #389 段B）
+
+- 20×20（400マス）の `drawBoard`（`fitCellSize` の結果＝マス9px・すき間1px・余白2px、壁40）。Chromium（Playwright）で10回描いた値。レイアウトまで含む。
+  - 通常速度：初回 6.5ms／中央値 3.1ms／最大 6.5ms
+  - CPU 4倍遅延（CDP の `Emulation.setCPUThrottlingRate`）：中央値 18ms／最大 39ms
+  - CPU 6倍遅延：中央値 38ms／最大 60ms
+  - 要素数：719（マス400＋盤面・ロボット・足あと層など）
+- 同じ計測は `.claude/verify/scenarios/zoom-draw-cost.mjs`（CIで実行。MEASURE 行に出る。判定は中央値500ms未満）。単体テストは `test/board-20x20.test.mjs`。
+- 古いタブレット実機での描画の重さは、悠さんが実機で確認する。

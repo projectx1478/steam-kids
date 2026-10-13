@@ -1,7 +1,7 @@
 // 盤面エディタの表示まわりの定数と純粋な関数（DOM 非依存。test/editor-view.test.mjs で検査）。
 // 開発者用・手元専用。子ども向け画面（APP_SHELL）には載せない。
 
-export const EDITOR_MAX_SIZE = 6; // 盤面サイズ上限（#389 後に 20）
+export const EDITOR_MAX_SIZE = 20; // 盤面サイズ上限（レッスンJSON の上限検査 1〜20 と同じ。#389）
 
 // cellPx（1マスの px）。renderGrid は cellSize を検査せずそのまま使うので、範囲はエディタ側で決める。
 export const CELL_PX_MIN = 8; // js/ui-grid.js の MIN_CELL と同じ

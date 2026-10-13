@@ -6,6 +6,7 @@ import { boardSpec, chipCount, isRunCleared } from './engine-grid.js';
 import { logEvent } from './events.js';
 import { shapeSvg, prefersReducedMotion } from './ui-grid.js';
 import { fitCellSize, drawBoard as drawBoardUi, observeBoard } from './ui-board.js';
+import { createZoom } from './ui-zoom.js';
 import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, vibrate } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
 import { createOpScreen } from './ui-screen.js';
@@ -183,6 +184,7 @@ export function renderPlay(root, step) {
 
   const boardWrap = document.createElement('div');
   boardArea.appendChild(boardWrap);
+  const zoom = createZoom({ boardArea, boardWrap });
 
   const paletteEl = document.createElement('div');
   paletteEl.className = 'palette-row flex gap-2 justify-center';
@@ -296,8 +298,10 @@ export function renderPlay(root, step) {
   // 静的な盤面の再構築。アニメーション中には呼ばない（プレイヤー駒はview経由で差分更新する）。
   // 実行開始・もういちど双方でここを通るため、のこり表示の初期値リセットも兼ねる。
   function drawBoard(playerPos) {
-    local.cellSize = fitCellSize({ spec, boardArea });
-    const { view } = drawBoardUi({ boardWrap, spec, cellSize: local.cellSize, playerPos });
+    local.fit = fitCellSize({ spec, boardArea });
+    local.cellSize = local.fit.cellSize;
+    const { view } = drawBoardUi({ boardWrap, spec, ...local.fit, playerPos });
+    zoom.onDraw({ spec, fit: local.fit, view, playerPos });
     local.view = view;
     local.remaining = spec.items.length;
     syncAcornTray();
@@ -769,7 +773,7 @@ export function renderPlay(root, step) {
   observeBoard({
     boardArea,
     fit: () => fitCellSize({ spec, boardArea }),
-    current: () => local.cellSize,
+    current: () => local.fit,
     // 実行中・結果表示中は盤面状態を保つため再構築しない（Issue #93）。1コマ実行中も同様（Issue #111）。
     skipWhen: () => local.running || local.stepping || local.resultShown,
     redraw: () => drawBoard(spec.start),
