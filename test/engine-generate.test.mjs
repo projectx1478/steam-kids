@@ -55,6 +55,10 @@ test('engine-generate: 同一シード再現・1000件が解けて制約充足�
   // Issue #142：曲がり角が最少の最短経路を返す（ジグザグ経路で判定しない）
   // Issue #143：wallsMustMatterでは壁0個の盤面を返さない
   const path = shortestPath({ grid: { cols: 5, rows: 5 }, start: { x: 0, y: 0 }, goal: { x: 2, y: 2 }, walls: [{ x: 0, y: 2 }], items: [] });
+  // Issue #456：maxDepth以内なら従来どおり、届かなければnull
+  const open = { grid: { cols: 5, rows: 5 }, start: { x: 0, y: 0 }, goal: { x: 2, y: 2 }, walls: [], items: [] };
+  assert.equal(shortestPath(open, { maxDepth: 4 }).length, 4);
+  assert.equal(shortestPath(open, { maxDepth: 3 }), null);
   let zeroWalls = 0;
   let strictOk = 0;
   for (let s = 0; s < 300; s += 1) {

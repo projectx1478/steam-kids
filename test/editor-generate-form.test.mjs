@@ -20,7 +20,7 @@ test('checkGenerateForm: 範囲外・NaN・teach 不一致・オフのギミッ�
   assert.ok(bad((f) => { f.rows.max = 21; }) > 0);
   assert.ok(bad((f) => { f.cols = { min: 5, max: 4 }; }) > 0);
   assert.ok(bad((f) => { f.walls.max = 61; }) > 0);
-  assert.ok(bad((f) => { f.shortestPath.max = 17; }) > 0);
+  assert.ok(bad((f) => { f.shortestPath.max = 61; }) > 0);
   assert.ok(bad((f) => { f.minTurns = 9; }) > 0);
   assert.ok(bad((f) => { f.seed = -1; }) > 0);
   assert.ok(bad((f) => { f.seed = NaN; }) > 0);

@@ -222,7 +222,7 @@ export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts 
       spec = { ...spec, switches: placed };
     }
     work += cells.length * 2 ** (itemCount + pairCount + switchCount);
-    const cmds = shortestPath(spec);
+    const cmds = shortestPath(spec, { maxDepth: stageGen.shortestPath.max });
     if (!cmds || !inRange(cmds.length, stageGen.shortestPath)) continue;
     if (countTurns(cmds) < (stageGen.minTurns ?? 0)) continue;
     if (cmds.some((c) => !allowed.includes(c))) continue;
