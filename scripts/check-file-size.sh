@@ -10,7 +10,7 @@ set -euo pipefail
 THRESHOLD_LINES=1000
 THRESHOLD_CHARS=30000
 
-# ドキュメント別字数上限（AGENTS.md「トークン方針」参照）
+# ドキュメント別字数上限（docs/agents/doc-limits.md参照）
 DOC_LIMIT_AGENTS=8000
 DOC_LIMIT_CLAUDE=4000
 DOC_LIMIT_PROJECT=12000
@@ -87,7 +87,7 @@ check_doc_limit() {
   char_count=$(count_chars "$FILE_PATH")
 
   if [ "$char_count" -gt "$limit" ]; then
-    emit_warning "PostToolUse" "${base} は編集後 ${char_count}字（上限${limit}字）です。AGENTS.mdのドキュメント字数上限を超えています。内容を削るか置き換えを検討してください。"
+    emit_warning "PostToolUse" "${base} は編集後 ${char_count}字（上限${limit}字）です。docs/agents/doc-limits.mdの字数上限を超えています。内容を削るか置き換えを検討してください。"
   fi
 }
 

@@ -1,6 +1,6 @@
 # .claude/verify
 
-AI代理実機確認のためのハーネス。CLAUDE.md「検証方針」に従い、機能の動作・状態遷移・
+AI代理実機確認のためのハーネス。AGENTS.md「検証フェーズ」・`docs/agents/verification.md`に従い、機能の動作・状態遷移・
 エラー処理・データ整合性・レイアウト崩れの有無をAIが実機（Playwright + Chromium）で確認する。
 検証時のみ読む（毎セッション冒頭には読まない）。
 
