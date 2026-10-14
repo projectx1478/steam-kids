@@ -1,7 +1,7 @@
 // stage-gen: 1盤の生成（Issue #337 段2）。受理した盤が solution の再生でクリアでき、必須性が真で、最短が範囲内。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { generateBoard, canonicalKey, metrics, itemsMustMatter, GEN_VERSION } from '../tools/gen/stage-gen.mjs';
+import { generateBoard, canonicalKey, metrics, itemsMustMatter, GEN_VERSION, GEN_ABORTED, MAX_WORK } from '../tools/gen/stage-gen.mjs';
 import { simulate, isRunCleared, shortestSteps } from '../js/engine-grid.js';
 import { mattersFor } from '../js/gimmicks/index.js';
 import { iceMustMatter, keysMustMatter } from '../tools/lib/must-matter.mjs';
@@ -99,4 +99,10 @@ test('stage-gen: keyMode は指定したときだけ盤に付き、盤・解は 
     assert.deepEqual(r, plain, 'remote 指定でも盤・解は同じ');
     assert.deepEqual(c, plain, 'carry 指定でも盤・解は同じ');
   }
+});
+
+test('stage-gen: 探索量の上限を超えたら GEN_ABORTED（null と区別）。上限内なら従来どおり', () => {
+  assert.equal(generateBoard({ ...cases.items, shortestPath: { min: 16, max: 16 }, minTurns: 8 }, 1, { maxWork: 100 }), GEN_ABORTED);
+  assert.equal(generateBoard({ ...cases.items, shortestPath: { min: 16, max: 16 }, minTurns: 8 }, 1, { maxAttempts: 3 }), null);
+  assert.deepEqual(generateBoard(cases.items, 1), generateBoard(cases.items, 1, { maxWork: MAX_WORK }));
 });

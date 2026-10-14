@@ -11,6 +11,7 @@ import { simulate, shortestSteps, shortestChips, boardSpec, isRunCleared } from 
 
 const DEFAULT_TIMEOUT_SEC = 60;
 const DEFAULT_LIMIT = 1000;
+const DEFAULT_MAX_NODES = 300000; // 20×20 で約10秒（1ノード約35µs）
 const FOUR_DIRS = ['up', 'down', 'left', 'right'];
 
 // レッスンJSONの play ステージを取り出す。stage は 1 始まりの番号（playのみ数える）か stepId。
@@ -32,7 +33,8 @@ export function analyzeShortest(play) {
 }
 
 // maxCommands 以内でクリアする命令列を深さ優先で数える。limit 本・deadline（epoch ms）で打ち切る。
-export function countAlternatives(play, { limit = DEFAULT_LIMIT, deadline = Infinity } = {}) {
+// maxNodes（探索ノード数の上限）で切れたときは unknown: true（本数は「count本以上」で、実際は不明）。
+export function countAlternatives(play, { limit = DEFAULT_LIMIT, deadline = Infinity, maxNodes = DEFAULT_MAX_NODES } = {}) {
   if (play.repeatBox === true || play.groupRepeats === true) return { count: null, truncated: false, reason: 'repeatBox/groupRepeats は対象外', nodes: 0 };
   const spec = boardSpec(play);
   const cmds = Array.isArray(play.allowedCommands) ? play.allowedCommands : FOUR_DIRS;
@@ -40,10 +42,12 @@ export function countAlternatives(play, { limit = DEFAULT_LIMIT, deadline = Infi
   let count = 0;
   let nodes = 0;
   let reason = null;
+  let unknown = false;
   const dfs = (seq) => {
     if (reason) return;
     if (count >= limit) { reason = `${limit}本で打ち切り`; return; }
     if ((nodes & 255) === 0 && Date.now() >= deadline) { reason = '時間切れ'; return; }
+    if (nodes >= maxNodes) { reason = `${maxNodes}ノードで打ち切り`; unknown = true; return; }
     nodes += 1;
     const r = simulate(seq, spec);
     if (r.blockedAt.length > 0 || r.paintOver.length > 0) return;
@@ -52,7 +56,7 @@ export function countAlternatives(play, { limit = DEFAULT_LIMIT, deadline = Infi
     for (const c of cmds) dfs([...seq, c]);
   };
   dfs([]);
-  return { count, truncated: reason !== null, reason, nodes };
+  return { count, truncated: reason !== null, unknown, reason, nodes };
 }
 
 function parseArgs(argv) {
@@ -114,7 +118,7 @@ function main() {
   }
   if (out.alts) {
     const a = out.alts;
-    console.log(`別解: ${a.count === null ? `対象外（${a.reason}）` : `${a.count}本${a.truncated ? `（打ち切り: ${a.reason}。実際はこれ以上）` : ''}`}（探索${a.nodes}ノード、${(a.ms / 1000).toFixed(2)}s）`);
+    console.log(`別解: ${a.count === null ? `対象外（${a.reason}）` : `${a.unknown ? `不明（${a.count}本以上。${a.reason}）` : `${a.count}本`}${a.truncated && !a.unknown ? `（打ち切り: ${a.reason}。実際はこれ以上）` : ''}`}（探索${a.nodes}ノード、${(a.ms / 1000).toFixed(2)}s）`);
   } else if (out.shortest) {
     console.log(`別解: 打ち切り（${opt.timeout}秒のタイムアウト）`);
   }

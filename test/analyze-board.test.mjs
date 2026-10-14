@@ -5,6 +5,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { analyzeShortest, countAlternatives, loadPlay } from '../tools/analyze-board.mjs';
 import { shortestSteps, boardSpec } from '../js/engine-grid.js';
 
+const FOUR = ['up', 'down', 'left', 'right'];
 const lessonFiles = readdirSync('lessons').filter((f) => f.endsWith('.json') && f !== 'index.json');
 
 test('analyze-board: 全レッスンの全playで、最短手数が validate:lessons の判定（maxCommandsとの関係）と一致する', () => {
@@ -45,6 +46,18 @@ test('analyze-board: 訪問状態数を返す・limitで打ち切りを明示・
   assert.equal(cut.truncated, true);
   assert.match(cut.reason, /打ち切り/);
   assert.throws(() => loadPlay('paint-01-nuru', 99), /ありません/);
+});
+
+test('analyze-board: ノード数上限を超えたら unknown（不明）を返し、小さい盤は上限内で従来どおり数え切る', () => {
+  const small = countAlternatives(loadPlay('paint-01-nuru', 3));
+  assert.equal(small.count, 4);
+  assert.equal(small.unknown, false);
+  const big = { kind: 'play', grid: { cols: 20, rows: 20 }, start: { x: 0, y: 19 }, goal: { x: 19, y: 0 }, walls: [], items: [], allowedCommands: FOUR, maxCommands: 38 };
+  const cut = countAlternatives(big, { maxNodes: 5000 });
+  assert.equal(cut.unknown, true);
+  assert.equal(cut.truncated, true);
+  assert.equal(cut.nodes, 5000);
+  assert.match(cut.reason, /ノード/);
 });
 
 test('engine-grid: shortestSteps に stats を渡しても最短手数は変わらない（既存の挙動不変）', () => {

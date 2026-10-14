@@ -7,13 +7,15 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { shortestPath, boardSpec } from '../js/engine-grid.js';
-import { generateBoard, canonicalKey, metrics, GEN_VERSION } from './gen/stage-gen.mjs';
+import { generateBoard, canonicalKey, metrics, GEN_VERSION, GEN_ABORTED } from './gen/stage-gen.mjs';
 import { validateLesson } from './validate-lessons.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const LESSONS_DIR = process.env.LESSONS_DIR || path.join(__dirname, '..', 'lessons');
 export const MAX_SEEDS = 200;
 const NODE_BUDGET = 200000;
+// 時間の安全弁（秒は上限値の実測に基づく。docs/tools.md）。決定的な打切りは generateBoard 側の探索量上限で、これは最後の保険。
+export const TIME_LIMIT_MS = 600_000;
 
 // 盤が前の面より2段以上急に大きくならない（cols・rows のどちらかが +2 以上は不可）
 const growsOk = (prev, cur) => cur.grid.cols - prev.grid.cols < 2 && cur.grid.rows - prev.grid.rows < 2;
@@ -25,11 +27,15 @@ function handwrittenFace(play) {
 }
 
 // 候補（seedBase から MAX_SEEDS 個の seed）を作り、正規形で重複を除く。seen には手書きの盤の正規形を入れて渡す。
-export function collectCandidates(stageGen, seen = new Set()) {
+// 打切り（探索量の上限＝GEN_ABORTED、または時間の安全弁）は「未完了」エラー。予備盤なしの null とは区別し、盤は採用しない。
+export function collectCandidates(stageGen, seen = new Set(), { limitMs = TIME_LIMIT_MS } = {}) {
   const base = stageGen.seedBase ?? 1;
   const out = [];
+  const t0 = Date.now();
   for (let seed = base; seed < base + MAX_SEEDS; seed += 1) {
+    if (Date.now() - t0 > limitMs) throw new Error(`未完了: 生成が ${limitMs / 1000} 秒を超えた（seed ${seed} で中止。盤は採用しない）`);
     const board = generateBoard(stageGen, seed);
+    if (board === GEN_ABORTED) throw new Error(`未完了: seed ${seed} の生成が探索量の上限で打ち切られた（盤は採用しない）`);
     if (!board) continue;
     const key = canonicalKey(board);
     if (seen.has(key)) continue;
