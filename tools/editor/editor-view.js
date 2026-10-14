@@ -72,3 +72,47 @@ export const SAMPLE_SPEC = {
   bridge: [{ x: 2, y: 4 }],
   waterMode: 'bump',
 };
+
+// ---- たたき台の生成（#401 段2）。範囲は POST /api/generate（tools/lib/validate/stagegen.mjs の checkStageGen）と同じ ----
+export const GEN_COUNT = 4; // 1回に出す候補の数（2×2）。「もう4枚」は seed をこの数だけ進める
+export const GEN_LIMITS = { grid: [3, 20], walls: [0, 60], shortestPath: [2, 16], minTurns: [0, 8], items: [1, 4], ice: [1, 4], keys: [1, 2] };
+export const GEN_GIMMICKS = [['items', 'どんぐり'], ['ice', 'こおり'], ['keys', 'かぎ']];
+const isInteger = (v) => Number.isInteger(v);
+
+// フォームの値 { cols:{min,max}, rows, walls, shortestPath, minTurns, seed, teach, gimmicks:{items:{on,min,max},ice,keys} } を送る前に検査する。
+// 問題の文字列の配列（空なら送れる）。
+export function checkGenerateForm(form) {
+  const out = [];
+  const range = (label, v, [lo, hi]) => {
+    if (!v || !isInteger(v.min) || !isInteger(v.max) || v.min < lo || v.max > hi || v.min > v.max) out.push(`${label} は ${lo}〜${hi} の整数で 最小≦最大 にしてください`);
+  };
+  range('よこ', form.cols, GEN_LIMITS.grid);
+  range('たて', form.rows, GEN_LIMITS.grid);
+  range('かべ', form.walls, GEN_LIMITS.walls);
+  range('最短手数', form.shortestPath, GEN_LIMITS.shortestPath);
+  if (!isInteger(form.minTurns) || form.minTurns < GEN_LIMITS.minTurns[0] || form.minTurns > GEN_LIMITS.minTurns[1]) out.push(`曲がる回数の下限 は ${GEN_LIMITS.minTurns[0]}〜${GEN_LIMITS.minTurns[1]} の整数にしてください`);
+  if (!isInteger(form.seed) || form.seed < 0) out.push('シード は 0 以上の整数にしてください');
+  const on = GEN_GIMMICKS.filter(([k]) => form.gimmicks && form.gimmicks[k] && form.gimmicks[k].on);
+  for (const [k, label] of on) range(label, form.gimmicks[k], GEN_LIMITS[k]);
+  if (on.length > 0 && !on.some(([k]) => k === form.teach)) out.push('おしえる物 は 使うギミックから選んでください');
+  return out;
+}
+
+// 検査を通ったフォームから POST /api/generate の本文を作る。ギミックなしなら gimmicks・teach は付けない。
+export function buildGenerateBody(form, seed) {
+  const on = GEN_GIMMICKS.filter(([k]) => form.gimmicks[k] && form.gimmicks[k].on).map(([k]) => k);
+  const stageGen = { grid: { cols: { ...form.cols }, rows: { ...form.rows } }, walls: { ...form.walls }, shortestPath: { ...form.shortestPath }, minTurns: form.minTurns };
+  if (on.length > 0) {
+    stageGen.gimmicks = Object.fromEntries(on.map((k) => [k, { min: form.gimmicks[k].min, max: form.gimmicks[k].max }]));
+    stageGen.teach = form.teach;
+  }
+  return { stageGen, count: GEN_COUNT, seed };
+}
+
+// 生成の状態の文言。'running'（生成中）／'empty'（0件）／'aborted'（探索量の上限で未完了）。それ以外は空。
+export function generateStatusText(status) {
+  if (status === 'running') return 'つくっています…';
+  if (status === 'empty') return '条件に合う盤が出なかった。範囲を広げる';
+  if (status === 'aborted') return '重すぎて途中で止めた。大きさかギミックを減らす';
+  return '';
+}

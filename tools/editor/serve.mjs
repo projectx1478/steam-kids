@@ -222,7 +222,7 @@ export function checkGenerateInput(body) {
 
 // 候補を worker_threads で生成する。候補 i の seed は seed+i。status は 'ok'（1枚以上）／'empty'（0件）／'aborted'（探索量の上限
 // またはタイムアウトで未完了）。maxWork は試験用（generateBoard の打切り上限を下げる）。
-export function runGenerate(input, { timeoutMs = GENERATE_TIMEOUT_MS, workerFile = GENERATE_WORKER_FILE, maxWork } = {}) {
+export function runGenerate(input, { timeoutMs = GENERATE_TIMEOUT_MS, workerFile = GENERATE_WORKER_FILE, maxWork, signal } = {}) {
   const count = input.count ?? GENERATE_COUNT_DEFAULT;
   const seed = input.seed ?? input.stageGen.seedBase ?? 1;
   return new Promise((resolve) => {
@@ -236,6 +236,11 @@ export function runGenerate(input, { timeoutMs = GENERATE_TIMEOUT_MS, workerFile
       resolve(value);
     };
     const timer = setTimeout(() => finish({ status: 'aborted', candidates: [] }), timeoutMs);
+    // 呼び出し側（クライアントの「やめる」で接続が切れた）が中断したら worker を止める
+    if (signal) {
+      if (signal.aborted) finish({ status: 'aborted', candidates: [] });
+      else signal.addEventListener('abort', () => finish({ status: 'aborted', candidates: [] }), { once: true });
+    }
     worker.once('message', (m) => {
       if (m && m.ok) finish(m.result);
       else finish({ status: 'aborted', candidates: [], messages: [`生成中にエラー: ${m && m.error}`] });
@@ -252,7 +257,9 @@ async function handleGenerate(req, res, opts) {
   try { body = JSON.parse(raw); } catch { return sendJson(res, 400, { messages: ['JSON として読めません'] }); }
   const problems = checkGenerateInput(body);
   if (problems.length > 0) return sendJson(res, 400, { messages: problems });
-  sendJson(res, 200, await runGenerate(body, opts));
+  const ac = new AbortController();
+  res.on('close', () => { if (!res.writableEnded) ac.abort(); });
+  sendJson(res, 200, await runGenerate(body, { ...opts, signal: ac.signal }));
 }
 
 // ---- レッスンの読み書き（#402 段1）。書き込み先は lessons/<id>.json と退避置き場だけ。index.json・新規作成は不可 ----

@@ -17,7 +17,7 @@
 
 盤面の拡大縮小（CSS transform で再描画しない。倍率 1→1.5→2→3・ホイール・2本指ピンチ・拡大中の1本指ドラッグ〔直接操作型は2本指のみ〕・実行中の追従・実行後は戻さない・拡大中だけ `touch-action:none`）は `js/ui-zoom.js`（`createZoom({ boardArea, boardWrap, direct })`。ui-play・ui-tutorial・ui-predict が接続、`onDraw` を `drawBoard` の後に呼ぶ）。
 
-盤面エディタは子ども向け画面の部品ではなく、開発者用の独立ツールとして `tools/editor/` に置く（上の表には載せない）。
+盤面エディタは子ども向け画面の部品ではなく、開発者用の独立ツールとして `tools/editor/` に置く（上の表には載せない）。エディタの「たたき台」パネル（`POST /api/generate` の候補4枚）も、盤面は `drawBoard`（`js/ui-board.js`）で描く（#401）。
 
 ## 操作画面の枠
 
