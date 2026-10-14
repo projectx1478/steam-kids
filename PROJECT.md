@@ -125,6 +125,7 @@ P0〜P5のロードマップは `docs/roadmap.md`。**P0を実機で試すまで
 - `docs/principles-review.md` — 入口・難度・終わり方を変える時に読む
 - `docs/foundation-review.md` — 根幹に関わる変更を検討する時に読む
 - `docs/components.md` — 共通部品を使う・足す時に読む
+- `docs/tools.md` — 盤面エディタ・analyze-board・verify:fast の使い方、盤面は開発者がエディタで作る方針
 
 ## 8. 未決事項
 
