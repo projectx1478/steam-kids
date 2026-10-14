@@ -36,3 +36,11 @@ npm run verify:fast -- --with-generate
 - 固定：stageGen のあるレッスンで面を固定すると、`stageGen.keepHandwritten` に足す（先頭から連続した面だけ。途中からは断る）。置き換え・複製は `gen` を外して手書きの面にする。固定しないまま `gen-stages --write` を回すと手書きの面は消える。
 - 下書き：`tools/editor/drafts/<name>.json`（`<name>` は `^[a-z0-9-]+$`、同名は上書き、数の上限なし）。保存時は形（JSON のオブジェクト）だけ確認し、「面として追加」して保存するときに上の保存検査を通る。
 - 書き込み先は `lessons/*.json`・`tools/editor/drafts/`・`tools/editor/backups/` だけ（後ろ2つは `.gitignore` 済み）。
+
+## 盤面は開発者がエディタで作る方針（Issue #396）
+- 順番は「ギミックのエンジン側を先に完成 → 盤面エディタを作る → 盤面は開発者がエディタとジェネレーターで作る」。これまでは Issue ごとに AI がレッスンの盤面を作っていた。
+- ギミックの Issue はエンジン側（仕組み・描画・validate・stageGen での生成・`strip()` の必須判定）だけを扱う。動作確認のテスト盤面は1〜2枚まで。
+- 試し遊び（#403）は `dev=1` で開き、記録（履歴・再開点）を残さない。
+
+### 悠の決裁待ち
+- 盤面だけを変える PR の扱い。案：CI の validate と e2e が通れば、AI のレビューを省く。`.claude/` の変更になるため、ここでは決裁事項として書くだけで、`.claude/` は変えない。
