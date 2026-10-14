@@ -3,6 +3,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { startEditorServer, parsePort, resolveRequest } from '../tools/editor/serve.mjs';
 
 for (const f of ['service-worker.js', 'index.html', 'app.js']) {
@@ -62,4 +64,46 @@ test('editor-isolation: 配信対象外は resolveRequest が null', () => {
   assert.equal(resolveRequest('/..'), null);
   assert.equal(resolveRequest('/js/app.json'), null);
   assert.notEqual(resolveRequest('/js/ui-grid.js'), null);
+});
+
+// #403: ためしあそび用の子ども画面の読み取り専用配信（許可リスト）
+test('editor-isolation: 子ども画面のファイルは resolveRequest が返す', () => {
+  const root = fileURLToPath(new URL('..', import.meta.url));
+  assert.equal(resolveRequest('/play.html'), path.join(root, 'index.html'));
+  assert.equal(resolveRequest('/app.js'), path.join(root, 'app.js'));
+  assert.equal(resolveRequest('/lessons/cmd-02-mijikaku.json'), path.join(root, 'lessons', 'cmd-02-mijikaku.json'));
+  assert.equal(resolveRequest('/lessons/index.json'), path.join(root, 'lessons', 'index.json'));
+  assert.equal(resolveRequest('/fonts/mplusrounded1c-800.woff2'), path.join(root, 'fonts', 'mplusrounded1c-800.woff2'));
+});
+
+test('editor-isolation: 許可リスト外・`..` 走査は子ども画面側に出ない、エディタの入口は不変', () => {
+  const editorDir = path.resolve(fileURLToPath(new URL('../tools/editor/', import.meta.url)));
+  for (const p of ['/lessons/', '/lessons/x.txt', '/lessons/a/b.json', '/lessons/../package.json', '/lessons/%2e%2e/package.json', '/fonts/OFL.txt', '/fonts/../package.json', '/service-worker.js', '/dashboard.html', '/play.html/x', '/app.js/x', '/README.md']) {
+    // 許可リスト外は null か、tools/editor/ 配下（そこに無ければ 404）。子ども画面のファイルには決してならない
+    const r = resolveRequest(p);
+    assert.ok(r === null || r.startsWith(editorDir + path.sep), `${p} -> ${r}`);
+  }
+  const editorIndex = path.join(editorDir, 'index.html');
+  assert.equal(resolveRequest('/'), editorIndex);
+  assert.equal(resolveRequest('/index.html'), editorIndex);
+});
+
+test('editor-isolation: 子ども画面の配信は読み取り専用（POST は 404）で、実ファイルが返る', async () => {
+  const server = await startEditorServer({ port: 0 });
+  try {
+    const { port } = server.address();
+    assert.equal(await get(port, '/play.html'), 200);
+    assert.equal(await get(port, '/app.js'), 200);
+    assert.equal(await get(port, '/lessons/index.json'), 200);
+    assert.equal(await get(port, '/fonts/mplusrounded1c-800.woff2'), 200);
+    assert.equal(await get(port, '/service-worker.js'), 404);
+    const post = await new Promise((resolve, reject) => {
+      const r = http.request({ host: '127.0.0.1', port, path: '/lessons/index.json', method: 'POST' }, (res) => { res.resume(); res.on('end', () => resolve(res.statusCode)); });
+      r.on('error', reject);
+      r.end('{}');
+    });
+    assert.equal(post, 404);
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
 });

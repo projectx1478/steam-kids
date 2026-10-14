@@ -3,6 +3,7 @@ import { drawBoard } from '/js/ui-board.js';
 import { SAMPLE_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clampCellPx, wheelCellPx, zoomPercent, formatMetrics, GEN_COUNT, GEN_GIMMICKS, checkGenerateForm, buildGenerateBody, generateStatusText } from './editor-view.js';
 
 import { GIMMICKS } from '/js/gimmicks/index.js';
+import { markGatePassedToday } from '/js/gate-date.js';
 import { buildPalette, iconSpec } from './palette.js';
 import { createState, setCellPx as setStateCellPx, place, erase, move, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard, addDraftStep, explainSaveNg } from './editor-state.js';
 
@@ -456,6 +457,16 @@ async function generateNow(seed) {
   genStatusEl.textContent = text;
   refreshGenerateForm();
 }
+
+// ---- ためしあそび（#403）。いまの盤面を play の面にして sessionStorage に渡し、子ども画面（/play.html）を別タブで開く。記録は残らない。----
+document.getElementById('trial-open').addEventListener('click', () => {
+  const tmp = { steps: [] };
+  const r = addDraftStep(tmp, state.spec, 'trial');
+  if (!r.ok) { lessonResult(r); return; }
+  sessionStorage.setItem('editor-trial', JSON.stringify({ stage: tmp.steps[0], ts: Date.now() }));
+  markGatePassedToday(); // エディタのオリジン（127.0.0.1）だけの印。開発者が自分で開くので、日次の保護者ゲートは出さない
+  window.open('/play.html?dev=1&trial=1');
+});
 
 document.getElementById('gen-open').addEventListener('click', openGeneratePanel);
 document.getElementById('gen-close').addEventListener('click', () => { if (genAbort) genAbort.abort(); genPanelEl.hidden = true; });

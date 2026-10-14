@@ -1,6 +1,6 @@
 // 盤面エディタ用の開発サーバー（開発者用・手元専用）。実行: npm run editor
 // - 127.0.0.1 のみに bind（0.0.0.0 等は起動時に拒否）。既定 port 5173、環境変数 EDITOR_PORT で上書き（整数 1〜65535）
-// - 配信は tools/editor/ 配下と js/ 配下の .js のみ。`..` を含むパスは 404
+// - 配信は tools/editor/ 配下と js/ 配下の .js、ためしあそび用の子ども画面（許可リスト・読み取り専用）のみ。`..` を含むパスは 404
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -24,6 +24,7 @@ const TYPES = {
   '.css': 'text/css; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.json': 'application/json; charset=utf-8',
+  '.woff2': 'font/woff2',
 };
 
 export function parsePort(value) {
@@ -43,6 +44,12 @@ export function resolveRequest(urlPath) {
   if (p === '/') p = '/index.html';
   // 盤面部品（renderGrid 等）が使うクラスの定義。ルートの style.css（生成物）だけを読み取り専用で返す
   if (p === '/style.css') return path.join(ROOT, 'style.css');
+  // 「ためしあそび」（#403）用の子ども画面の読み取り専用配信。許可リスト方式（/js/ と /style.css は既存）。
+  // 入口は /play.html（ルート index.html の内容）。/ と /index.html はエディタのまま。
+  if (p === '/play.html') return path.join(ROOT, 'index.html');
+  if (p === '/app.js') return path.join(ROOT, 'app.js');
+  if (p === '/fonts/mplusrounded1c-800.woff2') return path.join(ROOT, 'fonts', 'mplusrounded1c-800.woff2');
+  if (/^\/lessons\/[A-Za-z0-9_-]+\.json$/.test(p)) return path.join(ROOT, p.slice(1));
   if (p.startsWith('/js/')) {
     if (!p.endsWith('.js')) return null;
     const file = path.resolve(JS_DIR, p.slice('/js/'.length));
