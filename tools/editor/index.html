@@ -14,6 +14,7 @@
   <h1>盤面エディタ</h1>
   <button type="button" class="btn" id="undo" disabled>元に戻す</button>
   <button type="button" class="btn" id="redo" disabled>やり直し</button>
+  <button type="button" class="btn" id="gen-open">たたき台</button>
   <span class="sp"></span>
   <span class="hint">ホイールで拡大縮小</span>
   <span class="zoom" id="zoom">100%</span>
@@ -51,6 +52,29 @@
     <div id="status"></div>
   </main>
   <aside id="settings"><div class="hd">せってい</div><div class="empty">設定なし<br><span class="note">（#404 で選んだ物の設定欄を入れる空枠）</span></div></aside>
+</div>
+<div id="gen-panel" hidden>
+  <div class="gen-box" role="dialog" aria-label="たたき台">
+    <div class="gen-head"><strong>たたき台を出す</strong><button type="button" class="btn sm" id="gen-close">とじる</button></div>
+    <div class="gen-form">
+      <div class="gen-row">よこ <input type="number" id="gen-cols-min" value="4"> 〜 <input type="number" id="gen-cols-max" value="5"> たて <input type="number" id="gen-rows-min" value="4"> 〜 <input type="number" id="gen-rows-max" value="5"></div>
+      <div class="gen-row">かべ <input type="number" id="gen-walls-min" value="1"> 〜 <input type="number" id="gen-walls-max" value="3"></div>
+      <div class="gen-row"><label><input type="checkbox" id="gen-items-on" checked> どんぐり</label> <input type="number" id="gen-items-min" value="1"> 〜 <input type="number" id="gen-items-max" value="2"></div>
+      <div class="gen-row"><label><input type="checkbox" id="gen-ice-on"> こおり</label> <input type="number" id="gen-ice-min" value="1"> 〜 <input type="number" id="gen-ice-max" value="1"></div>
+      <div class="gen-row"><label><input type="checkbox" id="gen-keys-on"> かぎ</label> <input type="number" id="gen-keys-min" value="1"> 〜 <input type="number" id="gen-keys-max" value="1"></div>
+      <div class="gen-row">おしえる物 <select id="gen-teach"><option value="items">どんぐり</option><option value="ice">こおり</option><option value="keys">かぎ</option></select></div>
+      <div class="gen-row">最短手数 <input type="number" id="gen-sp-min" value="3"> 〜 <input type="number" id="gen-sp-max" value="8"> 曲がる回数の下限 <input type="number" id="gen-turns" value="0"></div>
+      <div class="gen-row">シード <input type="number" id="gen-seed" value="1"></div>
+    </div>
+    <div id="gen-problems"></div>
+    <div class="gen-ctl">
+      <button type="button" class="btn" id="gen-run">つくる</button>
+      <button type="button" class="btn" id="gen-more" disabled>もう4枚</button>
+      <button type="button" class="btn" id="gen-cancel" hidden>やめる</button>
+      <span id="gen-status"></span>
+    </div>
+    <div id="gen-cands"></div>
+  </div>
 </div>
 <script type="module" src="/editor.js"></script>
 </body>

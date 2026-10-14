@@ -1,6 +1,6 @@
 // 盤面エディタ（開発者用）の画面。盤面は js/ui-board.js の drawBoard 経由で描く。
 import { drawBoard } from '/js/ui-board.js';
-import { SAMPLE_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clampCellPx, wheelCellPx, zoomPercent, formatMetrics } from './editor-view.js';
+import { SAMPLE_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clampCellPx, wheelCellPx, zoomPercent, formatMetrics, GEN_COUNT, GEN_GIMMICKS, checkGenerateForm, buildGenerateBody, generateStatusText } from './editor-view.js';
 
 import { GIMMICKS } from '/js/gimmicks/index.js';
 import { buildPalette, iconSpec } from './palette.js';
@@ -355,3 +355,111 @@ stepBtn('step-add').addEventListener('click', () => {
   lessonResult(r);
 });
 loadDraftList();
+
+// ---- たたき台（POST /api/generate）。設定 → 候補 GEN_COUNT 枚（drawBoard で縮小描画）→ 「これで編集」で盤に読み込む。----
+const genPanelEl = document.getElementById('gen-panel');
+const genRunEl = document.getElementById('gen-run');
+const genMoreEl = document.getElementById('gen-more');
+const genCancelEl = document.getElementById('gen-cancel');
+const genStatusEl = document.getElementById('gen-status');
+const genProblemsEl = document.getElementById('gen-problems');
+const genCandsEl = document.getElementById('gen-cands');
+const genNum = (id) => { const v = document.getElementById(id).value; return v === '' ? NaN : Number(v); };
+const GEN_CAND_AREA_PX = 200; // 候補1枚の盤面の最大の辺
+let genAbort = null; // 生成中の AbortController
+let genNextSeed = null; // 「もう4枚」で使う次の seed
+
+function readGenerateForm() {
+  return {
+    cols: { min: genNum('gen-cols-min'), max: genNum('gen-cols-max') },
+    rows: { min: genNum('gen-rows-min'), max: genNum('gen-rows-max') },
+    walls: { min: genNum('gen-walls-min'), max: genNum('gen-walls-max') },
+    shortestPath: { min: genNum('gen-sp-min'), max: genNum('gen-sp-max') },
+    minTurns: genNum('gen-turns'),
+    seed: genNum('gen-seed'),
+    teach: document.getElementById('gen-teach').value,
+    gimmicks: Object.fromEntries(GEN_GIMMICKS.map(([k]) => [k, { on: document.getElementById(`gen-${k}-on`).checked, min: genNum(`gen-${k}-min`), max: genNum(`gen-${k}-max`) }])),
+  };
+}
+
+// 入力が変わるたびに検査し、問題があれば「つくる」「もう4枚」を押せなくする
+function refreshGenerateForm() {
+  const problems = checkGenerateForm(readGenerateForm());
+  genProblemsEl.replaceChildren(...problems.map((t) => { const d = document.createElement('div'); d.textContent = t; return d; }));
+  genRunEl.disabled = problems.length > 0 || genAbort !== null;
+  genMoreEl.disabled = problems.length > 0 || genAbort !== null || genNextSeed === null;
+}
+
+function openGeneratePanel() {
+  genPanelEl.hidden = false;
+  refreshGenerateForm();
+}
+
+function renderCandidates(list) {
+  genCandsEl.replaceChildren(...list.map((c) => {
+    const card = document.createElement('div');
+    card.className = 'gen-cand';
+    card.dataset.seed = String(c.seed);
+    const holder = document.createElement('div');
+    holder.className = 'gen-board';
+    const size = Math.max(6, Math.floor(GEN_CAND_AREA_PX / Math.max(c.board.grid.cols, c.board.grid.rows)));
+    drawBoard({ boardWrap: holder, spec: c.board, cellSize: size, playerPos: c.board.start });
+    const cap = document.createElement('div');
+    cap.className = 'cap';
+    cap.textContent = `seed ${c.seed}・最短 ${c.shortestPath} 手`;
+    const pick = document.createElement('button');
+    pick.type = 'button';
+    pick.className = 'btn sm gen-pick';
+    pick.textContent = 'これで編集';
+    pick.addEventListener('click', () => pickCandidate(c));
+    card.append(holder, cap, pick);
+    return card;
+  }));
+}
+
+// 候補を盤に読み込む。盤に置き換えていない編集があるときだけ確認する（chooseStep と同じ流儀）。
+function pickCandidate(c) {
+  if (boardDirty() && !window.confirm('盤面の編集が置き換えられていません。捨てて、たたき台を読み込みますか？')) return;
+  loadSpec(state, c.board);
+  moveFrom = null;
+  notice = `たたき台（seed ${c.seed}）を読み込みました`;
+  genPanelEl.hidden = true;
+  scheduleAnalyze();
+  render();
+}
+
+// seed から GEN_COUNT 枚つくる。やめる＝fetch を中断（サーバー側の worker も止まる）。
+async function generateNow(seed) {
+  const form = readGenerateForm();
+  if (genAbort || checkGenerateForm(form).length > 0) return;
+  const ctl = new AbortController();
+  genAbort = ctl;
+  genCancelEl.hidden = false;
+  genStatusEl.textContent = generateStatusText('running');
+  genCandsEl.replaceChildren();
+  refreshGenerateForm();
+  let text = '';
+  try {
+    const res = await fetch('/api/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(buildGenerateBody(form, seed)), signal: ctl.signal });
+    const body = await res.json();
+    if (!res.ok) text = `つくれません: ${(body.messages || []).join(' / ')}`;
+    else {
+      renderCandidates(body.candidates || []);
+      text = generateStatusText(body.status);
+      genNextSeed = seed + GEN_COUNT;
+    }
+  } catch (e) {
+    text = e && e.name === 'AbortError' ? 'やめました' : 'つくれません（サーバーに接続できません）';
+  }
+  genAbort = null;
+  genCancelEl.hidden = true;
+  genStatusEl.textContent = text;
+  refreshGenerateForm();
+}
+
+document.getElementById('gen-open').addEventListener('click', openGeneratePanel);
+document.getElementById('gen-close').addEventListener('click', () => { if (genAbort) genAbort.abort(); genPanelEl.hidden = true; });
+genRunEl.addEventListener('click', () => { genNextSeed = null; generateNow(genNum('gen-seed')); });
+genMoreEl.addEventListener('click', () => generateNow(genNextSeed));
+genCancelEl.addEventListener('click', () => { if (genAbort) genAbort.abort(); });
+genPanelEl.addEventListener('input', () => { genNextSeed = null; refreshGenerateForm(); });
