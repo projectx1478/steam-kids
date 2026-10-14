@@ -28,7 +28,8 @@ export default async function run({ page, check, shot }) {
     const json = (route, obj) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(obj) });
     await page.route('**/api/analyze', (route) => json(route, { status: 'ok', clearable: true, shortest: 6, matters: {}, turns: 1, gradient: [], messages: [] }));
     await page.route('**/favicon.ico', (route) => route.fulfill({ status: 204 }));
-    await page.route('**/api/lessons', (route) => json(route, []));
+    await page.route('**/api/lessons', (route) => json(route, [{ lessonId: 'dirty-test', stepCount: 1 }]));
+    await page.route('**/api/lessons/dirty-test', (route) => json(route, { steps: [{ stepId: 's1', ...board(0, WALLS[0]) }] }));
     await page.route('**/api/drafts', (route) => json(route, []));
     await page.route('**/api/generate', async (route) => {
       const req = JSON.parse(route.request().postData());
@@ -107,6 +108,30 @@ export default async function run({ page, check, shot }) {
     await check('エディタの盤が選んだ候補（4×4）と一致する', async () => JSON.stringify(await cells('#board')) === JSON.stringify(third) && Object.keys(third).length === 16, true);
     await check('状態行に読み込んだ seed が出る', () => text('#status').then((t) => t.includes('seed 12')), true);
     await shot('editor-generate');
+
+    // 未保存の編集（boardDirty）があるときの確認。レッスンの面を開いて盤を1マス書き換えると真になる
+    await page.selectOption('#lesson-select', 'dirty-test');
+    await page.waitForSelector('#step-list .st');
+    await page.click('#step-list .st');
+    await page.click('#board .grid-cell[data-x="3"][data-y="0"]'); // 既定のパレットは壁。空きマスに置いて面と食い違わせる
+    const edited = await cells('#board');
+    await check('盤を書き換えた', () => Object.keys(edited).length === 16 && edited['3,0'].length > 0, true);
+    await page.click('#gen-open');
+    await page.click('#gen-run');
+    await check('候補が4枚出る（確認の試験）', () => page.evaluate(() => document.querySelectorAll('#gen-cands .gen-cand').length), 4);
+    const fourth = await cells('#gen-cands .gen-cand:nth-child(4)');
+    const dialogs = [];
+    page.once('dialog', (d) => { dialogs.push(d.message()); d.dismiss(); });
+    await page.click('#gen-cands .gen-cand:nth-child(4) .gen-pick');
+    await check('未保存の編集があると確認が出る', () => dialogs.length, 1);
+    await check('確認の文面にたたき台とある', () => dialogs[0].includes('たたき台'), true);
+    await check('キャンセルすると盤は変わらない', async () => JSON.stringify(await cells('#board')) === JSON.stringify(edited), true);
+    await check('キャンセルするとパネルは開いたまま', () => hidden('#gen-panel'), false);
+    page.once('dialog', (d) => { dialogs.push(d.message()); d.accept(); });
+    await page.click('#gen-cands .gen-cand:nth-child(4) .gen-pick');
+    await check('OK すると候補が読み込まれる', async () => JSON.stringify(await cells('#board')) === JSON.stringify(fourth), true);
+    await check('OK でパネルが閉じる', () => hidden('#gen-panel'), true);
+    await check('確認は計2回', () => dialogs.length, 2);
   } finally {
     server.close();
   }

@@ -125,3 +125,18 @@ test('runGenerate: 応答しない worker は安全弁のタイムアウトで s
   const r = await runGenerate({ stageGen: SG, count: 1 }, { timeoutMs: 200, workerFile: HANG_WORKER });
   assert.deepEqual(r, { status: 'aborted', candidates: [] });
 });
+
+test('runGenerate: signal を abort すると安全弁を待たず status:aborted で返り、worker が止まる', async () => {
+  const ac = new AbortController();
+  const t0 = Date.now();
+  const p = runGenerate({ stageGen: SG, count: 1 }, { timeoutMs: 60000, workerFile: HANG_WORKER, signal: ac.signal });
+  setTimeout(() => ac.abort(), 100);
+  const r = await p;
+  assert.deepEqual(r, { status: 'aborted', candidates: [] });
+  assert.ok(Date.now() - t0 < 5000, 'タイムアウト(60秒)を待たずに返る');
+  // 事前に abort 済みの signal でも即座に aborted
+  const pre = new AbortController();
+  pre.abort();
+  assert.deepEqual(await runGenerate({ stageGen: SG, count: 1 }, { timeoutMs: 60000, workerFile: HANG_WORKER, signal: pre.signal }), { status: 'aborted', candidates: [] });
+  // 応答しない worker が残っていれば、このテストファイルのプロセスが終わらない（terminate されたことの間接確認）
+});
