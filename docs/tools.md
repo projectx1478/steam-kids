@@ -32,6 +32,7 @@ npm run verify:fast -- --with-generate
 - 盤面の大きさ：1×1〜20×20（`EDITOR_MAX_SIZE`＝20。レッスンJSON の上限検査と同じ）。見た目の拡大縮小は2つあり、`cellPx`（マスの px。ホイール。8〜128）がエディタの表示倍率で、子ども画面の拡大縮小（`js/ui-zoom.js`）とは別。20×20 の編集では `cellPx` を小さくして全体を見る。
 - 判定：編集が止まって約300ms後に `POST /api/analyze`（クリア可否・最短手数・曲がる回数の一例・各ギミックの必須）。20×20 まで。判定は `worker_threads` で実行し10秒で打ち切る（打ち切りは「未判定」で、OK には見せない）。面の前後との勾配（最短手数の非減少）に反すると警告するが、保存は止めない。
 - 保存：`PUT /api/lessons/:id` が `validateLesson`・`validateIndex` をメモリ上で通し、エラー0件のときだけ `lessons/<id>.json` に書く（10秒で打ち切り、時間切れは保存不可）。書く前に `tools/editor/backups/<id>-<YYYYMMDD-HHmmss>.json`（同一秒は連番付き）へ退避し、レッスンごとに直近10件を残す。
+- 生成の打切りと20×20の実測（Issue #394。2026-10-14、grid 20×20・壁3〜60・最短2〜16）：`generateBoard` は探索量 `MAX_WORK`＝100万（マス数×2^(どんぐり＋かぎ/スイッチ)の足し上げ。時計は使わない）で `GEN_ABORTED` を返す。`gen-stages` の安全弁は `TIME_LIMIT_MS`＝600秒（超過は「未完了」エラー）。1盤の生成は壁・ギミックなしで平均15ms、ice 約60ms、switches 約0.2秒、cushion 約1秒、items・keys 約3秒（最悪7秒）。items で予備盤なし（400回使い切り）は最悪約80秒。`collectCandidates`（200 seed）は plain 約1.3秒、items 約523秒。各ギミックの必須判定 `strip()` は 1〜7ms で、時間の大半は `shortestPath`（`js/engine-grid.js`）。
 - 固定：stageGen のあるレッスンで面を固定すると、`stageGen.keepHandwritten` に足す（先頭から連続した面だけ。途中からは断る）。置き換え・複製は `gen` を外して手書きの面にする。固定しないまま `gen-stages --write` を回すと手書きの面は消える。
 - 下書き：`tools/editor/drafts/<name>.json`（`<name>` は `^[a-z0-9-]+$`、同名は上書き、数の上限なし）。保存時は形（JSON のオブジェクト）だけ確認し、「面として追加」して保存するときに上の保存検査を通る。
 - 書き込み先は `lessons/*.json`・`tools/editor/drafts/`・`tools/editor/backups/` だけ（後ろ2つは `.gitignore` 済み）。

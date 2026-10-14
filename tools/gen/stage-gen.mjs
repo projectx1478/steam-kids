@@ -9,6 +9,13 @@ import { iceMustMatter, keysMustMatter } from '../lib/must-matter.mjs';
 // 生成器の出力が変わるときに上げる。stageGen.ver と gen.ver を揃えて書き直す。
 export const GEN_VERSION = 1;
 const MAX_ATTEMPTS = 400;
+// 探索量の上限（Issue #394）。js/engine-grid.js の探索は中でノード数を数えないため、1回の探索の状態数の見積り
+// （マス数 × 2^(どんぐり＋かぎ組＋スイッチ)）を足し上げて決定的に打ち切る（時計は使わない）。
+// 400回の再試行をすべて使い切る最悪でも、6×6でどんぐり1〜2個程度の盤は 100万を超えないので、従来の挙動と変わらない。
+// 20×20 の最悪（予備盤なし）の実測は docs/tools.md。
+export const MAX_WORK = 1_000_000;
+// 探索量の上限で打ち切ったときの戻り値（予備盤なしの null と区別する）
+export const GEN_ABORTED = Symbol('GEN_ABORTED');
 const ALLOWED = ['up', 'down', 'left', 'right'];
 
 const randInt = (rng, min, max) => min + Math.floor(rng() * (max - min + 1));
@@ -150,12 +157,14 @@ function teachMatters(teach, board) {
 }
 
 // generateBoard(stageGen, seed) -> 盤 {grid,start,goal,walls,items,[ice],[keys,doors],allowedCommands,solution,maxCommands}。
-// 400回の再試行で受理できなければ null（予備盤は作らない）。
-export function generateBoard(stageGen, seed) {
+// 400回の再試行で受理できなければ null（予備盤は作らない）。探索量が maxWork を超えたら GEN_ABORTED（盤は採用しない）。
+export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts = MAX_ATTEMPTS } = {}) {
   const rng = mulberry32(seed);
   const gim = stageGen.gimmicks ?? {};
   const allowed = stageGen.allowedCommands ?? ALLOWED;
-  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+  let work = 0;
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    if (work > maxWork) return GEN_ABORTED;
     const grid = {
       cols: randInt(rng, stageGen.grid.cols.min, stageGen.grid.cols.max),
       rows: randInt(rng, stageGen.grid.rows.min, stageGen.grid.rows.max),
@@ -188,6 +197,7 @@ export function generateBoard(stageGen, seed) {
     free = free.slice(cursor);
     const pairCount = countOf(rng, gim.keys);
     if (pairCount > 0) {
+      work += cells.length * 2 ** (itemCount + pairCount);
       const placed = placeKeys(rng, pairCount, spec, free);
       if (!placed) continue;
       spec = { ...spec, keys: placed.keys, doors: placed.doors };
@@ -206,10 +216,12 @@ export function generateBoard(stageGen, seed) {
     }
     const switchCount = gim.switches ? countOf(rng, gim.switches) : 0;
     if (switchCount > 0) {
+      work += cells.length * 2 ** (itemCount + switchCount);
       const placed = placeSwitches(rng, switchCount, spec, free);
       if (!placed) continue;
       spec = { ...spec, switches: placed };
     }
+    work += cells.length * 2 ** (itemCount + pairCount + switchCount);
     const cmds = shortestPath(spec);
     if (!cmds || !inRange(cmds.length, stageGen.shortestPath)) continue;
     if (countTurns(cmds) < (stageGen.minTurns ?? 0)) continue;

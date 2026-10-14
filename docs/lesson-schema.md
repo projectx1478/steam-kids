@@ -231,13 +231,14 @@ MustMatterは、ギミックモジュールの`strip(spec)`（ギミックを除
 れんしゅう（`generator` 付き play）とは別のもので、併用はしない。
 
 - `stageGen`（レッスンの最上位。任意）：`ver`（生成器の版。整数≥1）、`stages`（play の総数の上限。2〜8。4を超えてよい）、
-  `keepHandwritten`（手書きで残す play の stepId。先頭から連続。省略時は空）、`grid.cols`・`grid.rows`（`{min,max}`。3〜6）、
-  `walls`（`{min,max}`。0〜12。省略時0）、`gimmicks`（`items`・`ice`・`keys` のみ。`{min,max}`）、`teach`（必須性を判定するギミック）、
+  `keepHandwritten`（手書きで残す play の stepId。先頭から連続。省略時は空）、`grid.cols`・`grid.rows`（`{min,max}`。3〜20）、
+  `walls`（`{min,max}`。0〜60。省略時0）、`gimmicks`（`items`・`ice`・`keys` のみ。`{min,max}`）、`teach`（必須性を判定するギミック）、
   `shortestPath`（`{min,max}`。2〜16）、`minTurns`（0〜8。省略時0）、`allowedCommands`（上下左右の部分集合。省略時4方向）、`seedBase`（省略時1）。
   表に無いキーは不合格。使わないマス（`shape`・`grid.holes`）は未対応（Issue #338）。
 - `gen`（生成した play ステップの中）：`{ "seed": <整数≥0>, "ver": <stageGen.ver と同じ> }`。手書きで残す play には付けない。
 - 生成の規則：`maxCommands` は最短手数ちょうど。最短手数は非減少で、真ん中あたりに「最短は前と同じで曲がり角が少ない」面を1つ置く。
   回転・鏡写しで同じになる盤は除く。同じレッスンの中で盤を急に2段以上大きくしない。
+  打切り（Issue #394）：1盤の生成は探索量（`MAX_WORK`）で決定的に打ち切り、`GEN_ABORTED` を返す（予備盤なしの null と別）。`gen-stages` はこれと時間の安全弁（`TIME_LIMIT_MS`）の超過を「未完了」エラーにし、盤を採用・保存しない。
 - 固定：同じ `seed`・`ver`・`stageGen` から再生成した盤が、書き込んだ盤と一致することをテストで確かめる。生成器を直して出力が変わるときは `ver` を上げて書き直す。
 
 ## `lessons/index.json`（単元マップ）

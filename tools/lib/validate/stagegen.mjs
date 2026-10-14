@@ -49,10 +49,10 @@ function checkStageGen(data, steps, add) {
         add(label, 'grid がオブジェクトでない');
       } else {
         unknown(sg.grid, ['cols', 'rows'], 'grid');
-        range(sg.grid.cols, 3, 6, 'grid.cols');
-        range(sg.grid.rows, 3, 6, 'grid.rows');
+        range(sg.grid.cols, 3, 20, 'grid.cols');
+        range(sg.grid.rows, 3, 20, 'grid.rows');
       }
-      if ('walls' in sg) range(sg.walls, 0, 12, 'walls');
+      if ('walls' in sg) range(sg.walls, 0, 60, 'walls');
       const gim = sg.gimmicks ?? {};
       if (!isObj(gim)) {
         add(label, 'gimmicks がオブジェクトでない');
