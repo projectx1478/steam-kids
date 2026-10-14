@@ -72,7 +72,7 @@ function checkStageGen(data, steps, add) {
         if ('switches' in gim && 'keys' in gim) add(label, 'switches と keys は併用できない');
         if (sg.teach === 'cushion' && !(isObj(gim.ice) && isInt(gim.ice.max) && gim.ice.max >= 1)) add(label, 'teach=cushion には gimmicks.ice（最大1以上）の併用が必要');
       }
-      range(sg.shortestPath, 2, 16, 'shortestPath');
+      range(sg.shortestPath, 2, 60, 'shortestPath');
       if ('minTurns' in sg && (!isInt(sg.minTurns) || sg.minTurns < 0 || sg.minTurns > 8)) {
         add(label, `minTurns=${JSON.stringify(sg.minTurns)} は 0〜8 の整数でない`);
       }

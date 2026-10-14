@@ -75,7 +75,7 @@ export const SAMPLE_SPEC = {
 
 // ---- たたき台の生成（#401 段2）。範囲は POST /api/generate（tools/lib/validate/stagegen.mjs の checkStageGen）と同じ ----
 export const GEN_COUNT = 4; // 1回に出す候補の数（2×2）。「もう4枚」は seed をこの数だけ進める
-export const GEN_LIMITS = { grid: [3, 20], walls: [0, 60], shortestPath: [2, 16], minTurns: [0, 8], items: [1, 4], ice: [1, 4], keys: [1, 2] };
+export const GEN_LIMITS = { grid: [3, 20], walls: [0, 60], shortestPath: [2, 60], minTurns: [0, 8], items: [1, 4], ice: [1, 4], keys: [1, 2] };
 export const GEN_GIMMICKS = [['items', 'どんぐり'], ['ice', 'こおり'], ['keys', 'かぎ']];
 const isInteger = (v) => Number.isInteger(v);
 

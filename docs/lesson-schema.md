@@ -233,7 +233,7 @@ MustMatterは、ギミックモジュールの`strip(spec)`（ギミックを除
 - `stageGen`（レッスンの最上位。任意）：`ver`（生成器の版。整数≥1）、`stages`（play の総数の上限。2〜8。4を超えてよい）、
   `keepHandwritten`（手書きで残す play の stepId。先頭から連続。省略時は空）、`grid.cols`・`grid.rows`（`{min,max}`。3〜20）、
   `walls`（`{min,max}`。0〜60。省略時0）、`gimmicks`（`items`・`ice`・`keys` のみ。`{min,max}`）、`teach`（必須性を判定するギミック）、
-  `shortestPath`（`{min,max}`。2〜16）、`minTurns`（0〜8。省略時0）、`allowedCommands`（上下左右の部分集合。省略時4方向）、`seedBase`（省略時1）。
+  `shortestPath`（`{min,max}`。2〜60）、`minTurns`（0〜8。省略時0）、`allowedCommands`（上下左右の部分集合。省略時4方向）、`seedBase`（省略時1）。
   表に無いキーは不合格。使わないマス（`shape`・`grid.holes`）は未対応（Issue #338）。
 - `gen`（生成した play ステップの中）：`{ "seed": <整数≥0>, "ver": <stageGen.ver と同じ> }`。手書きで残す play には付けない。
 - 生成の規則：`maxCommands` は最短手数ちょうど。最短手数は非減少で、真ん中あたりに「最短は前と同じで曲がり角が少ない」面を1つ置く。

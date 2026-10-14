@@ -62,7 +62,7 @@ test('checkGenerateInput: 範囲外・形の誤り・受け付けないキーは
   bad({ stageGen: { ...SG, grid: { cols: { min: 4, max: 21 }, rows: SG.grid.rows } } });
   bad({ stageGen: { ...SG, walls: { min: 0, max: 61 } } });
   bad({ stageGen: { ...SG, shortestPath: { min: 1, max: 8 } } });
-  bad({ stageGen: { ...SG, shortestPath: { min: 2, max: 17 } } });
+  bad({ stageGen: { ...SG, shortestPath: { min: 2, max: 61 } } });
   bad({ stageGen: { ...SG, shortestPath: { min: 8, max: 3 } } });
   bad({ stageGen: { ...SG, minTurns: 9 } });
   bad({ stageGen: { ...SG, allowedCommands: [] } });
