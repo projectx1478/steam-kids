@@ -25,6 +25,7 @@ import {
 } from './ui-step.js';
 import { showHint, diagnose } from './ui-reaction.js';
 import { showClearSequence, recordClear } from './ui-clear.js';
+import { isTrial, closeTrialTab } from './trial-lesson.js';
 import { paintMiniBoard } from './gimmicks/paint.js';
 import { renderKeyTray, resetKeyTray } from './gimmicks/keys.js';
 import { clearToast } from './ui-toast.js';
@@ -596,7 +597,9 @@ export function renderPlay(root, step) {
         view: local.view,
         restore: clearResult,
         ...(spec.paint ? { label: 'みほんと おなじ！' } : {}),
-        primary: isFinalStage
+        primary: isTrial()
+          ? { label: 'とじる', action: closeTrialTab, id: 'close' }
+          : isFinalStage
           ? { label: 'つぎへ', action: () => goToStep(S.stepIndex + 1), id: 'next' }
           : { label: 'つぎの ステージ', action: () => goToStep(S.stepIndex + 1), id: 'next-stage' },
         replay,

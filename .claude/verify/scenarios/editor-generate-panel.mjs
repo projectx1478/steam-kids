@@ -55,7 +55,7 @@ export default async function run({ page, check, shot }) {
     await check('よこの下限が範囲外なら「つくる」は無効', () => disabled('#gen-run'), true);
     await check('範囲外の理由が出る', () => page.evaluate(() => document.querySelector('#gen-problems').children.length), 1);
     await page.fill('#gen-cols-min', '4');
-    await page.fill('#gen-sp-max', '17');
+    await page.fill('#gen-sp-max', '61');
     await check('最短手数の上限が範囲外なら無効', () => disabled('#gen-run'), true);
     await page.fill('#gen-sp-max', '8');
     await page.fill('#gen-seed', '');
