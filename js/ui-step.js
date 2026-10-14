@@ -20,6 +20,7 @@ import { codeToSeed } from './seed-code.js';
 import { isLessonCleared } from './ui-picker.js';
 import { clearedGimmicks, isIntroKnown } from './gimmick-unlock.js';
 import { withDev } from './dev-mode.js';
+import { isTrial } from './trial-lesson.js';
 import { readResume, writeResume, clearResume } from './storage.js';
 
 const STEP_DELAY_MS = 600;
@@ -112,6 +113,19 @@ function renderHeader() {
   // Tailwindの`flex`ユーティリティ(back.classListが持つ)はUA既定の[hidden]より強いため、
   // hidden属性ではなくinline style.displayで確実に隠す。
   back.style.display = S.stepIndex === 0 ? 'none' : '';
+  if (isTrial()) renderTrialBand(back, home);
+}
+
+// ためしあそび（Issue #403）：もどる・えらぶ を隠し、画面上部に帯を常時出す（開発者の取り違え防止）。
+function renderTrialBand(back, home) {
+  back.style.display = 'none';
+  home.style.display = 'none';
+  if (document.getElementById('trial-band')) return;
+  const band = document.createElement('div');
+  band.id = 'trial-band';
+  band.className = 'w-full bg-amber-200 text-amber-900 text-xs font-bold text-center py-1';
+  band.textContent = 'ためしあそび中・きろくしない';
+  document.body.insertBefore(band, document.body.firstChild);
 }
 
 // 実行アニメーション中はもどる・えらぶ がめんへを操作させない（playAnimationの開始・終了、
