@@ -2,7 +2,7 @@
 // 開発者用・手元専用。子ども向け画面（APP_SHELL）には載せない。
 // 状態 { spec, history: spec[], cursor, cellPx }。spec は既存の盤面 JSON 全体を形を変えずに持つ。
 // 元に戻すはスナップショット方式。各関数は state を直接更新し、{ ok: true } か { ok: false, reason } を返す（拒否時は state を変えない）。
-import { EDITOR_MAX_SIZE, CELL_PX_MIN, CELL_PX_MAX, CELL_PX_DEFAULT, switchModeOptions } from './editor-view.js';
+import { EDITOR_MAX_SIZE, CELL_PX_MIN, CELL_PX_MAX, CELL_PX_DEFAULT, switchModeOptions, switchGroupOptions } from './editor-view.js';
 
 export const HISTORY_MAX = 100; // 超えたら先頭（古いもの）から捨てる
 
@@ -12,6 +12,7 @@ export const SIMPLE_LISTS = ['walls', 'items', 'ice', 'cushion', 'water'];
 export const COMPLEX_KEYS = ['keys', 'paint', 'periodic'];
 export const SWITCH_COLORS = ['red', 'blue'];
 const SWITCH_KINDS = ['switches', 'switches.targets'];
+const GROUP_WALLS = 'groupWalls'; // 色連動の壁 [{ x, y, group }]（#404 段B）
 const SINGLE = ['start', 'goal'];
 
 const clone = (v) => JSON.parse(JSON.stringify(v));
@@ -105,9 +106,11 @@ export function setGrid(state, cols, rows) {
 
 // key（palette の key）の要素を (x,y) に置く。同じマスに何かあれば拒否（同じ要素の重なり禁止。他の要素との重なりも盤面 JSON の規則に反するため拒否）。
 // start・goal は各1個なので、置くと今の位置から移る。
-export function place(state, key, x, y) {
+// groupWalls だけは第5引数 group（その group のスイッチが要る）。
+export function place(state, key, x, y, group) {
   const spec = state.spec;
   if (key === 'switches') return placeSwitch(state, x, y);
+  if (key === GROUP_WALLS) return placeGroupWall(state, group, x, y);
   const isSimple = key === 'wall' || SIMPLE_LISTS.includes(key);
   if (!isSimple && !SINGLE.includes(key)) {
     return ng(COMPLEX_KEYS.includes(key) ? `${key} は組・設定が要るためまだ置けない（#404）` : `${key} は置けない`);
@@ -131,12 +134,19 @@ export function erase(state, x, y) {
   const here = occupants(spec, x, y);
   if (here.length === 0) return ng('消す物が無い');
   if (here.some((o) => SINGLE.includes(o.kind))) return ng('スタート・ゴールは消せない（各1個）');
-  if (here.some((o) => !SIMPLE_LISTS.includes(o.kind) && !SWITCH_KINDS.includes(o.kind))) return ng('組・設定のある要素はまだ消せない（#404）');
+  if (here.some((o) => !SIMPLE_LISTS.includes(o.kind) && !SWITCH_KINDS.includes(o.kind) && o.kind !== GROUP_WALLS)) return ng('組・設定のある要素はまだ消せない（#404）');
   const next = clone(spec);
   if (here.some((o) => o.kind === 'switches')) {
     // スイッチ本体を消す（同じマスの氷は残す）。対象の壁は他に持ち主がいなければ床に戻る。
+    const gone = list(next.switches).find((c) => c.x === x && c.y === y);
     next.switches = list(next.switches).filter((c) => !(c.x === x && c.y === y));
     if (next.switches.length === 0) delete next.switches;
+    if (gone && typeof gone.group === 'string') dropGroupWalls(next, gone.group); // group の壁は持ち主がいなくなるので床に戻る
+    return commit(state, next);
+  }
+  if (here.every((o) => o.kind === GROUP_WALLS)) {
+    next.groupWalls = list(next.groupWalls).filter((w) => !(w.x === x && w.y === y));
+    if (next.groupWalls.length === 0) delete next.groupWalls;
     return commit(state, next);
   }
   if (here.every((o) => o.kind === 'switches.targets')) {
@@ -169,6 +179,12 @@ export function move(state, fromX, fromY, toX, toY) {
     const moved = clone(spec);
     moved.switches[swHere.index].x = toX;
     moved.switches[swHere.index].y = toY;
+    return commit(state, moved);
+  }
+  if (here.every((o) => o.kind === GROUP_WALLS)) {
+    if (occupants(spec, toX, toY).length) return ng('移動先に要素がある');
+    const moved = clone(spec);
+    for (const w of list(moved.groupWalls)) if (w.x === fromX && w.y === fromY) { w.x = toX; w.y = toY; }
     return commit(state, moved);
   }
   if (here.every((o) => o.kind === 'switches.targets')) {
@@ -217,10 +233,18 @@ export function toggleTarget(state, sx, sy, x, y) {
   const i = findSwitch(spec, sx, sy);
   if (i < 0) return ng('スイッチが選ばれていない');
   const sw = spec.switches[i];
-  if (typeof sw.group === 'string') return ng('group のスイッチの対象は group の壁で決まる（段Bで編集）');
   if (!inGrid(spec, x, y)) return ng('盤外');
   const here = occupants(spec, x, y);
   const next = clone(spec);
+  if (typeof sw.group === 'string') {
+    // group のスイッチ：対象は同じ group の groupWalls で決まる。あれば外し、無ければ足す。
+    if (here.some((o) => o.kind === GROUP_WALLS && spec.groupWalls[o.index].group === sw.group)) {
+      next.groupWalls = list(next.groupWalls).filter((w) => !(w.x === x && w.y === y));
+      if (next.groupWalls.length === 0) delete next.groupWalls;
+      return commit(state, next);
+    }
+    return placeGroupWall(state, sw.group, x, y);
+  }
   if (here.some((o) => o.kind === 'switches.targets' && o.index === i)) {
     next.switches[i].targets = list(next.switches[i].targets).filter((t) => !(t.x === x && t.y === y));
     return commit(state, next);
@@ -232,6 +256,48 @@ export function toggleTarget(state, sx, sy, x, y) {
     if (owners.length >= 2) return ng('1つの壁につなげるスイッチは最大2つ');
   }
   next.switches[i].targets = [...list(next.switches[i].targets), { x, y }];
+  return commit(state, next);
+}
+
+// group の壁を (x,y) に置く。その group のスイッチが要る。空きマスのみ（validate: 壁・他のギミック・スイッチ・その対象・他の groupWalls と重ならない）。
+function placeGroupWall(state, group, x, y) {
+  const spec = state.spec;
+  if (typeof group !== 'string' || !list(spec.switches).some((c) => c.group === group)) return ng('その group のスイッチが無い');
+  if (!inGrid(spec, x, y)) return ng('盤外');
+  if (occupants(spec, x, y).length) return ng('そのマスには既に要素がある');
+  const next = clone(spec);
+  next.groupWalls = [...list(next.groupWalls), { x, y, group }];
+  return commit(state, next);
+}
+
+function dropGroupWalls(spec, group) {
+  spec.groupWalls = list(spec.groupWalls).filter((w) => w.group !== group);
+  if (spec.groupWalls.length === 0) delete spec.groupWalls;
+}
+
+// group を選ぶ（'' か null は「なし」）。グレーの選択肢（switchGroupOptions の disabled）は選べない＝close・toggle と targets のある間は併用不可、同じ group は1スイッチだけ。
+// 「なし」に戻すと、その group の壁は床に戻り、スイッチは接続待ち（targets 空）になる。別の group へ変えると壁も付いていく。
+export function setSwitchGroup(state, sx, sy, group) {
+  const i = findSwitch(state.spec, sx, sy);
+  if (i < 0) return ng('スイッチが選ばれていない');
+  const name = group === null || group === undefined ? '' : group;
+  const opt = switchGroupOptions(state.spec, i).find((o) => o.value === name);
+  if (!opt) return ng('その group は選べない');
+  if (opt.disabled) return ng(opt.reason);
+  const next = clone(state.spec);
+  const sw = next.switches[i];
+  const old = typeof sw.group === 'string' ? sw.group : '';
+  if (old === name) return ok();
+  if (name === '') {
+    delete sw.group;
+    sw.targets = [];
+    dropGroupWalls(next, old);
+  } else {
+    sw.group = name;
+    delete sw.targets;
+    if (sw.color === undefined) sw.color = 'blue';
+    if (old) for (const w of list(next.groupWalls)) if (w.group === old) w.group = name;
+  }
   return commit(state, next);
 }
 
