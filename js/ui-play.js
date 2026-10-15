@@ -2,12 +2,12 @@
 // 操作画面に直接入る。説明は「れんしゅう」画面と指ガイドで行う（Issue #97。旧仕様はIssue #93）。
 // 画面上部の問い文スロットは、実行結果（やったね／ヒント）を数秒だけトースト表示する場所も兼ねる。
 import { S } from './state.js';
-import { boardSpec, chipCount, isRunCleared } from './engine-grid.js';
+import { boardSpec, isRunCleared } from './engine-grid.js';
 import { logEvent } from './events.js';
 import { shapeSvg, prefersReducedMotion } from './ui-grid.js';
 import { fitCellSize, drawBoard as drawBoardUi, observeBoard } from './ui-board.js';
 import { createZoom } from './ui-zoom.js';
-import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, vibrate } from './ui-commands.js';
+import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, vibrate, countChips, planRun, clearUnlocked, isLockedIndex } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
 import { createOpScreen } from './ui-screen.js';
 import { createIdleNudge } from './ui-guide.js';
@@ -15,7 +15,6 @@ import { showHandHint } from './ui-hand.js';
 import { isLessonCleared } from './ui-picker.js';
 import {
   goToStep,
-  playAnimation,
   createStepper,
   autoAdvance,
   setBackDisabled,
@@ -76,6 +75,11 @@ export function renderPlay(root, step) {
     // running=trueへ切り替える（Issue #111）。
     stepping: false,
     stepper: null,
+    // 「とめる」で止まった間の状態（#395 段2）。lockedCount＝止まった地点より前（「とめる」を含む）の
+    // 命令数＝変更不可の個数。0＝最初から。runStates＝止まる前から引き継ぐギミックの作業領域。
+    lockedCount: 0,
+    pendingPause: -1,
+    runStates: {},
     view: null,
     resultShown: false,
     // 不正解でtrueにし、「もういちど」以外の操作ボタン・命令チップの取り消しを封じる
@@ -316,6 +320,8 @@ export function renderPlay(root, step) {
     local.commands.length = 0;
     freshCommands.forEach((c) => local.commands.push({ ...c }));
     local.boxOpen = -1;
+    local.lockedCount = 0;
+    local.runStates = {};
     S.drafts[step.stepId] = local.commands;
     local.fixOpened = false;
     local.locked = false;
@@ -329,10 +335,11 @@ export function renderPlay(root, step) {
       activeRound: local.activeRound,
       openIndex: local.boxOpen,
       removable: true,
+      lockedCount: local.lockedCount,
       // 上限に達したら次の枠は出さない（Issue #110）。
-      nextSlot: chipCount(local.commands) < step.maxCommands ? chipCount(local.commands) + 1 : null,
+      nextSlot: countChips(local.commands) < step.maxCommands ? countChips(local.commands) + 1 : null,
       onRemove: (i) => {
-        if (local.running || local.stepping || local.locked) return;
+        if (local.running || local.stepping || local.locked || isLockedIndex(i, local.lockedCount)) return;
         if (isFix) local.fixOpened = true;
         local.commands.splice(i, 1);
         if (i === local.boxOpen) local.boxOpen = -1;
@@ -347,7 +354,7 @@ export function renderPlay(root, step) {
   }
 
   function updateControls() {
-    const atMax = chipCount(local.commands) >= step.maxCommands;
+    const atMax = countChips(local.commands) >= step.maxCommands;
     paletteEl.querySelectorAll('button').forEach((b) => {
       b.disabled = atMax || local.running || local.stepping || local.locked;
     });
@@ -356,8 +363,8 @@ export function renderPlay(root, step) {
     runBtn.disabled = local.running || (!isRetry && (local.commands.length === 0 || hasEmptyBox));
     if (boxBtn) boxBtn.disabled = atMax || local.boxOpen >= 0 || local.running || local.stepping || local.locked;
     drawBoxBar();
-    clearBtn.disabled = local.commands.length === 0 || local.running || local.stepping || local.locked;
-    removeLastBtn.disabled = local.commands.length === 0 || local.running || local.stepping || local.locked;
+    clearBtn.disabled = local.commands.length <= local.lockedCount || local.running || local.stepping || local.locked;
+    removeLastBtn.disabled = local.commands.length <= local.lockedCount || local.running || local.stepping || local.locked;
     // 1コマ実行中はタップを続けられるよう有効のままにする。開始条件のみ命令0件で無効化する（Issue #111）。
     stepBtn.disabled = local.running || local.locked || (!local.stepping && local.commands.length === 0);
     // ロック中は命令列自体もぼかし、タップを受け付けないようにする（チップ×の誤タップ防止。Issue #106）。
@@ -371,7 +378,7 @@ export function renderPlay(root, step) {
     onAdd: (dir, { via } = {}) => {
       if (local.running || local.stepping || local.locked) return;
       if (local.boxOpen >= 0) {
-        if (chipCount(local.commands) >= step.maxCommands) return;
+        if (countChips(local.commands) >= step.maxCommands) return;
         local.commands[local.boxOpen].box.push(dir);
         playSfx(via === 'drag' ? 'snap' : 'tap');
         drawQueue();
@@ -386,7 +393,7 @@ export function renderPlay(root, step) {
         last.times += 1;
         playSfx('stack', { count: last.times });
       } else {
-        if (chipCount(local.commands) >= step.maxCommands) return;
+        if (countChips(local.commands) >= step.maxCommands) return;
         local.commands.push({ dir, times: 1 });
         playSfx(via === 'drag' ? 'snap' : 'tap');
       }
@@ -464,7 +471,7 @@ export function renderPlay(root, step) {
     boxBtn.innerHTML = '<span class="text-xl leading-none" aria-hidden="true">🔁</span><span class="text-sm whitespace-nowrap">はこ</span>';
     boxBtn.addEventListener('click', () => {
       if (local.running || local.stepping || local.locked || local.boxOpen >= 0) return;
-      if (chipCount(local.commands) >= step.maxCommands) return;
+      if (countChips(local.commands) >= step.maxCommands) return;
       vibrate();
       local.commands.push({ box: [], times: 2 });
       local.boxOpen = local.commands.length - 1;
@@ -479,7 +486,7 @@ export function renderPlay(root, step) {
   }
 
   removeLastBtn.addEventListener('click', () => {
-    if (local.running || local.stepping || local.locked || local.commands.length === 0) return;
+    if (local.running || local.stepping || local.locked || local.commands.length <= local.lockedCount) return;
     vibrate();
     if (isFix) local.fixOpened = true;
     const i = local.commands.length - 1;
@@ -507,12 +514,13 @@ export function renderPlay(root, step) {
   });
 
   clearBtn.addEventListener('click', () => {
-    if (local.running || local.stepping || local.locked || local.commands.length === 0) return;
+    if (local.running || local.stepping || local.locked || local.commands.length <= local.lockedCount) return;
     vibrate();
     if (isFix) local.fixOpened = true;
-    logEvent('undo', { all: true, commandCount: local.commands.length });
+    logEvent('undo', { all: true, commandCount: local.commands.length - local.lockedCount });
     // 参照を維持したまま空にする（S.drafts[step.stepId]との共有を切らないため。Issue #95）。
-    local.commands.length = 0;
+    // 止まった間は後ろだけ消す（前の部分は変更不可。#395 段2）。
+    clearUnlocked(local.commands, local.lockedCount);
     local.boxOpen = -1;
     playSfx('reset');
     drawQueue();
@@ -670,7 +678,8 @@ export function renderPlay(root, step) {
       vibrate();
       local.running = true;
       updateControls();
-      autoAdvance(local.stepper, { onDone: finishRun });
+      const cur = local.stepper;
+      autoAdvance(cur, { onDone: () => endSegment(cur) });
       return;
     }
     if (local.commands.length === 0) return;
@@ -682,35 +691,81 @@ export function renderPlay(root, step) {
     clearToast(statusBar);
     logEvent('run', { commandCount: local.commands.length });
     updateControls();
-    drawBoard(spec.start);
-
-    playAnimation(
-      local.commands,
-      spec,
-      local.view,
-      {
-        onTick: (i, _to, inner, round) => {
-          local.activeIndex = i;
-          local.activeInner = inner;
-          // 周が変わるたびにstack音を鳴らす（2周目以降のみ。1周目は開始音と重なるため。Issue #167）。
-          if (round !== local.activeRound) {
-            if (round >= 1) playSfx('stack', { count: round + 1 });
-            local.activeRound = round;
-          }
-          drawQueue();
-        },
-        onPickup: () => {
-          local.remaining -= 1;
-          if (remainingEl) remainingEl.textContent = String(local.remaining);
-          fillNextAcornSlot();
-        },
-        onDone: finishRun,
-      }
-    );
+    const stepper = beginSegment();
+    playSfx('run');
+    autoAdvance(stepper, { onDone: () => endSegment(stepper) });
   });
+
+  // beginSegment(): 次の実行区間のstepperを作る。lockedCount=0なら盤面を最初に戻して先頭から、
+  // 止まった間(lockedCount>0)は盤面を戻さず、止まった地点から後ろだけを次の「とめる」まで
+  // （無ければ最後まで）動かす（#395 段2。「とめる」が無ければ従来どおり先頭から最後まで）。
+  function beginSegment() {
+    const plan = planRun(local.commands, spec, local.lockedCount);
+    if (local.lockedCount === 0) {
+      drawBoard(spec.start);
+      local.runStates = {};
+    }
+    local.pendingPause = plan.nextPause;
+    local.stepper = createStepper(local.commands, spec, local.view, {
+      startIndex: plan.startIndex,
+      stopIndex: plan.stopIndex,
+      runStates: local.runStates,
+      onTick: (i, _to, inner, round) => {
+        local.activeIndex = i;
+        local.activeInner = inner;
+        // 周が変わるたびにstack音を鳴らす（2周目以降のみ。1周目は開始音と重なるため。Issue #167）。
+        if (round !== local.activeRound) {
+          if (round >= 1) playSfx('stack', { count: round + 1 });
+          local.activeRound = round;
+        }
+        drawQueue();
+      },
+      onPickup: () => {
+        local.remaining -= 1;
+        if (remainingEl) remainingEl.textContent = String(local.remaining);
+        fillNextAcornSlot();
+      },
+    });
+    return local.stepper;
+  }
+
+  // endSegment(stepper): 区間の終わり。「とめる」で止まったなら止まった状態へ、そうでなければ判定へ。
+  function endSegment(stepper) {
+    if (stepper.isPaused()) enterPause();
+    else finishRun(stepper.result);
+  }
+
+  // enterPause(): 盤面はそのまま、前の部分(「とめる」まで)を変更不可にして、後ろの編集を受け付ける。
+  function enterPause() {
+    local.running = false;
+    local.stepping = false;
+    local.stepper = null;
+    setBackDisabled(false);
+    local.lockedCount = local.pendingPause + 1;
+    local.activeIndex = -1;
+    local.activeInner = -1;
+    local.activeRound = -1;
+    drawQueue();
+    updateControls();
+    local.nudge?.poke();
+  }
+
+  // restartFromStart(): 命令を残したまま盤面だけ最初に戻す（止まった地点→最初から。#395-8A。
+  // 段4の「さいしょから」ボタンから呼ぶ）。
+  function restartFromStart() {
+    if (local.running || local.stepping) return;
+    local.lockedCount = 0;
+    local.runStates = {};
+    local.pendingPause = -1;
+    drawBoard(spec.start);
+    drawQueue();
+    updateControls();
+  }
+  local.restartFromStart = restartFromStart;
 
   // stepBtn: 1コマずつ実行。タップごとにstepperを1手だけ進める。最初のタップでstepperを
   // 作り、パレット・編集ボタン・←をロックする（じっこうと同じ扱い。Issue #111）。
+  // 止まった間は止まった地点から後ろを1コマずつ進める。止まる前の部分でも従来どおり使える（#395-6B）。
   stepBtn.addEventListener('click', () => {
     if (local.running || local.locked) return;
     if (!local.stepping && local.commands.length === 0) return;
@@ -725,27 +780,11 @@ export function renderPlay(root, step) {
       playSfx('run');
       setBackDisabled(true);
       updateControls();
-      drawBoard(spec.start);
-      local.stepper = createStepper(local.commands, spec, local.view, {
-        onTick: (i, _to, inner, round) => {
-          local.activeIndex = i;
-          local.activeInner = inner;
-          // 周が変わるたびにstack音を鳴らす（2周目以降のみ。1周目は開始音と重なるため。Issue #167）。
-          if (round !== local.activeRound) {
-            if (round >= 1) playSfx('stack', { count: round + 1 });
-            local.activeRound = round;
-          }
-          drawQueue();
-        },
-        onPickup: () => {
-          local.remaining -= 1;
-          if (remainingEl) remainingEl.textContent = String(local.remaining);
-          fillNextAcornSlot();
-        },
-      });
+      beginSegment();
     }
-    local.stepper.advance();
-    if (local.stepper.isDone()) finishRun(local.stepper.result);
+    const cur = local.stepper;
+    cur.advance();
+    if (cur.isDone() || cur.isPaused()) endSegment(cur);
   });
 
   renderQuestion();
@@ -778,7 +817,7 @@ export function renderPlay(root, step) {
     fit: () => fitCellSize({ spec, boardArea }),
     current: () => local.fit,
     // 実行中・結果表示中は盤面状態を保つため再構築しない（Issue #93）。1コマ実行中も同様（Issue #111）。
-    skipWhen: () => local.running || local.stepping || local.resultShown,
+    skipWhen: () => local.running || local.stepping || local.resultShown || local.lockedCount > 0,
     redraw: () => drawBoard(spec.start),
   });
 }
