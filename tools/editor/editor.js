@@ -5,7 +5,7 @@ import { SAMPLE_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, cla
 import { GIMMICKS } from '/js/gimmicks/index.js';
 import { markGatePassedToday } from '/js/gate-date.js';
 import { buildPalette, iconSpec } from './palette.js';
-import { createState, setCellPx as setStateCellPx, place, erase, move, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, SWITCH_COLORS, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard, addDraftStep, explainSaveNg } from './editor-state.js';
+import { createState, setCellPx as setStateCellPx, place, erase, move, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, SWITCH_COLORS, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard, addDraftStep, explainSaveNg } from './editor-state.js';
 
 const state = createState(SAMPLE_SPEC, CELL_PX_DEFAULT);
 state.selected = 'wall';
@@ -129,6 +129,20 @@ function radioGroup(name, options, current, onPick) {
   return wrap;
 }
 
+// toggle のスイッチだけ、つないだ壁ごとの初期状態（closed＝壁が立つ／open＝床）。
+function initialRows(sw) {
+  if (sw.mode !== 'toggle' || !(sw.targets || []).length) return [];
+  const hd = document.createElement('div');
+  hd.className = 'sw-hd';
+  hd.textContent = '壁の初期状態（踏むたびに入れ替わる）';
+  const opts = [{ value: 'closed', label: 'closed（壁）', disabled: false, reason: '' }, { value: 'open', label: 'open（床）', disabled: false, reason: '' }];
+  return [hd, ...sw.targets.map((t) => {
+    const row = document.createElement('div');
+    row.append(`(${t.x},${t.y}) `, radioGroup(`sw-init-${t.x}-${t.y}`, opts, t.initial === 'open' ? 'open' : 'closed', (v) => apply(setTargetInitial(state, sw.x, sw.y, t.x, t.y, v))));
+    return row;
+  })];
+}
+
 // 盤の横の「選択中の要素」パネル。スイッチ選択中だけ設定が出る（色・mode はラジオ）。
 function renderSettings() {
   const i = swIndex();
@@ -159,7 +173,7 @@ function renderSettings() {
   const groupHd = document.createElement('div');
   groupHd.className = 'sw-hd';
   groupHd.textContent = 'group（同じ名前のスイッチと壁が対応する）';
-  settingsBody.replaceChildren(title, colorHd, radioGroup('sw-color', colors, sw.color ?? 'blue', (v) => apply(setSwitchColor(state, sw.x, sw.y, v))), modeHd, radioGroup('sw-mode', switchModeOptions(state.spec, i), sw.mode ?? 'open', (v) => apply(setSwitchMode(state, sw.x, sw.y, v))), groupHd, radioGroup('sw-group', switchGroupOptions(state.spec, i), grouped ? sw.group : '', (v) => apply(setSwitchGroup(state, sw.x, sw.y, v))), conn);
+  settingsBody.replaceChildren(title, colorHd, radioGroup('sw-color', colors, sw.color ?? 'blue', (v) => apply(setSwitchColor(state, sw.x, sw.y, v))), modeHd, radioGroup('sw-mode', switchModeOptions(state.spec, i), sw.mode ?? 'open', (v) => apply(setSwitchMode(state, sw.x, sw.y, v))), groupHd, radioGroup('sw-group', switchGroupOptions(state.spec, i), grouped ? sw.group : '', (v) => apply(setSwitchGroup(state, sw.x, sw.y, v))), ...initialRows(sw), conn);
 }
 
 // パレットが switches のときのクリック。スイッチをクリック＝選ぶ／もう一度で外す。選択中なら空きマスは対象のトグル。選んでいなければスイッチを置く。

@@ -1,7 +1,7 @@
 // #397 段4: 盤面エディタの状態管理（置く・消す・動かす・元に戻す・やり直し、拒否値）。実行: npm run test:unit
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createState, setCellPx, setGrid, place, erase, move, undo, redo, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, COMPLEX_KEYS, HISTORY_MAX } from '../tools/editor/editor-state.js';
+import { createState, setCellPx, setGrid, place, erase, move, undo, redo, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, COMPLEX_KEYS, HISTORY_MAX } from '../tools/editor/editor-state.js';
 import { SAMPLE_SPEC, EDITOR_MAX_SIZE, pendingSwitches, switchModeOptions, switchGroupOptions, pendingGroupSwitches } from '../tools/editor/editor-view.js';
 import { analyzeSpec } from '../tools/editor/validate-worker.mjs';
 
@@ -309,7 +309,7 @@ test('editor-state: close と open の併用禁止はグレー・拒否。close 
   const s = createState({ grid: { cols: 5, rows: 3 }, start: { x: 0, y: 0 }, goal: { x: 4, y: 0 }, walls: [] });
   place(s, 'switches', 1, 0);
   place(s, 'switches', 1, 2); // 選択を外して2つ目
-  assert.deepEqual(switchModeOptions(s.spec, 1).map((o) => o.disabled), [false, true]); // 相手が open → close はグレー
+  assert.deepEqual(switchModeOptions(s.spec, 1).map((o) => o.disabled), [false, true, true]); // 相手が open → close・toggle はグレー
   assert.equal(setSwitchMode(s, 1, 2, 'close').ok, false);
   assert.equal(setSwitchMode(s, 1, 0, 'close').ok, false);
   assert.equal(setSwitchMode(s, 1, 2, 'bogus').ok, false);
@@ -450,4 +450,87 @@ test('editor-state(group): group を変える／なしに戻す。壁が付い�
   assert.equal('groupWalls' in s.spec, false);
   assert.deepEqual(s.spec.switches[0].targets, []);
   assert.deepEqual(pendingSwitches(s.spec), [{ index: 0, x: 1, y: 0 }]);
+});
+
+// ---- toggle（#404 段C）----
+test('editor-state(toggle): mode を toggle にして壁を複数つなぎ、壁ごとに initial を closed/open にできる', () => {
+  const s = row();
+  place(s, 'switches', 1, 0);
+  assert.equal(setSwitchMode(s, 1, 0, 'toggle').ok, true);
+  assert.equal(s.spec.switches[0].mode, 'toggle');
+  assert.equal(toggleTarget(s, 1, 0, 2, 0).ok, true);
+  assert.equal(toggleTarget(s, 1, 0, 3, 0).ok, true); // 複数壁
+  assert.equal(setTargetInitial(s, 1, 0, 3, 0, 'open').ok, true);
+  assert.deepEqual(s.spec.switches[0].targets, [{ x: 2, y: 0 }, { x: 3, y: 0, initial: 'open' }]);
+  const n = s.history.length;
+  assert.equal(setTargetInitial(s, 1, 0, 3, 0, 'closed').ok, true); // closed は既定なので initial を持たない
+  assert.equal(s.history.length, n + 1);
+  assert.deepEqual(s.spec.switches[0].targets[1], { x: 3, y: 0 });
+  assert.equal(setTargetInitial(s, 1, 0, 3, 0, 'bogus').ok, false);
+  assert.equal(setTargetInitial(s, 1, 0, 4, 0, 'open').ok, false); // つながっていない壁
+  assert.equal(setTargetInitial(s, 3, 0, 3, 0, 'open').ok, false); // スイッチが無い
+  setTargetInitial(s, 1, 0, 3, 0, 'open');
+  assert.equal(move(s, 3, 0, 3, 0).ok, false);
+  assert.equal(setSwitchMode(s, 1, 0, 'open').ok, true); // 単独なら open に戻せる。initial は toggle だけなので消える
+  assert.equal(s.spec.switches[0].mode, undefined);
+  assert.deepEqual(s.spec.switches[0].targets, [{ x: 2, y: 0 }, { x: 3, y: 0 }]);
+  assert.equal(setTargetInitial(s, 1, 0, 3, 0, 'open').ok, false); // toggle でないと initial は付けられない
+  undo(s);
+  assert.equal(s.spec.switches[0].mode, 'toggle');
+});
+
+test('editor-state(toggle): 他の mode との併用は拒否（state は変わらない）。validate も落ちる', () => {
+  const s = row();
+  place(s, 'switches', 1, 0);
+  place(s, 'switches', 3, 0);
+  const before = snap(s.spec);
+  assert.equal(setSwitchMode(s, 1, 0, 'toggle').ok, false); // 相手が open
+  assert.equal(setSwitchMode(s, 1, 0, 'toggle').reason.includes('併用'), true);
+  assert.deepEqual(s.spec, before);
+  const t = row();
+  place(t, 'switches', 1, 0);
+  setSwitchMode(t, 1, 0, 'toggle');
+  place(t, 'switches', 3, 0); // 2つ目は先のスイッチと同じ mode（toggle）で置く
+  assert.equal(t.spec.switches[1].mode, 'toggle');
+  assert.equal(setSwitchMode(t, 3, 0, 'close').ok, false); // toggle と close
+  assert.equal(setSwitchMode(t, 3, 0, 'open').ok, false);
+  assert.equal(toggleTarget(t, 1, 0, 2, 0).ok, true);
+  assert.equal(toggleTarget(t, 3, 0, 2, 0).ok, false); // toggle は対象を共有できない
+  const bad = snap(t.spec);
+  bad.switches[1].mode = 'open';
+  const r = line(bad);
+  assert.equal(r.clearable, false);
+  assert.ok(r.messages.some((m) => m.includes('併用できない')));
+  const g = row();
+  place(g, 'switches', 1, 0);
+  setSwitchGroup(g, 1, 0, 'a');
+  assert.equal(setSwitchMode(g, 1, 0, 'toggle').ok, false); // group と toggle
+  const h = row();
+  place(h, 'switches', 1, 0);
+  setSwitchMode(h, 1, 0, 'toggle');
+  assert.equal(setSwitchGroup(h, 1, 0, 'a').ok, false);
+});
+
+test('editor-state(toggle): 氷・クッションの上には置けない・動かせない・変えられない。validate も落ちる', () => {
+  const base = () => createState({ grid: { cols: 5, rows: 1 }, start: { x: 0, y: 0 }, goal: { x: 4, y: 0 }, walls: [], ice: [{ x: 1, y: 0 }], cushion: [{ x: 3, y: 0 }] });
+  const s = base();
+  assert.equal(place(s, 'switches', 1, 0).ok, true); // open なら氷の上に置ける
+  assert.equal(setSwitchMode(s, 1, 0, 'toggle').ok, false); // 氷の上は toggle に変えられない
+  assert.equal(setSwitchMode(s, 1, 0, 'toggle').reason.includes('氷'), true);
+  const t = base();
+  place(t, 'switches', 2, 0);
+  assert.equal(setSwitchMode(t, 2, 0, 'toggle').ok, true);
+  assert.equal(place(t, 'switches', 1, 0).ok, false); // 2つ目も toggle。氷の上は不可
+  assert.equal(place(t, 'switches', 3, 0).ok, false); // クッションの上は不可
+  const before = snap(t.spec);
+  assert.equal(move(t, 2, 0, 1, 0).ok, false); // toggle を氷の上へ
+  assert.equal(move(t, 2, 0, 3, 0).ok, false); // クッションの上へ
+  assert.deepEqual(t.spec, before);
+  assert.equal(move(t, 2, 0, 2, 0).ok, false); // 動かさない（同じマス）は重なりで拒否のまま
+  const bad = snap(t.spec);
+  bad.switches[0].x = 1;
+  bad.switches[0].targets = [{ x: 2, y: 0 }];
+  const r = line(bad);
+  assert.equal(r.clearable, false);
+  assert.ok(r.messages.some((m) => m.includes('氷の上')));
 });

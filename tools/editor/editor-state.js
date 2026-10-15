@@ -315,11 +315,27 @@ export function setSwitchMode(state, sx, sy, mode) {
   const i = findSwitch(state.spec, sx, sy);
   if (i < 0) return ng('スイッチが選ばれていない');
   const opt = switchModeOptions(state.spec, i).find((o) => o.value === mode);
-  if (!opt) return ng('mode は open か close');
+  if (!opt) return ng('mode は open・close・toggle');
   if (opt.disabled) return ng(opt.reason);
   const next = clone(state.spec);
   if (mode === 'open') delete next.switches[i].mode;
   else next.switches[i].mode = mode;
+  // initial は toggle の対象だけで有効（validate）。toggle を外すと消す。
+  if (mode !== 'toggle') for (const t of list(next.switches[i].targets)) delete t.initial;
+  return commit(state, next);
+}
+
+// toggle のスイッチの対象 (tx,ty) の初期状態。'closed'（壁が立っている。既定なので initial は持たない）か 'open'（床）。
+export function setTargetInitial(state, sx, sy, tx, ty, initial) {
+  const i = findSwitch(state.spec, sx, sy);
+  if (i < 0) return ng('スイッチが選ばれていない');
+  if (state.spec.switches[i].mode !== 'toggle') return ng('initial は toggle のスイッチだけ');
+  if (initial !== 'closed' && initial !== 'open') return ng('initial は closed か open');
+  const next = clone(state.spec);
+  const t = list(next.switches[i].targets).find((u) => u.x === tx && u.y === ty);
+  if (!t) return ng('その壁はつながっていない');
+  if (initial === 'open') t.initial = 'open';
+  else delete t.initial;
   return commit(state, next);
 }
 

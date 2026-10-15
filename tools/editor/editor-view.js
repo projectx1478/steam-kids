@@ -83,7 +83,7 @@ export function pendingSwitches(spec) {
 }
 
 // mode のラジオ選択肢 [{ value, label, disabled, reason }]。disabled はグレーにして選ばせない（正本は validate の併用禁止）。
-// close は open と併用できず、他のスイッチと対象を共有できない。toggle のスイッチは段Cまで mode を変えられない。
+// close は open と併用できず、他のスイッチと対象を共有できない。toggle は他の mode と併用できず、氷・クッションの上・group のスイッチには使えない（段C）。
 export function switchModeOptions(spec, index) {
   const list = swList(spec);
   const me = list[index];
@@ -91,14 +91,18 @@ export function switchModeOptions(spec, index) {
   const options = [
     { value: 'open', label: 'open（踏むと壁が消える）', disabled: false, reason: '' },
     { value: 'close', label: 'close（踏むと壁が出る）', disabled: false, reason: '' },
+    { value: 'toggle', label: 'toggle（踏むたびに壁が入れ替わる）', disabled: false, reason: '' },
   ];
   if (!me) return options.map((o) => ({ ...o, disabled: true, reason: 'スイッチが無い' }));
   const set = (value, reason) => { const o = options.find((x) => x.value === value); o.disabled = true; o.reason = reason; };
-  if (modeOf(me) === 'toggle') {
-    set('open', 'toggle は段Cで編集');
-    set('close', 'toggle は段Cで編集');
-    return options;
-  }
+  // toggle：他に open・close のスイッチがあるとき、氷・クッションの上、group 付き、対象を他と共有しているときは選べない
+  if (others.some((o) => modeOf(o) !== 'toggle')) set('toggle', 'toggle は他の mode（open・close）と併用できない');
+  else if (spec.ice && spec.ice.some((c) => c.x === me.x && c.y === me.y)) set('toggle', 'toggle は氷の上に置けない');
+  else if (spec.cushion && spec.cushion.some((c) => c.x === me.x && c.y === me.y)) set('toggle', 'toggle はクッションの上に置けない');
+  else if (typeof me.group === 'string') set('toggle', 'group は toggle と併用できない（先に group を外す）');
+  const mine = Array.isArray(me.targets) ? me.targets : [];
+  const shared = others.some((o) => (Array.isArray(o.targets) ? o.targets : []).some((u) => mine.some((t) => t.x === u.x && t.y === u.y)));
+  if (!options.find((x) => x.value === 'toggle').disabled && shared) set('toggle', 'toggle は他のスイッチと対象を共有できない');
   if (others.some((o) => modeOf(o) === 'toggle')) {
     set('open', 'toggle は他の mode と併用できない');
     set('close', 'toggle は他の mode と併用できない');
@@ -107,8 +111,7 @@ export function switchModeOptions(spec, index) {
   if (typeof me.group === 'string') set('close', 'group は open だけで使える（close と併用できない）');
   if (others.some((o) => modeOf(o) === 'close')) set('open', 'close は open と併用できない');
   if (others.some((o) => modeOf(o) === 'open')) set('close', 'close は open と併用できない');
-  const mine = Array.isArray(me.targets) ? me.targets : [];
-  if (others.some((o) => (Array.isArray(o.targets) ? o.targets : []).some((u) => mine.some((t) => t.x === u.x && t.y === u.y)))) set('close', 'close は他のスイッチと対象を共有できない（AND不可）');
+  if (shared) set('close', 'close は他のスイッチと対象を共有できない（AND不可）');
   return options;
 }
 
