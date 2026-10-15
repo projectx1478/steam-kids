@@ -1,16 +1,17 @@
 // 盤面エディタ（開発者用）の画面。盤面は js/ui-board.js の drawBoard 経由で描く。
 import { drawBoard } from '/js/ui-board.js';
-import { SAMPLE_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clampCellPx, wheelCellPx, zoomPercent, formatMetrics, GEN_COUNT, GEN_GIMMICKS, checkGenerateForm, buildGenerateBody, generateStatusText } from './editor-view.js';
+import { SAMPLE_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clampCellPx, wheelCellPx, zoomPercent, formatMetrics, pendingSwitches, switchModeOptions, GEN_COUNT, GEN_GIMMICKS, checkGenerateForm, buildGenerateBody, generateStatusText } from './editor-view.js';
 
 import { GIMMICKS } from '/js/gimmicks/index.js';
 import { markGatePassedToday } from '/js/gate-date.js';
 import { buildPalette, iconSpec } from './palette.js';
-import { createState, setCellPx as setStateCellPx, place, erase, move, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard, addDraftStep, explainSaveNg } from './editor-state.js';
+import { createState, setCellPx as setStateCellPx, place, erase, move, toggleTarget, setSwitchColor, setSwitchMode, SWITCH_COLORS, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard, addDraftStep, explainSaveNg } from './editor-state.js';
 
 const state = createState(SAMPLE_SPEC, CELL_PX_DEFAULT);
 state.selected = 'wall';
 let notice = ''; // 直前の操作の結果（拒否の理由など）
 let moveFrom = null; // 「Shift+クリックで選んだ動かす元のマス」
+let selSwitch = null; // 「選択中のスイッチ」の座標 { x, y }（パレットが switches のとき）。番号でなく座標で持つ（元に戻すでずれない）
 
 const ICON_CELL_PX = 32;
 // 消しゴムは盤面部品に無いので専用の SVG（見本のとおり）
@@ -50,6 +51,7 @@ function paletteRow(item) {
 
 function selectPalette(key) {
   state.selected = key;
+  if (key !== 'switches') selSwitch = null;
   moveFrom = null;
   notice = '';
   for (const row of document.querySelectorAll('#plist .pi')) row.classList.toggle('sel', row.dataset.key === key);
@@ -82,8 +84,87 @@ function render() {
     const cell = boardWrap.querySelector(`.grid-cell[data-x="${moveFrom.x}"][data-y="${moveFrom.y}"]`);
     if (cell) cell.style.outline = '3px solid #7c3aed';
   }
+  markSwitches();
+  renderSettings();
   undoEl.disabled = !canUndo(state);
   redoEl.disabled = !canRedo(state);
+}
+
+// ---- スイッチ（#404 段A）。選択中のスイッチ・その対象の壁・接続待ち（警告印）を盤上に印づける。----
+const swIndex = () => (selSwitch ? (state.spec.switches || []).findIndex((c) => c.x === selSwitch.x && c.y === selSwitch.y) : -1);
+const cellEl = (x, y) => boardWrap.querySelector(`.grid-cell[data-x="${x}"][data-y="${y}"]`);
+
+function markSwitches() {
+  for (const p of pendingSwitches(state.spec)) { const c = cellEl(p.x, p.y); if (c) c.classList.add('ed-sw-pending'); }
+  const i = swIndex();
+  if (i < 0) return;
+  const sw = state.spec.switches[i];
+  const c = cellEl(sw.x, sw.y);
+  if (c) c.classList.add('ed-sw-sel');
+  for (const t of sw.targets || []) { const tc = cellEl(t.x, t.y); if (tc) tc.classList.add('ed-sw-target'); }
+}
+
+const settingsBody = document.getElementById('settings-body');
+
+function radioGroup(name, options, current, onPick) {
+  const wrap = document.createElement('div');
+  wrap.className = 'rg';
+  for (const o of options) {
+    const label = document.createElement('label');
+    label.className = `rg-item${o.disabled ? ' off' : ''}`;
+    if (o.reason) label.title = o.reason;
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.name = name;
+    input.value = o.value;
+    input.checked = o.value === current;
+    input.disabled = !!o.disabled;
+    input.addEventListener('change', () => onPick(o.value));
+    label.append(input, ` ${o.label}`);
+    if (o.disabled && o.reason) { const r = document.createElement('span'); r.className = 'why'; r.textContent = `（${o.reason}）`; label.append(r); }
+    wrap.append(label);
+  }
+  return wrap;
+}
+
+// 盤の横の「選択中の要素」パネル。スイッチ選択中だけ設定が出る（色・mode はラジオ）。
+function renderSettings() {
+  const i = swIndex();
+  settingsBody.className = i < 0 ? 'empty' : 'sw-panel';
+  if (i < 0) {
+    settingsBody.textContent = 'スイッチを選ぶと設定が出ます（パレットでスイッチを選び、盤上のスイッチをクリック）';
+    return;
+  }
+  const sw = state.spec.switches[i];
+  const title = document.createElement('div');
+  title.className = 'sw-title';
+  title.textContent = `スイッチ (${sw.x},${sw.y})`;
+  const colorHd = document.createElement('div');
+  colorHd.className = 'sw-hd';
+  colorHd.textContent = '色';
+  const modeHd = document.createElement('div');
+  modeHd.className = 'sw-hd';
+  modeHd.textContent = 'mode';
+  const colors = SWITCH_COLORS.map((c) => ({ value: c, label: c === 'red' ? 'あか' : 'あお', disabled: false, reason: '' }));
+  const targets = sw.targets || [];
+  const conn = document.createElement('div');
+  conn.className = typeof sw.group !== 'string' && targets.length === 0 ? 'sw-wait' : 'sw-conn';
+  if (typeof sw.group === 'string') conn.textContent = `group「${sw.group}」の壁につながる（段Bで編集）`;
+  else conn.textContent = targets.length === 0 ? '接続待ち：壁にしたいマスをクリック' : `つないだ壁: ${targets.length}（もう一度クリックで外す）`;
+  settingsBody.replaceChildren(title, colorHd, radioGroup('sw-color', colors, sw.color ?? 'blue', (v) => apply(setSwitchColor(state, sw.x, sw.y, v))), modeHd, radioGroup('sw-mode', switchModeOptions(state.spec, i), sw.mode ?? 'open', (v) => apply(setSwitchMode(state, sw.x, sw.y, v))), conn);
+}
+
+// パレットが switches のときのクリック。スイッチをクリック＝選ぶ／もう一度で外す。選択中なら空きマスは対象のトグル。選んでいなければスイッチを置く。
+function switchClick(x, y) {
+  const at = (state.spec.switches || []).find((c) => c.x === x && c.y === y);
+  if (at) {
+    selSwitch = selSwitch && selSwitch.x === x && selSwitch.y === y ? null : { x, y };
+    return { ok: true };
+  }
+  if (swIndex() >= 0) return toggleTarget(state, selSwitch.x, selSwitch.y, x, y);
+  const r = place(state, 'switches', x, y);
+  if (r.ok) selSwitch = { x, y };
+  return r;
 }
 
 function setCellPx(value) {
@@ -118,7 +199,8 @@ async function analyzeNow() {
   } catch {
     lines = ['未判定（判定サーバーに接続できません）'];
   }
-  if (shouldApplyResult(state, gen)) showMetrics(lines);
+  const wait = pendingSwitches(state.spec).map((p) => `接続待ち: スイッチ (${p.x},${p.y}) に壁がつながっていない`);
+  if (shouldApplyResult(state, gen)) showMetrics([...wait, ...lines]);
 }
 
 function scheduleAnalyze() {
@@ -145,7 +227,9 @@ boardWrap.addEventListener('click', (e) => {
   if (moveFrom) {
     const from = moveFrom;
     moveFrom = null;
-    apply(move(state, from.x, from.y, x, y));
+    const r = move(state, from.x, from.y, x, y);
+    if (r.ok && selSwitch && selSwitch.x === from.x && selSwitch.y === from.y) selSwitch = { x, y };
+    apply(r);
     return;
   }
   if (e.shiftKey) {
@@ -154,6 +238,7 @@ boardWrap.addEventListener('click', (e) => {
     render();
     return;
   }
+  if (state.selected === 'switches') { apply(switchClick(x, y)); return; }
   apply(state.selected === 'eraser' ? erase(state, x, y) : place(state, state.selected, x, y));
 });
 

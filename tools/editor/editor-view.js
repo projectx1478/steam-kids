@@ -73,6 +73,44 @@ export const SAMPLE_SPEC = {
   waterMode: 'bump',
 };
 
+// ---- スイッチの設定欄（#404 段A）。spec は盤面 JSON。index は spec.switches の番号。----
+const swList = (spec) => (Array.isArray(spec.switches) ? spec.switches : []);
+const modeOf = (s) => s.mode ?? 'open';
+
+// targets が空で group も無いスイッチ（接続待ち）。[{ index, x, y }]。保存は止める側（E4）が使う。
+export function pendingSwitches(spec) {
+  return swList(spec).map((s, index) => ({ s, index })).filter(({ s }) => typeof s.group !== 'string' && !(Array.isArray(s.targets) && s.targets.length > 0)).map(({ s, index }) => ({ index, x: s.x, y: s.y }));
+}
+
+// mode のラジオ選択肢 [{ value, label, disabled, reason }]。disabled はグレーにして選ばせない（正本は validate の併用禁止）。
+// close は open と併用できず、他のスイッチと対象を共有できない。toggle のスイッチは段Cまで mode を変えられない。
+export function switchModeOptions(spec, index) {
+  const list = swList(spec);
+  const me = list[index];
+  const others = list.filter((_, i) => i !== index);
+  const options = [
+    { value: 'open', label: 'open（踏むと壁が消える）', disabled: false, reason: '' },
+    { value: 'close', label: 'close（踏むと壁が出る）', disabled: false, reason: '' },
+  ];
+  if (!me) return options.map((o) => ({ ...o, disabled: true, reason: 'スイッチが無い' }));
+  const set = (value, reason) => { const o = options.find((x) => x.value === value); o.disabled = true; o.reason = reason; };
+  if (modeOf(me) === 'toggle') {
+    set('open', 'toggle は段Cで編集');
+    set('close', 'toggle は段Cで編集');
+    return options;
+  }
+  if (others.some((o) => modeOf(o) === 'toggle')) {
+    set('open', 'toggle は他の mode と併用できない');
+    set('close', 'toggle は他の mode と併用できない');
+    return options;
+  }
+  if (others.some((o) => modeOf(o) === 'close')) set('open', 'close は open と併用できない');
+  if (others.some((o) => modeOf(o) === 'open')) set('close', 'close は open と併用できない');
+  const mine = Array.isArray(me.targets) ? me.targets : [];
+  if (others.some((o) => (Array.isArray(o.targets) ? o.targets : []).some((u) => mine.some((t) => t.x === u.x && t.y === u.y)))) set('close', 'close は他のスイッチと対象を共有できない（AND不可）');
+  return options;
+}
+
 // ---- たたき台の生成（#401 段2）。範囲は POST /api/generate（tools/lib/validate/stagegen.mjs の checkStageGen）と同じ ----
 export const GEN_COUNT = 4; // 1回に出す候補の数（2×2）。「もう4枚」は seed をこの数だけ進める
 export const GEN_LIMITS = { grid: [3, 20], walls: [0, 60], shortestPath: [2, 60], minTurns: [0, 8], items: [1, 4], ice: [1, 4], keys: [1, 2] };
