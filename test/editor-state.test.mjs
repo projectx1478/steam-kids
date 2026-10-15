@@ -1,8 +1,8 @@
 // #397 段4: 盤面エディタの状態管理（置く・消す・動かす・元に戻す・やり直し、拒否値）。実行: npm run test:unit
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createState, setCellPx, setGrid, place, erase, move, undo, redo, toggleTarget, setSwitchColor, setSwitchMode, COMPLEX_KEYS, HISTORY_MAX } from '../tools/editor/editor-state.js';
-import { SAMPLE_SPEC, EDITOR_MAX_SIZE, pendingSwitches, switchModeOptions } from '../tools/editor/editor-view.js';
+import { createState, setCellPx, setGrid, place, erase, move, undo, redo, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, COMPLEX_KEYS, HISTORY_MAX } from '../tools/editor/editor-state.js';
+import { SAMPLE_SPEC, EDITOR_MAX_SIZE, pendingSwitches, switchModeOptions, switchGroupOptions, pendingGroupSwitches } from '../tools/editor/editor-view.js';
 import { analyzeSpec } from '../tools/editor/validate-worker.mjs';
 
 const fresh = () => createState(SAMPLE_SPEC);
@@ -361,4 +361,93 @@ test('editor-state: スイッチと対象を動かす／消す', () => {
   assert.deepEqual([s.spec.switches[0].x, s.spec.switches[0].y], [3, 0]);
   assert.equal(erase(s, 3, 0).ok, true);
   assert.equal('switches' in s.spec, false);
+});
+
+// ---- #404 段B: group・groupWalls ----
+const gboard = () => createState({ grid: { cols: 5, rows: 2 }, start: { x: 0, y: 0 }, goal: { x: 4, y: 0 }, walls: [{ x: 2, y: 1 }] }); // (2,0) だけが通り道
+
+test('editor-state(group): group を付けて壁をトグル。つないだ盤は validate を通り、壁が無い間は落ちる', () => {
+  const s = gboard();
+  place(s, 'switches', 1, 0);
+  assert.equal(setSwitchGroup(s, 1, 0, 'a').ok, true);
+  assert.deepEqual(s.spec.switches, [{ x: 1, y: 0, color: 'blue', group: 'a' }]); // targets は持たない
+  assert.deepEqual(pendingGroupSwitches(s.spec), [{ index: 0, x: 1, y: 0 }]);
+  assert.equal(line(s.spec).clearable, false); // 対応する groupWalls が無い
+  const n = s.history.length;
+  assert.equal(toggleTarget(s, 1, 0, 2, 0).ok, true);
+  assert.equal(s.history.length, n + 1);
+  assert.deepEqual(s.spec.groupWalls, [{ x: 2, y: 0, group: 'a' }]);
+  assert.deepEqual(pendingGroupSwitches(s.spec), []);
+  assert.deepEqual(line(s.spec).messages, []);
+  assert.equal(line(s.spec).clearable, true);
+  assert.equal(toggleTarget(s, 1, 0, 2, 0).ok, true); // もう一度で外す
+  assert.equal('groupWalls' in s.spec, false);
+  assert.equal(undo(s).ok, true);
+  assert.deepEqual(s.spec.groupWalls, [{ x: 2, y: 0, group: 'a' }]);
+  assert.equal(toggleTarget(s, 1, 0, 4, 0).ok, false); // ゴールの上
+  assert.equal(toggleTarget(s, 1, 0, 2, 1).ok, false); // 壁の上
+});
+
+test('editor-state(group): place(groupWalls)・erase・move と、スイッチを消すと壁も消える', () => {
+  const s = gboard();
+  assert.equal(place(s, 'groupWalls', 2, 0, 'a').ok, false); // スイッチが無い
+  place(s, 'switches', 1, 0);
+  setSwitchGroup(s, 1, 0, 'a');
+  assert.equal(place(s, 'groupWalls', 2, 0, 'b').ok, false); // b のスイッチが無い
+  assert.equal(place(s, 'groupWalls', 2, 0, 'a').ok, true);
+  assert.equal(place(s, 'groupWalls', 2, 0, 'a').ok, false); // 重なり
+  assert.equal(place(s, 'groupWalls', 3, 0, 'a').ok, true);
+  assert.equal(move(s, 3, 0, 2, 0).ok, false); // 移動先に壁
+  assert.equal(move(s, 3, 0, 3, 1).ok, true);
+  assert.deepEqual(s.spec.groupWalls.map((w) => [w.x, w.y]), [[2, 0], [3, 1]]);
+  assert.equal(erase(s, 3, 1).ok, true);
+  assert.deepEqual(s.spec.groupWalls, [{ x: 2, y: 0, group: 'a' }]);
+  assert.equal(erase(s, 1, 0).ok, true); // スイッチを消すと壁は床に戻る（持ち主がいないと validate が落ちるため）
+  assert.equal('groupWalls' in s.spec, false);
+  assert.equal('switches' in s.spec, false);
+});
+
+test('editor-state(group): 併用禁止（close・toggle・targets・同じ group）は拒否。state は変わらない', () => {
+  const s = gboard();
+  place(s, 'switches', 1, 0);
+  place(s, 'switches', 3, 0);
+  assert.equal(setSwitchGroup(s, 1, 0, 'a').ok, true);
+  assert.equal(setSwitchGroup(s, 3, 0, 'a').ok, false); // 同じ group は1スイッチだけ
+  assert.equal(setSwitchGroup(s, 3, 0, 'bogus').ok, false);
+  assert.equal(setSwitchGroup(s, 4, 1, 'b').ok, false); // スイッチが無い
+  assert.equal(setSwitchMode(s, 1, 0, 'close').ok, false); // group と close
+  const before = snap(s.spec);
+  toggleTarget(s, 3, 0, 2, 0); // 3,0 は targets 方式
+  assert.equal(setSwitchGroup(s, 3, 0, 'b').ok, false); // targets と group
+  assert.equal(setSwitchGroup(s, 3, 0, 'b').reason.includes('targets'), true);
+  undo(s);
+  assert.deepEqual(s.spec, before);
+  const t = gboard();
+  place(t, 'switches', 1, 0);
+  setSwitchMode(t, 1, 0, 'close');
+  assert.equal(setSwitchGroup(t, 1, 0, 'a').ok, false); // close と group
+  assert.equal('group' in t.spec.switches[0], false);
+  const m = gboard();
+  m.spec.switches = [{ x: 1, y: 0, mode: 'toggle', color: 'blue', targets: [] }];
+  assert.equal(setSwitchGroup(m, 1, 0, 'a').ok, false);
+  // 併用した盤は validate も落ちる
+  const bad = snap(s.spec);
+  bad.switches[0].mode = 'close';
+  bad.groupWalls = [{ x: 2, y: 0, group: 'a' }];
+  assert.equal(line(bad).clearable, false);
+  assert.ok(line(bad).messages.length > 0);
+});
+
+test('editor-state(group): group を変える／なしに戻す。壁が付いていく・床に戻る', () => {
+  const s = gboard();
+  place(s, 'switches', 1, 0);
+  setSwitchGroup(s, 1, 0, 'a');
+  toggleTarget(s, 1, 0, 2, 0);
+  assert.equal(setSwitchGroup(s, 1, 0, 'b').ok, true);
+  assert.deepEqual(s.spec.groupWalls, [{ x: 2, y: 0, group: 'b' }]);
+  assert.deepEqual(line(s.spec).messages, []);
+  assert.equal(setSwitchGroup(s, 1, 0, '').ok, true);
+  assert.equal('groupWalls' in s.spec, false);
+  assert.deepEqual(s.spec.switches[0].targets, []);
+  assert.deepEqual(pendingSwitches(s.spec), [{ index: 0, x: 1, y: 0 }]);
 });

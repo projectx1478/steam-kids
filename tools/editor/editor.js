@@ -1,11 +1,11 @@
 // 盤面エディタ（開発者用）の画面。盤面は js/ui-board.js の drawBoard 経由で描く。
 import { drawBoard } from '/js/ui-board.js';
-import { SAMPLE_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clampCellPx, wheelCellPx, zoomPercent, formatMetrics, pendingSwitches, switchModeOptions, GEN_COUNT, GEN_GIMMICKS, checkGenerateForm, buildGenerateBody, generateStatusText } from './editor-view.js';
+import { SAMPLE_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clampCellPx, wheelCellPx, zoomPercent, formatMetrics, pendingSwitches, pendingGroupSwitches, switchModeOptions, switchGroupOptions, GEN_COUNT, GEN_GIMMICKS, checkGenerateForm, buildGenerateBody, generateStatusText } from './editor-view.js';
 
 import { GIMMICKS } from '/js/gimmicks/index.js';
 import { markGatePassedToday } from '/js/gate-date.js';
 import { buildPalette, iconSpec } from './palette.js';
-import { createState, setCellPx as setStateCellPx, place, erase, move, toggleTarget, setSwitchColor, setSwitchMode, SWITCH_COLORS, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard, addDraftStep, explainSaveNg } from './editor-state.js';
+import { createState, setCellPx as setStateCellPx, place, erase, move, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, SWITCH_COLORS, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard, addDraftStep, explainSaveNg } from './editor-state.js';
 
 const state = createState(SAMPLE_SPEC, CELL_PX_DEFAULT);
 state.selected = 'wall';
@@ -95,13 +95,15 @@ const swIndex = () => (selSwitch ? (state.spec.switches || []).findIndex((c) => 
 const cellEl = (x, y) => boardWrap.querySelector(`.grid-cell[data-x="${x}"][data-y="${y}"]`);
 
 function markSwitches() {
-  for (const p of pendingSwitches(state.spec)) { const c = cellEl(p.x, p.y); if (c) c.classList.add('ed-sw-pending'); }
+  for (const p of [...pendingSwitches(state.spec), ...pendingGroupSwitches(state.spec)]) { const c = cellEl(p.x, p.y); if (c) c.classList.add('ed-sw-pending'); }
+  for (const w of state.spec.groupWalls || []) { const gc = cellEl(w.x, w.y); if (gc) { gc.classList.add('ed-gw'); gc.title = `group「${w.group}」の壁`; } }
   const i = swIndex();
   if (i < 0) return;
   const sw = state.spec.switches[i];
   const c = cellEl(sw.x, sw.y);
   if (c) c.classList.add('ed-sw-sel');
   for (const t of sw.targets || []) { const tc = cellEl(t.x, t.y); if (tc) tc.classList.add('ed-sw-target'); }
+  if (typeof sw.group === 'string') for (const w of state.spec.groupWalls || []) if (w.group === sw.group) { const tc = cellEl(w.x, w.y); if (tc) tc.classList.add('ed-sw-target'); }
 }
 
 const settingsBody = document.getElementById('settings-body');
@@ -148,10 +150,16 @@ function renderSettings() {
   const colors = SWITCH_COLORS.map((c) => ({ value: c, label: c === 'red' ? 'あか' : 'あお', disabled: false, reason: '' }));
   const targets = sw.targets || [];
   const conn = document.createElement('div');
-  conn.className = typeof sw.group !== 'string' && targets.length === 0 ? 'sw-wait' : 'sw-conn';
-  if (typeof sw.group === 'string') conn.textContent = `group「${sw.group}」の壁につながる（段Bで編集）`;
+  const grouped = typeof sw.group === 'string';
+  const gwCount = grouped ? (state.spec.groupWalls || []).filter((w) => w.group === sw.group).length : 0;
+  const waiting = grouped ? gwCount === 0 : targets.length === 0;
+  conn.className = waiting ? 'sw-wait' : 'sw-conn';
+  if (grouped) conn.textContent = gwCount === 0 ? `接続待ち：group「${sw.group}」の壁にしたいマスをクリック` : `group「${sw.group}」の壁: ${gwCount}（もう一度クリックで外す）`;
   else conn.textContent = targets.length === 0 ? '接続待ち：壁にしたいマスをクリック' : `つないだ壁: ${targets.length}（もう一度クリックで外す）`;
-  settingsBody.replaceChildren(title, colorHd, radioGroup('sw-color', colors, sw.color ?? 'blue', (v) => apply(setSwitchColor(state, sw.x, sw.y, v))), modeHd, radioGroup('sw-mode', switchModeOptions(state.spec, i), sw.mode ?? 'open', (v) => apply(setSwitchMode(state, sw.x, sw.y, v))), conn);
+  const groupHd = document.createElement('div');
+  groupHd.className = 'sw-hd';
+  groupHd.textContent = 'group（同じ名前のスイッチと壁が対応する）';
+  settingsBody.replaceChildren(title, colorHd, radioGroup('sw-color', colors, sw.color ?? 'blue', (v) => apply(setSwitchColor(state, sw.x, sw.y, v))), modeHd, radioGroup('sw-mode', switchModeOptions(state.spec, i), sw.mode ?? 'open', (v) => apply(setSwitchMode(state, sw.x, sw.y, v))), groupHd, radioGroup('sw-group', switchGroupOptions(state.spec, i), grouped ? sw.group : '', (v) => apply(setSwitchGroup(state, sw.x, sw.y, v))), conn);
 }
 
 // パレットが switches のときのクリック。スイッチをクリック＝選ぶ／もう一度で外す。選択中なら空きマスは対象のトグル。選んでいなければスイッチを置く。
@@ -199,7 +207,7 @@ async function analyzeNow() {
   } catch {
     lines = ['未判定（判定サーバーに接続できません）'];
   }
-  const wait = pendingSwitches(state.spec).map((p) => `接続待ち: スイッチ (${p.x},${p.y}) に壁がつながっていない`);
+  const wait = [...pendingSwitches(state.spec), ...pendingGroupSwitches(state.spec)].map((p) => `接続待ち: スイッチ (${p.x},${p.y}) に壁がつながっていない`);
   if (shouldApplyResult(state, gen)) showMetrics([...wait, ...lines]);
 }
 

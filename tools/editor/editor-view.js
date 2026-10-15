@@ -104,10 +104,40 @@ export function switchModeOptions(spec, index) {
     set('close', 'toggle は他の mode と併用できない');
     return options;
   }
+  if (typeof me.group === 'string') set('close', 'group は open だけで使える（close と併用できない）');
   if (others.some((o) => modeOf(o) === 'close')) set('open', 'close は open と併用できない');
   if (others.some((o) => modeOf(o) === 'open')) set('close', 'close は open と併用できない');
   const mine = Array.isArray(me.targets) ? me.targets : [];
   if (others.some((o) => (Array.isArray(o.targets) ? o.targets : []).some((u) => mine.some((t) => t.x === u.x && t.y === u.y)))) set('close', 'close は他のスイッチと対象を共有できない（AND不可）');
+  return options;
+}
+
+// ---- スイッチの group（#404 段B）。同じ group がスイッチと壁（groupWalls）を対応づける。----
+export const GROUP_CHOICES = ['a', 'b', 'c', 'd']; // 選べる名前（盤にこれ以外の名前があれば、その名前も並ぶ）
+
+// group が付いているのに壁（groupWalls）が1つも無いスイッチ（接続待ち）。[{ index, x, y }]。
+export function pendingGroupSwitches(spec) {
+  const walls = Array.isArray(spec.groupWalls) ? spec.groupWalls : [];
+  return swList(spec).map((s, index) => ({ s, index })).filter(({ s }) => typeof s.group === 'string' && !walls.some((w) => w && w.group === s.group)).map(({ s, index }) => ({ index, x: s.x, y: s.y }));
+}
+
+// group のラジオ選択肢 [{ value, label, disabled, reason }]。value '' は「なし」。disabled はグレーで選べない（正本は validate）。
+// close・toggle のスイッチと、targets のあるスイッチは group を付けられない。同じ group を付けられるスイッチは1つだけ。
+export function switchGroupOptions(spec, index) {
+  const list = swList(spec);
+  const me = list[index];
+  const used = new Set(list.filter((_, i) => i !== index).map((o) => o.group).filter((g) => typeof g === 'string'));
+  const names = [...GROUP_CHOICES];
+  if (me && typeof me.group === 'string' && !names.includes(me.group)) names.push(me.group);
+  const options = [{ value: '', label: 'なし（壁を1つずつつなぐ）', disabled: false, reason: '' }, ...names.map((g) => ({ value: g, label: `group「${g}」`, disabled: false, reason: '' }))];
+  if (!me) return options.map((o) => ({ ...o, disabled: true, reason: 'スイッチが無い' }));
+  const mine = typeof me.group === 'string' ? me.group : '';
+  for (const o of options) {
+    if (o.value === '' || o.value === mine) continue;
+    if (modeOf(me) !== 'open') { o.disabled = true; o.reason = 'group は open だけで使える（close・toggle と併用できない）'; }
+    else if (Array.isArray(me.targets) && me.targets.length > 0) { o.disabled = true; o.reason = 'group と targets は併用できない（先に壁の接続を外す）'; }
+    else if (used.has(o.value)) { o.disabled = true; o.reason = 'この group は他のスイッチが使っている（1つだけ）'; }
+  }
   return options;
 }
 
