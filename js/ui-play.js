@@ -7,7 +7,7 @@ import { logEvent } from './events.js';
 import { shapeSvg, prefersReducedMotion } from './ui-grid.js';
 import { fitCellSize, drawBoard as drawBoardUi, observeBoard } from './ui-board.js';
 import { createZoom } from './ui-zoom.js';
-import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, vibrate, countChips, planRun, clearUnlocked, isLockedIndex } from './ui-commands.js';
+import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, vibrate, countChips, planRun, clearUnlocked, isLockedIndex, isPause, setPauseLeft } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
 import { createOpScreen } from './ui-screen.js';
 import { createIdleNudge } from './ui-guide.js';
@@ -46,6 +46,8 @@ export function renderPlay(root, step) {
   const spec = boardSpec(step);
   const defaultText = spec.items.length > 0 ? 'どんぐりを ぜんぶ とって ゴール' : 'ロボットを ゴールへ うごかそう';
   const isFix = (step.initialCommands ?? []).length > 0;
+  // 「とめる」の最大数（省略時0＝「とめる」は出ない。#395）。
+  const maxPauses = Number.isInteger(step.maxPauses) && step.maxPauses > 0 ? step.maxPauses : 0;
 
   // initialCommandsがあれば「ずれた」命令列を最初から積んでおく（なおす系レッスン用）。
   // もういちど（失敗時のretry・クリア後のreplay双方）でこの内容へ戻す（Issue #104）ため、
@@ -358,6 +360,11 @@ export function renderPlay(root, step) {
     paletteEl.querySelectorAll('button').forEach((b) => {
       b.disabled = atMax || local.running || local.stepping || local.locked;
     });
+    // 「とめる」：残り回数が0なら無効。maxCommandsには数えないので、上限に達していても置ける（#395 段3）。
+    const pausesLeft = maxPauses - local.commands.filter(isPause).length;
+    const pauseBtn = paletteEl.querySelector('[data-action="pause"]');
+    if (pauseBtn) pauseBtn.disabled = pausesLeft <= 0 || local.boxOpen >= 0 || local.running || local.stepping || local.locked;
+    setPauseLeft(paletteEl, Math.max(0, pausesLeft));
     const isRetry = runBtn.dataset.action === 'retry';
     const hasEmptyBox = local.commands.some((c) => c.box && c.box.length === 0);
     runBtn.disabled = local.running || (!isRetry && (local.commands.length === 0 || hasEmptyBox));
@@ -373,6 +380,19 @@ export function renderPlay(root, step) {
   }
 
   renderCommandPalette(paletteEl, {
+    maxPauses,
+    onPause: () => {
+      if (local.running || local.stepping || local.locked || local.boxOpen >= 0) return;
+      if (local.commands.filter(isPause).length >= maxPauses) return;
+      local.commands.push({ pause: true });
+      if (isFix) local.fixOpened = true;
+      playSfx('tap');
+      drawQueue();
+      queueEl.scrollLeft = queueEl.scrollWidth;
+      queueEl.scrollTop = queueEl.scrollHeight;
+      updateControls();
+      local.nudge?.poke();
+    },
     dropTarget: () => queueEl.getBoundingClientRect(),
     onDragOver: (active) => toggleGhostSlot(queueEl, active),
     onAdd: (dir, { via } = {}) => {
@@ -404,7 +424,7 @@ export function renderPlay(root, step) {
       queueEl.scrollLeft = queueEl.scrollWidth;
       queueEl.scrollTop = queueEl.scrollHeight;
       // lastElementChildは使わない（末尾にトレイの次枠(.tray-slot)が付くため。Issue #110）。
-      if (via === 'drag') queueEl.querySelectorAll('.command-chip')[local.commands.length - 1]?.classList.add('spring-in');
+      if (via === 'drag') queueEl.querySelector(`.command-chip[data-index="${local.commands.length - 1}"]`)?.classList.add('spring-in');
       updateControls();
       local.nudge?.poke();
     },
