@@ -92,6 +92,9 @@ DOM判定用に箱チップへ`data-round`（0始まりの現在周。実行外�
 必要なら追加してから実行する、という従来通りの操作で直せる（Issue #31）。
 `initialCommands`はそのまま実行してもゴールに到達しない内容にする（直す必要が無いと検証NG）。
 
+`play.maxPauses`（任意・0以上の整数・上限なし・既定0）は「とめる」ブロックの最大数。
+負数・小数・文字列・nullは検証NG（Issue #395）。
+
 `play.solution`（検証ハーネス用の正解手順。実行時は使わない）は、方向文字列の配列（`initialCommands`
 の後ろへ積む命令）か`{ "removeIndex": N, "commands": [...] }`（`initialCommands`のN番目を消してから
 `commands`を積む。なおす系）。`.claude/verify/helpers.mjs`の`clearLesson`が読む。盤面ギミックの

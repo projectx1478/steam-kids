@@ -132,6 +132,11 @@ export function validateLesson(fileName, data, longTrialIds = []) {
       add('groupRepeatsの型', `${label}groupRepeats=${JSON.stringify(play.groupRepeats)} はboolean以外`);
     }
 
+    // maxPauses（「とめる」の最大数。Issue #395）：省略可。0以上の整数のみ（上限なし）。
+    if ('maxPauses' in play && !(isInt(play.maxPauses) && play.maxPauses >= 0)) {
+      add('maxPausesの型', `${label}maxPauses=${JSON.stringify(play.maxPauses)} は0以上の整数以外`);
+    }
+
     if ('initialCommands' in play) {
       const initial = play.initialCommands;
       if (!Array.isArray(initial) || initial.some((c) => !COMMANDS.includes(c))) {
