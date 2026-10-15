@@ -395,6 +395,56 @@ dialog.result-row {
   color: inherit;
 }
 
+/* 命令パレット（Issue #395）：全ステージ共通の WASD 配置（2行×3列）。上段 [空き][うえ][空き]・下段 [ひだり][した][みぎ]。
+   DOM 順は up 先頭のまま grid-area で並べ替える。「はこ」ボタンは全幅の3行目。 */
+.palette-row.palette-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 0.5rem;
+  row-gap: 0.25rem; /* ボタンの影(4px)と同じ幅。縦を詰めて盤面・トレイの高さを確保する */
+}
+/* 2行ぶんの高さを抑えるため、ボタンの上下余白を詰める（min-height 64px は btn-tactile が保つ） */
+.palette-row > [data-command] {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.palette-row > [data-command='up'] {
+  grid-area: 1 / 2;
+}
+.palette-row > [data-command='left'] {
+  grid-area: 2 / 1;
+}
+.palette-row > [data-command='down'] {
+  grid-area: 2 / 2;
+}
+.palette-row > [data-command='right'] {
+  grid-area: 2 / 3;
+}
+.palette-row > [data-blank='left'] {
+  grid-area: 1 / 1;
+}
+.palette-row > [data-blank='right'] {
+  grid-area: 1 / 3;
+}
+.palette-row > [data-action='box-open'] {
+  grid-column: 1 / -1;
+}
+
+/* パレットが2行になったぶん縦が足りないため、操作パネル内・れんしゅう画面の段間を詰める（ボタンは64px以上のまま） */
+@media (orientation: portrait) {
+  .sk-screen-panel.sk-screen-panel,
+  .tutorial-screen.tutorial-screen,
+  .sk-screen-frame.sk-screen-frame {
+    gap: 0.25rem;
+  }
+  .tutorial-screen.tutorial-screen {
+    padding: 0.25rem;
+  }
+  .sk-screen-panel.sk-screen-panel {
+    padding: 0.5rem;
+  }
+}
+
 /* 操作画面（play・れんしゅう）：横向きは「盤面｜操作パネル」の左右分割、縦向きは従来の縦積み（Issue #156）。 */
 .tutorial-main,
 .tutorial-side {
@@ -450,14 +500,14 @@ dialog.result-row {
     box-shadow: inset 0 0 0 2px #8a5a2b, inset 0 -4px 0 2px #8a5a2b;
   }
 
-  .sk-screen-panel > .palette-row,
-  .tutorial-side > .palette-row {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.5rem;
+  /* 2行化したパレットぶん縦が足りないため、横向きのパネルは余白・段間を詰める（ボタンは64px以上のまま） */
+  .sk-screen-panel {
+    padding: 0.5rem;
+    gap: 0.25rem;
   }
-  .palette-row > [data-action='box-open'] {
-    grid-column: 1 / -1;
+  .tutorial-side {
+    padding: 0.5rem;
+    gap: 0.25rem;
   }
   .sk-screen-panel .command-tray,
   .tutorial-side .command-queue {
@@ -472,7 +522,8 @@ dialog.result-row {
   .sk-screen-panel > .sk-screen-actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.5rem;
+    column-gap: 0.5rem;
+    row-gap: 0.25rem;
     margin-top: auto;
   }
   .tutorial-side > .tutorial-queue-row {
@@ -483,14 +534,9 @@ dialog.result-row {
   }
 }
 
-/* 背の低い横向き（1024×600等）は、パレット・操作ボタンを1行4列にしてトレイの高さを確保する。
-   ただし操作ボタン行 sk-screen-actions は、高さ480px以上（1024×600級）では文字切れ防止のため2列（2×2）のままにする（Issue #370）。 */
-@media (orientation: landscape) and (max-height: 700px) {
-  .sk-screen-panel > .palette-row,
-  .tutorial-side > .palette-row {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
+/* 背の低い横向き（1024×600等）は、操作ボタン行 sk-screen-actions を4列にしてトレイの高さを確保する。
+   ただし高さ480px以上（1024×600級）では文字切れ防止のため2列（2×2）のままにする（Issue #370）。
+   命令パレットは全画面共通の2行×3列（Issue #395）。 */
 @media (orientation: landscape) and (max-height: 479px) {
   .sk-screen-panel > .sk-screen-actions {
     grid-template-columns: repeat(4, minmax(0, 1fr));
