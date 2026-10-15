@@ -1,8 +1,9 @@
 // #397 段4: 盤面エディタの状態管理（置く・消す・動かす・元に戻す・やり直し、拒否値）。実行: npm run test:unit
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createState, setCellPx, setGrid, place, erase, move, undo, redo, HISTORY_MAX } from '../tools/editor/editor-state.js';
-import { SAMPLE_SPEC, EDITOR_MAX_SIZE } from '../tools/editor/editor-view.js';
+import { createState, setCellPx, setGrid, place, erase, move, undo, redo, toggleTarget, setSwitchColor, setSwitchMode, COMPLEX_KEYS, HISTORY_MAX } from '../tools/editor/editor-state.js';
+import { SAMPLE_SPEC, EDITOR_MAX_SIZE, pendingSwitches, switchModeOptions } from '../tools/editor/editor-view.js';
+import { analyzeSpec } from '../tools/editor/validate-worker.mjs';
 
 const fresh = () => createState(SAMPLE_SPEC);
 const snap = (v) => JSON.parse(JSON.stringify(v));
@@ -56,7 +57,8 @@ test('editor-state: 動かす（移動先に要素があれば拒否）', () => 
 
 test('editor-state: 組・設定が要る要素は置けない・消せない・動かせない', () => {
   const s = fresh();
-  for (const key of ['keys', 'switches', 'paint', 'periodic']) assert.equal(place(s, key, 2, 1).ok, false, key);
+  assert.deepEqual(COMPLEX_KEYS, ['keys', 'paint', 'periodic']); // switches は #404 段A で外した
+  for (const key of ['keys', 'paint', 'periodic']) assert.equal(place(s, key, 2, 1).ok, false, key);
   assert.equal(erase(s, 0, 2).ok, false); // かぎ
   assert.equal(move(s, 2, 2, 2, 1).ok, false); // ドア
 });
@@ -268,4 +270,95 @@ test('editor-state(面): 置き換え・複製は gen を外して手書きの�
   assert.equal(duplicateStep(ls2, 2).ok, true);
   assert.equal('gen' in ls2.steps[3], false);
   assert.equal('gen' in ls2.steps[2], true, '元の面の gen は残る');
+});
+
+// ---- スイッチ（#404 段A）。盤は床だけの 5×1。----
+const row = () => createState({ grid: { cols: 5, rows: 1 }, start: { x: 0, y: 0 }, goal: { x: 4, y: 0 }, walls: [] });
+const line = (spec) => analyzeSpec({ ...spec, maxCommands: 20 });
+
+test('editor-state: スイッチを置くと接続待ち（targets 空）。validate は落ちる', () => {
+  const s = row();
+  assert.equal(place(s, 'switches', 1, 0).ok, true);
+  assert.deepEqual(s.spec.switches, [{ x: 1, y: 0, color: 'blue', targets: [] }]);
+  assert.deepEqual(pendingSwitches(s.spec), [{ index: 0, x: 1, y: 0 }]);
+  const r = line(s.spec);
+  assert.equal(r.clearable, false);
+  assert.ok(r.messages.some((m) => m.includes('targetsが空')));
+  assert.equal(place(s, 'switches', 1, 0).ok, false); // 重なり
+});
+
+test('editor-state: 壁のタップで targets をトグル（1手ずつ history に入る）。つないだ盤は validate を通る', () => {
+  const s = createState({ grid: { cols: 5, rows: 2 }, start: { x: 0, y: 0 }, goal: { x: 4, y: 0 }, walls: [{ x: 2, y: 1 }] }); // (2,0) だけが通り道
+  place(s, 'switches', 1, 0);
+  const n = s.history.length;
+  assert.equal(toggleTarget(s, 1, 0, 2, 0).ok, true);
+  assert.equal(s.history.length, n + 1);
+  assert.deepEqual(s.spec.switches[0].targets, [{ x: 2, y: 0 }]);
+  assert.deepEqual(pendingSwitches(s.spec), []);
+  assert.deepEqual(line(s.spec).messages, []);
+  assert.equal(toggleTarget(s, 1, 0, 2, 0).ok, true); // もう一度で外す
+  assert.deepEqual(s.spec.switches[0].targets, []);
+  assert.equal(undo(s).ok, true);
+  assert.deepEqual(s.spec.switches[0].targets, [{ x: 2, y: 0 }]);
+  assert.equal(toggleTarget(s, 1, 0, 4, 0).ok, false); // ゴールの上
+  assert.equal(toggleTarget(s, 1, 0, 1, 0).ok, false); // スイッチ自身
+  assert.equal(toggleTarget(s, 3, 1, 3, 0).ok, false); // スイッチが無い
+});
+
+test('editor-state: close と open の併用禁止はグレー・拒否。close の盤は validate を通る／併用は落ちる', () => {
+  const s = createState({ grid: { cols: 5, rows: 3 }, start: { x: 0, y: 0 }, goal: { x: 4, y: 0 }, walls: [] });
+  place(s, 'switches', 1, 0);
+  place(s, 'switches', 1, 2); // 選択を外して2つ目
+  assert.deepEqual(switchModeOptions(s.spec, 1).map((o) => o.disabled), [false, true]); // 相手が open → close はグレー
+  assert.equal(setSwitchMode(s, 1, 2, 'close').ok, false);
+  assert.equal(setSwitchMode(s, 1, 0, 'close').ok, false);
+  assert.equal(setSwitchMode(s, 1, 2, 'bogus').ok, false);
+  // 併用の盤は validate が落とす（正本）
+  const both = JSON.parse(JSON.stringify(s.spec));
+  both.switches[0].mode = 'close';
+  both.switches[0].targets = [{ x: 2, y: 0 }];
+  both.switches[1].targets = [{ x: 2, y: 2 }];
+  assert.ok(line(both).messages.some((m) => m.includes('併用できない')));
+  // 1つだけなら close にできる
+  const t = createState({ grid: { cols: 5, rows: 1 }, start: { x: 0, y: 0 }, goal: { x: 4, y: 0 }, walls: [] });
+  place(t, 'switches', 1, 0);
+  toggleTarget(t, 1, 0, 3, 0);
+  assert.equal(setSwitchMode(t, 1, 0, 'close').ok, true);
+  assert.equal(t.spec.switches[0].mode, 'close');
+  assert.equal(place(t, 'switches', 2, 0).ok, true); // 新しいスイッチは close を引き継ぐ
+  assert.equal(t.spec.switches[1].mode, 'close');
+  assert.equal(setSwitchMode(t, 1, 0, 'open').ok, false);
+  assert.equal(toggleTarget(t, 2, 0, 3, 0).ok, false); // close は対象を共有できない
+  assert.equal(setSwitchColor(t, 1, 0, 'red').ok, true);
+  assert.equal(t.spec.switches[0].color, 'red');
+  assert.equal(setSwitchColor(t, 1, 0, 'green').ok, false);
+});
+
+test('editor-state: open 同士は壁を共有できる（最大2）。氷の上にスイッチは置ける', () => {
+  const s = createState({ grid: { cols: 5, rows: 2 }, start: { x: 0, y: 0 }, goal: { x: 4, y: 1 }, walls: [], ice: [{ x: 0, y: 1 }] });
+  assert.equal(place(s, 'switches', 0, 1).ok, true); // 氷の上
+  place(s, 'switches', 1, 1);
+  place(s, 'switches', 2, 1);
+  assert.equal(toggleTarget(s, 0, 1, 3, 1).ok, true);
+  assert.equal(toggleTarget(s, 1, 1, 3, 1).ok, true);
+  assert.equal(toggleTarget(s, 2, 1, 3, 1).ok, false); // 3つ目
+  assert.equal(erase(s, 3, 1).ok, true); // 壁を消すと持ち主全員から外れる
+  assert.deepEqual(s.spec.switches.map((c) => c.targets.length), [0, 0, 0]);
+  assert.equal(erase(s, 0, 1).ok, true); // スイッチだけ消え、氷は残る
+  assert.deepEqual(s.spec.ice, [{ x: 0, y: 1 }]);
+  assert.equal(s.spec.switches.length, 2);
+});
+
+test('editor-state: スイッチと対象を動かす／消す', () => {
+  const s = row();
+  place(s, 'switches', 1, 0);
+  toggleTarget(s, 1, 0, 3, 0);
+  assert.equal(move(s, 3, 0, 2, 0).ok, true); // 対象の壁
+  assert.deepEqual(s.spec.switches[0].targets, [{ x: 2, y: 0 }]);
+  assert.equal(move(s, 1, 0, 2, 0).ok, false); // 対象の上
+  assert.equal(move(s, 1, 0, 1, 0).ok, false);
+  assert.equal(move(s, 1, 0, 3, 0).ok, true);
+  assert.deepEqual([s.spec.switches[0].x, s.spec.switches[0].y], [3, 0]);
+  assert.equal(erase(s, 3, 0).ok, true);
+  assert.equal('switches' in s.spec, false);
 });

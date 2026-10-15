@@ -2,14 +2,16 @@
 // 開発者用・手元専用。子ども向け画面（APP_SHELL）には載せない。
 // 状態 { spec, history: spec[], cursor, cellPx }。spec は既存の盤面 JSON 全体を形を変えずに持つ。
 // 元に戻すはスナップショット方式。各関数は state を直接更新し、{ ok: true } か { ok: false, reason } を返す（拒否時は state を変えない）。
-import { EDITOR_MAX_SIZE, CELL_PX_MIN, CELL_PX_MAX, CELL_PX_DEFAULT } from './editor-view.js';
+import { EDITOR_MAX_SIZE, CELL_PX_MIN, CELL_PX_MAX, CELL_PX_DEFAULT, switchModeOptions } from './editor-view.js';
 
 export const HISTORY_MAX = 100; // 超えたら先頭（古いもの）から捨てる
 
 // 1マスの単純な要素（盤面 JSON 側の配列名）。置く・消す・動かすができる。
 export const SIMPLE_LISTS = ['walls', 'items', 'ice', 'cushion', 'water'];
-// 組・周期・方向などの設定が要る要素。段4では置けない（#404 E6）。
-export const COMPLEX_KEYS = ['keys', 'switches', 'paint', 'periodic'];
+// 組・周期・方向などの設定が要る要素。まだ置けない（#404 E6）。switches は #404 段A で外した（open/close のみ。group・toggle は段B・C）。
+export const COMPLEX_KEYS = ['keys', 'paint', 'periodic'];
+export const SWITCH_COLORS = ['red', 'blue'];
+const SWITCH_KINDS = ['switches', 'switches.targets'];
 const SINGLE = ['start', 'goal'];
 
 const clone = (v) => JSON.parse(JSON.stringify(v));
@@ -105,9 +107,10 @@ export function setGrid(state, cols, rows) {
 // start・goal は各1個なので、置くと今の位置から移る。
 export function place(state, key, x, y) {
   const spec = state.spec;
+  if (key === 'switches') return placeSwitch(state, x, y);
   const isSimple = key === 'wall' || SIMPLE_LISTS.includes(key);
   if (!isSimple && !SINGLE.includes(key)) {
-    return ng(COMPLEX_KEYS.includes(key) ? `${key} は組・設定が要るため段4では置けない（#404）` : `${key} は置けない`);
+    return ng(COMPLEX_KEYS.includes(key) ? `${key} は組・設定が要るためまだ置けない（#404）` : `${key} は置けない`);
   }
   if (!inGrid(spec, x, y)) return ng('盤外');
   if (occupants(spec, x, y).length) return ng('そのマスには既に要素がある');
@@ -128,8 +131,18 @@ export function erase(state, x, y) {
   const here = occupants(spec, x, y);
   if (here.length === 0) return ng('消す物が無い');
   if (here.some((o) => SINGLE.includes(o.kind))) return ng('スタート・ゴールは消せない（各1個）');
-  if (here.some((o) => !SIMPLE_LISTS.includes(o.kind))) return ng('組・設定のある要素は段4では消せない（#404）');
+  if (here.some((o) => !SIMPLE_LISTS.includes(o.kind) && !SWITCH_KINDS.includes(o.kind))) return ng('組・設定のある要素はまだ消せない（#404）');
   const next = clone(spec);
+  if (here.some((o) => o.kind === 'switches')) {
+    // スイッチ本体を消す（同じマスの氷は残す）。対象の壁は他に持ち主がいなければ床に戻る。
+    next.switches = list(next.switches).filter((c) => !(c.x === x && c.y === y));
+    if (next.switches.length === 0) delete next.switches;
+    return commit(state, next);
+  }
+  if (here.every((o) => o.kind === 'switches.targets')) {
+    for (const sw of list(next.switches)) sw.targets = list(sw.targets).filter((t) => !(t.x === x && t.y === y));
+    return commit(state, next);
+  }
   for (const name of SIMPLE_LISTS) {
     const kept = list(next[name]).filter((c) => !(c.x === x && c.y === y));
     if (kept.length === list(next[name]).length) continue;
@@ -149,13 +162,98 @@ export function move(state, fromX, fromY, toX, toY) {
   if (!inGrid(spec, fromX, fromY) || !inGrid(spec, toX, toY)) return ng('盤外');
   const here = occupants(spec, fromX, fromY);
   if (here.length === 0) return ng('動かす物が無い');
-  if (here.length > 1 || !(SINGLE.includes(here[0].kind) || SIMPLE_LISTS.includes(here[0].kind))) return ng('組・設定のある要素は段4では動かせない（#404）');
+  const swHere = here.find((o) => o.kind === 'switches');
+  if (swHere) {
+    // スイッチ本体（氷の上にいてもよい）。移動先は placeSwitch と同じ規則。
+    if (!switchCellFree(spec, toX, toY, spec.switches[swHere.index].mode === 'toggle')) return ng('移動先に要素がある');
+    const moved = clone(spec);
+    moved.switches[swHere.index].x = toX;
+    moved.switches[swHere.index].y = toY;
+    return commit(state, moved);
+  }
+  if (here.every((o) => o.kind === 'switches.targets')) {
+    // 対象の壁（共有していれば持ち主全員の分）。
+    if (occupants(spec, toX, toY).length) return ng('移動先に要素がある');
+    const moved = clone(spec);
+    for (const sw of list(moved.switches)) for (const t of list(sw.targets)) if (t.x === fromX && t.y === fromY) { t.x = toX; t.y = toY; }
+    return commit(state, moved);
+  }
+  if (here.length > 1 || !(SINGLE.includes(here[0].kind) || SIMPLE_LISTS.includes(here[0].kind))) return ng('組・設定のある要素はまだ動かせない（#404）');
   if (occupants(spec, toX, toY).length) return ng('移動先に要素がある');
   const next = clone(spec);
   const o = here[0];
   const target = SINGLE.includes(o.kind) ? next[o.kind] : next[o.kind][o.index];
   target.x = toX;
   target.y = toY;
+  return commit(state, next);
+}
+
+// ---- スイッチ（open・close。#404 段A）。選ぶスイッチは座標 (sx,sy) で指す（元に戻す・やり直しでも番号がずれない）。----
+const findSwitch = (spec, sx, sy) => list(spec.switches).findIndex((c) => c.x === sx && c.y === sy);
+
+// スイッチ本体を置けるマスか。氷の上は可（toggle のときだけ不可）。それ以外の要素があれば不可。
+function switchCellFree(spec, x, y, toggle) {
+  if (!inGrid(spec, x, y)) return false;
+  return occupants(spec, x, y).every((o) => o.kind === 'ice' && !toggle);
+}
+
+// スイッチを (x,y) に置く。targets は空（接続待ち）。色は青、mode は先にあるスイッチと同じ（併用禁止に当たらないように）。
+function placeSwitch(state, x, y) {
+  const spec = state.spec;
+  if (!inGrid(spec, x, y)) return ng('盤外');
+  const mode = list(spec.switches)[0] && list(spec.switches)[0].mode;
+  if (!switchCellFree(spec, x, y, mode === 'toggle')) return ng('そのマスには既に要素がある');
+  const next = clone(spec);
+  const sw = { x, y, color: 'blue', targets: [] };
+  if (mode !== undefined && mode !== 'open') sw.mode = mode;
+  next.switches = [...list(next.switches), sw];
+  return commit(state, next);
+}
+
+// (sx,sy) のスイッチの対象に (x,y) の壁をトグルする（あれば外し、無ければ足す）。1回＝1手。
+// 足せるのは、空きマス、または open 同士で共有する壁（最大2スイッチ。AND 壁）。
+export function toggleTarget(state, sx, sy, x, y) {
+  const spec = state.spec;
+  const i = findSwitch(spec, sx, sy);
+  if (i < 0) return ng('スイッチが選ばれていない');
+  const sw = spec.switches[i];
+  if (typeof sw.group === 'string') return ng('group のスイッチの対象は group の壁で決まる（段Bで編集）');
+  if (!inGrid(spec, x, y)) return ng('盤外');
+  const here = occupants(spec, x, y);
+  const next = clone(spec);
+  if (here.some((o) => o.kind === 'switches.targets' && o.index === i)) {
+    next.switches[i].targets = list(next.switches[i].targets).filter((t) => !(t.x === x && t.y === y));
+    return commit(state, next);
+  }
+  if (here.some((o) => !SWITCH_KINDS.includes(o.kind) || o.kind === 'switches')) return ng('そのマスには既に要素がある');
+  if (here.length > 0) {
+    const owners = here.map((o) => spec.switches[o.index]);
+    if ((sw.mode ?? 'open') !== 'open' || owners.some((o) => (o.mode ?? 'open') !== 'open')) return ng('壁を共有できるのは open のスイッチ同士だけ');
+    if (owners.length >= 2) return ng('1つの壁につなげるスイッチは最大2つ');
+  }
+  next.switches[i].targets = [...list(next.switches[i].targets), { x, y }];
+  return commit(state, next);
+}
+
+export function setSwitchColor(state, sx, sy, color) {
+  const i = findSwitch(state.spec, sx, sy);
+  if (i < 0) return ng('スイッチが選ばれていない');
+  if (!SWITCH_COLORS.includes(color)) return ng('色は red か blue');
+  const next = clone(state.spec);
+  next.switches[i].color = color;
+  return commit(state, next);
+}
+
+// mode は open か close。併用禁止などでグレーの選択肢（switchModeOptions の disabled）は選べない。open は mode を持たない形（既存の盤と同じ）に戻す。
+export function setSwitchMode(state, sx, sy, mode) {
+  const i = findSwitch(state.spec, sx, sy);
+  if (i < 0) return ng('スイッチが選ばれていない');
+  const opt = switchModeOptions(state.spec, i).find((o) => o.value === mode);
+  if (!opt) return ng('mode は open か close');
+  if (opt.disabled) return ng(opt.reason);
+  const next = clone(state.spec);
+  if (mode === 'open') delete next.switches[i].mode;
+  else next.switches[i].mode = mode;
   return commit(state, next);
 }
 
