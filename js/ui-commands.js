@@ -1,11 +1,70 @@
 // 命令パレット・命令列（キュー）の描画。パレットの操作はタップ、またはドラッグして
 // 命令列へドロップ（末尾に追加。Issue #95）。
+import { chipCount, simulate } from './engine-grid.js';
 
 // 対応端末のみ短く振動する（未対応環境では何もしない。例外を投げない）。
 export function vibrate(ms = 15) {
   if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
     navigator.vibrate(ms);
   }
+}
+
+// ---- 「とめる」の実行モデル（#395 段2。UIのチップは段3）----
+// 「とめる」は命令列の {pause: true} 要素。engineのsimulateには渡さず、UI層で除いた列を使う。
+// 止まり位置は命令単位。止まった後は「とめる」までの前の部分(lockedCount個)を変更不可にし、
+// 先頭部分のsimulate終点（決定論）から後ろだけを続ける。
+
+export const isPause = (entry) => typeof entry === 'object' && entry !== null && entry.pause === true;
+
+// 「とめる」を除いた列と、除いた列の添字→元の添字の対応。
+export function stripPauses(commands) {
+  const cmds = [];
+  const origIndex = [];
+  commands.forEach((entry, i) => {
+    if (isPause(entry)) return;
+    cmds.push(entry);
+    origIndex.push(i);
+  });
+  return { cmds, origIndex };
+}
+
+// from以降で最初の「とめる」の添字。無ければ-1。
+export function nextPauseIndex(commands, from = 0) {
+  for (let i = from; i < commands.length; i += 1) if (isPause(commands[i])) return i;
+  return -1;
+}
+
+// maxCommandsの判定用チップ数。「とめる」は数えない（#395-3A）。
+export function countChips(commands) {
+  return chipCount(stripPauses(commands).cmds);
+}
+
+// 元の添字limit未満の命令が作るpathの手数（stepperのstartIndex／stopIndexに使う）。
+export function stepsBefore(commands, spec, limit) {
+  const { cmds, origIndex } = stripPauses(commands);
+  const { stepOwner } = simulate(cmds, spec);
+  return stepOwner.filter((o) => origIndex[o] < limit).length;
+}
+
+// 次の実行区間の計画。lockedCount=0（最初から）なら先頭から。lockedCount>0なら止まった地点
+// （前のlockedCount個の終点）から後ろ。stopIndex=nullは最後まで、数値は次の「とめる」の手前で止まる。
+export function planRun(commands, spec, lockedCount = 0) {
+  const nextPause = nextPauseIndex(commands, lockedCount);
+  return {
+    nextPause,
+    startIndex: lockedCount > 0 ? stepsBefore(commands, spec, lockedCount) : 0,
+    stopIndex: nextPause < 0 ? null : stepsBefore(commands, spec, nextPause),
+  };
+}
+
+// 止まった間は前の部分(i < lockedCount)を取り消せない。
+export const isLockedIndex = (i, lockedCount) => i < lockedCount;
+
+// 「ぜんぶけす」：後ろ(lockedCount以降)だけを空にする。参照は維持。消した数を返す。
+export function clearUnlocked(commands, lockedCount) {
+  const n = Math.max(0, commands.length - lockedCount);
+  commands.length -= n;
+  return n;
 }
 
 const DRAG_THRESHOLD_PX = 8;
@@ -194,10 +253,12 @@ export function renderOrderArrow(tag = 'li') {
 // 周回の点（.box-rounds・N個）を並べ、済みの周と実行中の周を塗りつぶす（実行中の点だけ強調）。
 // 実行外は点をすべて空で出し、点の数だけで回数が分かる。DOM判定用に箱チップへdata-round
 // （実行中の周。実行外は属性なし）を付ける（Issue #167）。「はこ ×N」ラベル文言は実行中も変えない。
-export function renderCommandQueue(container, { commands, activeIndex, activeInner = -1, activeRound = -1, openIndex = -1, onRemove, removable = true, nextSlot = null }) {
+export function renderCommandQueue(container, { commands, activeIndex, activeInner = -1, activeRound = -1, openIndex = -1, onRemove, removable: removableAll = true, nextSlot = null, lockedCount = 0 }) {
   container.innerHTML = '';
   commands.forEach((entry, i) => {
     const { dir, times } = entry;
+    // 止まった地点より前(lockedCount個)は取り消せない（×なし・タップ無反応。#395 段2）。
+    const removable = removableAll && !isLockedIndex(i, lockedCount);
     if (i > 0) container.appendChild(renderOrderArrow());
     const chip = document.createElement('li');
     // ×バッジはCSS疑似要素(after:content)で描く。実DOMに<span>を増やすと、チップ内テキストを
@@ -208,6 +269,10 @@ export function renderCommandQueue(container, { commands, activeIndex, activeInn
         : ''
     }`;
     chip.dataset.index = String(i);
+    if (!removable && i < lockedCount) {
+      chip.dataset.locked = 'true';
+      chip.classList.add('opacity-50');
+    }
     chip.dataset.order = String(i + 1);
     // 今動いている命令のチップを黄色の強調で示す。じっこうの自動実行・1コマ実行の
     // どちらもactiveIndexをここに渡す経路を通るため、強調スタイルはこの1か所にまとめる（Issue #111）。
