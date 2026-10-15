@@ -99,7 +99,7 @@ export default async function run({ page, check }) {
     if (vp.height === 600) {
       await check(`${label} play: トレイ高さがチップ2行分以上`, () => g.tray.height >= 64 * 2 + 8 - 1);
       const ys = await page.$$eval('.palette-row > [data-command]', (bs) => new Set(bs.map((b) => Math.round(b.getBoundingClientRect().top))).size);
-      await check(`${label} play: パレット4つが1行`, () => ys, 1);
+      await check(`${label} play: パレット4つが2行（上段うえ・下段ひだり/した/みぎ）`, () => ys, 2);
     }
 
     // 命令を積み続けても盤面の大きさが変わらず、トレイ内でスクロールする

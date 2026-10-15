@@ -131,6 +131,8 @@ export function arrowSvg(dir) {
 // ドラッグ中、dropTarget領域への出入りで呼ぶ（ゴースト枠の出し入れ用）。
 export function renderCommandPalette(container, { onAdd, dropTarget, onDragOver }) {
   container.innerHTML = '';
+  // 2行×3列（上段 [空き][うえ][空き]・下段 [ひだり][した][みぎ]）。DOM順は up 先頭のまま、
+  // 配置は tailwind.src.css の .palette-row の grid-area で並べ替える（Issue #395）。
   DIRECTIONS.forEach((dir) => {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -151,6 +153,14 @@ export function renderCommandPalette(container, { onAdd, dropTarget, onDragOver 
       },
     });
     container.appendChild(btn);
+  });
+  // 上段の左右の空きマス（button にしない。将来「とめる」・残り回数が入る）
+  ['left', 'right'].forEach((side) => {
+    const blank = document.createElement('div');
+    blank.className = 'palette-blank';
+    blank.dataset.blank = side;
+    blank.setAttribute('aria-hidden', 'true');
+    container.appendChild(blank);
   });
 }
 
