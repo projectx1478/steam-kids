@@ -403,6 +403,11 @@ dialog.result-row {
   column-gap: 0.5rem;
   row-gap: 0.25rem; /* ボタンの影(4px)と同じ幅。縦を詰めて盤面・トレイの高さを確保する */
 }
+/* 2行ぶんの高さを抑えるため、ボタンの上下余白を詰める（min-height 64px は btn-tactile が保つ） */
+.palette-row > [data-command] {
+  padding-top: 0;
+  padding-bottom: 0;
+}
 .palette-row > [data-command='up'] {
   grid-area: 1 / 2;
 }
@@ -423,6 +428,21 @@ dialog.result-row {
 }
 .palette-row > [data-action='box-open'] {
   grid-column: 1 / -1;
+}
+
+/* パレットが2行になったぶん縦が足りないため、操作パネル内・れんしゅう画面の段間を詰める（ボタンは64px以上のまま） */
+@media (orientation: portrait) {
+  .sk-screen-panel.sk-screen-panel,
+  .tutorial-screen.tutorial-screen,
+  .sk-screen-frame.sk-screen-frame {
+    gap: 0.25rem;
+  }
+  .tutorial-screen.tutorial-screen {
+    padding: 0.25rem;
+  }
+  .sk-screen-panel.sk-screen-panel {
+    padding: 0.5rem;
+  }
 }
 
 /* 操作画面（play・れんしゅう）：横向きは「盤面｜操作パネル」の左右分割、縦向きは従来の縦積み（Issue #156）。 */
