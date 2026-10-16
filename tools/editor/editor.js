@@ -5,7 +5,7 @@ import { SAMPLE_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, cla
 import { GIMMICKS } from '/js/gimmicks/index.js';
 import { markGatePassedToday } from '/js/gate-date.js';
 import { buildPalette, iconSpec } from './palette.js';
-import { createState, setCellPx as setStateCellPx, place, erase, move, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, SWITCH_COLORS, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard, addDraftStep, explainSaveNg } from './editor-state.js';
+import { createState, setCellPx as setStateCellPx, place, erase, move, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, SWITCH_COLORS, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard, addDraftStep, explainSaveNg } from './editor-state.js';
 
 const state = createState(SAMPLE_SPEC, CELL_PX_DEFAULT);
 state.selected = 'wall';
@@ -72,6 +72,8 @@ const zoomEl = document.getElementById('zoom');
 const statusEl = document.getElementById('status');
 const undoEl = document.getElementById('undo');
 const redoEl = document.getElementById('redo');
+const maxPausesEl = document.getElementById('max-pauses');
+const maxPausesOf = (spec) => (Number.isInteger(spec.maxPauses) ? spec.maxPauses : 0);
 
 function render() {
   drawBoard({ boardWrap, spec: state.spec, cellSize: state.cellPx, playerPos: state.spec.start });
@@ -86,6 +88,7 @@ function render() {
   }
   markSwitches();
   renderSettings();
+  maxPausesEl.value = String(maxPausesOf(state.spec));
   undoEl.disabled = !canUndo(state);
   redoEl.disabled = !canRedo(state);
 }
@@ -236,6 +239,12 @@ function apply(result) {
   render();
   if (result.ok) scheduleAnalyze();
 }
+
+// ステージ設定：とめる回数。空欄は0。不正値（負数・小数）は拒否して表示を元に戻す。
+maxPausesEl.addEventListener('change', () => {
+  const raw = maxPausesEl.value.trim();
+  apply(setMaxPauses(state, raw === '' ? 0 : Number(raw)));
+});
 
 function doUndo() { apply(undo(state)); }
 function doRedo() { apply(redo(state)); }
