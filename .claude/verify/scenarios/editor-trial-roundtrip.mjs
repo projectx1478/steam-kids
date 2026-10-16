@@ -32,7 +32,11 @@ export default async function run({ page, check, shot }) {
     await check('帯「ためしあそび中・きろくしない」が出る', () => popup.evaluate(() => document.getElementById('trial-band').textContent), 'ためしあそび中・きろくしない');
     await popup.waitForSelector('.grid-cell');
     await check('popup に盤面（5×5）が出る', () => popup.evaluate(() => document.querySelectorAll('.grid-cell').length), 25);
-    await check('popup では もどる・えらぶ が出ない', () => popup.evaluate(() => ['back-btn', 'home-btn'].every((id) => getComputedStyle(document.getElementById(id)).display === 'none')), true);
+    // ⚙のメニューを開いた状態で、まえ・えらぶ が出ないことを見る（メニューが閉じているだけで通らないよう、パネル自体の表示も確かめる。Issue #467）。
+    await popup.click('[data-action="menu"]');
+    await check('popup のメニューが開く', () => popup.isVisible('#gear-menu'), true);
+    await check('popup のメニューでは まえ・えらぶ が出ない', async () => (await popup.isVisible('#menu-back')) || (await popup.isVisible('#menu-home')), false);
+    await popup.click('#menu-close');
     await check('popup は記録を書かない（steamkids.* に clear 系が無い）', () => popup.evaluate(() => Object.keys(localStorage).filter((k) => /clear|resume|history/i.test(k))), []);
     await shot('editor-trial-popup');
 

@@ -47,7 +47,10 @@ export default async function run({ page, check }) {
   await page.click('[data-action="start"]');
   await check('はじめるは直接play(p1)へ進む（tutorialは「そうさほうほう」から。Issue #236）', async () => page.getAttribute('#stage', 'data-step'), 'play');
   await skipTutorialButton(page);
-  await check('playの区分チップ「うごかす 1/3」（複数ステージ構成。Issue #104）', async () => page.textContent('#step-kind-chip'), 'うごかす 1/3');
+  // play はヘッダを出さず、⚙のメニュー（いまの ばしょ）に区分チップを出す（Issue #467）。
+  await page.click('[data-action="menu"]');
+  await check('playの区分チップ「うごかす 1/3」（複数ステージ構成。Issue #104）', async () => page.textContent('#menu-stage-chip'), 'うごかす 1/3');
+  await page.click('#menu-close');
   await check('よそうは全廃。Issue #104', async () => page.getAttribute('#stage', 'data-step'), 'play');
   // cmd-03-naosuのp1はinitialCommands(3個)がmaxCommands(3)と同数のため、パレットは
   // 最初から満杯でdisabled。チップの取り消しで最初の操作を行う。
@@ -56,7 +59,8 @@ export default async function run({ page, check }) {
   // --- もどる・えらぶ がめんへは確認ダイアログを挟まず即座に遷移する。誤タップの保険は
   // 確認ダイアログではなく命令列の下書き保持で行う（c6-tactile-ui.mjsで検証。Issue #95） ---
   await check('確認ダイアログは存在しない', async () => (await page.$$('.confirm-dialog')).length, 0);
-  await page.click('#back-btn');
+  await page.click('[data-action="menu"]');
+  await page.click('#menu-back');
   // ← もどるはtutorial(fix)を飛ばしてintroへ戻る（Issue #236）。
   await check('確認無しでintroへ戻る', async () => page.getAttribute('#stage', 'data-step'), 'intro');
 
@@ -69,7 +73,9 @@ export default async function run({ page, check }) {
   await check('play(p1)に入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
   await clearStage(page, ['up', 'up', 'left', 'left']);
   await check('play(p2)に入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
-  await check('p2の区分チップ「うごかす 2/3」', async () => page.textContent('#step-kind-chip'), 'うごかす 2/3');
+  await page.click('[data-action="menu"]');
+  await check('p2の区分チップ「うごかす 2/3」', async () => page.textContent('#menu-stage-chip'), 'うごかす 2/3');
+  await page.click('#menu-close');
 
   await page.click('[data-command="left"]'); // start(0,3)からleftは盤外
   await page.click('[data-action="run"]');

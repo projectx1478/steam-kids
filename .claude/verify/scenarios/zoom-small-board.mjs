@@ -33,8 +33,9 @@ export default async function run({ page, check }) {
 
   await check('マスは24px以上', () => page.$eval('.grid-cell', (c) => c.getBoundingClientRect().width >= 24), true);
   await check('すき間4px・余白4pxのまま', () => page.$eval('.grid-board', (b) => `${b.style.gap}/${b.style.padding}`), '4px/4px');
-  await page.click('#gear-btn');
-  await check('拡大の3項目は表示されない（0個）', () => page.$$eval('#menu-zoom button', (bs) => bs.filter((b) => b.offsetParent !== null).length), 0);
+  await page.click('[data-action="menu"]');
+  await check('「がめん」（拡大の入口）は表示されない', () => page.isVisible('#menu-zoom-open'), false);
+  await check('ズームバーも開いていない', () => page.$eval('#zoom-bar', (b) => b.hidden), true);
   await check('保護者リンクは出る', () => page.isVisible('#menu-guardian'), true);
   await check('盤面エリアの touch-action は指定なし・倍率の印もなし', () =>
     page.$eval('[data-sk-screen="board"]', (a) => `${a.style.touchAction}|${a.dataset.zoom}`), '|');

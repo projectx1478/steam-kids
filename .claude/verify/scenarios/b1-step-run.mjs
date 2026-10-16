@@ -23,7 +23,7 @@ export default async function run({ page, check }) {
   );
   await check('ロック中: パレットが全てdisabled', async () => (await page.$$('[data-command]:not([disabled])')).length, 0);
   await check('ロック中: ⌫ けすがdisabled', () => page.$eval('[data-action="remove-last"]', (b) => b.disabled), true);
-  await check('ロック中: ←がdisabled', () => page.$eval('#back-btn', (b) => b.disabled), true);
+  await check('ロック中: メニューの まえ がdisabled', () => page.$eval('#menu-back', (b) => b.disabled), true);
 
   const eventsAfterStart = await page.evaluate(() => JSON.parse(localStorage.getItem('steamkids.events')));
   const stepRunEvent = eventsAfterStart.find((e) => e.type === 'run' && e.payload?.mode === 'step');
@@ -44,7 +44,7 @@ export default async function run({ page, check }) {
   await page.waitForSelector('[data-action="next"]', { timeout: 8000 });
   await check('自動継続後、6マス成功移動で足あとが6個', async () => (await page.$$('.grid-footprint')).length, 6);
   await check('完了後は強調が消える', async () => (await page.$$('.command-chip.ring-4.ring-yellow-400')).length, 0);
-  await check('完了後: ←が押せる', () => page.$eval('#back-btn', (b) => b.disabled), false);
+  await check('完了後: メニューの まえ が押せる', () => page.$eval('#menu-back', (b) => b.disabled), false);
 
   // --- 失敗時のロックも1コマ実行から同じ判定になる（別セッションで検証） ---
   await enterPlay(page, 'cmd-01-susumu');
