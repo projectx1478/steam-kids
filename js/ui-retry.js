@@ -52,3 +52,27 @@ export function showRestartCue(statusBar, { restore }) {
     },
   });
 }
+
+// createRetryChoice({ canResume, onResume, onRestart }): maxPauses>0 のステージで失敗したときの2ボタン
+// （#395 段4）。「とちゅうから」＝止まった地点から（橙・既定）、「さいしょから」＝盤面を最初に戻す
+// （スレート・小さめ）。止まった地点が無いとき(canResume=false)は「とちゅうから」をマスク（押せない）。
+export function createRetryChoice({ canResume, onResume, onRestart }) {
+  const resumeBtn = document.createElement('button');
+  resumeBtn.type = 'button';
+  resumeBtn.dataset.action = 'retry-resume';
+  resumeBtn.textContent = '✋ とちゅうから';
+  resumeBtn.className =
+    'btn-tactile px-1 bg-amber-500 text-white text-base font-bold whitespace-nowrap break-keep disabled:opacity-40 disabled:bg-slate-300';
+  resumeBtn.disabled = !canResume;
+  resumeBtn.addEventListener('click', () => {
+    if (!resumeBtn.disabled) onResume();
+  });
+  const restartBtn = document.createElement('button');
+  restartBtn.type = 'button';
+  restartBtn.dataset.action = 'retry-restart';
+  restartBtn.textContent = '↺ さいしょから';
+  restartBtn.className =
+    'btn-tactile px-1 bg-slate-500 text-white text-sm font-bold whitespace-nowrap break-keep disabled:opacity-40';
+  restartBtn.addEventListener('click', onRestart);
+  return { resumeBtn, restartBtn };
+}

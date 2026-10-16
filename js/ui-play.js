@@ -7,7 +7,7 @@ import { logEvent } from './events.js';
 import { shapeSvg, prefersReducedMotion } from './ui-grid.js';
 import { fitCellSize, drawBoard as drawBoardUi, observeBoard } from './ui-board.js';
 import { createZoom } from './ui-zoom.js';
-import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, vibrate, countChips, planRun, clearUnlocked, isLockedIndex, isPause, setPauseLeft } from './ui-commands.js';
+import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, vibrate, countChips, planRun, clearUnlocked, isLockedIndex, stepsBefore, isPause, setPauseLeft } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
 import { createOpScreen } from './ui-screen.js';
 import { createIdleNudge } from './ui-guide.js';
@@ -28,7 +28,7 @@ import { isTrial, closeTrialTab } from './trial-lesson.js';
 import { paintMiniBoard } from './gimmicks/paint.js';
 import { renderKeyTray, resetKeyTray } from './gimmicks/keys.js';
 import { clearToast } from './ui-toast.js';
-import { setRetryButton, shakeBoard, showRestartCue as showRestartCueUi } from './ui-retry.js';
+import { setRetryButton, createRetryChoice, shakeBoard, showRestartCue as showRestartCueUi } from './ui-retry.js';
 
 // diagnose()の原因ごとの文言（20字以内・否定語なし。Issue #91）。
 const HINT_MESSAGE = {
@@ -635,7 +635,9 @@ export function renderPlay(root, step) {
         setActiveAnimation,
       });
     } else {
-      setRunButtonMode('retry');
+      // 「とめる」のあるステージは「もういちど」の代わりに2ボタン（とちゅうから／さいしょから。#395 段4）。
+      if (maxPauses > 0) showRetryChoice();
+      else setRunButtonMode('retry');
       local.locked = true;
       updateControls();
       const info = diagnose(result, local.commands, spec);
@@ -719,9 +721,13 @@ export function renderPlay(root, step) {
   // beginSegment(): 次の実行区間のstepperを作る。lockedCount=0なら盤面を最初に戻して先頭から、
   // 止まった間(lockedCount>0)は盤面を戻さず、止まった地点から後ろだけを次の「とめる」まで
   // （無ければ最後まで）動かす（#395 段2。「とめる」が無ければ従来どおり先頭から最後まで）。
-  function beginSegment() {
-    const plan = planRun(local.commands, spec, local.lockedCount);
-    if (local.lockedCount === 0) {
+  // replayTo（任意）：失敗後の「とちゅうから」で、先頭からこの「とめる」の添字まで再生し直して止まる。
+  function beginSegment(replayTo = null) {
+    const plan =
+      replayTo === null
+        ? planRun(local.commands, spec, local.lockedCount)
+        : { nextPause: replayTo, startIndex: 0, stopIndex: stepsBefore(local.commands, spec, replayTo) };
+    if (local.lockedCount === 0 || replayTo !== null) {
       drawBoard(spec.start);
       local.runStates = {};
     }
@@ -762,6 +768,7 @@ export function renderPlay(root, step) {
     local.stepper = null;
     setBackDisabled(false);
     local.lockedCount = local.pendingPause + 1;
+    logEvent('pause', { count: local.commands.filter(isPause).length, index: local.pendingPause });
     local.activeIndex = -1;
     local.activeInner = -1;
     local.activeRound = -1;
@@ -782,6 +789,57 @@ export function renderPlay(root, step) {
     updateControls();
   }
   local.restartFromStart = restartFromStart;
+
+  // showRetryChoice(): 失敗時の2ボタン。止まった地点(lockedCount>0)が無ければ「とちゅうから」はマスク。
+  function showRetryChoice() {
+    const { resumeBtn, restartBtn } = createRetryChoice({
+      canResume: local.lockedCount > 0,
+      onResume: resumeFromPause,
+      onRestart: restartAfterFail,
+    });
+    showResultActions([resumeBtn, restartBtn]);
+  }
+
+  // leaveFailState(): 失敗の表示（ロック・トースト・2ボタン）を片付けて通常のボタン行へ戻す。
+  function leaveFailState() {
+    clearToast(statusBar);
+    local.locked = false;
+    local.resultShown = false;
+    showNormalActions();
+  }
+
+  // resumeFromPause(): 失敗後、止まった地点まで盤面を再生し直して止まり、後ろの命令を直せる状態にする（#395-2A）。
+  function resumeFromPause() {
+    if (local.running || local.stepping || local.lockedCount <= 0) return;
+    vibrate();
+    const pauseIndex = local.lockedCount - 1;
+    logEvent('pause_fix', { pauseIndex, commandCount: local.commands.length - local.lockedCount });
+    leaveFailState();
+    local.running = true;
+    local.nudge?.stop();
+    local.runStates = {};
+    updateControls();
+    const stepper = beginSegment(pauseIndex);
+    autoAdvance(stepper, { onDone: () => endSegment(stepper) });
+  }
+
+  // restartAfterFail(): 失敗後、命令を残したまま盤面だけ最初に戻す（#395-8A）。
+  function restartAfterFail() {
+    if (local.running || local.stepping) return;
+    vibrate();
+    logEvent('retry', { mode: 'restart' });
+    playRetryTransition(
+      () => {
+        leaveFailState();
+        restartFromStart();
+      },
+      () => {
+        local.view.popIn();
+        showRestartCue();
+        local.nudge?.poke();
+      }
+    );
+  }
 
   // stepBtn: 1コマずつ実行。タップごとにstepperを1手だけ進める。最初のタップでstepperを
   // 作り、パレット・編集ボタン・←をロックする（じっこうと同じ扱い。Issue #111）。
