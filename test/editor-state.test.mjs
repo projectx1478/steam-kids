@@ -1,7 +1,7 @@
 // #397 段4: 盤面エディタの状態管理（置く・消す・動かす・元に戻す・やり直し、拒否値）。実行: npm run test:unit
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createState, setCellPx, setGrid, place, erase, move, undo, redo, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, COMPLEX_KEYS, HISTORY_MAX } from '../tools/editor/editor-state.js';
+import { createState, setCellPx, setGrid, place, erase, move, undo, redo, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, COMPLEX_KEYS, HISTORY_MAX } from '../tools/editor/editor-state.js';
 import { SAMPLE_SPEC, EDITOR_MAX_SIZE, pendingSwitches, switchModeOptions, switchGroupOptions, pendingGroupSwitches } from '../tools/editor/editor-view.js';
 import { analyzeSpec } from '../tools/editor/validate-worker.mjs';
 
@@ -533,4 +533,31 @@ test('editor-state(toggle): 氷・クッションの上には置けない・動�
   const r = line(bad);
   assert.equal(r.clearable, false);
   assert.ok(r.messages.some((m) => m.includes('氷の上')));
+});
+
+test('editor-state: setMaxPauses は設定・undo/redo でき、0 でキーを消し、負数・小数・非数は拒否する', () => {
+  const s = fresh();
+  assert.equal(s.spec.maxPauses, undefined);
+  assert.equal(setMaxPauses(s, 2).ok, true);
+  assert.equal(s.spec.maxPauses, 2);
+  assert.equal(setMaxPauses(s, 100).ok, true); // 上限なし
+  assert.equal(s.spec.maxPauses, 100);
+  assert.equal(undo(s).ok, true);
+  assert.equal(s.spec.maxPauses, 2);
+  assert.equal(redo(s).ok, true);
+  assert.equal(s.spec.maxPauses, 100);
+  assert.equal(setMaxPauses(s, 0).ok, true);
+  assert.equal('maxPauses' in s.spec, false);
+  assert.equal(undo(s).ok, true);
+  assert.equal(s.spec.maxPauses, 100);
+  const before = snap(s.spec);
+  const cursor = s.cursor;
+  for (const bad of [-1, 1.5, NaN, Infinity, '2', null, undefined]) {
+    assert.equal(setMaxPauses(s, bad).ok, false, String(bad));
+  }
+  assert.deepEqual(s.spec, before);
+  assert.equal(s.cursor, cursor);
+  const z = fresh();
+  assert.equal(setMaxPauses(z, 0).ok, true); // 既に 0 なら履歴を積まない
+  assert.equal(z.cursor, 0);
 });

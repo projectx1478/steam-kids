@@ -90,6 +90,17 @@ export function shouldApplyResult(state, generation) {
   return generation === (state.generation || 0);
 }
 
+// play ステージの maxPauses（「とめる」を使える回数）を設定する。0 以上の整数のみ・上限なし。0 は既定なのでキーごと消す。
+export function setMaxPauses(state, value) {
+  if (!Number.isInteger(value) || value < 0) return ng('とめる回数は0以上の整数のみ');
+  const current = Number.isInteger(state.spec.maxPauses) ? state.spec.maxPauses : 0;
+  if (value === current) return ok();
+  const next = clone(state.spec);
+  if (value === 0) delete next.maxPauses;
+  else next.maxPauses = value;
+  return commit(state, next);
+}
+
 // 盤面サイズを変える。EDITOR_MAX_SIZE 超過・1 未満・非整数、要素が盤外になる場合は拒否。
 export function setGrid(state, cols, rows) {
   if (!Number.isInteger(cols) || !Number.isInteger(rows) || cols < 1 || rows < 1) return ng('盤面サイズは1以上の整数');
