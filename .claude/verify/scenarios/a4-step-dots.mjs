@@ -19,7 +19,11 @@ export default async function run({ page, check }) {
   await page.click('[data-option="B"]');
   await page.waitForSelector('[data-action="next"]', { timeout: 4000 });
   await page.click('[data-action="next"]');
-  await check('playで現在ドットが2番目', async () => currentDotIndex(page), 2);
+  // play は点列をヘッダに出さず、⚙のメニュー（#menu-stage）内に出す（Issue #467）。
+  await page.click('[data-action="menu"]');
+  await check('playで現在ドットが2番目（メニューの「いまの ばしょ」内）', async () => currentDotIndex(page), 2);
+  await check('playの点列はメニュー内に表示される', async () => page.isVisible('#menu-stage .step-dot'), true);
+  await page.click('#menu-close');
 
   const commands = ['up', 'up', 'up', 'right', 'right', 'right'];
   for (const c of commands) await page.click(`[data-command="${c}"]`);

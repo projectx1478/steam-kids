@@ -188,10 +188,11 @@ export function arrowSvg(dir) {
 // onAdd(dir, { via }): viaは'tap'|'drag'。dropTarget(): ドロップ判定に使うDOMRectを返す関数
 // （省略時はドラッグしても追加されない＝タップのみの画面になる）。onDragOver(inside):
 // ドラッグ中、dropTarget領域への出入りで呼ぶ（ゴースト枠の出し入れ用）。
-// maxPauses>0なら上段に「とめる」（タップでonPause()）と残り回数の表示を出す（#395 段3）。
-export function renderCommandPalette(container, { onAdd, dropTarget, onDragOver, maxPauses = 0, onPause }) {
+// maxPauses>0なら上段左に「とめる」（タップでonPause()。✋・とめる・×N を1ボタンに統合）を出す（#395 段3・#467 段B）。
+// onMenu(button) があれば上段右に⚙（せってい）を出す。
+export function renderCommandPalette(container, { onAdd, dropTarget, onDragOver, maxPauses = 0, onPause, onMenu }) {
   container.innerHTML = '';
-  // 2行×3列（上段 [空き][うえ][空き]・下段 [ひだり][した][みぎ]）。DOM順は up 先頭のまま、
+  // 2行×3列（上段 [とめる/空き][うえ][せってい]・下段 [ひだり][した][みぎ]）。DOM順は up 先頭のまま、
   // 配置は tailwind.src.css の .palette-row の grid-area で並べ替える（Issue #395）。
   DIRECTIONS.forEach((dir) => {
     const btn = document.createElement('button');
@@ -215,44 +216,66 @@ export function renderCommandPalette(container, { onAdd, dropTarget, onDragOver,
     container.appendChild(btn);
   });
   if (maxPauses > 0) {
-    // 上段左「とめる」・上段右「✋×N」（表示のみ。button にしない。#395 段3）。有効・残り回数は呼び元が更新する。
+    // 上段左「とめる」（✋・とめる・×N を1ボタンに統合。#467 段B）。有効・残り回数は呼び元が更新する。
     const pauseBtn = document.createElement('button');
     pauseBtn.type = 'button';
     pauseBtn.dataset.action = 'pause';
+    pauseBtn.dataset.pauseCount = String(maxPauses);
+    pauseBtn.dataset.pauseLeft = String(maxPauses);
+    pauseBtn.setAttribute('aria-label', `とめる のこり ${maxPauses}かい`);
     pauseBtn.className =
       'command-btn btn-tactile flex flex-col items-center justify-center gap-1 px-3 py-2 bg-amber-500 text-white disabled:opacity-40';
-    pauseBtn.innerHTML = '<span class="text-2xl leading-none" aria-hidden="true">✋</span><span class="text-sm whitespace-nowrap">とめる</span>';
+    pauseBtn.innerHTML = '<span class="text-2xl leading-none" aria-hidden="true">✋</span><span class="text-sm whitespace-nowrap" aria-hidden="true">とめる</span>';
+    const badge = document.createElement('span');
+    badge.className = 'pause-badge';
+    badge.setAttribute('aria-hidden', 'true');
+    const x = document.createElement('span');
+    x.textContent = '×';
+    const left = document.createElement('b');
+    left.dataset.pauseLeftBadge = '';
+    left.textContent = String(maxPauses);
+    badge.append(x, left);
+    pauseBtn.appendChild(badge);
     pauseBtn.addEventListener('click', () => {
       vibrate();
       onPause?.();
     });
     container.appendChild(pauseBtn);
-    const count = document.createElement('div');
-    count.className = 'palette-count';
-    count.dataset.pauseCount = String(maxPauses);
-    count.setAttribute('role', 'img');
-    count.setAttribute('aria-label', `のこり ${maxPauses}かい`);
-    count.innerHTML = `<span aria-hidden="true">✋</span><span class="palette-count-x" aria-hidden="true">×</span><b data-pause-left aria-hidden="true">${maxPauses}</b>`;
-    container.appendChild(count);
-    return;
-  }
-  // 上段の左右の空きマス（button にしない）
-  ['left', 'right'].forEach((side) => {
+  } else {
+    // 上段左の空きマス（button にしない。右は⚙が使う）
     const blank = document.createElement('div');
     blank.className = 'palette-blank';
-    blank.dataset.blank = side;
+    blank.dataset.blank = 'left';
     blank.setAttribute('aria-hidden', 'true');
     container.appendChild(blank);
-  });
+  }
+  if (onMenu) {
+    // 上段右の⚙（せってい）。実行中・ロック中・指ガイド中も押せる＝呼び元の一括無効化の対象外（#467 段B）。
+    const menuBtn = document.createElement('button');
+    menuBtn.type = 'button';
+    menuBtn.dataset.action = 'menu';
+    menuBtn.setAttribute('aria-label', 'せってい');
+    menuBtn.setAttribute('aria-haspopup', 'true');
+    menuBtn.setAttribute('aria-expanded', 'false');
+    menuBtn.className = 'command-btn btn-tactile flex flex-col items-center justify-center gap-1 px-3 py-2 bg-white text-slate-600';
+    menuBtn.innerHTML =
+      '<svg viewBox="0 0 24 24" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.6 1H21a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.6 1z" /></svg><span class="text-sm whitespace-nowrap">せってい</span>';
+    menuBtn.addEventListener('click', () => {
+      vibrate();
+      onMenu(menuBtn);
+    });
+    container.appendChild(menuBtn);
+  }
 }
 
-// 残り回数の表示（✋×N）を更新する。表示がない（maxPauses=0）画面では何もしない。
+// 残り回数の表示（「とめる」ボタン内の ×N）を更新する。表示がない（maxPauses=0）画面では何もしない。
 export function setPauseLeft(container, left) {
-  const count = container.querySelector('[data-pause-count]');
-  if (!count) return;
-  count.querySelector('[data-pause-left]').textContent = String(left);
-  count.dataset.pauseLeft = String(left);
-  count.setAttribute('aria-label', `のこり ${left}かい`);
+  const btn = container.querySelector('[data-action="pause"]');
+  if (!btn) return;
+  const badge = btn.querySelector('[data-pause-left-badge]');
+  if (badge) badge.textContent = String(left);
+  btn.dataset.pauseLeft = String(left);
+  btn.setAttribute('aria-label', `とめる のこり ${left}かい`);
 }
 
 // 順番数字（①②③）は::beforeで重ねる（実DOMにspanを増やすと、チップ内テキストをspanで

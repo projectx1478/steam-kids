@@ -7,6 +7,7 @@ import { logEvent } from './events.js';
 import { shapeSvg, prefersReducedMotion } from './ui-grid.js';
 import { fitCellSize, drawBoard as drawBoardUi, observeBoard } from './ui-board.js';
 import { createZoom } from './ui-zoom.js';
+import { openMenu } from './ui-menu.js';
 import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, vibrate, countChips, planRun, clearUnlocked, isLockedIndex, stepsBefore, isPause, setPauseLeft } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
 import { createOpScreen } from './ui-screen.js';
@@ -375,7 +376,7 @@ export function renderPlay(root, step) {
 
   function updateControls() {
     const atMax = countChips(local.commands) >= step.maxCommands;
-    paletteEl.querySelectorAll('button').forEach((b) => {
+    paletteEl.querySelectorAll('button:not([data-action="menu"])').forEach((b) => {
       b.disabled = atMax || local.running || local.stepping || local.locked;
     });
     // 「とめる」：残り回数が0なら無効。maxCommandsには数えないので、上限に達していても置ける（#395 段3）。
@@ -399,6 +400,7 @@ export function renderPlay(root, step) {
 
   renderCommandPalette(paletteEl, {
     maxPauses,
+    onMenu: openMenu,
     onPause: () => {
       if (local.running || local.stepping || local.locked || local.boxOpen >= 0) return;
       if (local.commands.filter(isPause).length >= maxPauses) return;
@@ -638,6 +640,7 @@ export function renderPlay(root, step) {
         statusBar,
         controls,
         lockEl: opScreen,
+        keepEl: paletteEl.querySelector('[data-action="menu"]'),
         host: root,
         gapEl: actionsEl,
         view: local.view,
@@ -895,7 +898,7 @@ export function renderPlay(root, step) {
       if (phase === 0) return [];
       if (phase === 1 && isFix) return [...queueEl.querySelectorAll('.command-remove')];
       if (phase === 3) return [runBtn];
-      return [...paletteEl.querySelectorAll('button:not(:disabled)')];
+      return [...paletteEl.querySelectorAll('button:not(:disabled):not([data-action="menu"])')];
     },
   });
   setActiveNudge(local.nudge);

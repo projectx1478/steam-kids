@@ -86,7 +86,20 @@ function headerEls() {
     home: document.getElementById('home-btn'),
     title: document.getElementById('lesson-title'),
     chip: document.getElementById('step-kind-chip'),
+    // 中央パネル（#gear-menu。Issue #467）内の同等の要素。
+    menuStage: document.getElementById('menu-stage'),
+    menuTitle: document.getElementById('menu-stage-title'),
+    menuChip: document.getElementById('menu-stage-chip'),
+    menuDots: document.getElementById('menu-stage-dots'),
+    menuNav: document.getElementById('menu-nav'),
+    menuBack: document.getElementById('menu-back'),
+    menuHome: document.getElementById('menu-home'),
   };
+}
+
+// ヘッダ・点列をメニュー内へ寄せる対象画面（命令パレットのある play〔シーソー除く〕と tutorial。Issue #467）。
+function isCompactStep(step) {
+  return step.kind === 'tutorial' || (step.kind === 'play' && S.lesson.type !== 'predict-slider');
 }
 
 // 区分チップの文言。playが複数ステージ(だんだん難易度を上げる構成)を持つ時は
@@ -103,7 +116,7 @@ function stepChipLabel(step) {
 // ヘッダー（#stageの外）：タイトル・区分チップ・もどる/えらぶ がめんへボタン。
 // renderStepのたびに更新する（Issue #91）。
 function renderHeader() {
-  const { wrap, back, home, title, chip } = headerEls();
+  const { wrap, back, home, title, chip, menuStage, menuTitle, menuChip, menuDots, menuNav, menuBack } = headerEls();
   wrap.style.display = 'flex';
   // home-btnは#lesson-headerの外（ヘッダー右側）にあるため、ここで表示を切り替える
   // （←ともどるを分けて誤タップを防ぐ配置。Issue #95）。
@@ -113,6 +126,14 @@ function renderHeader() {
   // Tailwindの`flex`ユーティリティ(back.classListが持つ)はUA既定の[hidden]より強いため、
   // hidden属性ではなくinline style.displayで確実に隠す。
   back.style.display = S.stepIndex === 0 ? 'none' : '';
+  // 中央パネルの「いまの ばしょ」・まえ・えらぶ（対象画面のみ。ヘッダはまだ残す。ヘッダを隠すのは data-op-compact）。
+  const compact = isCompactStep(currentStep());
+  menuStage.hidden = !compact;
+  menuTitle.textContent = title.textContent;
+  menuChip.textContent = chip.textContent;
+  if (!compact) menuDots.innerHTML = '';
+  menuNav.style.display = compact ? 'flex' : 'none';
+  menuBack.style.display = S.stepIndex === 0 ? 'none' : '';
   if (isTrial()) renderTrialBand(back, home);
 }
 
@@ -120,6 +141,7 @@ function renderHeader() {
 function renderTrialBand(back, home) {
   back.style.display = 'none';
   home.style.display = 'none';
+  headerEls().menuNav.style.display = 'none';
   if (document.getElementById('trial-band')) return;
   const band = document.createElement('div');
   band.id = 'trial-band';
@@ -131,9 +153,11 @@ function renderTrialBand(back, home) {
 // 実行アニメーション中はもどる・えらぶ がめんへを操作させない（playAnimationの開始・終了、
 // および1コマ実行の開始時にui-play.jsから呼ぶ。Issue #111）。
 export function setBackDisabled(disabled) {
-  const { back, home } = headerEls();
+  const { back, home, menuBack, menuHome } = headerEls();
   back.disabled = disabled;
   home.disabled = disabled;
+  menuBack.disabled = disabled;
+  menuHome.disabled = disabled;
 }
 
 // app.jsが単元情報(S.unit)を非同期取得した後、ヘッダーのタイトルだけ再描画するための窓口。
@@ -144,24 +168,31 @@ export function refreshHeader() {
   renderHeader();
 }
 
+// ← まえの がめんへ（ヘッダ・中央パネル共通。Issue #467）。
+function goBack() {
+  if (headerEls().back.disabled || S.stepIndex === 0) return;
+  goToStep(S.stepIndex - 1);
+}
+
+// 🏠 えらぶ がめんへ（ヘッダ・中央パネル共通）。
+function goHome() {
+  if (headerEls().home.disabled) return;
+  if (!hasPlayInProgress()) {
+    location.href = withDev('./index.html?view=map');
+    return;
+  }
+  // playの途中（命令列を組みかけ）で離れると下書きを失うため、ここだけ確認を挟む。
+  // 子どもが読まなくても分かるよう「つづける」を大きく目立たせる（Issue #240）。
+  confirmLeave(() => (location.href = withDev('./index.html?view=map')));
+}
+
 export function initSteps() {
   // もどる・えらぶ がめんへは確認ダイアログを挟まず即座に遷移する。誤タップの保険は
   // 確認ダイアログではなく、playの命令列の下書き保持（S.drafts）で行う（Issue #95）。
-  headerEls().back.addEventListener('click', () => {
-    if (headerEls().back.disabled || S.stepIndex === 0) return;
-    goToStep(S.stepIndex - 1);
-  });
-
-  headerEls().home.addEventListener('click', () => {
-    if (headerEls().home.disabled) return;
-    if (!hasPlayInProgress()) {
-      location.href = withDev('./index.html?view=map');
-      return;
-    }
-    // playの途中（命令列を組みかけ）で離れると下書きを失うため、ここだけ確認を挟む。
-    // 子どもが読まなくても分かるよう「つづける」を大きく目立たせる（Issue #240）。
-    confirmLeave(() => (location.href = withDev('./index.html?view=map')));
-  });
+  headerEls().back.addEventListener('click', goBack);
+  headerEls().home.addEventListener('click', goHome);
+  headerEls().menuBack.addEventListener('click', goBack);
+  headerEls().menuHome.addEventListener('click', goHome);
 
   // 端末の戻る（Android戻る・ブラウザ戻る）も「← もどる」と同じく1ステップ戻す。
   // 各ステップ遷移でhistoryを積み（goToStep）、ここで該当ステップを再描画する（Issue #240）。
@@ -270,6 +301,15 @@ function stepGlyph(step, stageIdx) {
 // クリア済みレッスンではplayステージのノードがボタン化し、goToStepで直接そのステージへ移動できる
 // （よそうはIssue #104で全廃したため対象はplayのみ）。
 function renderStepDots(root) {
+  // 対象画面は #stage に点列を出さない（ヘッダ側の点列は data-op-compact で隠れる。メニュー内のみ）。
+  if (!isCompactStep(currentStep())) root.appendChild(buildStepDots());
+  // 対象画面（play・tutorial）は中央パネルの「いまの ばしょ」にも同じ点列を描く（Issue #467）。
+  const { menuDots } = headerEls();
+  menuDots.innerHTML = '';
+  if (isCompactStep(currentStep())) menuDots.appendChild(buildStepDots());
+}
+
+function buildStepDots() {
   const wrap = document.createElement('div');
   const isIntro = currentStep().kind === 'intro';
   const nodeSizeClass = isIntro ? 'w-12 h-12 text-base' : 'w-8 h-8 text-xs';
@@ -319,7 +359,7 @@ function renderStepDots(root) {
     wrap.appendChild(node);
     drawn += 1;
   });
-  root.appendChild(wrap);
+  return wrap;
 }
 
 // ステップ遷移の横スライド。reduced-motion時は即表示（Issue #57）。
@@ -357,6 +397,10 @@ function renderStep() {
   root.dataset.step = step.kind;
   root.dataset.stepId = step.stepId;
 
+  // 対象画面は data-op-compact を立てる（ヘッダを隠すのは CSS。#467 段B）。
+  const app = document.getElementById('app');
+  if (isCompactStep(step)) app.dataset.opCompact = 'true';
+  else delete app.dataset.opCompact;
   renderHeader();
   renderStepDots(root);
   if (step.kind === 'intro') renderIntro(root, step);

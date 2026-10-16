@@ -122,11 +122,39 @@ export function showResultDialog({ controls, host, observed, primaryBtn, replayB
   };
 }
 
-// disposeClear({ lockEl, gapEl, dialogHandle }): 結果ダイアログ・空き枠を片付け、inert と relative を戻す。
-export function disposeClear({ lockEl, gapEl, dialogHandle }) {
+// lockScreen(lockEl, keepEl) → unlock(): lockEl 配下を inert にする。keepEl（⚙。省略可）だけは押せる（Issue #467）。
+// inert は子孫だけ例外にできないため、lockEl から keepEl までの祖先は inert にせず、各階層の兄弟だけに掛ける。
+// keepEl は結果ダイアログ（z-10）より手前に出す。unlock() で全部戻す。
+function lockScreen(lockEl, keepEl) {
+  if (!keepEl || !lockEl.contains(keepEl)) {
+    lockEl.inert = true;
+    return () => {
+      lockEl.inert = false;
+    };
+  }
+  const locked = [];
+  for (let node = keepEl; node !== lockEl; node = node.parentElement) {
+    for (const sib of node.parentElement.children) {
+      if (sib !== node && !sib.inert) {
+        sib.inert = true;
+        locked.push(sib);
+      }
+    }
+  }
+  keepEl.classList.add('relative', 'z-20');
+  return () => {
+    locked.forEach((el) => {
+      el.inert = false;
+    });
+    keepEl.classList.remove('relative', 'z-20');
+  };
+}
+
+// disposeClear({ unlock, gapEl, dialogHandle }): 結果ダイアログ・空き枠を片付け、inert と relative を戻す。
+export function disposeClear({ unlock, gapEl, dialogHandle }) {
   dialogHandle?.rowEl.remove();
   dialogHandle?.detach();
-  lockEl.inert = false;
+  unlock();
   gapEl?.classList.remove(...GAP_FRAME_CLASSES);
 }
 
@@ -143,7 +171,7 @@ export function showClearToast(slotEl, { view, restore, label, confetti } = {}) 
 
 // showClearSequence({ statusBar, controls, lockEl, host, gapEl, view, restore, label, primary, replay, heading,
 // setActiveAnimation }) → { dispose() }
-//   lockEl: 間の始まりから inert にする操作画面の外枠（1要素）。host: ダイアログを置く外枠の親（root）。
+//   lockEl: 間の始まりから inert にする操作画面の外枠（1要素）。keepEl: 外枠の中で押せるままにする要素（⚙。省略可）。host: ダイアログを置く外枠の親（root）。
 //   primary: { label, action, id }（action＝つぎへ押下時の処理、id＝data-action）。
 //   gapEl: 間のあいだ空き枠にする操作行（省略可）。
 //   dispose(): 間のタイマー・ダイアログ・inert を片付ける（冪等）。ダイアログ表示後も setActiveAnimation に
@@ -152,6 +180,7 @@ export function showClearSequence({
   statusBar,
   controls,
   lockEl,
+  keepEl,
   host,
   gapEl,
   view,
@@ -162,6 +191,7 @@ export function showClearSequence({
   heading,
   setActiveAnimation,
 }) {
+  let unlock = () => {};
   let dialogHandle = null;
   let timer = null;
   let disposed = false;
@@ -169,13 +199,13 @@ export function showClearSequence({
     if (disposed) return;
     disposed = true;
     clearTimeout(timer);
-    disposeClear({ lockEl, gapEl, dialogHandle });
+    disposeClear({ unlock, gapEl, dialogHandle });
   }
   showSuccess(statusBar, { view, restore, confetti: false, ...(label ? { label } : {}) });
   const primaryBtn = createPrimaryButton(primary.label, primary.action, primary.id);
   const replayBtn = createPrimaryButton('もういちど', replay, 'replay');
   const dots = showResultGap({ gapEl });
-  lockEl.inert = true;
+  unlock = lockScreen(lockEl, keepEl);
   timer = setTimeout(() => {
     dots?.remove();
     dialogHandle = showResultDialog({ controls, host, observed: lockEl, primaryBtn, replayBtn, heading });

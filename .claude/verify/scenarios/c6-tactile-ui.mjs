@@ -97,7 +97,8 @@ export default async function run({ page, check }) {
   await check('.confirm-dialogは存在しない', async () => (await page.$$('.confirm-dialog')).length, 0);
   for (const dir of ['up', 'up', 'left']) await page.click(`[data-command="${dir}"]`);
   await check('編集後の命令列は3個', async () => (await page.$$('.command-chip')).length, 3);
-  await page.click('#back-btn');
+  await page.click('[data-action="menu"]');
+  await page.click('#menu-back');
   await check('確認なしで即座にintroへ戻る', async () => page.getAttribute('#stage', 'data-step'), 'intro');
   await page.click('[data-action="start"]');
   await check('play(p1)へ戻ると下書き(3個)が復元される', async () => (await page.$$('.command-chip')).length, 3);
@@ -107,7 +108,9 @@ export default async function run({ page, check }) {
   for (const dir of ['up', 'up', 'left', 'left']) await page.click(`[data-command="${dir}"]`);
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="next-stage"]', { timeout: 8000 });
-  await page.click('#back-btn');
+  // 結果ダイアログ表示中も ⚙ だけは inert から外れる（Issue #467）。⚙ → まえ を実クリックする。
+  await page.click('[data-action="menu"]');
+  await page.click('#menu-back');
   await page.click('[data-action="start"]');
   await check('クリア後は下書きが残らず命令列が空で始まる', async () => (await page.$$('.command-chip')).length, 0);
 
