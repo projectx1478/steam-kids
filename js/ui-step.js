@@ -5,7 +5,7 @@ import { logEvent } from './events.js';
 import { simulate } from './engine-grid.js';
 import { GIMMICKS } from './gimmicks/index.js';
 import { prefersReducedMotion } from './ui-grid.js';
-import { vibrate } from './ui-commands.js';
+import { vibrate, stripPauses } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
 import { renderInto } from './text-render.js';
 import { renderGoalDemo } from './ui-demo.js';
@@ -20,6 +20,7 @@ import { codeToSeed } from './seed-code.js';
 import { isLessonCleared } from './ui-picker.js';
 import { clearedGimmicks, isIntroKnown } from './gimmick-unlock.js';
 import { withDev } from './dev-mode.js';
+import { isTrial } from './trial-lesson.js';
 import { readResume, writeResume, clearResume } from './storage.js';
 
 const STEP_DELAY_MS = 600;
@@ -112,6 +113,19 @@ function renderHeader() {
   // Tailwindの`flex`ユーティリティ(back.classListが持つ)はUA既定の[hidden]より強いため、
   // hidden属性ではなくinline style.displayで確実に隠す。
   back.style.display = S.stepIndex === 0 ? 'none' : '';
+  if (isTrial()) renderTrialBand(back, home);
+}
+
+// ためしあそび（Issue #403）：もどる・えらぶ を隠し、画面上部に帯を常時出す（開発者の取り違え防止）。
+function renderTrialBand(back, home) {
+  back.style.display = 'none';
+  home.style.display = 'none';
+  if (document.getElementById('trial-band')) return;
+  const band = document.createElement('div');
+  band.id = 'trial-band';
+  band.className = 'w-full bg-amber-200 text-amber-900 text-xs font-bold text-center py-1';
+  band.textContent = 'ためしあそび中・きろくしない';
+  document.body.insertBefore(band, document.body.firstChild);
 }
 
 // 実行アニメーション中はもどる・えらぶ がめんへを操作させない（playAnimationの開始・終了、
@@ -383,23 +397,35 @@ function dirAt(commands, idx, inner) {
 // 周回の点表示用。Issue #167）。
 // autoAdvance（じっこう）・ui-play.jsの「1コマ」ボタン（タップごとにadvance()を呼ぶ）の
 // 両方から共通で使う（Issue #111）。
-export function createStepper(commands, spec, view, { onTick, onPickup }) {
-  const result = simulate(commands, spec);
-  // ギミックのonStep（開閉などUI更新）用の、実行1回ごとの作業領域（Issue #62）。
-  const runStates = {};
-  let i = 0;
-  let finished = false;
+// 「とめる」（#395 段2）：commandsに{pause:true}が混じっていても、simulateには除いた列を渡す。
+// startIndex＝続きの開始手（pathの添字。止まった地点の終点から続ける）、stopIndex＝この手の手前で止まる
+// （次の「とめる」の位置。null＝最後まで）、runStates＝止まる前から引き継ぐギミックの作業領域。
+// 返すresultのstepOwner・blockedAtは元のcommandsの添字に直す（「とめる」が無ければ従来と同一）。
+export function createStepper(commands, spec, view, { onTick, onPickup, startIndex = 0, stopIndex = null, runStates = {} }) {
+  const { cmds, origIndex } = stripPauses(commands);
+  const raw = simulate(cmds, spec);
+  const result =
+    cmds.length === commands.length
+      ? raw
+      : { ...raw, stepOwner: raw.stepOwner.map((o) => origIndex[o]), blockedAt: raw.blockedAt.map((o) => origIndex[o]) };
+  const total = raw.path.length - 1;
+  let i = startIndex;
+  let finished = i >= total;
+  // stopIndexの手前まで進んだら一時停止（失敗・最後まで進んだ場合は終了を優先）。
+  let paused = !finished && stopIndex !== null && i >= stopIndex;
   return {
     result,
+    runStates,
     isDone: () => finished,
+    isPaused: () => paused,
     advance() {
-      if (finished) return;
+      if (finished || paused) return;
       const from = result.path[i];
       const to = result.path[i + 1];
       const bumped = result.bumped[i];
       const cushioned = !bumped && from.x === to.x && from.y === to.y;
       // 水で止まったか：手前で止まった手（cushioned）の進行方向の先が盤の water か。engineの戻り値は増やさない。
-      const dir = dirAt(commands, result.stepOwner[i], result.innerOwner[i]);
+      const dir = dirAt(cmds, raw.stepOwner[i], raw.innerOwner[i]);
       const [ddx, ddy] = WATER_DELTA[dir] ?? [0, 0];
       const watered = cushioned && (spec.water ?? []).some((c) => c.x === from.x + ddx && c.y === from.y + ddy);
       playSfx(bumped ? 'bump' : watered ? 'splash' : cushioned ? 'cushion' : result.slid[i] ? 'slide' : 'step', { index: i });
@@ -434,6 +460,7 @@ export function createStepper(commands, spec, view, { onTick, onPickup }) {
         finished = true;
       } else {
         i += 1;
+        if (stopIndex !== null && i >= stopIndex) paused = true;
       }
     },
   };
@@ -453,7 +480,7 @@ export function autoAdvance(stepper, { onDone }, { lockHeader = true } = {}) {
   const tick = () => {
     if (cancelled) return;
     stepper.advance();
-    if (stepper.isDone()) {
+    if (stepper.isDone() || stepper.isPaused()) {
       timer = setTimeout(() => {
         timer = null;
         if (cancelled) return;

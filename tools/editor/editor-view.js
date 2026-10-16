@@ -1,7 +1,7 @@
 // 盤面エディタの表示まわりの定数と純粋な関数（DOM 非依存。test/editor-view.test.mjs で検査）。
 // 開発者用・手元専用。子ども向け画面（APP_SHELL）には載せない。
 
-export const EDITOR_MAX_SIZE = 6; // 盤面サイズ上限（#389 後に 20）
+export const EDITOR_MAX_SIZE = 20; // 盤面サイズ上限（レッスンJSON の上限検査 1〜20 と同じ。#389）
 
 // cellPx（1マスの px）。renderGrid は cellSize を検査せずそのまま使うので、範囲はエディタ側で決める。
 export const CELL_PX_MIN = 8; // js/ui-grid.js の MIN_CELL と同じ
@@ -72,3 +72,118 @@ export const SAMPLE_SPEC = {
   bridge: [{ x: 2, y: 4 }],
   waterMode: 'bump',
 };
+
+// ---- スイッチの設定欄（#404 段A）。spec は盤面 JSON。index は spec.switches の番号。----
+const swList = (spec) => (Array.isArray(spec.switches) ? spec.switches : []);
+const modeOf = (s) => s.mode ?? 'open';
+
+// targets が空で group も無いスイッチ（接続待ち）。[{ index, x, y }]。保存は止める側（E4）が使う。
+export function pendingSwitches(spec) {
+  return swList(spec).map((s, index) => ({ s, index })).filter(({ s }) => typeof s.group !== 'string' && !(Array.isArray(s.targets) && s.targets.length > 0)).map(({ s, index }) => ({ index, x: s.x, y: s.y }));
+}
+
+// mode のラジオ選択肢 [{ value, label, disabled, reason }]。disabled はグレーにして選ばせない（正本は validate の併用禁止）。
+// close は open と併用できず、他のスイッチと対象を共有できない。toggle は他の mode と併用できず、氷・クッションの上・group のスイッチには使えない（段C）。
+export function switchModeOptions(spec, index) {
+  const list = swList(spec);
+  const me = list[index];
+  const others = list.filter((_, i) => i !== index);
+  const options = [
+    { value: 'open', label: 'open（踏むと壁が消える）', disabled: false, reason: '' },
+    { value: 'close', label: 'close（踏むと壁が出る）', disabled: false, reason: '' },
+    { value: 'toggle', label: 'toggle（踏むたびに壁が入れ替わる）', disabled: false, reason: '' },
+  ];
+  if (!me) return options.map((o) => ({ ...o, disabled: true, reason: 'スイッチが無い' }));
+  const set = (value, reason) => { const o = options.find((x) => x.value === value); o.disabled = true; o.reason = reason; };
+  // toggle：他に open・close のスイッチがあるとき、氷・クッションの上、group 付き、対象を他と共有しているときは選べない
+  if (others.some((o) => modeOf(o) !== 'toggle')) set('toggle', 'toggle は他の mode（open・close）と併用できない');
+  else if (spec.ice && spec.ice.some((c) => c.x === me.x && c.y === me.y)) set('toggle', 'toggle は氷の上に置けない');
+  else if (spec.cushion && spec.cushion.some((c) => c.x === me.x && c.y === me.y)) set('toggle', 'toggle はクッションの上に置けない');
+  else if (typeof me.group === 'string') set('toggle', 'group は toggle と併用できない（先に group を外す）');
+  const mine = Array.isArray(me.targets) ? me.targets : [];
+  const shared = others.some((o) => (Array.isArray(o.targets) ? o.targets : []).some((u) => mine.some((t) => t.x === u.x && t.y === u.y)));
+  if (!options.find((x) => x.value === 'toggle').disabled && shared) set('toggle', 'toggle は他のスイッチと対象を共有できない');
+  if (others.some((o) => modeOf(o) === 'toggle')) {
+    set('open', 'toggle は他の mode と併用できない');
+    set('close', 'toggle は他の mode と併用できない');
+    return options;
+  }
+  if (typeof me.group === 'string') set('close', 'group は open だけで使える（close と併用できない）');
+  if (others.some((o) => modeOf(o) === 'close')) set('open', 'close は open と併用できない');
+  if (others.some((o) => modeOf(o) === 'open')) set('close', 'close は open と併用できない');
+  if (shared) set('close', 'close は他のスイッチと対象を共有できない（AND不可）');
+  return options;
+}
+
+// ---- スイッチの group（#404 段B）。同じ group がスイッチと壁（groupWalls）を対応づける。----
+export const GROUP_CHOICES = ['a', 'b', 'c', 'd']; // 選べる名前（盤にこれ以外の名前があれば、その名前も並ぶ）
+
+// group が付いているのに壁（groupWalls）が1つも無いスイッチ（接続待ち）。[{ index, x, y }]。
+export function pendingGroupSwitches(spec) {
+  const walls = Array.isArray(spec.groupWalls) ? spec.groupWalls : [];
+  return swList(spec).map((s, index) => ({ s, index })).filter(({ s }) => typeof s.group === 'string' && !walls.some((w) => w && w.group === s.group)).map(({ s, index }) => ({ index, x: s.x, y: s.y }));
+}
+
+// group のラジオ選択肢 [{ value, label, disabled, reason }]。value '' は「なし」。disabled はグレーで選べない（正本は validate）。
+// close・toggle のスイッチと、targets のあるスイッチは group を付けられない。同じ group を付けられるスイッチは1つだけ。
+export function switchGroupOptions(spec, index) {
+  const list = swList(spec);
+  const me = list[index];
+  const used = new Set(list.filter((_, i) => i !== index).map((o) => o.group).filter((g) => typeof g === 'string'));
+  const names = [...GROUP_CHOICES];
+  if (me && typeof me.group === 'string' && !names.includes(me.group)) names.push(me.group);
+  const options = [{ value: '', label: 'なし（壁を1つずつつなぐ）', disabled: false, reason: '' }, ...names.map((g) => ({ value: g, label: `group「${g}」`, disabled: false, reason: '' }))];
+  if (!me) return options.map((o) => ({ ...o, disabled: true, reason: 'スイッチが無い' }));
+  const mine = typeof me.group === 'string' ? me.group : '';
+  for (const o of options) {
+    if (o.value === '' || o.value === mine) continue;
+    if (modeOf(me) !== 'open') { o.disabled = true; o.reason = 'group は open だけで使える（close・toggle と併用できない）'; }
+    else if (Array.isArray(me.targets) && me.targets.length > 0) { o.disabled = true; o.reason = 'group と targets は併用できない（先に壁の接続を外す）'; }
+    else if (used.has(o.value)) { o.disabled = true; o.reason = 'この group は他のスイッチが使っている（1つだけ）'; }
+  }
+  return options;
+}
+
+// ---- たたき台の生成（#401 段2）。範囲は POST /api/generate（tools/lib/validate/stagegen.mjs の checkStageGen）と同じ ----
+export const GEN_COUNT = 4; // 1回に出す候補の数（2×2）。「もう4枚」は seed をこの数だけ進める
+export const GEN_LIMITS = { grid: [3, 20], walls: [0, 60], shortestPath: [2, 60], minTurns: [0, 8], items: [1, 4], ice: [1, 4], keys: [1, 2] };
+export const GEN_GIMMICKS = [['items', 'どんぐり'], ['ice', 'こおり'], ['keys', 'かぎ']];
+const isInteger = (v) => Number.isInteger(v);
+
+// フォームの値 { cols:{min,max}, rows, walls, shortestPath, minTurns, seed, teach, gimmicks:{items:{on,min,max},ice,keys} } を送る前に検査する。
+// 問題の文字列の配列（空なら送れる）。
+export function checkGenerateForm(form) {
+  const out = [];
+  const range = (label, v, [lo, hi]) => {
+    if (!v || !isInteger(v.min) || !isInteger(v.max) || v.min < lo || v.max > hi || v.min > v.max) out.push(`${label} は ${lo}〜${hi} の整数で 最小≦最大 にしてください`);
+  };
+  range('よこ', form.cols, GEN_LIMITS.grid);
+  range('たて', form.rows, GEN_LIMITS.grid);
+  range('かべ', form.walls, GEN_LIMITS.walls);
+  range('最短手数', form.shortestPath, GEN_LIMITS.shortestPath);
+  if (!isInteger(form.minTurns) || form.minTurns < GEN_LIMITS.minTurns[0] || form.minTurns > GEN_LIMITS.minTurns[1]) out.push(`曲がる回数の下限 は ${GEN_LIMITS.minTurns[0]}〜${GEN_LIMITS.minTurns[1]} の整数にしてください`);
+  if (!isInteger(form.seed) || form.seed < 0) out.push('シード は 0 以上の整数にしてください');
+  const on = GEN_GIMMICKS.filter(([k]) => form.gimmicks && form.gimmicks[k] && form.gimmicks[k].on);
+  for (const [k, label] of on) range(label, form.gimmicks[k], GEN_LIMITS[k]);
+  if (on.length > 0 && !on.some(([k]) => k === form.teach)) out.push('おしえる物 は 使うギミックから選んでください');
+  return out;
+}
+
+// 検査を通ったフォームから POST /api/generate の本文を作る。ギミックなしなら gimmicks・teach は付けない。
+export function buildGenerateBody(form, seed) {
+  const on = GEN_GIMMICKS.filter(([k]) => form.gimmicks[k] && form.gimmicks[k].on).map(([k]) => k);
+  const stageGen = { grid: { cols: { ...form.cols }, rows: { ...form.rows } }, walls: { ...form.walls }, shortestPath: { ...form.shortestPath }, minTurns: form.minTurns };
+  if (on.length > 0) {
+    stageGen.gimmicks = Object.fromEntries(on.map((k) => [k, { min: form.gimmicks[k].min, max: form.gimmicks[k].max }]));
+    stageGen.teach = form.teach;
+  }
+  return { stageGen, count: GEN_COUNT, seed };
+}
+
+// 生成の状態の文言。'running'（生成中）／'empty'（0件）／'aborted'（探索量の上限で未完了）。それ以外は空。
+export function generateStatusText(status) {
+  if (status === 'running') return 'つくっています…';
+  if (status === 'empty') return '条件に合う盤が出なかった。範囲を広げる';
+  if (status === 'aborted') return '重すぎて途中で止めた。大きさかギミックを減らす';
+  return '';
+}

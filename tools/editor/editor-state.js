@@ -2,14 +2,17 @@
 // 開発者用・手元専用。子ども向け画面（APP_SHELL）には載せない。
 // 状態 { spec, history: spec[], cursor, cellPx }。spec は既存の盤面 JSON 全体を形を変えずに持つ。
 // 元に戻すはスナップショット方式。各関数は state を直接更新し、{ ok: true } か { ok: false, reason } を返す（拒否時は state を変えない）。
-import { EDITOR_MAX_SIZE, CELL_PX_MIN, CELL_PX_MAX, CELL_PX_DEFAULT } from './editor-view.js';
+import { EDITOR_MAX_SIZE, CELL_PX_MIN, CELL_PX_MAX, CELL_PX_DEFAULT, switchModeOptions, switchGroupOptions } from './editor-view.js';
 
 export const HISTORY_MAX = 100; // 超えたら先頭（古いもの）から捨てる
 
 // 1マスの単純な要素（盤面 JSON 側の配列名）。置く・消す・動かすができる。
 export const SIMPLE_LISTS = ['walls', 'items', 'ice', 'cushion', 'water'];
-// 組・周期・方向などの設定が要る要素。段4では置けない（#404 E6）。
-export const COMPLEX_KEYS = ['keys', 'switches', 'paint', 'periodic'];
+// 組・周期・方向などの設定が要る要素。まだ置けない（#404 E6）。switches は #404 段A で外した（open/close のみ。group・toggle は段B・C）。
+export const COMPLEX_KEYS = ['keys', 'paint', 'periodic'];
+export const SWITCH_COLORS = ['red', 'blue'];
+const SWITCH_KINDS = ['switches', 'switches.targets'];
+const GROUP_WALLS = 'groupWalls'; // 色連動の壁 [{ x, y, group }]（#404 段B）
 const SINGLE = ['start', 'goal'];
 
 const clone = (v) => JSON.parse(JSON.stringify(v));
@@ -87,6 +90,17 @@ export function shouldApplyResult(state, generation) {
   return generation === (state.generation || 0);
 }
 
+// play ステージの maxPauses（「とめる」を使える回数）を設定する。0 以上の整数のみ・上限なし。0 は既定なのでキーごと消す。
+export function setMaxPauses(state, value) {
+  if (!Number.isInteger(value) || value < 0) return ng('とめる回数は0以上の整数のみ');
+  const current = Number.isInteger(state.spec.maxPauses) ? state.spec.maxPauses : 0;
+  if (value === current) return ok();
+  const next = clone(state.spec);
+  if (value === 0) delete next.maxPauses;
+  else next.maxPauses = value;
+  return commit(state, next);
+}
+
 // 盤面サイズを変える。EDITOR_MAX_SIZE 超過・1 未満・非整数、要素が盤外になる場合は拒否。
 export function setGrid(state, cols, rows) {
   if (!Number.isInteger(cols) || !Number.isInteger(rows) || cols < 1 || rows < 1) return ng('盤面サイズは1以上の整数');
@@ -103,11 +117,14 @@ export function setGrid(state, cols, rows) {
 
 // key（palette の key）の要素を (x,y) に置く。同じマスに何かあれば拒否（同じ要素の重なり禁止。他の要素との重なりも盤面 JSON の規則に反するため拒否）。
 // start・goal は各1個なので、置くと今の位置から移る。
-export function place(state, key, x, y) {
+// groupWalls だけは第5引数 group（その group のスイッチが要る）。
+export function place(state, key, x, y, group) {
   const spec = state.spec;
+  if (key === 'switches') return placeSwitch(state, x, y);
+  if (key === GROUP_WALLS) return placeGroupWall(state, group, x, y);
   const isSimple = key === 'wall' || SIMPLE_LISTS.includes(key);
   if (!isSimple && !SINGLE.includes(key)) {
-    return ng(COMPLEX_KEYS.includes(key) ? `${key} は組・設定が要るため段4では置けない（#404）` : `${key} は置けない`);
+    return ng(COMPLEX_KEYS.includes(key) ? `${key} は組・設定が要るためまだ置けない（#404）` : `${key} は置けない`);
   }
   if (!inGrid(spec, x, y)) return ng('盤外');
   if (occupants(spec, x, y).length) return ng('そのマスには既に要素がある');
@@ -128,8 +145,25 @@ export function erase(state, x, y) {
   const here = occupants(spec, x, y);
   if (here.length === 0) return ng('消す物が無い');
   if (here.some((o) => SINGLE.includes(o.kind))) return ng('スタート・ゴールは消せない（各1個）');
-  if (here.some((o) => !SIMPLE_LISTS.includes(o.kind))) return ng('組・設定のある要素は段4では消せない（#404）');
+  if (here.some((o) => !SIMPLE_LISTS.includes(o.kind) && !SWITCH_KINDS.includes(o.kind) && o.kind !== GROUP_WALLS)) return ng('組・設定のある要素はまだ消せない（#404）');
   const next = clone(spec);
+  if (here.some((o) => o.kind === 'switches')) {
+    // スイッチ本体を消す（同じマスの氷は残す）。対象の壁は他に持ち主がいなければ床に戻る。
+    const gone = list(next.switches).find((c) => c.x === x && c.y === y);
+    next.switches = list(next.switches).filter((c) => !(c.x === x && c.y === y));
+    if (next.switches.length === 0) delete next.switches;
+    if (gone && typeof gone.group === 'string') dropGroupWalls(next, gone.group); // group の壁は持ち主がいなくなるので床に戻る
+    return commit(state, next);
+  }
+  if (here.every((o) => o.kind === GROUP_WALLS)) {
+    next.groupWalls = list(next.groupWalls).filter((w) => !(w.x === x && w.y === y));
+    if (next.groupWalls.length === 0) delete next.groupWalls;
+    return commit(state, next);
+  }
+  if (here.every((o) => o.kind === 'switches.targets')) {
+    for (const sw of list(next.switches)) sw.targets = list(sw.targets).filter((t) => !(t.x === x && t.y === y));
+    return commit(state, next);
+  }
   for (const name of SIMPLE_LISTS) {
     const kept = list(next[name]).filter((c) => !(c.x === x && c.y === y));
     if (kept.length === list(next[name]).length) continue;
@@ -149,13 +183,170 @@ export function move(state, fromX, fromY, toX, toY) {
   if (!inGrid(spec, fromX, fromY) || !inGrid(spec, toX, toY)) return ng('盤外');
   const here = occupants(spec, fromX, fromY);
   if (here.length === 0) return ng('動かす物が無い');
-  if (here.length > 1 || !(SINGLE.includes(here[0].kind) || SIMPLE_LISTS.includes(here[0].kind))) return ng('組・設定のある要素は段4では動かせない（#404）');
+  const swHere = here.find((o) => o.kind === 'switches');
+  if (swHere) {
+    // スイッチ本体（氷の上にいてもよい）。移動先は placeSwitch と同じ規則。
+    if (!switchCellFree(spec, toX, toY, spec.switches[swHere.index].mode === 'toggle')) return ng('移動先に要素がある');
+    const moved = clone(spec);
+    moved.switches[swHere.index].x = toX;
+    moved.switches[swHere.index].y = toY;
+    return commit(state, moved);
+  }
+  if (here.every((o) => o.kind === GROUP_WALLS)) {
+    if (occupants(spec, toX, toY).length) return ng('移動先に要素がある');
+    const moved = clone(spec);
+    for (const w of list(moved.groupWalls)) if (w.x === fromX && w.y === fromY) { w.x = toX; w.y = toY; }
+    return commit(state, moved);
+  }
+  if (here.every((o) => o.kind === 'switches.targets')) {
+    // 対象の壁（共有していれば持ち主全員の分）。
+    if (occupants(spec, toX, toY).length) return ng('移動先に要素がある');
+    const moved = clone(spec);
+    for (const sw of list(moved.switches)) for (const t of list(sw.targets)) if (t.x === fromX && t.y === fromY) { t.x = toX; t.y = toY; }
+    return commit(state, moved);
+  }
+  if (here.length > 1 || !(SINGLE.includes(here[0].kind) || SIMPLE_LISTS.includes(here[0].kind))) return ng('組・設定のある要素はまだ動かせない（#404）');
   if (occupants(spec, toX, toY).length) return ng('移動先に要素がある');
   const next = clone(spec);
   const o = here[0];
   const target = SINGLE.includes(o.kind) ? next[o.kind] : next[o.kind][o.index];
   target.x = toX;
   target.y = toY;
+  return commit(state, next);
+}
+
+// ---- スイッチ（open・close。#404 段A）。選ぶスイッチは座標 (sx,sy) で指す（元に戻す・やり直しでも番号がずれない）。----
+const findSwitch = (spec, sx, sy) => list(spec.switches).findIndex((c) => c.x === sx && c.y === sy);
+
+// スイッチ本体を置けるマスか。氷の上は可（toggle のときだけ不可）。それ以外の要素があれば不可。
+function switchCellFree(spec, x, y, toggle) {
+  if (!inGrid(spec, x, y)) return false;
+  return occupants(spec, x, y).every((o) => o.kind === 'ice' && !toggle);
+}
+
+// スイッチを (x,y) に置く。targets は空（接続待ち）。色は青、mode は先にあるスイッチと同じ（併用禁止に当たらないように）。
+function placeSwitch(state, x, y) {
+  const spec = state.spec;
+  if (!inGrid(spec, x, y)) return ng('盤外');
+  const mode = list(spec.switches)[0] && list(spec.switches)[0].mode;
+  if (!switchCellFree(spec, x, y, mode === 'toggle')) return ng('そのマスには既に要素がある');
+  const next = clone(spec);
+  const sw = { x, y, color: 'blue', targets: [] };
+  if (mode !== undefined && mode !== 'open') sw.mode = mode;
+  next.switches = [...list(next.switches), sw];
+  return commit(state, next);
+}
+
+// (sx,sy) のスイッチの対象に (x,y) の壁をトグルする（あれば外し、無ければ足す）。1回＝1手。
+// 足せるのは、空きマス、または open 同士で共有する壁（最大2スイッチ。AND 壁）。
+export function toggleTarget(state, sx, sy, x, y) {
+  const spec = state.spec;
+  const i = findSwitch(spec, sx, sy);
+  if (i < 0) return ng('スイッチが選ばれていない');
+  const sw = spec.switches[i];
+  if (!inGrid(spec, x, y)) return ng('盤外');
+  const here = occupants(spec, x, y);
+  const next = clone(spec);
+  if (typeof sw.group === 'string') {
+    // group のスイッチ：対象は同じ group の groupWalls で決まる。あれば外し、無ければ足す。
+    if (here.some((o) => o.kind === GROUP_WALLS && spec.groupWalls[o.index].group === sw.group)) {
+      next.groupWalls = list(next.groupWalls).filter((w) => !(w.x === x && w.y === y));
+      if (next.groupWalls.length === 0) delete next.groupWalls;
+      return commit(state, next);
+    }
+    return placeGroupWall(state, sw.group, x, y);
+  }
+  if (here.some((o) => o.kind === 'switches.targets' && o.index === i)) {
+    next.switches[i].targets = list(next.switches[i].targets).filter((t) => !(t.x === x && t.y === y));
+    return commit(state, next);
+  }
+  if (here.some((o) => !SWITCH_KINDS.includes(o.kind) || o.kind === 'switches')) return ng('そのマスには既に要素がある');
+  if (here.length > 0) {
+    const owners = here.map((o) => spec.switches[o.index]);
+    if ((sw.mode ?? 'open') !== 'open' || owners.some((o) => (o.mode ?? 'open') !== 'open')) return ng('壁を共有できるのは open のスイッチ同士だけ');
+    if (owners.length >= 2) return ng('1つの壁につなげるスイッチは最大2つ');
+  }
+  next.switches[i].targets = [...list(next.switches[i].targets), { x, y }];
+  return commit(state, next);
+}
+
+// group の壁を (x,y) に置く。その group のスイッチが要る。空きマスのみ（validate: 壁・他のギミック・スイッチ・その対象・他の groupWalls と重ならない）。
+function placeGroupWall(state, group, x, y) {
+  const spec = state.spec;
+  if (typeof group !== 'string' || !list(spec.switches).some((c) => c.group === group)) return ng('その group のスイッチが無い');
+  if (!inGrid(spec, x, y)) return ng('盤外');
+  if (occupants(spec, x, y).length) return ng('そのマスには既に要素がある');
+  const next = clone(spec);
+  next.groupWalls = [...list(next.groupWalls), { x, y, group }];
+  return commit(state, next);
+}
+
+function dropGroupWalls(spec, group) {
+  spec.groupWalls = list(spec.groupWalls).filter((w) => w.group !== group);
+  if (spec.groupWalls.length === 0) delete spec.groupWalls;
+}
+
+// group を選ぶ（'' か null は「なし」）。グレーの選択肢（switchGroupOptions の disabled）は選べない＝close・toggle と targets のある間は併用不可、同じ group は1スイッチだけ。
+// 「なし」に戻すと、その group の壁は床に戻り、スイッチは接続待ち（targets 空）になる。別の group へ変えると壁も付いていく。
+export function setSwitchGroup(state, sx, sy, group) {
+  const i = findSwitch(state.spec, sx, sy);
+  if (i < 0) return ng('スイッチが選ばれていない');
+  const name = group === null || group === undefined ? '' : group;
+  const opt = switchGroupOptions(state.spec, i).find((o) => o.value === name);
+  if (!opt) return ng('その group は選べない');
+  if (opt.disabled) return ng(opt.reason);
+  const next = clone(state.spec);
+  const sw = next.switches[i];
+  const old = typeof sw.group === 'string' ? sw.group : '';
+  if (old === name) return ok();
+  if (name === '') {
+    delete sw.group;
+    sw.targets = [];
+    dropGroupWalls(next, old);
+  } else {
+    sw.group = name;
+    delete sw.targets;
+    if (sw.color === undefined) sw.color = 'blue';
+    if (old) for (const w of list(next.groupWalls)) if (w.group === old) w.group = name;
+  }
+  return commit(state, next);
+}
+
+export function setSwitchColor(state, sx, sy, color) {
+  const i = findSwitch(state.spec, sx, sy);
+  if (i < 0) return ng('スイッチが選ばれていない');
+  if (!SWITCH_COLORS.includes(color)) return ng('色は red か blue');
+  const next = clone(state.spec);
+  next.switches[i].color = color;
+  return commit(state, next);
+}
+
+// mode は open か close。併用禁止などでグレーの選択肢（switchModeOptions の disabled）は選べない。open は mode を持たない形（既存の盤と同じ）に戻す。
+export function setSwitchMode(state, sx, sy, mode) {
+  const i = findSwitch(state.spec, sx, sy);
+  if (i < 0) return ng('スイッチが選ばれていない');
+  const opt = switchModeOptions(state.spec, i).find((o) => o.value === mode);
+  if (!opt) return ng('mode は open・close・toggle');
+  if (opt.disabled) return ng(opt.reason);
+  const next = clone(state.spec);
+  if (mode === 'open') delete next.switches[i].mode;
+  else next.switches[i].mode = mode;
+  // initial は toggle の対象だけで有効（validate）。toggle を外すと消す。
+  if (mode !== 'toggle') for (const t of list(next.switches[i].targets)) delete t.initial;
+  return commit(state, next);
+}
+
+// toggle のスイッチの対象 (tx,ty) の初期状態。'closed'（壁が立っている。既定なので initial は持たない）か 'open'（床）。
+export function setTargetInitial(state, sx, sy, tx, ty, initial) {
+  const i = findSwitch(state.spec, sx, sy);
+  if (i < 0) return ng('スイッチが選ばれていない');
+  if (state.spec.switches[i].mode !== 'toggle') return ng('initial は toggle のスイッチだけ');
+  if (initial !== 'closed' && initial !== 'open') return ng('initial は closed か open');
+  const next = clone(state.spec);
+  const t = list(next.switches[i].targets).find((u) => u.x === tx && u.y === ty);
+  if (!t) return ng('その壁はつながっていない');
+  if (initial === 'open') t.initial = 'open';
+  else delete t.initial;
   return commit(state, next);
 }
 

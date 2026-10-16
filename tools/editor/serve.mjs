@@ -1,6 +1,6 @@
 // 盤面エディタ用の開発サーバー（開発者用・手元専用）。実行: npm run editor
 // - 127.0.0.1 のみに bind（0.0.0.0 等は起動時に拒否）。既定 port 5173、環境変数 EDITOR_PORT で上書き（整数 1〜65535）
-// - 配信は tools/editor/ 配下と js/ 配下の .js のみ。`..` を含むパスは 404
+// - 配信は tools/editor/ 配下と js/ 配下の .js、ためしあそび用の子ども画面（許可リスト・読み取り専用）のみ。`..` を含むパスは 404
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -8,6 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Worker } from 'node:worker_threads';
 import { formatLesson } from '../gen-stages.mjs';
 import { shortestSteps, shortestChips, boardSpec } from '../../js/engine-grid.js';
+import { checkStageGen } from '../lib/validate/stagegen.mjs';
 
 export const EDITOR_HOST = '127.0.0.1';
 export const DEFAULT_PORT = 5173;
@@ -23,6 +24,7 @@ const TYPES = {
   '.css': 'text/css; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.json': 'application/json; charset=utf-8',
+  '.woff2': 'font/woff2',
 };
 
 export function parsePort(value) {
@@ -42,6 +44,12 @@ export function resolveRequest(urlPath) {
   if (p === '/') p = '/index.html';
   // 盤面部品（renderGrid 等）が使うクラスの定義。ルートの style.css（生成物）だけを読み取り専用で返す
   if (p === '/style.css') return path.join(ROOT, 'style.css');
+  // 「ためしあそび」（#403）用の子ども画面の読み取り専用配信。許可リスト方式（/js/ と /style.css は既存）。
+  // 入口は /play.html（ルート index.html の内容）。/ と /index.html はエディタのまま。
+  if (p === '/play.html') return path.join(ROOT, 'index.html');
+  if (p === '/app.js') return path.join(ROOT, 'app.js');
+  if (p === '/fonts/mplusrounded1c-800.woff2') return path.join(ROOT, 'fonts', 'mplusrounded1c-800.woff2');
+  if (/^\/lessons\/[A-Za-z0-9_-]+\.json$/.test(p)) return path.join(ROOT, p.slice(1));
   if (p.startsWith('/js/')) {
     if (!p.endsWith('.js')) return null;
     const file = path.resolve(JS_DIR, p.slice('/js/'.length));
@@ -182,6 +190,83 @@ async function handleAnalyze(req, res, opts) {
     result.messages = [...(result.messages || []), ...g.messages];
   }
   sendJson(res, 200, result);
+}
+
+// ---- たたき台の生成（#401 段1）。stageGen（docs/lesson-schema.md）から候補盤を出す ----
+export const GENERATE_TIMEOUT_MS = 60_000; // 生成の安全弁。結果は探索量（GEN_ABORTED）で決め、時間では決めない
+export const GENERATE_COUNT_DEFAULT = 4;
+export const GENERATE_COUNT_MAX = 6;
+const GENERATE_WORKER_FILE = path.join(EDITOR_DIR, 'generate-worker.mjs');
+const GENERATE_BODY_KEYS = ['stageGen', 'count', 'seed'];
+// エディタが受け取る stageGen のキー・ギミック（ver・stages・keepHandwritten・keyMode と cushion・switches は受け取らない）
+const GENERATE_SG_KEYS = ['grid', 'walls', 'gimmicks', 'teach', 'shortestPath', 'minTurns', 'allowedCommands', 'seedBase'];
+const GENERATE_GIMMICKS = ['items', 'ice', 'keys'];
+
+// 生成 API の入力検査。範囲は tools/lib/validate/stagegen.mjs の checkStageGen をそのまま呼んで揃える
+// （ver・stages は検査を通すための仮値を足す）。問題があれば messages（空なら OK）。
+export function checkGenerateInput(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return ['body は {stageGen, count?, seed?} の JSON オブジェクトにしてください'];
+  const out = [];
+  for (const k of Object.keys(body)) if (!GENERATE_BODY_KEYS.includes(k)) out.push(`body の ${k} は受け付けません`);
+  const { stageGen, count, seed } = body;
+  if (!stageGen || typeof stageGen !== 'object' || Array.isArray(stageGen)) return [...out, 'stageGen（オブジェクト）がありません'];
+  for (const k of Object.keys(stageGen)) {
+    if (!GENERATE_SG_KEYS.includes(k)) out.push(`stageGen の ${k} は受け付けません`);
+  }
+  const gim = stageGen.gimmicks;
+  if (gim && typeof gim === 'object' && !Array.isArray(gim)) {
+    for (const k of Object.keys(gim)) {
+      if (!GENERATE_GIMMICKS.includes(k)) out.push(`stageGen.gimmicks の ${k} は受け付けません（items・ice・keys のみ）`);
+    }
+  }
+  if (out.length === 0) {
+    checkStageGen({ stageGen: { ...stageGen, ver: 1, stages: 2 } }, [], (rule, detail) => out.push(`${rule}: ${detail}`));
+  }
+  if (count !== undefined && !(Number.isInteger(count) && count >= 1 && count <= GENERATE_COUNT_MAX)) out.push(`count は 1〜${GENERATE_COUNT_MAX} の整数にしてください`);
+  if (seed !== undefined && !(Number.isInteger(seed) && seed >= 0)) out.push('seed は 0 以上の整数にしてください');
+  return out;
+}
+
+// 候補を worker_threads で生成する。候補 i の seed は seed+i。status は 'ok'（1枚以上）／'empty'（0件）／'aborted'（探索量の上限
+// またはタイムアウトで未完了）。maxWork は試験用（generateBoard の打切り上限を下げる）。
+export function runGenerate(input, { timeoutMs = GENERATE_TIMEOUT_MS, workerFile = GENERATE_WORKER_FILE, maxWork, signal } = {}) {
+  const count = input.count ?? GENERATE_COUNT_DEFAULT;
+  const seed = input.seed ?? input.stageGen.seedBase ?? 1;
+  return new Promise((resolve) => {
+    const worker = new Worker(workerFile, { workerData: { stageGen: input.stageGen, count, seed, maxWork } });
+    let done = false;
+    const finish = (value) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      worker.terminate();
+      resolve(value);
+    };
+    const timer = setTimeout(() => finish({ status: 'aborted', candidates: [] }), timeoutMs);
+    // 呼び出し側（クライアントの「やめる」で接続が切れた）が中断したら worker を止める
+    if (signal) {
+      if (signal.aborted) finish({ status: 'aborted', candidates: [] });
+      else signal.addEventListener('abort', () => finish({ status: 'aborted', candidates: [] }), { once: true });
+    }
+    worker.once('message', (m) => {
+      if (m && m.ok) finish(m.result);
+      else finish({ status: 'aborted', candidates: [], messages: [`生成中にエラー: ${m && m.error}`] });
+    });
+    worker.once('error', (e) => finish({ status: 'aborted', candidates: [], messages: [`生成中にエラー: ${e.message}`] }));
+  });
+}
+
+// POST /api/generate。400（壊れた入力・範囲外）／200。
+async function handleGenerate(req, res, opts) {
+  const raw = await readBody(req);
+  if (raw === null) return sendJson(res, 400, { messages: ['body が大きすぎます'] });
+  let body;
+  try { body = JSON.parse(raw); } catch { return sendJson(res, 400, { messages: ['JSON として読めません'] }); }
+  const problems = checkGenerateInput(body);
+  if (problems.length > 0) return sendJson(res, 400, { messages: problems });
+  const ac = new AbortController();
+  res.on('close', () => { if (!res.writableEnded) ac.abort(); });
+  sendJson(res, 200, await runGenerate(body, { ...opts, signal: ac.signal }));
 }
 
 // ---- レッスンの読み書き（#402 段1）。書き込み先は lessons/<id>.json と退避置き場だけ。index.json・新規作成は不可 ----
@@ -394,6 +479,10 @@ export function createEditorServer(opts = {}) {
     }
     if (req.method === 'POST' && pathname === '/api/analyze') {
       handleAnalyze(req, res, opts).catch(() => sendJson(res, 500, { messages: ['内部エラー'] }));
+      return;
+    }
+    if (req.method === 'POST' && pathname === '/api/generate') {
+      handleGenerate(req, res, opts).catch(() => sendJson(res, 500, { messages: ['内部エラー'] }));
       return;
     }
     if (req.method !== 'GET' && req.method !== 'HEAD') return notFound();

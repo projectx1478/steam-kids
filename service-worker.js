@@ -5,7 +5,7 @@
 // steam-kids固有の追加: GitHub Pages配信（Cache-Control: max-age=600）のため、
 // アプリシェル取得に cache: "no-cache" を指定しHTTPキャッシュを迂回する（kids-playerはVercel
 // 配信のためこの指定が無い）。CACHE_NAMEはjs/config.jsのAPP_VERSIONと同値にする（docs/caching.md）。
-const CACHE_NAME = "steam-kids-cache-v60";
+const CACHE_NAME = "steam-kids-cache-v67";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -47,6 +47,8 @@ const APP_SHELL = [
   "./js/ui-dashboard.js",
   "./js/ui-demo.js",
   "./js/ui-gate.js",
+  "./js/ui-menu.js",
+  "./js/ui-zoom.js",
   "./js/ui-grid.js",
   "./js/ui-board.js",
   "./js/ui-guide.js",
@@ -59,6 +61,7 @@ const APP_SHELL = [
   "./js/ui-play.js",
   "./js/ui-predict.js",
   "./js/ui-reaction.js",
+  "./js/trial-lesson.js",
   "./js/ui-clear.js",
   "./js/ui-retry.js",
   "./js/ui-screen.js",

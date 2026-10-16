@@ -1,15 +1,17 @@
 // 盤面エディタ（開発者用）の画面。盤面は js/ui-board.js の drawBoard 経由で描く。
 import { drawBoard } from '/js/ui-board.js';
-import { SAMPLE_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clampCellPx, wheelCellPx, zoomPercent, formatMetrics } from './editor-view.js';
+import { SAMPLE_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clampCellPx, wheelCellPx, zoomPercent, formatMetrics, pendingSwitches, pendingGroupSwitches, switchModeOptions, switchGroupOptions, GEN_COUNT, GEN_GIMMICKS, checkGenerateForm, buildGenerateBody, generateStatusText } from './editor-view.js';
 
 import { GIMMICKS } from '/js/gimmicks/index.js';
+import { markGatePassedToday } from '/js/gate-date.js';
 import { buildPalette, iconSpec } from './palette.js';
-import { createState, setCellPx as setStateCellPx, place, erase, move, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard, addDraftStep, explainSaveNg } from './editor-state.js';
+import { createState, setCellPx as setStateCellPx, place, erase, move, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, SWITCH_COLORS, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard, addDraftStep, explainSaveNg } from './editor-state.js';
 
 const state = createState(SAMPLE_SPEC, CELL_PX_DEFAULT);
 state.selected = 'wall';
 let notice = ''; // 直前の操作の結果（拒否の理由など）
 let moveFrom = null; // 「Shift+クリックで選んだ動かす元のマス」
+let selSwitch = null; // 「選択中のスイッチ」の座標 { x, y }（パレットが switches のとき）。番号でなく座標で持つ（元に戻すでずれない）
 
 const ICON_CELL_PX = 32;
 // 消しゴムは盤面部品に無いので専用の SVG（見本のとおり）
@@ -49,6 +51,7 @@ function paletteRow(item) {
 
 function selectPalette(key) {
   state.selected = key;
+  if (key !== 'switches') selSwitch = null;
   moveFrom = null;
   notice = '';
   for (const row of document.querySelectorAll('#plist .pi')) row.classList.toggle('sel', row.dataset.key === key);
@@ -69,6 +72,8 @@ const zoomEl = document.getElementById('zoom');
 const statusEl = document.getElementById('status');
 const undoEl = document.getElementById('undo');
 const redoEl = document.getElementById('redo');
+const maxPausesEl = document.getElementById('max-pauses');
+const maxPausesOf = (spec) => (Number.isInteger(spec.maxPauses) ? spec.maxPauses : 0);
 
 function render() {
   drawBoard({ boardWrap, spec: state.spec, cellSize: state.cellPx, playerPos: state.spec.start });
@@ -81,8 +86,110 @@ function render() {
     const cell = boardWrap.querySelector(`.grid-cell[data-x="${moveFrom.x}"][data-y="${moveFrom.y}"]`);
     if (cell) cell.style.outline = '3px solid #7c3aed';
   }
+  markSwitches();
+  renderSettings();
+  maxPausesEl.value = String(maxPausesOf(state.spec));
   undoEl.disabled = !canUndo(state);
   redoEl.disabled = !canRedo(state);
+}
+
+// ---- スイッチ（#404 段A）。選択中のスイッチ・その対象の壁・接続待ち（警告印）を盤上に印づける。----
+const swIndex = () => (selSwitch ? (state.spec.switches || []).findIndex((c) => c.x === selSwitch.x && c.y === selSwitch.y) : -1);
+const cellEl = (x, y) => boardWrap.querySelector(`.grid-cell[data-x="${x}"][data-y="${y}"]`);
+
+function markSwitches() {
+  for (const p of [...pendingSwitches(state.spec), ...pendingGroupSwitches(state.spec)]) { const c = cellEl(p.x, p.y); if (c) c.classList.add('ed-sw-pending'); }
+  for (const w of state.spec.groupWalls || []) { const gc = cellEl(w.x, w.y); if (gc) { gc.classList.add('ed-gw'); gc.title = `group「${w.group}」の壁`; } }
+  const i = swIndex();
+  if (i < 0) return;
+  const sw = state.spec.switches[i];
+  const c = cellEl(sw.x, sw.y);
+  if (c) c.classList.add('ed-sw-sel');
+  for (const t of sw.targets || []) { const tc = cellEl(t.x, t.y); if (tc) tc.classList.add('ed-sw-target'); }
+  if (typeof sw.group === 'string') for (const w of state.spec.groupWalls || []) if (w.group === sw.group) { const tc = cellEl(w.x, w.y); if (tc) tc.classList.add('ed-sw-target'); }
+}
+
+const settingsBody = document.getElementById('settings-body');
+
+function radioGroup(name, options, current, onPick) {
+  const wrap = document.createElement('div');
+  wrap.className = 'rg';
+  for (const o of options) {
+    const label = document.createElement('label');
+    label.className = `rg-item${o.disabled ? ' off' : ''}`;
+    if (o.reason) label.title = o.reason;
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.name = name;
+    input.value = o.value;
+    input.checked = o.value === current;
+    input.disabled = !!o.disabled;
+    input.addEventListener('change', () => onPick(o.value));
+    label.append(input, ` ${o.label}`);
+    if (o.disabled && o.reason) { const r = document.createElement('span'); r.className = 'why'; r.textContent = `（${o.reason}）`; label.append(r); }
+    wrap.append(label);
+  }
+  return wrap;
+}
+
+// toggle のスイッチだけ、つないだ壁ごとの初期状態（closed＝壁が立つ／open＝床）。
+function initialRows(sw) {
+  if (sw.mode !== 'toggle' || !(sw.targets || []).length) return [];
+  const hd = document.createElement('div');
+  hd.className = 'sw-hd';
+  hd.textContent = '壁の初期状態（踏むたびに入れ替わる）';
+  const opts = [{ value: 'closed', label: 'closed（壁）', disabled: false, reason: '' }, { value: 'open', label: 'open（床）', disabled: false, reason: '' }];
+  return [hd, ...sw.targets.map((t) => {
+    const row = document.createElement('div');
+    row.append(`(${t.x},${t.y}) `, radioGroup(`sw-init-${t.x}-${t.y}`, opts, t.initial === 'open' ? 'open' : 'closed', (v) => apply(setTargetInitial(state, sw.x, sw.y, t.x, t.y, v))));
+    return row;
+  })];
+}
+
+// 盤の横の「選択中の要素」パネル。スイッチ選択中だけ設定が出る（色・mode はラジオ）。
+function renderSettings() {
+  const i = swIndex();
+  settingsBody.className = i < 0 ? 'empty' : 'sw-panel';
+  if (i < 0) {
+    settingsBody.textContent = 'スイッチを選ぶと設定が出ます（パレットでスイッチを選び、盤上のスイッチをクリック）';
+    return;
+  }
+  const sw = state.spec.switches[i];
+  const title = document.createElement('div');
+  title.className = 'sw-title';
+  title.textContent = `スイッチ (${sw.x},${sw.y})`;
+  const colorHd = document.createElement('div');
+  colorHd.className = 'sw-hd';
+  colorHd.textContent = '色';
+  const modeHd = document.createElement('div');
+  modeHd.className = 'sw-hd';
+  modeHd.textContent = 'mode';
+  const colors = SWITCH_COLORS.map((c) => ({ value: c, label: c === 'red' ? 'あか' : 'あお', disabled: false, reason: '' }));
+  const targets = sw.targets || [];
+  const conn = document.createElement('div');
+  const grouped = typeof sw.group === 'string';
+  const gwCount = grouped ? (state.spec.groupWalls || []).filter((w) => w.group === sw.group).length : 0;
+  const waiting = grouped ? gwCount === 0 : targets.length === 0;
+  conn.className = waiting ? 'sw-wait' : 'sw-conn';
+  if (grouped) conn.textContent = gwCount === 0 ? `接続待ち：group「${sw.group}」の壁にしたいマスをクリック` : `group「${sw.group}」の壁: ${gwCount}（もう一度クリックで外す）`;
+  else conn.textContent = targets.length === 0 ? '接続待ち：壁にしたいマスをクリック' : `つないだ壁: ${targets.length}（もう一度クリックで外す）`;
+  const groupHd = document.createElement('div');
+  groupHd.className = 'sw-hd';
+  groupHd.textContent = 'group（同じ名前のスイッチと壁が対応する）';
+  settingsBody.replaceChildren(title, colorHd, radioGroup('sw-color', colors, sw.color ?? 'blue', (v) => apply(setSwitchColor(state, sw.x, sw.y, v))), modeHd, radioGroup('sw-mode', switchModeOptions(state.spec, i), sw.mode ?? 'open', (v) => apply(setSwitchMode(state, sw.x, sw.y, v))), groupHd, radioGroup('sw-group', switchGroupOptions(state.spec, i), grouped ? sw.group : '', (v) => apply(setSwitchGroup(state, sw.x, sw.y, v))), ...initialRows(sw), conn);
+}
+
+// パレットが switches のときのクリック。スイッチをクリック＝選ぶ／もう一度で外す。選択中なら空きマスは対象のトグル。選んでいなければスイッチを置く。
+function switchClick(x, y) {
+  const at = (state.spec.switches || []).find((c) => c.x === x && c.y === y);
+  if (at) {
+    selSwitch = selSwitch && selSwitch.x === x && selSwitch.y === y ? null : { x, y };
+    return { ok: true };
+  }
+  if (swIndex() >= 0) return toggleTarget(state, selSwitch.x, selSwitch.y, x, y);
+  const r = place(state, 'switches', x, y);
+  if (r.ok) selSwitch = { x, y };
+  return r;
 }
 
 function setCellPx(value) {
@@ -117,7 +224,8 @@ async function analyzeNow() {
   } catch {
     lines = ['未判定（判定サーバーに接続できません）'];
   }
-  if (shouldApplyResult(state, gen)) showMetrics(lines);
+  const wait = [...pendingSwitches(state.spec), ...pendingGroupSwitches(state.spec)].map((p) => `接続待ち: スイッチ (${p.x},${p.y}) に壁がつながっていない`);
+  if (shouldApplyResult(state, gen)) showMetrics([...wait, ...lines]);
 }
 
 function scheduleAnalyze() {
@@ -132,6 +240,12 @@ function apply(result) {
   if (result.ok) scheduleAnalyze();
 }
 
+// ステージ設定：とめる回数。空欄は0。不正値（負数・小数）は拒否して表示を元に戻す。
+maxPausesEl.addEventListener('change', () => {
+  const raw = maxPausesEl.value.trim();
+  apply(setMaxPauses(state, raw === '' ? 0 : Number(raw)));
+});
+
 function doUndo() { apply(undo(state)); }
 function doRedo() { apply(redo(state)); }
 
@@ -144,7 +258,9 @@ boardWrap.addEventListener('click', (e) => {
   if (moveFrom) {
     const from = moveFrom;
     moveFrom = null;
-    apply(move(state, from.x, from.y, x, y));
+    const r = move(state, from.x, from.y, x, y);
+    if (r.ok && selSwitch && selSwitch.x === from.x && selSwitch.y === from.y) selSwitch = { x, y };
+    apply(r);
     return;
   }
   if (e.shiftKey) {
@@ -153,6 +269,7 @@ boardWrap.addEventListener('click', (e) => {
     render();
     return;
   }
+  if (state.selected === 'switches') { apply(switchClick(x, y)); return; }
   apply(state.selected === 'eraser' ? erase(state, x, y) : place(state, state.selected, x, y));
 });
 
@@ -355,3 +472,121 @@ stepBtn('step-add').addEventListener('click', () => {
   lessonResult(r);
 });
 loadDraftList();
+
+// ---- たたき台（POST /api/generate）。設定 → 候補 GEN_COUNT 枚（drawBoard で縮小描画）→ 「これで編集」で盤に読み込む。----
+const genPanelEl = document.getElementById('gen-panel');
+const genRunEl = document.getElementById('gen-run');
+const genMoreEl = document.getElementById('gen-more');
+const genCancelEl = document.getElementById('gen-cancel');
+const genStatusEl = document.getElementById('gen-status');
+const genProblemsEl = document.getElementById('gen-problems');
+const genCandsEl = document.getElementById('gen-cands');
+const genNum = (id) => { const v = document.getElementById(id).value; return v === '' ? NaN : Number(v); };
+const GEN_CAND_AREA_PX = 200; // 候補1枚の盤面の最大の辺
+let genAbort = null; // 生成中の AbortController
+let genNextSeed = null; // 「もう4枚」で使う次の seed
+
+function readGenerateForm() {
+  return {
+    cols: { min: genNum('gen-cols-min'), max: genNum('gen-cols-max') },
+    rows: { min: genNum('gen-rows-min'), max: genNum('gen-rows-max') },
+    walls: { min: genNum('gen-walls-min'), max: genNum('gen-walls-max') },
+    shortestPath: { min: genNum('gen-sp-min'), max: genNum('gen-sp-max') },
+    minTurns: genNum('gen-turns'),
+    seed: genNum('gen-seed'),
+    teach: document.getElementById('gen-teach').value,
+    gimmicks: Object.fromEntries(GEN_GIMMICKS.map(([k]) => [k, { on: document.getElementById(`gen-${k}-on`).checked, min: genNum(`gen-${k}-min`), max: genNum(`gen-${k}-max`) }])),
+  };
+}
+
+// 入力が変わるたびに検査し、問題があれば「つくる」「もう4枚」を押せなくする
+function refreshGenerateForm() {
+  const problems = checkGenerateForm(readGenerateForm());
+  genProblemsEl.replaceChildren(...problems.map((t) => { const d = document.createElement('div'); d.textContent = t; return d; }));
+  genRunEl.disabled = problems.length > 0 || genAbort !== null;
+  genMoreEl.disabled = problems.length > 0 || genAbort !== null || genNextSeed === null;
+}
+
+function openGeneratePanel() {
+  genPanelEl.hidden = false;
+  refreshGenerateForm();
+}
+
+function renderCandidates(list) {
+  genCandsEl.replaceChildren(...list.map((c) => {
+    const card = document.createElement('div');
+    card.className = 'gen-cand';
+    card.dataset.seed = String(c.seed);
+    const holder = document.createElement('div');
+    holder.className = 'gen-board';
+    const size = Math.max(6, Math.floor(GEN_CAND_AREA_PX / Math.max(c.board.grid.cols, c.board.grid.rows)));
+    drawBoard({ boardWrap: holder, spec: c.board, cellSize: size, playerPos: c.board.start });
+    const cap = document.createElement('div');
+    cap.className = 'cap';
+    cap.textContent = `seed ${c.seed}・最短 ${c.shortestPath} 手`;
+    const pick = document.createElement('button');
+    pick.type = 'button';
+    pick.className = 'btn sm gen-pick';
+    pick.textContent = 'これで編集';
+    pick.addEventListener('click', () => pickCandidate(c));
+    card.append(holder, cap, pick);
+    return card;
+  }));
+}
+
+// 候補を盤に読み込む。盤に置き換えていない編集があるときだけ確認する（chooseStep と同じ流儀）。
+function pickCandidate(c) {
+  if (boardDirty() && !window.confirm('盤面の編集が置き換えられていません。捨てて、たたき台を読み込みますか？')) return;
+  loadSpec(state, c.board);
+  moveFrom = null;
+  notice = `たたき台（seed ${c.seed}）を読み込みました`;
+  genPanelEl.hidden = true;
+  scheduleAnalyze();
+  render();
+}
+
+// seed から GEN_COUNT 枚つくる。やめる＝fetch を中断（サーバー側の worker も止まる）。
+async function generateNow(seed) {
+  const form = readGenerateForm();
+  if (genAbort || checkGenerateForm(form).length > 0) return;
+  const ctl = new AbortController();
+  genAbort = ctl;
+  genCancelEl.hidden = false;
+  genStatusEl.textContent = generateStatusText('running');
+  genCandsEl.replaceChildren();
+  refreshGenerateForm();
+  let text = '';
+  try {
+    const res = await fetch('/api/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(buildGenerateBody(form, seed)), signal: ctl.signal });
+    const body = await res.json();
+    if (!res.ok) text = `つくれません: ${(body.messages || []).join(' / ')}`;
+    else {
+      renderCandidates(body.candidates || []);
+      text = generateStatusText(body.status);
+      genNextSeed = seed + GEN_COUNT;
+    }
+  } catch (e) {
+    text = e && e.name === 'AbortError' ? 'やめました' : 'つくれません（サーバーに接続できません）';
+  }
+  genAbort = null;
+  genCancelEl.hidden = true;
+  genStatusEl.textContent = text;
+  refreshGenerateForm();
+}
+
+// ---- ためしあそび（#403）。いまの盤面を play の面にして sessionStorage に渡し、子ども画面（/play.html）を別タブで開く。記録は残らない。----
+document.getElementById('trial-open').addEventListener('click', () => {
+  const tmp = { steps: [] };
+  const r = addDraftStep(tmp, state.spec, 'trial');
+  if (!r.ok) { lessonResult(r); return; }
+  sessionStorage.setItem('editor-trial', JSON.stringify({ stage: tmp.steps[0], ts: Date.now() }));
+  markGatePassedToday(); // エディタのオリジン（127.0.0.1）だけの印。開発者が自分で開くので、日次の保護者ゲートは出さない
+  window.open('/play.html?dev=1&trial=1');
+});
+
+document.getElementById('gen-open').addEventListener('click', openGeneratePanel);
+document.getElementById('gen-close').addEventListener('click', () => { if (genAbort) genAbort.abort(); genPanelEl.hidden = true; });
+genRunEl.addEventListener('click', () => { genNextSeed = null; generateNow(genNum('gen-seed')); });
+genMoreEl.addEventListener('click', () => generateNow(genNextSeed));
+genCancelEl.addEventListener('click', () => { if (genAbort) genAbort.abort(); });
+genPanelEl.addEventListener('input', () => { genNextSeed = null; refreshGenerateForm(); });

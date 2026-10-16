@@ -4,6 +4,7 @@
 import { S } from './state.js';
 import { logEvent } from './events.js';
 import { clearResume } from './storage.js';
+import { isTrial } from './trial-lesson.js';
 import { prefersReducedMotion } from './ui-grid.js';
 import { createPrimaryButton, markLessonCleared, saveResumePoint, isStagePicked } from './ui-step.js';
 import { showSuccess } from './ui-reaction.js';
@@ -18,7 +19,9 @@ const GAP_FRAME_CLASSES = ['min-h-[64px]', 'items-center', 'rounded-2xl', 'borde
 // recordClear({ isFinal, stageIndex }): クリアの記録。最終は clear→markLessonCleared→clearResume、
 // 途中ステージは stage_clear のみ（レッスン全体のクリアや単元スタンプの対象にしない。Issue #104）。
 // 番号選択で始めたとき（isStagePicked）は最終でも clear を記録せず再開点も消さない（Issue #399）。
+// ためしあそび（isTrial。Issue #403）は何も書かない。
 export function recordClear({ isFinal, stageIndex }) {
+  if (isTrial()) return;
   if (isFinal) {
     if (!isStagePicked()) {
       logEvent('clear', {});

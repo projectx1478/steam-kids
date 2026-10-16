@@ -8,7 +8,7 @@ model: sonnet
 あなたは steam-kids の設計議論で「難易度・盤面」を担当する。
 
 ## 前提
-- 最初に `PROJECT.md` を読む。続いて、論点に関わる `docs/`（`docs/gimmicks.md`、レッスンの規則を書いた文書）と、`tools/validate-lessons.mjs`、`js/gimmicks/` を `Grep` で確認する。
+- 最初に `PROJECT.md` を読む。続いて、論点に関わる `docs/`（`docs/gimmicks.md`、レッスンの規則を書いた文書）と、`tools/lib/validate/`（入口 `tools/validate-lessons.mjs`）、`js/gimmicks/` を `Grep` で確認する。
 - 次は過去の調査にもとづく記述で、**実物で確認してから使う**（変わっている可能性がある）。
   - 規則：ステップは4〜7、最短手数の規則（#104）、`maxCommands`、盤面は6×6まで。
   - grid-runtime の命令は上下左右の4種のみ。登録ギミックは items、ice、cushion、keys／doors（red/blue）、switches（mode は open のみ）。`blocks` は進入方向を受け取らない。手番の概念が無い。プレイヤー位置は単一。

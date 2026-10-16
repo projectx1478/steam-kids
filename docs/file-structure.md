@@ -58,3 +58,29 @@ review/ # 原則見直しレビューの入力と出力（Issue #227）。princi
 ```
 
 ES Modules（`<script type="module">` / `import`/`export`）でファイル間を接続する。
+
+## 全体アーキテクチャ（PROJECT.mdから移動。Issue #447）
+
+```
+単元テーマ
+  ↓  Claude Code（開発時のみ）
+レッスンJSON  →  スキーマ検証  →  リポジトリに蓄積
+  ↓
+学習エンジン（固定・静的サイト）
+  ↓
+イベントログ（localStorage）→ 同期 → ダッシュボード
+```
+
+学習エンジンのコードは固定。**教材追加はJSONの追加のみで完結すること。**
+
+## フロントエンドの技術選定（PROJECT.mdから移動。Issue #447）
+
+- **フレームワーク**: バニラ JavaScript（ES Modules）。JSのビルドステップは導入しない
+- **UI状態管理**: S オブジェクトパターン（単一オブジェクト、直接変更）
+- **スタイリング**: Tailwind CSS。**開発時のみCLIでビルドし、生成物 `style.css` をコミットする**
+  - 実行時にCDNから取得しない（オフライン要件）
+  - `style.css` は自動生成物。直接編集せず `tailwind.src.css` を編集して再ビルドする
+  - Tailwindはバージョンを固定指定する（`package-lock.json` はGit除外のため）
+- **ホスティング**: GitHub Pages（public リポジトリ・無料枠）
+- 画像素材を使わず、すべて自作SVGで描画する（権利・容量・配布の自由度）
+- **Service Worker**でオフライン対応・更新反映を行う（方式は `docs/caching.md`）

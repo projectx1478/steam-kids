@@ -4,8 +4,8 @@ import { GIMMICKS } from './gimmicks/index.js';
 const DEFAULT_CELL = 64;
 const MIN_CELL = 8;
 const MAX_CELL = 64;
-const GAP_PX = 4; // Tailwind gap-1
-const PAD_PX = 4; // Tailwind p-1
+export const GAP_PX = 4; // Tailwind gap-1（既定。20×20級の縮小はui-board.jsのfitCellSizeが決める。Issue #389）
+export const PAD_PX = 4; // Tailwind p-1
 const MOVE_MS = 450;
 const BOUNCE_MS = 250;
 const BOUNCE_NUDGE_PX = 10;
@@ -197,9 +197,9 @@ export function prefersReducedMotion() {
 // ロボットが隠れる事故が起きるため（Issue #99・#97）。盤面のマスはplay中はタップ対象では
 // ないため、この下限撤廃はタップ領域64px規則（PROJECT.md）と衝突しない。predict/tutorialの
 // 選択肢マスも操作パネル分の余白が無く、実運用でここまで縮む想定はしていない。
-export function computeCellSize({ cols, rows, width, height, gap = GAP_PX, maxCell = MAX_CELL }) {
+export function computeCellSize({ cols, rows, width, height, gap = GAP_PX, pad = PAD_PX, maxCell = MAX_CELL }) {
   if (!cols || !rows || !width || !height) return DEFAULT_CELL;
-  const fit = (size, n) => (size - PAD_PX * 2 - gap * (n - 1)) / n;
+  const fit = (size, n) => (size - pad * 2 - gap * (n - 1)) / n;
   const raw = Math.floor(Math.min(fit(width, cols), fit(height, rows)));
   return Math.min(maxCell, Math.max(MIN_CELL, raw));
 }
@@ -232,9 +232,9 @@ window.__gridAnimLog = window.__gridAnimLog || [];
 //   view.dim(on): 盤面のマスだけを暗くする（失敗リザルト状態の表示。Issue #110）
 //   view.popIn(): もういちど直後、ロボットがポンと現れる演出（reduced-motion時は何もしない。Issue #110）
 export function renderGrid(opts) {
-  const { grid, walls, goal, playerPos, cellSize = DEFAULT_CELL, labels = [] } = opts;
+  const { grid, walls, goal, playerPos, cellSize = DEFAULT_CELL, labels = [], gap = GAP_PX, pad = PAD_PX } = opts;
   const CELL = cellSize;
-  const pixelFor = (pos) => ({ x: PAD_PX + pos.x * (CELL + GAP_PX), y: PAD_PX + pos.y * (CELL + GAP_PX) });
+  const pixelFor = (pos) => ({ x: pad + pos.x * (CELL + gap), y: pad + pos.y * (CELL + gap) });
   const wallSet = new Set(walls.map((w) => `${w.x},${w.y}`));
   const board = document.createElement('div');
   board.className = 'grid-board relative inline-grid gap-1 wood-frame p-1 rounded-xl';
@@ -242,8 +242,8 @@ export function renderGrid(opts) {
   board.style.gridTemplateRows = `repeat(${grid.rows}, ${CELL}px)`;
   // gap-1/p-1はrem単位のため、端末の文字サイズ拡大でpixelFor()・computeCellSize()の前提
   // （4px）とずれて盤面がはみ出す。px固定で上書きする（Issue #99）。
-  board.style.gap = `${GAP_PX}px`;
-  board.style.padding = `${PAD_PX}px`;
+  board.style.gap = `${gap}px`;
+  board.style.padding = `${pad}px`;
 
   for (let y = 0; y < grid.rows; y++) {
     for (let x = 0; x < grid.cols; x++) {

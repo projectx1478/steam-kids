@@ -16,6 +16,8 @@ import { renderTrackSelect, playableTrackCount } from './js/ui-tracks.js';
 import { renderTitle } from './js/ui-title.js';
 import { ensureDailyGate } from './js/ui-parental-gate.js';
 import { IS_DEV } from './js/dev-mode.js';
+import { initMenu } from './js/ui-menu.js';
+import { isTrial, composeTrialLesson, readTrialStage, TRIAL_MISSING_MESSAGE } from './js/trial-lesson.js';
 
 function showError() {
   const p = document.createElement('p');
@@ -175,12 +177,30 @@ async function showTitle() {
   }
 }
 
+initMenu();
+
 // ?lesson=直リンクを含む全起動経路で、その日初回のみ保護者の合言葉を求める（Issue #217）。
 await ensureDailyGate();
 
+// エディタの試し遊び（Issue #403）。dev=1&trial=1 のときだけ。記録するスロットは作らない。
+function startTrial() {
+  try {
+    initState(composeTrialLesson(readTrialStage(sessionStorage)));
+  } catch {
+    const p = document.createElement('p');
+    p.className = 'text-2xl text-center py-8';
+    p.textContent = TRIAL_MISSING_MESSAGE;
+    document.getElementById('stage').appendChild(p);
+    return;
+  }
+  initSteps();
+}
+
 const params = new URLSearchParams(location.search);
 const lessonId = params.get('lesson');
-if (lessonId) {
+if (isTrial()) {
+  startTrial();
+} else if (lessonId) {
   ensureActiveSlot();
   await startLesson(lessonId);
 } else if (params.get('view') === 'map') {

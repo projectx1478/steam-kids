@@ -1,11 +1,70 @@
 // 命令パレット・命令列（キュー）の描画。パレットの操作はタップ、またはドラッグして
 // 命令列へドロップ（末尾に追加。Issue #95）。
+import { chipCount, simulate } from './engine-grid.js';
 
 // 対応端末のみ短く振動する（未対応環境では何もしない。例外を投げない）。
 export function vibrate(ms = 15) {
   if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
     navigator.vibrate(ms);
   }
+}
+
+// ---- 「とめる」の実行モデル（#395 段2。UIのチップは段3）----
+// 「とめる」は命令列の {pause: true} 要素。engineのsimulateには渡さず、UI層で除いた列を使う。
+// 止まり位置は命令単位。止まった後は「とめる」までの前の部分(lockedCount個)を変更不可にし、
+// 先頭部分のsimulate終点（決定論）から後ろだけを続ける。
+
+export const isPause = (entry) => typeof entry === 'object' && entry !== null && entry.pause === true;
+
+// 「とめる」を除いた列と、除いた列の添字→元の添字の対応。
+export function stripPauses(commands) {
+  const cmds = [];
+  const origIndex = [];
+  commands.forEach((entry, i) => {
+    if (isPause(entry)) return;
+    cmds.push(entry);
+    origIndex.push(i);
+  });
+  return { cmds, origIndex };
+}
+
+// from以降で最初の「とめる」の添字。無ければ-1。
+export function nextPauseIndex(commands, from = 0) {
+  for (let i = from; i < commands.length; i += 1) if (isPause(commands[i])) return i;
+  return -1;
+}
+
+// maxCommandsの判定用チップ数。「とめる」は数えない（#395-3A）。
+export function countChips(commands) {
+  return chipCount(stripPauses(commands).cmds);
+}
+
+// 元の添字limit未満の命令が作るpathの手数（stepperのstartIndex／stopIndexに使う）。
+export function stepsBefore(commands, spec, limit) {
+  const { cmds, origIndex } = stripPauses(commands);
+  const { stepOwner } = simulate(cmds, spec);
+  return stepOwner.filter((o) => origIndex[o] < limit).length;
+}
+
+// 次の実行区間の計画。lockedCount=0（最初から）なら先頭から。lockedCount>0なら止まった地点
+// （前のlockedCount個の終点）から後ろ。stopIndex=nullは最後まで、数値は次の「とめる」の手前で止まる。
+export function planRun(commands, spec, lockedCount = 0) {
+  const nextPause = nextPauseIndex(commands, lockedCount);
+  return {
+    nextPause,
+    startIndex: lockedCount > 0 ? stepsBefore(commands, spec, lockedCount) : 0,
+    stopIndex: nextPause < 0 ? null : stepsBefore(commands, spec, nextPause),
+  };
+}
+
+// 止まった間は前の部分(i < lockedCount)を取り消せない。
+export const isLockedIndex = (i, lockedCount) => i < lockedCount;
+
+// 「ぜんぶけす」：後ろ(lockedCount以降)だけを空にする。参照は維持。消した数を返す。
+export function clearUnlocked(commands, lockedCount) {
+  const n = Math.max(0, commands.length - lockedCount);
+  commands.length -= n;
+  return n;
 }
 
 const DRAG_THRESHOLD_PX = 8;
@@ -129,8 +188,11 @@ export function arrowSvg(dir) {
 // onAdd(dir, { via }): viaは'tap'|'drag'。dropTarget(): ドロップ判定に使うDOMRectを返す関数
 // （省略時はドラッグしても追加されない＝タップのみの画面になる）。onDragOver(inside):
 // ドラッグ中、dropTarget領域への出入りで呼ぶ（ゴースト枠の出し入れ用）。
-export function renderCommandPalette(container, { onAdd, dropTarget, onDragOver }) {
+// maxPauses>0なら上段に「とめる」（タップでonPause()）と残り回数の表示を出す（#395 段3）。
+export function renderCommandPalette(container, { onAdd, dropTarget, onDragOver, maxPauses = 0, onPause }) {
   container.innerHTML = '';
+  // 2行×3列（上段 [空き][うえ][空き]・下段 [ひだり][した][みぎ]）。DOM順は up 先頭のまま、
+  // 配置は tailwind.src.css の .palette-row の grid-area で並べ替える（Issue #395）。
   DIRECTIONS.forEach((dir) => {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -152,6 +214,45 @@ export function renderCommandPalette(container, { onAdd, dropTarget, onDragOver 
     });
     container.appendChild(btn);
   });
+  if (maxPauses > 0) {
+    // 上段左「とめる」・上段右「✋×N」（表示のみ。button にしない。#395 段3）。有効・残り回数は呼び元が更新する。
+    const pauseBtn = document.createElement('button');
+    pauseBtn.type = 'button';
+    pauseBtn.dataset.action = 'pause';
+    pauseBtn.className =
+      'command-btn btn-tactile flex flex-col items-center justify-center gap-1 px-3 py-2 bg-amber-500 text-white disabled:opacity-40';
+    pauseBtn.innerHTML = '<span class="text-2xl leading-none" aria-hidden="true">✋</span><span class="text-sm whitespace-nowrap">とめる</span>';
+    pauseBtn.addEventListener('click', () => {
+      vibrate();
+      onPause?.();
+    });
+    container.appendChild(pauseBtn);
+    const count = document.createElement('div');
+    count.className = 'palette-count';
+    count.dataset.pauseCount = String(maxPauses);
+    count.setAttribute('role', 'img');
+    count.setAttribute('aria-label', `のこり ${maxPauses}かい`);
+    count.innerHTML = `<span aria-hidden="true">✋</span><span class="palette-count-x" aria-hidden="true">×</span><b data-pause-left aria-hidden="true">${maxPauses}</b>`;
+    container.appendChild(count);
+    return;
+  }
+  // 上段の左右の空きマス（button にしない）
+  ['left', 'right'].forEach((side) => {
+    const blank = document.createElement('div');
+    blank.className = 'palette-blank';
+    blank.dataset.blank = side;
+    blank.setAttribute('aria-hidden', 'true');
+    container.appendChild(blank);
+  });
+}
+
+// 残り回数の表示（✋×N）を更新する。表示がない（maxPauses=0）画面では何もしない。
+export function setPauseLeft(container, left) {
+  const count = container.querySelector('[data-pause-count]');
+  if (!count) return;
+  count.querySelector('[data-pause-left]').textContent = String(left);
+  count.dataset.pauseLeft = String(left);
+  count.setAttribute('aria-label', `のこり ${left}かい`);
 }
 
 // 順番数字（①②③）は::beforeで重ねる（実DOMにspanを増やすと、チップ内テキストをspanで
@@ -184,11 +285,46 @@ export function renderOrderArrow(tag = 'li') {
 // 周回の点（.box-rounds・N個）を並べ、済みの周と実行中の周を塗りつぶす（実行中の点だけ強調）。
 // 実行外は点をすべて空で出し、点の数だけで回数が分かる。DOM判定用に箱チップへdata-round
 // （実行中の周。実行外は属性なし）を付ける（Issue #167）。「はこ ×N」ラベル文言は実行中も変えない。
-export function renderCommandQueue(container, { commands, activeIndex, activeInner = -1, activeRound = -1, openIndex = -1, onRemove, removable = true, nextSlot = null }) {
+export function renderCommandQueue(container, { commands, activeIndex, activeInner = -1, activeRound = -1, openIndex = -1, onRemove, removable: removableAll = true, nextSlot = null, lockedCount = 0 }) {
   container.innerHTML = '';
   commands.forEach((entry, i) => {
     const { dir, times } = entry;
-    if (i > 0) container.appendChild(renderOrderArrow());
+    // 止まった地点より前(lockedCount個)は取り消せない（×なし・タップ無反応。#395 段2）。
+    const removable = removableAll && !isLockedIndex(i, lockedCount);
+    // 「とめる」（#395 段3）。止まった後は境目（✋の線と「ここから」。タップ無反応）、
+    // 置いただけのうちは琥珀のチップ（×で取り消せる）。順番数字は「とめる」を数えない。
+    if (isPause(entry)) {
+      if (isLockedIndex(i, lockedCount)) {
+        const mark = document.createElement('li');
+        mark.className = 'pause-mark shrink-0 flex flex-col items-center justify-center min-w-[56px] min-h-[64px] px-1 text-amber-700 font-bold border-l-4 border-amber-500';
+        mark.dataset.index = String(i);
+        mark.dataset.pauseMark = 'true';
+        mark.innerHTML = '<span class="text-2xl leading-none" aria-hidden="true">✋</span><span class="text-[10px] leading-tight whitespace-nowrap">ここから</span>';
+        container.appendChild(mark);
+        return;
+      }
+      if (i > 0) container.appendChild(renderOrderArrow());
+      const pchip = document.createElement('li');
+      pchip.className = `command-chip pause-chip relative flex flex-col items-center justify-center gap-0.5 min-w-[64px] min-h-[64px] px-1 rounded-lg bg-amber-400 text-white shrink-0 ${
+        removable
+          ? "command-remove cursor-pointer transition-transform duration-100 active:scale-95 after:content-['×'] after:absolute after:-top-1.5 after:-right-1.5 after:w-4 after:h-4 after:rounded-full after:bg-rose-500 after:text-white after:text-[10px] after:font-bold after:leading-4 after:text-center"
+          : ''
+      }`;
+      pchip.dataset.index = String(i);
+      pchip.dataset.pause = 'true';
+      pchip.innerHTML = '<span class="text-xl leading-none" aria-hidden="true">✋</span><span class="text-[10px] leading-tight font-bold">とめる</span>';
+      if (removable) {
+        pchip.dataset.removeIndex = String(i);
+        pchip.addEventListener('click', () => {
+          vibrate();
+          onRemove(i);
+        });
+      }
+      container.appendChild(pchip);
+      return;
+    }
+    // 境目（止まった地点）の直後は、境目自体が区切りなので→を付けない。
+    if (i > 0 && !(isPause(commands[i - 1]) && isLockedIndex(i - 1, lockedCount))) container.appendChild(renderOrderArrow());
     const chip = document.createElement('li');
     // ×バッジはCSS疑似要素(after:content)で描く。実DOMに<span>を増やすと、チップ内テキストを
     // spanで厳密比較する既存シナリオ（cmd02-group-repeats・group-repeats-ui）が壊れるため。
@@ -198,7 +334,11 @@ export function renderCommandQueue(container, { commands, activeIndex, activeInn
         : ''
     }`;
     chip.dataset.index = String(i);
-    chip.dataset.order = String(i + 1);
+    if (!removable && i < lockedCount) {
+      chip.dataset.locked = 'true';
+      chip.classList.add('opacity-50');
+    }
+    chip.dataset.order = String(commands.slice(0, i).filter((c) => !isPause(c)).length + 1);
     // 今動いている命令のチップを黄色の強調で示す。じっこうの自動実行・1コマ実行の
     // どちらもactiveIndexをここに渡す経路を通るため、強調スタイルはこの1か所にまとめる（Issue #111）。
     if (i === activeIndex) {

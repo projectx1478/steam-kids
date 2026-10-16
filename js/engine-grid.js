@@ -298,7 +298,8 @@ export function shortestChips(rawSpec) {
 // 手数はshortestStepsと一致する。最短手数の経路のうち曲がり角（方向転換）が最少のものを返す（Issue #142）。
 // 状態は「位置＋ギミック状態＋直前の向き」で、手数の層ごとに曲がり角数の少ない到達を残す。
 // 生成（Issue #68）で曲がり角数・solutionの算出に使う。
-export function shortestPath(rawSpec) {
+// maxDepth指定時は、その手数までに届かなければ打ち切ってnullを返す（探索量を抑える。Issue #456）。
+export function shortestPath(rawSpec, { maxDepth = Infinity } = {}) {
   const spec = boardSpec(rawSpec);
   const key = (p, dir, states) => `${p.x},${p.y}|${dir ?? '-'}|${gimmicksKey(states)}`;
   const move = makeMover(spec);
@@ -311,6 +312,7 @@ export function shortestPath(rawSpec) {
       if (cur.pos.x === spec.goal.x && cur.pos.y === spec.goal.y && allCleared(cur.states) && (!best || cur.turns < best.turns)) best = cur;
     }
     if (best) return best.cmds;
+    if (level[0].cmds.length >= maxDepth) return null;
     const next = new Map();
     for (const cur of level) {
       for (const cmd of COMMANDS) {
