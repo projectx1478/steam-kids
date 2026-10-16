@@ -53,15 +53,15 @@ export default async function run({ page, check }) {
   await openMenu(page);
   await check('メニューに「がめん」が出る（拡大できる盤）', () => page.isVisible('#menu-zoom-open'), true);
   await check('メニューの「がめん」と保護者リンクは64px以上', () =>
-    page.$eval('#menu-zoom-open, #menu-guardian', (bs) => bs.every((b) => b.getBoundingClientRect().height >= 64)), true);
+    page.$$eval('#menu-zoom-open, #menu-guardian', (bs) => bs.every((b) => b.getBoundingClientRect().height >= 64)), true);
   await check('メニューの拡大は「がめん」1つだけ（おおきく等は並べない）', () =>
-    page.$eval('#gear-menu #zoom-in, #gear-menu #zoom-out, #gear-menu #zoom-all', (bs) => bs.length), 0);
+    page.$$eval('#gear-menu #zoom-in, #gear-menu #zoom-out, #gear-menu #zoom-all', (bs) => bs.length), 0);
   await page.click('#menu-zoom-open');
   await check('「がめん」を押すとメニューが閉じ、ズームバーが開く', () =>
     page.evaluate(() => document.getElementById('gear-menu').hidden && !document.getElementById('zoom-bar').hidden), true);
   await check('ズームバーの4ボタンは64px以上', () =>
-    page.$eval('#zoom-in, #zoom-out, #zoom-all, #zoom-back', (bs) => bs.every((b) => b.getBoundingClientRect().height >= 64 && b.getBoundingClientRect().width >= 64)), true);
-  await check('等倍では「ちいさく」「ぜんぶみる」は押せない', () => page.$eval('#zoom-out, #zoom-all', (bs) => bs.every((b) => b.disabled)), true);
+    page.$$eval('#zoom-in, #zoom-out, #zoom-all, #zoom-back', (bs) => bs.every((b) => b.getBoundingClientRect().height >= 64 && b.getBoundingClientRect().width >= 64)), true);
+  await check('等倍では「ちいさく」「ぜんぶみる」は押せない', () => page.$$eval('#zoom-out, #zoom-all', (bs) => bs.every((b) => b.disabled)), true);
   await check('子ども画面に「拡大」「縮小」の語が出ない', () => page.evaluate(() => !/拡大|縮小/.test(document.getElementById('gear-menu').textContent + document.getElementById('zoom-bar').textContent)), true);
 
   await page.click('#zoom-in');
