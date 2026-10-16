@@ -48,10 +48,12 @@ export default async function run({ page, check }) {
 
   await page.click('[data-command="right"]');
   await page.click('[data-action="pause"]');
-  await check('「とめる」を置くとチップが2つ（みぎ・とめる）', () => chipCount(page, '.command-chip'), 2);
+  // 「とめる」の後ろに命令が無いと最後まで進んだ扱いで止まらないため、後ろに1つ置く。
+  await page.click('[data-command="right"]');
+  await check('「とめる」を置くとチップが3つ（みぎ・とめる・みぎ）', () => chipCount(page, '.command-chip'), 3);
   await check('置いた「とめる」チップの文言', () => page.$eval('.pause-chip', (e) => e.textContent.replace(/\s/g, '')), '✋とめる');
   await check('残り回数が1に減る', () => page.getAttribute('[data-pause-count]', 'data-pause-left'), '1');
-  await check('次の枠の番号は2（「とめる」は数えない）', () => page.getAttribute('[data-tray-slot]', 'data-order'), '2');
+  await check('次の枠の番号は3（「とめる」は数えない）', () => page.getAttribute('[data-tray-slot]', 'data-order'), '3');
 
   await page.click('[data-action="run"]');
   // 止まらないときは原因を見えるよう、待ちが切れたら状態を actual に出して落とす。
@@ -67,22 +69,22 @@ export default async function run({ page, check }) {
   }
   await check('止まると境目「ここから」が出る', () => page.$eval('.pause-mark', (e) => e.textContent.replace(/\s/g, '')), '✋ここから');
   await check('止まった前の列は薄く表示される', () => page.getAttribute('.command-chip[data-index="0"]', 'data-locked'), 'true');
-  await check('止まった後は前の列に×が無い', () => chipCount(page, '.command-remove'), 0);
-  await check('後ろの空き枠（番号2）がある', () => page.getAttribute('[data-tray-slot]', 'data-order'), '2');
+  await check('止まった後は前の列に×が無い', () => page.$eval('.command-chip[data-index="0"]', (e) => e.classList.contains('command-remove')), false);
+  await check('後ろの空き枠（番号3）がある', () => page.getAttribute('[data-tray-slot]', 'data-order'), '3');
   await page.click('.command-chip[data-index="0"]');
-  await check('前の列のタップは無反応', () => chipCount(page, '.command-chip'), 1);
+  await check('前の列のタップは無反応', () => chipCount(page, '.command-chip'), 2);
   await check('止まった後もパレットは使える（うえ）', () => page.$eval('[data-command="up"]', (b) => !b.disabled));
 
   await page.click('[data-action="pause"]');
   await check('残り回数が0になる', () => page.getAttribute('[data-pause-count]', 'data-pause-left'), '0');
   await check('残り0なら「とめる」は無効', () => page.$eval('[data-action="pause"]', (b) => b.disabled));
-  await page.click('[data-remove-index="2"]');
+  await page.click('[data-remove-index="3"]');
   await check('置いた後ろの「とめる」は取り消せて回数が戻る', () => page.getAttribute('[data-pause-count]', 'data-pause-left'), '1');
 
   await page.click('[data-command="right"]');
-  await check('続きは境目の後ろに追加される（chip index 2・ロックなし）', () =>
+  await check('続きは境目の後ろに追加される（chip index 3・ロックなし）', () =>
     page.evaluate(() => {
-      const c = document.querySelector('.command-chip[data-index="2"]');
-      return Boolean(c) && c.dataset.locked !== 'true' && c.dataset.order === '2';
+      const c = document.querySelector('.command-chip[data-index="3"]');
+      return Boolean(c) && c.dataset.locked !== 'true' && c.dataset.order === '3';
     }));
 }
