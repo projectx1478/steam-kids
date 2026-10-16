@@ -7,6 +7,7 @@ import { simulate, boardSpec, isRunCleared } from './engine-grid.js';
 import { splitMaxCell } from './ui-grid.js';
 import { fitCellSize, drawBoard as drawBoardUi, observeBoard } from './ui-board.js';
 import { createZoom } from './ui-zoom.js';
+import { openMenu } from './ui-menu.js';
 import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, COMMAND_LABELS, vibrate } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
 import { renderInto } from './text-render.js';
@@ -290,7 +291,7 @@ export function renderTutorial(root, step) {
   function applyGuide() {
     const entry = guideEntry();
     const target = entry?.tap ?? null;
-    paletteEl.querySelectorAll('button').forEach((b) => {
+    paletteEl.querySelectorAll('button:not([data-action="menu"])').forEach((b) => {
       setGuideBtn(b, b === boxBtn ? target === 'box' : b.dataset.command === target);
     });
     setGuideBtn(runBtn, target === 'run');
@@ -353,6 +354,7 @@ export function renderTutorial(root, step) {
   }
 
   renderCommandPalette(paletteEl, {
+    onMenu: openMenu,
     dropTarget: () => queueEl.getBoundingClientRect(),
     onDragOver: (active) => toggleGhostSlot(queueEl, active),
     onAdd: (dir, { via } = {}) => {

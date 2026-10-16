@@ -48,11 +48,20 @@ export default async function run({ page, check }) {
   await check('トースト消去後も盤面の境界ボックスが変わらない', async () => await boardBox(), boardBefore);
   await check('ダイアログ表示中: 背面のパレット・操作行・queue が inert', async () =>
     page.evaluate(() =>
-      ['.palette-row', '.command-queue', '[data-sk-screen="actions"]'].every((s) => document.querySelector(s).closest('[inert]') !== null)
+      ['.palette-row [data-command]', '.command-queue', '[data-sk-screen="actions"]'].every((s) => document.querySelector(s).closest('[inert]') !== null)
     )
   );
-  await check('ダイアログ表示中: 「← もどる」は inert でない', async () =>
-    page.evaluate(() => document.querySelector('#back-btn').closest('[inert]') === null)
+  await check('ダイアログ表示中: メニューの「← まえの がめん」は inert でない', async () =>
+    page.evaluate(() => document.querySelector('#menu-back').closest('[inert]') === null)
+  );
+  await check('ダイアログ表示中: ⚙は inert でなく、結果ダイアログに隠れず実クリックが届く（Issue #467）', async () =>
+    page.evaluate(() => {
+      const b = document.querySelector('[data-action="menu"]');
+      const r = b.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return b.closest('[inert]') === null && (hit === b || b.contains(hit));
+    }),
+    true
   );
   await check('つぎの ステージの高さは64px', async () => Math.round(nextBox.height), 64);
   await check('もういちどの高さは64px・幅160px', async () => [Math.round(replayBox.height), Math.round(replayBox.width)], [64, 160]);
@@ -65,7 +74,9 @@ export default async function run({ page, check }) {
   await page.evaluate(() => localStorage.removeItem('steamkids.events'));
   for (let i = 0; i < 10 && (await page.$('[data-action="step"]')); i += 1) await page.click('[data-action="step"]');
   await page.waitForSelector('[data-result-gap]');
-  await page.click('#back-btn');
+  // 間の最中も ⚙ だけは inert から外れる（Issue #467）。⚙ → まえ を実クリックする。
+  await page.click('[data-action="menu"]');
+  await page.click('#menu-back');
   await check('もどる: playから出る', async () => (await page.getAttribute('#stage', 'data-step')) !== 'play');
   await page.waitForTimeout(2200);
   await check('もどる: 間のタイマーが片付き結果ボタンが現れない', async () => (await page.$$('[data-result-row]')).length, 0);

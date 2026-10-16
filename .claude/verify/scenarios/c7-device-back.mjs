@@ -29,19 +29,22 @@ export default async function run({ page, check }) {
 
   // 命令列を組みかけで🏠を押すと確認が出る。つづけるで残る。
   await page.click('[data-command="up"]');
-  await page.click('#home-btn');
+  await page.click('[data-action="menu"]');
+  await page.click('#menu-home');
   await check('playの途中は🏠で確認が出る', async () => (await page.$$('.leave-confirm')).length, 1);
   await page.click('[data-action="leave-cancel"]');
   await check('つづけるで確認が消えplayに残る', async () => (await page.$$('.leave-confirm')).length, 0);
   await check('命令列は残っている', async () => (await page.$$('.command-chip')).length, 1);
-  await page.click('#home-btn');
+  await page.click('[data-action="menu"]');
+  await page.click('#menu-home');
   await page.click('[data-action="leave-ok"]');
   await page.waitForSelector('[data-screen="picker"]');
   await check('やめるでマップへ移る', async () => page.url().endsWith('/index.html?view=map'));
 
   // 何も組んでいなければ確認なしで移る。
   await enterPlay(page, 'cmd-01-susumu');
-  await page.click('#home-btn');
+  await page.click('[data-action="menu"]');
+  await page.click('#menu-home');
   await page.waitForSelector('[data-screen="picker"]');
   await check('命令列が空なら確認なしで移る', async () => page.url().endsWith('/index.html?view=map'));
 }

@@ -38,10 +38,11 @@ export default async function run({ page, check }) {
   await enterPlay(page, LESSON);
 
   await check('「とめる」ボタンがある', () => chipCount(page, '.palette-row > [data-action="pause"]'), 1);
-  await check('残り回数の表示は2', () => page.getAttribute('[data-pause-count]', 'data-pause-left'), '2');
+  await check('上段右に ⚙（せってい）がある', () => chipCount(page, '.palette-row > [data-action="menu"]'), 1);
+  await check('残り回数の表示は2（とめるボタンに統合）', () => page.getAttribute('[data-action="pause"][data-pause-count]', 'data-pause-left'), '2');
   await check('パレットの全ボタンが64px以上で360pxの幅に収まる', () =>
     page.evaluate(() =>
-      [...document.querySelectorAll('.palette-row > button, .palette-row > [data-pause-count]')].every((e) => {
+      [...document.querySelectorAll('.palette-row > button')].every((e) => {
         const r = e.getBoundingClientRect();
         return r.width > 0 && r.height >= 63.5 && r.left >= 0 && r.right <= 360;
       })));
@@ -52,7 +53,7 @@ export default async function run({ page, check }) {
   await page.click('[data-command="right"]');
   await check('「とめる」を置くとチップが3つ（みぎ・とめる・みぎ）', () => chipCount(page, '.command-chip'), 3);
   await check('置いた「とめる」チップの文言', () => page.$eval('.pause-chip', (e) => e.textContent.replace(/\s/g, '')), '✋とめる');
-  await check('残り回数が1に減る', () => page.getAttribute('[data-pause-count]', 'data-pause-left'), '1');
+  await check('残り回数が1に減る', () => page.getAttribute('[data-action="pause"][data-pause-count]', 'data-pause-left'), '1');
   await check('次の枠の番号は3（「とめる」は数えない）', () => page.getAttribute('[data-tray-slot]', 'data-order'), '3');
 
   await page.click('[data-action="run"]');
@@ -76,10 +77,10 @@ export default async function run({ page, check }) {
   await check('止まった後もパレットは使える（うえ）', () => page.$eval('[data-command="up"]', (b) => !b.disabled));
 
   await page.click('[data-action="pause"]');
-  await check('残り回数が0になる', () => page.getAttribute('[data-pause-count]', 'data-pause-left'), '0');
+  await check('残り回数が0になる', () => page.getAttribute('[data-action="pause"][data-pause-count]', 'data-pause-left'), '0');
   await check('残り0なら「とめる」は無効', () => page.$eval('[data-action="pause"]', (b) => b.disabled));
   await page.click('[data-remove-index="3"]');
-  await check('置いた後ろの「とめる」は取り消せて回数が戻る', () => page.getAttribute('[data-pause-count]', 'data-pause-left'), '1');
+  await check('置いた後ろの「とめる」は取り消せて回数が戻る', () => page.getAttribute('[data-action="pause"][data-pause-count]', 'data-pause-left'), '1');
 
   await page.click('[data-command="right"]');
   await check('続きは境目の後ろに追加される（chip index 3・ロックなし）', () =>
