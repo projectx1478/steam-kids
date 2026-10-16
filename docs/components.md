@@ -13,7 +13,7 @@
 
 基準件数の正本は `test/forbidden-baseline.json`。`showsuccess 0`：`js/ui-predict.js`・`js/ui-tutorial.js` も `showClearToast` に移行済み（状態：移行完了）。`confetti 2` は `js/ui-reaction.js` の `showSuccess` 本体と `js/ui-seesaw.js` のアダプタ。
 
-歯車メニュー（ヘッダー右上の歯車＝64px→「ほごしゃの かた」→確認パネル「すすむ／やめる」→`dashboard.html`。開閉・覆い・確認パネル）は `js/ui-menu.js`（`initMenu`）。`<dialog>` は使わず `hidden` 切替（Issue #389 段A）。拡大の3項目（おおきく／ちいさく／ぜんぶみる）は段Bで足し、`getActiveZoom()` が拡大できる盤（既定でマス24px未満）のときだけ出す。
+歯車メニュー（開く⚙は、play・れんしゅうではパレット上段右の `[data-action="menu"]`、ほかの画面ではヘッダー右上の `#gear-btn`。どちらも64px以上で同じ中央パネル `#gear-menu` を開く。中身は「いまの ばしょ」〔単元名・区分チップ・ステップ点列。play・れんしゅうのみ〕・まえ・えらぶ・「がめん」・「ほごしゃの かた」→確認パネル「すすむ／やめる」→`dashboard.html`・「とじる」）は `js/ui-menu.js`（`initMenu`・`openMenu(opener)`）。`<dialog>` は使わず `hidden` 切替（Issue #389 段A・#467）。「がめん」（`#menu-zoom-open`）は `getActiveZoom()` が拡大できる盤（既定でマス24px未満）のときだけ出し、押すとパネルを閉じて画面下のズームバー `#zoom-bar`（`#zoom-in`・`#zoom-out`・`#zoom-all`・`#zoom-back`。覆いなし）を開く。倍率を変えてもバーは閉じず、もどる・Esc で閉じる。ヘッダの←・🏠と点列のメニュー内への移し替えは `js/ui-step.js`（`renderHeader`・`renderStepDots`・`setBackDisabled`。対象は play〔シーソー除く〕・tutorial。`#app` の `data-op-compact`）。パレットの⚙と、「とめる」ボタンへの残り回数の統合（`data-pause-count`・`data-pause-left`・バッジ。`setPauseLeft`）は `js/ui-commands.js`（`renderCommandPalette`）。
 
 盤面の拡大縮小（CSS transform で再描画しない。倍率 1→1.5→2→3・ホイール・2本指ピンチ・拡大中の1本指ドラッグ〔直接操作型は2本指のみ〕・実行中の追従・実行後は戻さない・拡大中だけ `touch-action:none`）は `js/ui-zoom.js`（`createZoom({ boardArea, boardWrap, direct })`。ui-play・ui-tutorial・ui-predict が接続、`onDraw` を `drawBoard` の後に呼ぶ）。
 

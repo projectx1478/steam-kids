@@ -82,7 +82,8 @@ export default async function run({ page, check }) {
   await enterPlay(page, 'cmd-01-susumu');
   await clearByStepping(page);
   await page.waitForSelector('[data-result-dialog]', { timeout: 4000 });
-  await page.click('#back-btn');
+  // 外枠（⚙を含む）が inert のため、メニュー内の まえ を直接起動する（Issue #467）。
+  await page.evaluate(() => document.querySelector('#menu-back').click());
   await check('もどる(ダイアログ表示中): playから出る', async () => (await page.getAttribute('#stage', 'data-step')) !== 'play');
   await check('もどる(ダイアログ表示中): ダイアログ・inert・relative が残らない', noLeftovers, clean);
 
@@ -90,7 +91,7 @@ export default async function run({ page, check }) {
   await enterPlay(page, 'cmd-01-susumu');
   await clearByStepping(page);
   await page.waitForSelector('[data-result-gap]');
-  await page.click('#back-btn');
+  await page.evaluate(() => document.querySelector('#menu-back').click());
   await check('もどる(間の最中): ダイアログ・inert・relative が残らない', noLeftovers, clean);
   await page.waitForTimeout(2200);
   await check('もどる(間の最中): 後からダイアログが現れない', noLeftovers, clean);

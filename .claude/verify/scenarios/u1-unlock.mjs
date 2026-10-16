@@ -102,7 +102,8 @@ export default async function run({ page, check }) {
   await check('dev: 1レッスン遊んでもeventsが増えない', async () => eventCount(page), 0);
   await check('dev: tutorialDoneも書かれない', async () =>
     page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('steamkids.tutorialDone.')).length), 0);
-  await page.click('#home-btn');
+  await page.click('[data-action="menu"]');
+  await page.click('#menu-home');
   await page.waitForSelector('[data-screen="picker"]');
   await check('dev: 「えらぶ がめんへ」後もdevが続く', async () => page.url().includes('dev=1'));
   await check('dev: 戻ったマップもdev表示', async () => (await page.$$('#dev-badge')).length, 1);

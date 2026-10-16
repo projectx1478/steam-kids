@@ -28,7 +28,8 @@ const LESSON = {
 };
 
 const area = (page) => page.$eval('[data-sk-screen="board"]', (a) => ({ zoom: a.dataset.zoom, ta: a.style.touchAction }));
-const openMenu = (page) => page.click('#gear-btn');
+// 歯車はパレットの ⚙（[data-action="menu"]）。拡大は ⚙ → メニューの「がめん」→ ズームバー（Issue #467）。
+const openMenu = (page) => page.click('[data-action="menu"]');
 // 盤面エリア以外（パレット・命令列・ページ）の touch-action の計算値。拡大の前後で変わらないことを見る。
 const outsideTouchActions = (page) =>
   page.evaluate(() => ['[data-command="up"]', '.command-queue', '#stage', 'body'].map((s) => getComputedStyle(document.querySelector(s)).touchAction));
@@ -50,24 +51,30 @@ export default async function run({ page, check }) {
 
   const outsideBefore = await outsideTouchActions(page);
   await openMenu(page);
-  await check('メニューに拡大の3項目が出る（3個）', () => page.$$eval('#menu-zoom button', (bs) => bs.filter((b) => b.offsetParent !== null).length), 3);
-  await check('3項目と保護者リンクは64px以上', () =>
-    page.$$eval('#zoom-in, #zoom-out, #zoom-all, #menu-guardian', (bs) => bs.every((b) => b.getBoundingClientRect().height >= 64)), true);
-  await check('等倍では「ちいさく」「ぜんぶみる」は押せない', () => page.$$eval('#zoom-out, #zoom-all', (bs) => bs.every((b) => b.disabled)), true);
-  await check('子ども画面に「拡大」「縮小」の語が出ない', () => page.$eval('#gear-menu', (m) => !/拡大|縮小/.test(m.textContent)), true);
+  await check('メニューに「がめん」が出る（拡大できる盤）', () => page.isVisible('#menu-zoom-open'), true);
+  await check('メニューの「がめん」と保護者リンクは64px以上', () =>
+    page.$eval('#menu-zoom-open, #menu-guardian', (bs) => bs.every((b) => b.getBoundingClientRect().height >= 64)), true);
+  await check('メニューの拡大は「がめん」1つだけ（おおきく等は並べない）', () =>
+    page.$eval('#gear-menu #zoom-in, #gear-menu #zoom-out, #gear-menu #zoom-all', (bs) => bs.length), 0);
+  await page.click('#menu-zoom-open');
+  await check('「がめん」を押すとメニューが閉じ、ズームバーが開く', () =>
+    page.evaluate(() => document.getElementById('gear-menu').hidden && !document.getElementById('zoom-bar').hidden), true);
+  await check('ズームバーの4ボタンは64px以上', () =>
+    page.$eval('#zoom-in, #zoom-out, #zoom-all, #zoom-back', (bs) => bs.every((b) => b.getBoundingClientRect().height >= 64 && b.getBoundingClientRect().width >= 64)), true);
+  await check('等倍では「ちいさく」「ぜんぶみる」は押せない', () => page.$eval('#zoom-out, #zoom-all', (bs) => bs.every((b) => b.disabled)), true);
+  await check('子ども画面に「拡大」「縮小」の語が出ない', () => page.evaluate(() => !/拡大|縮小/.test(document.getElementById('gear-menu').textContent + document.getElementById('zoom-bar').textContent)), true);
 
   await page.click('#zoom-in');
   await check('おおきく→1.5倍、touch-action は none', () => area(page), { zoom: '1.5', ta: 'none' });
-  await check('おおきくを押すとメニューが閉じる', () => page.$eval('#gear-menu', (m) => m.hidden), true);
+  await check('おおきくを押してもズームバーは閉じない（メニューは閉じたまま）', () =>
+    page.evaluate(() => document.getElementById('gear-menu').hidden && !document.getElementById('zoom-bar').hidden), true);
   await check('盤面は再描画されない（transform の scale が付く）', () => page.$eval('.grid-board', (b) => b.parentElement.style.transform.includes('scale(1.5)')), true);
   await check('動きを減らす設定では瞬時（transition なし）', () => page.$eval('.grid-board', (b) => b.parentElement.style.transition), 'none');
 
   for (const z of ['2', '3']) {
-    await openMenu(page);
     await page.click('#zoom-in');
     await check(`おおきく→${z}倍`, () => area(page), { zoom: z, ta: 'none' });
   }
-  await openMenu(page);
   await check('3倍では「おおきく」が押せない', () => page.$eval('#zoom-in', (b) => b.disabled), true);
   await page.click('#zoom-out');
   await check('ちいさく→2倍', () => area(page), { zoom: '2', ta: 'none' });
@@ -83,8 +90,10 @@ export default async function run({ page, check }) {
   await check('盤面エリア以外（パレット・命令列・ページ）の touch-action は拡大前と同じ', () => outsideTouchActions(page), outsideBefore);
   await check('命令列・ページのスクロールは none にされていない', () => outsideBefore.slice(1).every((t) => t !== 'none'), true);
 
-  await openMenu(page);
   await page.click('#zoom-all');
   await check('ぜんぶみる→等倍に戻り pan-x pan-y', () => area(page), { zoom: '1', ta: 'pan-x pan-y' });
   await check('等倍に戻ると transform が外れる', () => page.$eval('.grid-board', (b) => b.parentElement.style.transform), '');
+  await check('ぜんぶみるでもズームバーは閉じない', () => page.$eval('#zoom-bar', (b) => b.hidden), false);
+  await page.click('#zoom-back');
+  await check('もどるでズームバーが閉じる', () => page.$eval('#zoom-bar', (b) => b.hidden), true);
 }
