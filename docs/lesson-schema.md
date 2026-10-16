@@ -363,9 +363,13 @@ MustMatterは、ギミックモジュールの`strip(spec)`（ギミックを除
 | `stage_clear` | 途中のplayステージのクリア（最終ステージ以外。Issue #104） |
 | `clear` | レッスン達成（最終playステージのクリア） |
 | `abandon` | 途中離脱 |
+| `pause` | 「とめる」で止まった（`payload`: `count`＝置いた「とめる」の数、`index`＝止まった位置の命令index。Issue #395） |
+| `pause_fix` | 失敗後に「とちゅうから」で直しに入った（`payload`: `pauseIndex`＝止まった位置、`commandCount`＝止まった地点より後ろの命令数） |
 
 `logEvent(type, payload)` で `js/storage.js` 経由の localStorage（キー `steamkids.events`）へ
 追記する。保存件数の上限は5000件で、超過時は古い順に破棄する（P2で実装）。
+
+「さいしょから」は`retry`イベント（`payload`: `mode: "restart"`）で記録する。
 
 `run`イベントの`payload`は`commandCount`に加え、「1コマ」ボタンで開始した場合のみ`mode: "step"`を
 持つ（じっこうの一括実行では`mode`キー無し。Issue #111）。
