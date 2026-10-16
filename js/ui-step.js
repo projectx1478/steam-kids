@@ -301,7 +301,8 @@ function stepGlyph(step, stageIdx) {
 // クリア済みレッスンではplayステージのノードがボタン化し、goToStepで直接そのステージへ移動できる
 // （よそうはIssue #104で全廃したため対象はplayのみ）。
 function renderStepDots(root) {
-  root.appendChild(buildStepDots());
+  // 対象画面は #stage に点列を出さない（ヘッダ側の点列は data-op-compact で隠れる。メニュー内のみ）。
+  if (!isCompactStep(currentStep())) root.appendChild(buildStepDots());
   // 対象画面（play・tutorial）は中央パネルの「いまの ばしょ」にも同じ点列を描く（Issue #467）。
   const { menuDots } = headerEls();
   menuDots.innerHTML = '';
@@ -396,7 +397,7 @@ function renderStep() {
   root.dataset.step = step.kind;
   root.dataset.stepId = step.stepId;
 
-  // 対象画面は data-op-compact を立てる（ヘッダ・点列を隠すのは CSS。#467 段B で有効化）。
+  // 対象画面は data-op-compact を立てる（ヘッダを隠すのは CSS。#467 段B）。
   const app = document.getElementById('app');
   if (isCompactStep(step)) app.dataset.opCompact = 'true';
   else delete app.dataset.opCompact;
