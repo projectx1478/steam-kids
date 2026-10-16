@@ -622,6 +622,7 @@ export function renderPlay(root, step) {
         statusBar,
         controls,
         lockEl: opScreen,
+        keepEl: paletteEl.querySelector('[data-action="menu"]'),
         host: root,
         gapEl: actionsEl,
         view: local.view,

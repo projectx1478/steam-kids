@@ -108,8 +108,9 @@ export default async function run({ page, check }) {
   for (const dir of ['up', 'up', 'left', 'left']) await page.click(`[data-command="${dir}"]`);
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="next-stage"]', { timeout: 8000 });
-  // 結果ダイアログ表示中は外枠（⚙を含む）が inert のため、メニュー内の まえ を直接起動する（Issue #467）。
-  await page.evaluate(() => document.querySelector('#menu-back').click());
+  // 結果ダイアログ表示中も ⚙ だけは inert から外れる（Issue #467）。⚙ → まえ を実クリックする。
+  await page.click('[data-action="menu"]');
+  await page.click('#menu-back');
   await page.click('[data-action="start"]');
   await check('クリア後は下書きが残らず命令列が空で始まる', async () => (await page.$$('.command-chip')).length, 0);
 
