@@ -329,6 +329,24 @@ export function renderPlay(root, step) {
     local.locked = false;
   }
 
+  // drawQueueFollowActive(): 実行中の再描画。再描画で戻るスクロール位置を復元し、今動いているチップを
+  // 列の中央へ寄せる（Issue #393）。scrollIntoViewは使わず、queueElのscrollLeft/scrollTopだけを動かす。
+  function drawQueueFollowActive() {
+    const left = queueEl.scrollLeft;
+    const top = queueEl.scrollTop;
+    drawQueue();
+    queueEl.scrollLeft = left;
+    queueEl.scrollTop = top;
+    const chip = queueEl.querySelector('.command-chip[data-active="true"]');
+    if (!chip) return;
+    const q = queueEl.getBoundingClientRect();
+    const c = chip.getBoundingClientRect();
+    const chipX = c.left - q.left + queueEl.scrollLeft;
+    const chipY = c.top - q.top + queueEl.scrollTop;
+    queueEl.scrollLeft = chipX - (queueEl.clientWidth - c.width) / 2;
+    queueEl.scrollTop = chipY - (queueEl.clientHeight - c.height) / 2;
+  }
+
   function drawQueue() {
     renderCommandQueue(queueEl, {
       commands: local.commands,
@@ -744,7 +762,7 @@ export function renderPlay(root, step) {
           if (round >= 1) playSfx('stack', { count: round + 1 });
           local.activeRound = round;
         }
-        drawQueue();
+        drawQueueFollowActive();
       },
       onPickup: () => {
         local.remaining -= 1;
