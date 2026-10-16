@@ -54,7 +54,17 @@ export default async function run({ page, check }) {
   await check('次の枠の番号は2（「とめる」は数えない）', () => page.getAttribute('[data-tray-slot]', 'data-order'), '2');
 
   await page.click('[data-action="run"]');
-  await page.waitForSelector('.pause-mark');
+  // 止まらないときは原因を見えるよう、待ちが切れたら状態を actual に出して落とす。
+  const stopped = await page.waitForSelector('.pause-mark', { timeout: 15000 }).then(() => true, () => false);
+  if (!stopped) {
+    await check('止まるまで待つ（診断：盤面と列の状態）', () =>
+      page.evaluate(() => JSON.stringify({
+        run: document.querySelector('[data-action="run"]')?.outerHTML.slice(0, 160),
+        queue: document.querySelector('.command-chip')?.parentElement?.innerHTML.slice(0, 400),
+        status: document.body.innerText.slice(0, 200),
+      })), 'stopped');
+    return;
+  }
   await check('止まると境目「ここから」が出る', () => page.$eval('.pause-mark', (e) => e.textContent.replace(/\s/g, '')), '✋ここから');
   await check('止まった前の列は薄く表示される', () => page.getAttribute('.command-chip[data-index="0"]', 'data-locked'), 'true');
   await check('止まった後は前の列に×が無い', () => chipCount(page, '.command-remove'), 0);
