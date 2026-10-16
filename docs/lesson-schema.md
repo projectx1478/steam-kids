@@ -82,6 +82,7 @@ validate と集計側で同じ一覧を参照する）。一覧の照合はフ�
 `groupRepeats`とは併存し（同一stepで同時指定は検証NG）、`{dir, times}`は箱の1命令版の別表現として
 残す。`solution`は必須で、箱を`{box, times}`で書ける（`repeatBox`時のみ）。ループ込みの最短性は
 BFSで求めない（`js/ui-summary.js`は「いちばん みじかい」を出さない）。
+長い盤は箱（`groupRepeats`）を併用してよい。使うかは盤ごとに決める（Issue #393）。
 実行中は箱チップの「はこ ×N」ラベルの下に周回の点（`.box-rounds`・N個）が並び、済みの周と
 実行中の周が塗りつぶされる（実行中の点だけ強調。実行外はすべて空で、点の数だけで回数が分かる）。
 DOM判定用に箱チップへ`data-round`（0始まりの現在周。実行外は属性なし。Issue #167）。
@@ -104,7 +105,8 @@ DOM判定用に箱チップへ`data-round`（0始まりの現在周。実行外�
 を置く。クリア条件は「ゴール到達」から「ゴール到達 **かつ** 全item回収」に変わる（items未指定時
 は従来通りゴール到達のみ）。item同士・item-壁の座標重複は不可（`validate-lessons.mjs`が検証）。`ice`（こおり）も座標範囲・壁/start/goal/items/ice同士の重複不可、`cushion`（クッション）も同様（仕様は`docs/gimmicks.md`）。`switches`（スイッチ。`[{x, y, targets: [{x, y, initial?}], mode?, color?}]`）の`mode`は`"open"`（省略時）｜`"close"`｜`"toggle"`で、`initial`（`"closed"`既定｜`"open"`）は`toggle`の`targets`だけに指定でき、`targets`の要素は`{x, y}`の上位互換（仕様と併用禁止は`docs/gimmicks.md`の`## switches`）。`switches[].group`（任意・文字列）と盤面トップの`groupWalls`（任意・`{x, y, group}`の配列・省略時`[]`）の仕様は`docs/gimmicks.md`の`## switches`。`keyMode`（任意・`"remote"`｜`"carry"`、省略時`"carry"`）は`keys`・`doors`のある盤面（play・tutorial・intro.demo）だけに書け、無い盤面や2値以外はvalidateで落ちる（仕様は`docs/gimmicks.md`の`## keys`）。既存のレッスンは見た目を変えないよう`"keyMode": "remote"`を明示する。`water`・`bridge`（`{x, y}`の配列。水・橋。省略時`[]`）と`waterMode`（`"cushion"`既定／`"bump"`）も同様（`docs/gimmicks.md`の`## water`）。`play.paint`（任意・`{x, y}`の配列＝目標の模様。クリアは「ゴール到達かつ最後の塗り＝目標」。全回収との違いは`docs/gimmicks.md`の`## paint`）。
 `maxCommands`はゴール到達と全item回収の両方を満たす最短経路の手数（`groupRepeats`時はチップ数）
-で判定される（Issue #60）。
+で判定される（Issue #60）。`maxCommands`に上限なし（盤の最短手数以上の整数）。命令の列が長くなっても、
+実行中は今のチップが列の中に追従して見える（Issue #393）。
 
 `play.text`（任意・文字列。他stepの`text`と同じくルビ記法・20字制限の検証対象）を指定すると、
 playステップの指示文になる。未指定時の既定文言は`items`の有無で決まる（`js/ui-step.js`）：
