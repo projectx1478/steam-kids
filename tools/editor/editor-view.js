@@ -146,8 +146,8 @@ export function switchGroupOptions(spec, index) {
 
 // ---- たたき台の生成（#401 段2）。範囲は POST /api/generate（tools/lib/validate/stagegen.mjs の checkStageGen）と同じ ----
 export const GEN_COUNT = 4; // 1回に出す候補の数（2×2）。「もう4枚」は seed をこの数だけ進める
-export const GEN_LIMITS = { grid: [3, 20], walls: [0, 60], shortestPath: [2, 60], minTurns: [0, 8], items: [1, 4], ice: [1, 4], keys: [1, 2], warps: [1, 2] };
-export const GEN_GIMMICKS = [['items', 'どんぐり'], ['ice', 'こおり'], ['keys', 'かぎ'], ['warps', 'ワープ']];
+export const GEN_LIMITS = { grid: [3, 20], walls: [0, 60], shortestPath: [2, 60], minTurns: [0, 8], items: [1, 4], ice: [1, 4], keys: [1, 2], cushion: [1, 4], switches: [1, 2], warps: [1, 2] };
+export const GEN_GIMMICKS = [['items', 'どんぐり'], ['ice', 'こおり'], ['keys', 'かぎ'], ['cushion', 'クッション'], ['switches', 'スイッチ'], ['warps', 'ワープ']];
 const isInteger = (v) => Number.isInteger(v);
 
 // フォームの値 { cols:{min,max}, rows, walls, shortestPath, minTurns, seed, teach, gimmicks:{items:{on,min,max},ice,keys} } を送る前に検査する。
@@ -165,7 +165,10 @@ export function checkGenerateForm(form) {
   if (!isInteger(form.seed) || form.seed < 0) out.push('シード は 0 以上の整数にしてください');
   const on = GEN_GIMMICKS.filter(([k]) => form.gimmicks && form.gimmicks[k] && form.gimmicks[k].on);
   for (const [k, label] of on) range(label, form.gimmicks[k], GEN_LIMITS[k]);
-  if (on.some(([k]) => k === 'warps') && on.length > 1) out.push('ワープは ほかのギミックと いっしょに 使えません（ワープだけ オンにしてください）');
+  const isOn = (k) => on.some(([name]) => name === k);
+  if (isOn('switches') && isOn('keys')) out.push('スイッチと かぎは いっしょに 使えません');
+  if (form.teach === 'cushion' && on.length > 0 && !isOn('ice')) out.push('おしえる物が クッションのときは こおりも オンにしてください');
+  if (isOn('warps') && on.length > 1) out.push('ワープは ほかのギミックと いっしょに 使えません（ワープだけ オンにしてください）');
   if (on.length > 0 && !on.some(([k]) => k === form.teach)) out.push('おしえる物 は 使うギミックから選んでください');
   return out;
 }
