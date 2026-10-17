@@ -198,9 +198,9 @@ export const GENERATE_COUNT_DEFAULT = 4;
 export const GENERATE_COUNT_MAX = 6;
 const GENERATE_WORKER_FILE = path.join(EDITOR_DIR, 'generate-worker.mjs');
 const GENERATE_BODY_KEYS = ['stageGen', 'count', 'seed'];
-// エディタが受け取る stageGen のキー・ギミック（ver・stages・keepHandwritten・keyMode と cushion・switches は受け取らない）
+// エディタが受け取る stageGen のキー・ギミック（ver・stages・keepHandwritten・keyMode は受け取らない）
 const GENERATE_SG_KEYS = ['grid', 'walls', 'gimmicks', 'teach', 'shortestPath', 'minTurns', 'allowedCommands', 'seedBase'];
-const GENERATE_GIMMICKS = ['items', 'ice', 'keys'];
+const GENERATE_GIMMICKS = ['items', 'ice', 'keys', 'cushion', 'switches', 'warps'];
 
 // 生成 API の入力検査。範囲は tools/lib/validate/stagegen.mjs の checkStageGen をそのまま呼んで揃える
 // （ver・stages は検査を通すための仮値を足す）。問題があれば messages（空なら OK）。
@@ -216,7 +216,7 @@ export function checkGenerateInput(body) {
   const gim = stageGen.gimmicks;
   if (gim && typeof gim === 'object' && !Array.isArray(gim)) {
     for (const k of Object.keys(gim)) {
-      if (!GENERATE_GIMMICKS.includes(k)) out.push(`stageGen.gimmicks の ${k} は受け付けません（items・ice・keys のみ）`);
+      if (!GENERATE_GIMMICKS.includes(k)) out.push(`stageGen.gimmicks の ${k} は受け付けません（items・ice・keys・cushion・switches・warps のみ）`);
     }
   }
   if (out.length === 0) {

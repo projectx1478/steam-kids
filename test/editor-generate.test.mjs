@@ -57,7 +57,7 @@ test('checkGenerateInput: 範囲外・形の誤り・受け付けないキーは
   bad({ stageGen: { ...SG, keyMode: 'carry' } });
   bad({ stageGen: { ...SG, foo: 1 } });
   bad({ stageGen: { ...SG, gimmicks: { cushion: { min: 1, max: 1 } }, teach: 'cushion' } });
-  bad({ stageGen: { ...SG, gimmicks: { switches: { min: 1, max: 1 } }, teach: 'switches' } });
+  bad({ stageGen: { ...SG, gimmicks: { switches: { min: 1, max: 1 }, keys: { min: 1, max: 1 } }, teach: 'switches' } }); // switches は #492 で受け付けるが keys とは併用不可
   bad({ stageGen: { ...SG, grid: { cols: { min: 2, max: 5 }, rows: SG.grid.rows } } });
   bad({ stageGen: { ...SG, grid: { cols: { min: 4, max: 21 }, rows: SG.grid.rows } } });
   bad({ stageGen: { ...SG, walls: { min: 0, max: 61 } } });

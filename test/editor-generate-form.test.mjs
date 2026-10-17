@@ -48,3 +48,41 @@ test('generateStatusText: 文言', () => {
   assert.equal(generateStatusText('aborted'), '重すぎて途中で止めた。大きさかギミックを減らす');
   assert.equal(generateStatusText('ok'), '');
 });
+
+test('ワープ（#492）: 単独なら通り、サーバーの入力検査も通る。ほかのギミックとの併用・範囲外は通さない', () => {
+  const f = form();
+  f.gimmicks.items.on = false;
+  f.gimmicks.warps = { on: true, min: 1, max: 2 };
+  f.teach = 'warps';
+  assert.deepEqual(checkGenerateForm(f), []);
+  assert.deepEqual(checkGenerateInput(buildGenerateBody(f, 1)), []);
+  const both = form();
+  both.gimmicks.warps = { on: true, min: 1, max: 1 };
+  both.teach = 'warps';
+  assert.ok(checkGenerateForm(both).length > 0);
+  const over = form();
+  over.gimmicks.items.on = false;
+  over.gimmicks.warps = { on: true, min: 1, max: 3 };
+  over.teach = 'warps';
+  assert.ok(checkGenerateForm(over).length > 0);
+});
+
+test('クッション・スイッチ（#492）: 単独で通り、サーバーの入力検査も通る。併用の禁止を送信前に止める', () => {
+  const sw = form();
+  sw.gimmicks.items.on = false;
+  sw.gimmicks.switches = { on: true, min: 1, max: 2 };
+  sw.teach = 'switches';
+  assert.deepEqual(checkGenerateForm(sw), []);
+  assert.deepEqual(checkGenerateInput(buildGenerateBody(sw, 1)), []);
+  const swKey = structuredClone(sw);
+  swKey.gimmicks.keys.on = true;
+  assert.ok(checkGenerateForm(swKey).length > 0);
+  const cu = form();
+  cu.gimmicks.ice.on = true;
+  cu.gimmicks.cushion = { on: true, min: 1, max: 1 };
+  cu.teach = 'cushion';
+  assert.deepEqual(checkGenerateForm(cu), []);
+  assert.deepEqual(checkGenerateInput(buildGenerateBody(cu, 1)), []);
+  cu.gimmicks.ice.on = false;
+  assert.ok(checkGenerateForm(cu).length > 0);
+});
