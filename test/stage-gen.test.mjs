@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import { generateBoard, canonicalKey, metrics, itemsMustMatter, GEN_VERSION, GEN_ABORTED, MAX_WORK } from '../tools/gen/stage-gen.mjs';
 import { simulate, isRunCleared, shortestSteps } from '../js/engine-grid.js';
 import { mattersFor } from '../js/gimmicks/index.js';
-import { iceMustMatter, keysMustMatter } from '../tools/lib/must-matter.mjs';
+import { iceMustMatter, keysMustMatter, warpsMustMatter } from '../tools/lib/must-matter.mjs';
+import { checkStageGen } from '../tools/lib/validate/stagegen.mjs';
 
 const base = {
   ver: GEN_VERSION,
@@ -19,6 +20,7 @@ const cases = {
   keys: { ...base, gimmicks: { keys: { min: 1, max: 1 } }, teach: 'keys' },
   cushion: { ...base, gimmicks: { ice: { min: 1, max: 2 }, cushion: { min: 1, max: 2 } }, teach: 'cushion' },
   switches: { ...base, gimmicks: { switches: { min: 1, max: 2 } }, teach: 'switches' },
+  warps: { ...base, gimmicks: { warps: { min: 1, max: 2 } }, teach: 'warps' },
 };
 const SEEDS = 30;
 
@@ -43,6 +45,16 @@ test('stage-gen: 受理した盤は solution でクリアでき、必須性が�
       if (teach === 'switches') {
         assert.ok(mattersFor('switches', b, b.solution.length) && b.switches.length > 0, `${tag}: スイッチ必須でない`);
         assert.ok(b.switches.every((sw) => sw.targets.length === 1 && !sw.mode), `${tag}: open・1組=スイッチ1+対象1`);
+      }
+      if (teach === 'warps') {
+        assert.ok(warpsMustMatter(b).matters && b.warps.length >= 2, `${tag}: ワープ必須でない`);
+        const pairs = [...new Set(b.warps.map((w) => w.pair))];
+        assert.ok(pairs.length >= 1 && pairs.length <= 2, tag);
+        for (const pr of pairs) assert.equal(b.warps.filter((w) => w.pair === pr).length, 2, `${tag}: pair ${pr} は2個`);
+        const cells = new Set(b.warps.map((w) => `${w.x},${w.y}`));
+        assert.equal(cells.size, b.warps.length, `${tag}: 穴が重なる`);
+        assert.ok(b.warps.every((w) => !(w.x === b.start.x && w.y === b.start.y) && !(w.x === b.goal.x && w.y === b.goal.y)
+          && !b.walls.some((q) => q.x === w.x && q.y === w.y)), `${tag}: 穴が start・goal・壁に重なる`);
       }
     }
     assert.ok(accepted >= SEEDS / 2, `${teach}: 受理が少ない (${accepted}/${SEEDS})`);
@@ -105,4 +117,45 @@ test('stage-gen: 探索量の上限を超えたら GEN_ABORTED（null と区別�
   assert.equal(generateBoard({ ...cases.items, shortestPath: { min: 16, max: 16 }, minTurns: 8 }, 1, { maxWork: 100 }), GEN_ABORTED);
   assert.equal(generateBoard({ ...cases.items, shortestPath: { min: 16, max: 16 }, minTurns: 8 }, 1, { maxAttempts: 3 }), null);
   assert.deepEqual(generateBoard(cases.items, 1), generateBoard(cases.items, 1, { maxWork: MAX_WORK }));
+});
+
+test('stage-gen: warps を指定しない盤は warps キーを持たず、canonicalKey に warps の層が出ない', () => {
+  for (const sg of [cases.items, cases.ice, cases.keys, cases.cushion, cases.switches]) {
+    for (let seed = 0; seed < 5; seed += 1) {
+      const b = generateBoard(sg, seed);
+      if (!b) continue;
+      assert.equal('warps' in b, false);
+      assert.ok(!/\|p:/.test(canonicalKey(b)));
+    }
+  }
+  const w = generateBoard(cases.warps, 1);
+  assert.ok(/\|p:/.test(canonicalKey(w)));
+});
+
+// boards の断片（review/design/488/boards）。ok は warps のみ、ng は併用。stageGen の検査に通した結果を確かめる。
+const specOf = (gimmicks) => ({
+  ver: 1, stages: 4, grid: { cols: { min: 4, max: 6 }, rows: { min: 4, max: 6 } }, walls: { min: 1, max: 4 },
+  gimmicks, teach: 'warps', shortestPath: { min: 4, max: 12 },
+});
+const errorsOf = (gimmicks) => {
+  const errs = [];
+  checkStageGen({ stageGen: specOf(gimmicks) }, [], (name, msg) => errs.push(`${name}: ${msg}`));
+  return errs;
+};
+const one = { min: 1, max: 1 };
+
+test('stage-gen: stagegen 検査 warps は単独なら OK、他のギミックとの併用は NG', () => {
+  assert.deepEqual(errorsOf({ warps: { min: 1, max: 2 } }), []);
+  assert.deepEqual(errorsOf({ warps: one }), []);
+  for (const other of ['ice', 'keys', 'switches', 'cushion', 'items', 'groupRepeats', 'paint', 'periodic']) {
+    assert.ok(errorsOf({ warps: one, [other]: one }).length > 0, `${other} との併用が NG でない`);
+  }
+  assert.ok(errorsOf({ warps: one, ice: one }).some((e) => e.includes('warps は単独')));
+});
+
+test('stage-gen: stagegen 検査 warps の個数は 1〜2 の整数。単数形 warp は NG', () => {
+  for (const bad of [{ min: 0, max: 1 }, { min: 1, max: 3 }, { min: 3, max: 3 }, { min: 1.5, max: 2 }, { min: 2, max: 1 }]) {
+    assert.ok(errorsOf({ warps: bad }).length > 0, JSON.stringify(bad));
+  }
+  assert.ok(errorsOf({ warp: one }).length > 0);
 });

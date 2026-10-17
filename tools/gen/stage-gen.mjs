@@ -4,7 +4,7 @@ import { shortestPath, shortestSteps, simulate } from '../../js/engine-grid.js';
 import { GIMMICKS, mattersFor } from '../../js/gimmicks/index.js';
 import { KEY_COLORS } from '../../js/gimmicks/keys.js';
 import { mulberry32 } from '../../js/engine-generate.js';
-import { iceMustMatter, keysMustMatter } from '../lib/must-matter.mjs';
+import { iceMustMatter, keysMustMatter, warpsMustMatter } from '../lib/must-matter.mjs';
 
 // 生成器の出力が変わるときに上げる。stageGen.ver と gen.ver を揃えて書き直す。
 export const GEN_VERSION = 1;
@@ -65,6 +65,8 @@ export function canonicalKey(board) {
     layers.push(['x', board.switches.map(({ x, y }) => ({ x, y }))]);
     layers.push(['t', board.switches.flatMap((s) => s.targets)]);
   }
+  // warps の層（x,y,pair）も空でないときだけ足す。pair は色の欄に入れる。
+  if (board.warps?.length) layers.push(['p', board.warps.map(({ x, y, pair }) => ({ x, y, color: pair }))]);
   let best = null;
   for (const f of flips) {
     const parts = layers.map(([tag, cells]) => {
@@ -144,6 +146,34 @@ function placeSwitches(rng, pairCount, spec, free) {
   return switches;
 }
 
+// ワープ（pair 1・2 を組ごとに2個）の配置。入口は現盤の最短経路上の中間マス、出口は未使用の床。
+// 穴に入ると組のもう一方へ移るので、その組を足すと最短が縮む出口だけを選ぶ。見つからなければ null。
+function placeWarps(rng, pairCount, spec, free) {
+  const warps = [];
+  const used = new Set(
+    [spec.start, spec.goal, ...spec.walls, ...(spec.items ?? []), ...(spec.ice ?? [])].map(keyOf)
+  );
+  const pool = free.filter((p) => !used.has(keyOf(p)));
+  for (let n = 0; n < pairCount; n += 1) {
+    const pair = n + 1;
+    const cur = { ...spec, warps };
+    const cmds = shortestPath(cur);
+    if (!cmds) return null;
+    const path = simulate(cmds, cur).path;
+    const candidates = path.filter((p, i) => i > 0 && i < path.length - 1 && !used.has(keyOf(p)));
+    if (candidates.length === 0) return null;
+    const entry = candidates[Math.floor(rng() * candidates.length)];
+    const curSteps = cmds.length;
+    const exit = pool.find((p) => !used.has(keyOf(p)) && keyOf(p) !== keyOf(entry)
+      && shortestSteps({ ...spec, warps: [...warps, { x: entry.x, y: entry.y, pair }, { x: p.x, y: p.y, pair }] }) < curSteps);
+    if (!exit) return null;
+    used.add(keyOf(entry));
+    used.add(keyOf(exit));
+    warps.push({ x: entry.x, y: entry.y, pair }, { x: exit.x, y: exit.y, pair });
+  }
+  return warps;
+}
+
 // teach のギミックの必須性
 function teachMatters(teach, board) {
   const dist = board.solution.length;
@@ -153,6 +183,7 @@ function teachMatters(teach, board) {
   if (teach === 'keys') return keysMustMatter(play).matters;
   if (teach === 'cushion') return mattersFor('cushion', board, dist);
   if (teach === 'switches') return mattersFor('switches', board, dist);
+  if (teach === 'warps') return warpsMustMatter(play).matters;
   return true;
 }
 
@@ -220,6 +251,14 @@ export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts 
       const placed = placeSwitches(rng, switchCount, spec, free);
       if (!placed) continue;
       spec = { ...spec, switches: placed };
+    }
+    // warps は switches の後ろ。範囲未指定なら乱数を引かない（既存 seed の盤を変えない）。
+    const warpCount = gim.warps ? countOf(rng, gim.warps) : 0;
+    if (warpCount > 0) {
+      work += cells.length * warpCount * 4;
+      const placed = placeWarps(rng, warpCount, spec, free);
+      if (!placed) continue;
+      spec = { ...spec, warps: placed };
     }
     work += cells.length * 2 ** (itemCount + pairCount + switchCount);
     const cmds = shortestPath(spec, { maxDepth: stageGen.shortestPath.max });
