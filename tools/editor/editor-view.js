@@ -150,7 +150,7 @@ export const GEN_LIMITS = { grid: [3, 20], walls: [0, 60], shortestPath: [2, 60]
 export const GEN_GIMMICKS = [['items', 'どんぐり'], ['ice', 'こおり'], ['keys', 'かぎ'], ['cushion', 'クッション'], ['switches', 'スイッチ'], ['warps', 'ワープ']];
 const isInteger = (v) => Number.isInteger(v);
 
-// フォームの値 { cols:{min,max}, rows, walls, shortestPath, minTurns, seed, teach, gimmicks:{items:{on,min,max},ice,keys} } を送る前に検査する。
+// フォームの値 { cols:{min,max}, rows, walls, shortestPath, minTurns, seed, teach, gimmicks:{items:{on,min,max},ice,keys,cushion,switches,warps} } を送る前に検査する。
 // 問題の文字列の配列（空なら送れる）。
 export function checkGenerateForm(form) {
   const out = [];
