@@ -4,7 +4,7 @@ import { shortestPath, shortestSteps, simulate } from '../../js/engine-grid.js';
 import { GIMMICKS, mattersFor } from '../../js/gimmicks/index.js';
 import { KEY_COLORS } from '../../js/gimmicks/keys.js';
 import { mulberry32 } from '../../js/engine-generate.js';
-import { iceMustMatter, keysMustMatter, warpsMustMatter, periodicMustMatter } from '../lib/must-matter.mjs';
+import { iceMustMatter, keysMustMatter, warpsMustMatter, periodicMustMatter, paintMustMatter } from '../lib/must-matter.mjs';
 import { OPEN_COUNT } from '../../js/gimmicks/periodic.js';
 
 // 生成器の出力が変わるときに上げる。stageGen.ver と gen.ver を揃えて書き直す。
@@ -70,6 +70,8 @@ export function canonicalKey(board) {
   if (board.warps?.length) layers.push(['p', board.warps.map(({ x, y, pair }) => ({ x, y, color: pair }))]);
   // 周期ドアの層（x,y,period）も空でないときだけ足す。period は色の欄に入れる。
   if (board.periodic?.length) layers.push(['q', board.periodic.map(({ x, y, period }) => ({ x, y, color: period }))]);
+  // 色ぬりの目標の層も空でないときだけ足す。
+  if (board.paint?.length) layers.push(['n', board.paint]);
   let best = null;
   for (const f of flips) {
     const parts = layers.map(([tag, cells]) => {
@@ -202,6 +204,32 @@ function placePeriodic(rng, doorCount, spec) {
   return periodic;
 }
 
+// 色ぬり（paint）の目標。start からの自己回避ランダムウォーク（長さ＝目標マス数 len）の細い経路型。
+// 歩いたマスのうち直前の1マス以外とは隣り合わないので、2×2 などの塊は作らない。末端を goal にする
+// （goal は spec.goal を上書き）。壁は踏まない。行き止まりなら null。目標マス数の上限は検査側（4〜8）。
+const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+function placePaint(rng, len, spec) {
+  const walls = new Set(spec.walls.map(keyOf));
+  const walk = [{ x: spec.start.x, y: spec.start.y }];
+  const seen = new Set([keyOf(spec.start)]);
+  while (walk.length < len) {
+    const last = walk[walk.length - 1];
+    const next = DIRS.map(([dx, dy]) => ({ x: last.x + dx, y: last.y + dy })).filter((p) => {
+      if (p.x < 0 || p.y < 0 || p.x >= spec.grid.cols || p.y >= spec.grid.rows) return false;
+      if (walls.has(keyOf(p)) || seen.has(keyOf(p))) return false;
+      return DIRS.every(([dx, dy]) => {
+        const q = { x: p.x + dx, y: p.y + dy };
+        return !seen.has(keyOf(q)) || keyOf(q) === keyOf(last);
+      });
+    });
+    if (next.length === 0) return null;
+    const p = next[Math.floor(rng() * next.length)];
+    walk.push(p);
+    seen.add(keyOf(p));
+  }
+  return { paint: walk, goal: walk[walk.length - 1] };
+}
+
 // teach のギミックの必須性
 function teachMatters(teach, board) {
   const dist = board.solution.length;
@@ -213,6 +241,7 @@ function teachMatters(teach, board) {
   if (teach === 'switches') return mattersFor('switches', board, dist);
   if (teach === 'warps') return warpsMustMatter(play).matters;
   if (teach === 'periodic') return periodicMustMatter(play, dist).matters;
+  if (teach === 'paint') return paintMustMatter(play, dist).matters;
   return true;
 }
 
@@ -296,6 +325,15 @@ export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts 
       const placed = placePeriodic(rng, periodicCount, spec);
       if (!placed) continue;
       spec = { ...spec, periodic: placed };
+    }
+    // paint は periodic の後ろ（単独なので他は無い）。範囲未指定なら乱数を引かない。目標マス数は 4〜8（検査側）。
+    // 塗り集合は目標外で枝刈りされるので、状態数の見積りは マス数 × 目標マス数 × 8。
+    const paintLen = gim.paint ? countOf(rng, gim.paint) : 0;
+    if (paintLen > 0) {
+      work += cells.length * paintLen * 8;
+      const placed = placePaint(rng, paintLen, spec);
+      if (!placed) continue;
+      spec = { ...spec, goal: placed.goal, paint: placed.paint };
     }
     work += cells.length * 2 ** (itemCount + pairCount + switchCount) * (periodicCount > 0 ? 12 : 1);
     const cmds = shortestPath(spec, { maxDepth: stageGen.shortestPath.max });

@@ -24,6 +24,12 @@
     {"name": "fail-periodic-nonint", "expect": "fail", "expectError": "stageGen", "reason": "periodic の min が非整数", "patch": {"gimmicks": {"periodic": {"min": 1.5, "max": 2}}, "teach": "periodic"}},
     {"name": "fail-periodic-singular", "expect": "fail", "expectError": "stageGen 未対応のギミック", "reason": "別名キー periodics（teach も periodics）", "patch": {"gimmicks": {"periodics": {"min": 1, "max": 2}}, "teach": "periodics"}},
 
+    {"name": "ok-paint", "expect": "pass", "reason": "paint 単独（壁 walls は併用）で teach=paint", "patch": {"gimmicks": {"paint": {"min": 4, "max": 6}}, "teach": "paint"}},
+    {"name": "fail-paint-with-items", "expect": "fail", "expectError": "stageGen", "reason": "paint と items の併用は受け付けない", "patch": {"gimmicks": {"paint": {"min": 4, "max": 6}, "items": {"min": 1, "max": 2}}, "teach": "paint"}},
+    {"name": "fail-paint-range-low", "expect": "fail", "expectError": "stageGen", "reason": "paint の min が範囲外（4〜8）", "patch": {"gimmicks": {"paint": {"min": 3, "max": 6}}, "teach": "paint"}},
+    {"name": "fail-paint-range-high", "expect": "fail", "expectError": "stageGen", "reason": "paint の max が範囲外（4〜8）", "patch": {"gimmicks": {"paint": {"min": 4, "max": 9}}, "teach": "paint"}},
+    {"name": "fail-paint-nonint", "expect": "fail", "expectError": "stageGen", "reason": "paint の min が非整数", "patch": {"gimmicks": {"paint": {"min": 4.5, "max": 6}}, "teach": "paint"}},
+    {"name": "fail-paint-singular", "expect": "fail", "expectError": "stageGen 未対応のギミック", "reason": "別名キー paints（teach も paints）", "patch": {"gimmicks": {"paints": {"min": 4, "max": 6}}, "teach": "paints"}},
     {"name": "ok-switches", "expect": "pass", "reason": "switches 単独で teach=switches", "patch": {"gimmicks": {"switches": {"min": 1, "max": 1}}, "teach": "switches"}},
     {"name": "fail-cushion-range", "expect": "fail", "expectError": "stageGen", "reason": "cushion の max が範囲外（1〜4）", "patch": {"gimmicks": {"ice": {"min": 1, "max": 2}, "cushion": {"min": 1, "max": 5}}, "teach": "cushion"}},
     {"name": "fail-switches-range", "expect": "fail", "expectError": "stageGen", "reason": "switches の max が範囲外（1〜2）", "patch": {"gimmicks": {"switches": {"min": 1, "max": 3}}, "teach": "switches"}},

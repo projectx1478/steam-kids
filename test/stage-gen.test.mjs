@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { generateBoard, canonicalKey, metrics, itemsMustMatter, GEN_VERSION, GEN_ABORTED, MAX_WORK } from '../tools/gen/stage-gen.mjs';
 import { simulate, isRunCleared, shortestSteps } from '../js/engine-grid.js';
 import { mattersFor } from '../js/gimmicks/index.js';
-import { iceMustMatter, keysMustMatter, warpsMustMatter, periodicMustMatter } from '../tools/lib/must-matter.mjs';
+import { iceMustMatter, keysMustMatter, warpsMustMatter, periodicMustMatter, paintMustMatter } from '../tools/lib/must-matter.mjs';
 import { checkStageGen } from '../tools/lib/validate/stagegen.mjs';
 
 const base = {
@@ -22,6 +22,7 @@ const cases = {
   switches: { ...base, gimmicks: { switches: { min: 1, max: 2 } }, teach: 'switches' },
   warps: { ...base, gimmicks: { warps: { min: 1, max: 2 } }, teach: 'warps' },
   periodic: { ...base, gimmicks: { periodic: { min: 1, max: 2 } }, teach: 'periodic' },
+  paint: { ...base, gimmicks: { paint: { min: 4, max: 8 } }, teach: 'paint' },
 };
 const SEEDS = 30;
 
@@ -65,6 +66,20 @@ test('stage-gen: 受理した盤は solution でクリアでき、必須性が�
         assert.ok(b.periodic.every((d) => !(d.x === b.start.x && d.y === b.start.y) && !(d.x === b.goal.x && d.y === b.goal.y)
           && !b.walls.some((q) => q.x === d.x && q.y === d.y)), `${tag}: ドアが start・goal・壁に重なる`);
         assert.ok(!('repeatBox' in b) && !('groupRepeats' in b) && !('paint' in b), `${tag}: repeatBox・groupRepeats・paint は生成しない`);
+      }
+      if (teach === 'paint') {
+        assert.ok(paintMustMatter(b, b.solution.length).matters, `${tag}: 色ぬり必須でない`);
+        assert.ok(b.paint.length >= 4 && b.paint.length <= 8, `${tag}: 目標マス数が 4〜8 でない`);
+        const set = new Set(b.paint.map((c) => `${c.x},${c.y}`));
+        assert.equal(set.size, b.paint.length, `${tag}: 目標が重なる`);
+        assert.ok(set.has(`${b.start.x},${b.start.y}`) && set.has(`${b.goal.x},${b.goal.y}`), `${tag}: 目標に start・goal がない`);
+        assert.ok(b.paint.every((c) => !b.walls.some((q) => q.x === c.x && q.y === c.y)), `${tag}: 目標が壁に重なる`);
+        // 細い経路型：2×2 の塊を作らない
+        assert.ok(b.paint.every((c) => !(set.has(`${c.x + 1},${c.y}`) && set.has(`${c.x},${c.y + 1}`) && set.has(`${c.x + 1},${c.y + 1}`))), `${tag}: 2×2 の塊がある`);
+        assert.equal(b.maxCommands, b.solution.length);
+        for (const k of ['items', 'ice', 'cushion', 'keys', 'doors', 'switches', 'warps', 'periodic', 'repeatBox', 'groupRepeats']) {
+          assert.ok(!(b[k]?.length || b[k] === true), `${tag}: ${k} を持つ`);
+        }
       }
     }
     assert.ok(accepted >= SEEDS / 2, `${teach}: 受理が少ない (${accepted}/${SEEDS})`);
@@ -201,6 +216,46 @@ test('stage-gen: stagegen 検査 periodic は単独・1〜2 の整数なら OK�
     assert.ok(e[0].startsWith('stageGen: '));
   }
   const singular = periodicErrors({ periodics: { min: 1, max: 2 } }, 'periodics');
+  assert.equal(singular.length, 1);
+  assert.ok(singular[0].startsWith('stageGen 未対応のギミック'));
+});
+
+test('stage-gen: paint を指定しない盤は paint キーを持たず、canonicalKey に色ぬりの層が出ない', () => {
+  for (const sg of [cases.items, cases.ice, cases.keys, cases.cushion, cases.switches, cases.warps, cases.periodic]) {
+    for (let seed = 0; seed < 5; seed += 1) {
+      const b = generateBoard(sg, seed);
+      if (!b) continue;
+      assert.equal('paint' in b, false);
+      assert.ok(!/\|n:/.test(canonicalKey(b)));
+    }
+  }
+  assert.ok(/\|n:/.test(canonicalKey(generateBoard(cases.paint, 1))));
+});
+
+// 色ぬり（review/design/494-495-496/boards）。ok は単独、ng は 1 つの理由だけで NG。
+const paintErrors = (gimmicks, teach = 'paint') => {
+  const errs = [];
+  checkStageGen({ stageGen: { ...specOf(gimmicks), teach } }, [], (name, msg) => errs.push(`${name}: ${msg}`));
+  return errs;
+};
+
+test('stage-gen: stagegen 検査 paint は単独・4〜8 の整数なら OK。他ギミック併用・範囲外・非整数・別名は NG（各1理由）', () => {
+  assert.deepEqual(paintErrors({ paint: { min: 4, max: 6 } }), []);
+  assert.deepEqual(paintErrors({ paint: { min: 4, max: 8 } }), []);
+  for (const other of ['items', 'ice', 'keys', 'switches', 'cushion', 'warps', 'periodic']) {
+    const e = paintErrors({ paint: { min: 4, max: 6 }, [other]: one });
+    assert.ok(e.some((m) => m.includes('paint は単独')), `${other} との併用`); // warps・periodic 同士は双方の文言が出る
+  }
+  // groupRepeats・repeatBox は gimmicks の未対応キー（併用すると未対応で NG）
+  for (const other of ['groupRepeats', 'repeatBox']) {
+    assert.ok(paintErrors({ paint: { min: 4, max: 6 }, [other]: one }).length > 0, other);
+  }
+  for (const bad of [{ min: 3, max: 6 }, { min: 4, max: 9 }, { min: 4.5, max: 6 }, { min: 6, max: 4 }]) {
+    const e = paintErrors({ paint: bad });
+    assert.equal(e.length, 1, JSON.stringify(bad));
+    assert.ok(e[0].startsWith('stageGen: '));
+  }
+  const singular = paintErrors({ paints: { min: 4, max: 6 } }, 'paints');
   assert.equal(singular.length, 1);
   assert.ok(singular[0].startsWith('stageGen 未対応のギミック'));
 });
