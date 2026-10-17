@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { generateBoard, canonicalKey, metrics, itemsMustMatter, GEN_VERSION, GEN_ABORTED, MAX_WORK } from '../tools/gen/stage-gen.mjs';
 import { simulate, isRunCleared, shortestSteps } from '../js/engine-grid.js';
 import { mattersFor } from '../js/gimmicks/index.js';
-import { iceMustMatter, keysMustMatter, warpsMustMatter } from '../tools/lib/must-matter.mjs';
+import { iceMustMatter, keysMustMatter, warpsMustMatter, periodicMustMatter } from '../tools/lib/must-matter.mjs';
 import { checkStageGen } from '../tools/lib/validate/stagegen.mjs';
 
 const base = {
@@ -21,6 +21,7 @@ const cases = {
   cushion: { ...base, gimmicks: { ice: { min: 1, max: 2 }, cushion: { min: 1, max: 2 } }, teach: 'cushion' },
   switches: { ...base, gimmicks: { switches: { min: 1, max: 2 } }, teach: 'switches' },
   warps: { ...base, gimmicks: { warps: { min: 1, max: 2 } }, teach: 'warps' },
+  periodic: { ...base, gimmicks: { periodic: { min: 1, max: 2 } }, teach: 'periodic' },
 };
 const SEEDS = 30;
 
@@ -55,6 +56,15 @@ test('stage-gen: 受理した盤は solution でクリアでき、必須性が�
         assert.equal(cells.size, b.warps.length, `${tag}: 穴が重なる`);
         assert.ok(b.warps.every((w) => !(w.x === b.start.x && w.y === b.start.y) && !(w.x === b.goal.x && w.y === b.goal.y)
           && !b.walls.some((q) => q.x === w.x && q.y === w.y)), `${tag}: 穴が start・goal・壁に重なる`);
+      }
+      if (teach === 'periodic') {
+        assert.ok(periodicMustMatter(b, b.solution.length).matters && b.periodic.length >= 1 && b.periodic.length <= 2, `${tag}: 周期ドア必須でない`);
+        assert.ok(b.periodic.every((d) => d.period === 3 || d.period === 4), `${tag}: period は 3・4 のみ`);
+        const cells = new Set(b.periodic.map((d) => `${d.x},${d.y}`));
+        assert.equal(cells.size, b.periodic.length, `${tag}: ドアが重なる`);
+        assert.ok(b.periodic.every((d) => !(d.x === b.start.x && d.y === b.start.y) && !(d.x === b.goal.x && d.y === b.goal.y)
+          && !b.walls.some((q) => q.x === d.x && q.y === d.y)), `${tag}: ドアが start・goal・壁に重なる`);
+        assert.ok(!('repeatBox' in b) && !('groupRepeats' in b) && !('paint' in b), `${tag}: repeatBox・groupRepeats・paint は生成しない`);
       }
     }
     assert.ok(accepted >= SEEDS / 2, `${teach}: 受理が少ない (${accepted}/${SEEDS})`);
@@ -132,6 +142,19 @@ test('stage-gen: warps を指定しない盤は warps キーを持たず、canon
   assert.ok(/\|p:/.test(canonicalKey(w)));
 });
 
+test('stage-gen: periodic を指定しない盤は periodic キーを持たず、canonicalKey に周期ドアの層が出ない', () => {
+  for (const sg of [cases.items, cases.ice, cases.keys, cases.cushion, cases.switches, cases.warps]) {
+    for (let seed = 0; seed < 5; seed += 1) {
+      const b = generateBoard(sg, seed);
+      if (!b) continue;
+      assert.equal('periodic' in b, false);
+      assert.ok(!/\|q:/.test(canonicalKey(b)));
+    }
+  }
+  const w = generateBoard(cases.periodic, 1);
+  assert.ok(/\|q:/.test(canonicalKey(w)));
+});
+
 // boards の断片（review/design/488/boards）。ok は warps のみ、ng は併用。stageGen の検査に通した結果を確かめる。
 const specOf = (gimmicks) => ({
   ver: 1, stages: 4, grid: { cols: { min: 4, max: 6 }, rows: { min: 4, max: 6 } }, walls: { min: 1, max: 4 },
@@ -158,4 +181,26 @@ test('stage-gen: stagegen 検査 warps の個数は 1〜2 の整数。単数形 
     assert.ok(errorsOf({ warps: bad }).length > 0, JSON.stringify(bad));
   }
   assert.ok(errorsOf({ warp: one }).length > 0);
+});
+
+// 周期ドア（review/design/494-495-496/boards）。ok は単独、ng は 1 つの理由だけで NG。
+const periodicErrors = (gimmicks, teach = 'periodic') => {
+  const errs = [];
+  checkStageGen({ stageGen: { ...specOf(gimmicks), teach } }, [], (name, msg) => errs.push(`${name}: ${msg}`));
+  return errs;
+};
+
+test('stage-gen: stagegen 検査 periodic は単独・1〜2 の整数なら OK。items 併用・範囲外・非整数・別名は NG（各1理由）', () => {
+  assert.deepEqual(periodicErrors({ periodic: { min: 1, max: 2 } }), []);
+  const items = periodicErrors({ periodic: { min: 1, max: 2 }, items: { min: 1, max: 2 } });
+  assert.equal(items.length, 1);
+  assert.ok(items[0].includes('periodic は単独'));
+  for (const bad of [{ min: 0, max: 2 }, { min: 1, max: 3 }, { min: 1.5, max: 2 }]) {
+    const e = periodicErrors({ periodic: bad });
+    assert.equal(e.length, 1, JSON.stringify(bad));
+    assert.ok(e[0].startsWith('stageGen: '));
+  }
+  const singular = periodicErrors({ periodics: { min: 1, max: 2 } }, 'periodics');
+  assert.equal(singular.length, 1);
+  assert.ok(singular[0].startsWith('stageGen 未対応のギミック'));
 });
