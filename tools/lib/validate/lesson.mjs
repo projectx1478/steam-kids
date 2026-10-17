@@ -1,7 +1,7 @@
 // レッスン1本の検証（validateLesson）。tools/lib/validate/ からの分割（Issue #448）。
 import path from 'node:path';
 import { simulate, shortestSteps, shortestChips, boardSpec } from '../../../js/engine-grid.js';
-import { iceMustMatter, keysMustMatter, periodicMustMatter, paintMustMatter, itemsMustMatter } from '../../lib/must-matter.mjs';
+import { iceMustMatter, warpsMustMatter,keysMustMatter, periodicMustMatter, paintMustMatter, itemsMustMatter } from '../../lib/must-matter.mjs';
 import { plainSegmentsText, plainReading, parseSegments, rubyGrade, KANJI_RE } from '../../../js/text-render.js';
 import {
   REQUIRED_KEYS,
@@ -183,6 +183,11 @@ export function validateLesson(fileName, data, longTrialIds = []) {
       const iceCheck = iceMustMatter(play);
       if (!iceCheck.matters) {
         add('こおりの必須性', `${label}こおりを踏まずにmaxCommands=${play.maxCommands}以内でゴールできる（最短${iceCheck.dist}）`);
+      }
+      // ワープの穴を壁扱いにしても到達できるなら、ワープが飾り（氷と同形）。
+      const warpsCheck = warpsMustMatter(play);
+      if (!warpsCheck.matters) {
+        add('ワープの必須性', `${label}ワープを使わずにmaxCommands=${play.maxCommands}以内でゴールできる（最短${warpsCheck.dist}）`);
       }
     }
     // ドアは壁扱いにしても到達できるなら、かぎを取らずにクリアできてしまう（ドアが飾り）。

@@ -17,6 +17,14 @@ export function iceMustMatter(play) {
   return { matters: !(dist <= play.maxCommands), dist };
 }
 
+// ワープの穴を壁扱いにしても到達できるなら、ワープを使わずにクリアできてしまう（ワープが飾り）。氷と同形。
+export function warpsMustMatter(play) {
+  if (!(Array.isArray(play.warps) && play.warps.length > 0)) return { matters: true, dist: null };
+  const noWarp = boardSpec({ ...play, walls: [...(play.walls || []), ...play.warps.map(({ x, y }) => ({ x, y }))], warps: [] });
+  const dist = shortest(play, noWarp);
+  return { matters: !(dist <= play.maxCommands), dist };
+}
+
 // ドアは壁扱いにしても到達できるなら、かぎを取らずにクリアできてしまう（ドアが飾り）。
 export function keysMustMatter(play) {
   if (!(Array.isArray(play.doors) && play.doors.length > 0)) return { matters: true, dist: null };

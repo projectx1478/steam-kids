@@ -58,7 +58,7 @@ export const warps = {
   // いま入ったマスが穴なら、同じ組のもう一方の穴へ移して止める。向きは変えない（出口で止まるので
   // 向きは使われない）。相手の穴が無い（検査前の不正な盤）ときは何もしない。
   redirect(state, pos, dir, spec) {
-    const list = spec.warps ?? [];
+    const list = Array.isArray(spec.warps) ? spec.warps : [];
     const here = list.find((w) => w.x === pos.x && w.y === pos.y);
     if (!here) return null;
     const other = list.find((w) => w.pair === here.pair && !(w.x === here.x && w.y === here.y));
