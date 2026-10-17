@@ -85,6 +85,24 @@ test('周期ドア（#496）: 単独なら通り、サーバーの入力検査�
   assert.ok(checkGenerateForm(over).length > 0);
 });
 
+test('色ぬり（#495）: 単独なら通り、サーバーの入力検査も通る。併用・範囲外は通さない', () => {
+  const f = form();
+  f.gimmicks.items.on = false;
+  f.gimmicks.paint = { on: true, min: 4, max: 8 };
+  f.teach = 'paint';
+  assert.deepEqual(checkGenerateForm(f), []);
+  assert.deepEqual(checkGenerateInput(buildGenerateBody(f, 1)), []);
+  const both = form();
+  both.gimmicks.paint = { on: true, min: 4, max: 4 };
+  both.teach = 'paint';
+  assert.ok(checkGenerateForm(both).length > 0);
+  const over = form();
+  over.gimmicks.items.on = false;
+  over.gimmicks.paint = { on: true, min: 3, max: 8 };
+  over.teach = 'paint';
+  assert.ok(checkGenerateForm(over).length > 0);
+});
+
 test('クッション・スイッチ（#492）: 単独で通り、サーバーの入力検査も通る。併用の禁止を送信前に止める', () => {
   const sw = form();
   sw.gimmicks.items.on = false;
