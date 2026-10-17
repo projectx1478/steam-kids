@@ -30,7 +30,7 @@ test('validate-lessons: paintは他ギミックと併用できない（items・i
     items: [{ x: 3, y: 3 }],
     ice: [{ x: 3, y: 3 }],
     cushion: [{ x: 3, y: 3 }],
-    warp: [{ x: 3, y: 3 }],
+    warps: [{ x: 3, y: 3, pair: 1 }],
     keys: [{ x: 3, y: 3, color: 'red' }],
     doors: [{ x: 3, y: 0, color: 'red' }],
     switches: [{ x: 3, y: 3, targets: [{ x: 3, y: 0 }] }],

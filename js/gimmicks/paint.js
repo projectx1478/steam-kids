@@ -86,7 +86,7 @@ export const paint = {
       return;
     }
     const grid = board.grid || {};
-    for (const field of ['items', 'ice', 'cushion', 'warp', 'keys', 'doors', 'switches', 'periodic']) {
+    for (const field of ['items', 'ice', 'cushion', 'warps', 'keys', 'doors', 'switches', 'periodic']) {
       if (list(board[field]).length > 0) add('盤面の妥当性', `${label}paint は${field}と併用できない（paint単独。かべのみ可）`);
     }
     if (board.repeatBox === true || board.groupRepeats === true) add('盤面の妥当性', `${label}paint は repeatBox・groupRepeats と併用できない（4方向のみ）`);

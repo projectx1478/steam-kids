@@ -7,6 +7,8 @@ const MAX_CELL = 64;
 export const GAP_PX = 4; // Tailwind gap-1（既定。20×20級の縮小はui-board.jsのfitCellSizeが決める。Issue #389）
 export const PAD_PX = 4; // Tailwind p-1
 const MOVE_MS = 450;
+const WARP_MS = 420;
+const WARP_RING_MS = 500;
 const BOUNCE_MS = 250;
 const BOUNCE_NUDGE_PX = 10;
 const NUDGE_BY_DIR = { up: [0, -BOUNCE_NUDGE_PX], down: [0, BOUNCE_NUDGE_PX], left: [-BOUNCE_NUDGE_PX, 0], right: [BOUNCE_NUDGE_PX, 0] };
@@ -219,6 +221,7 @@ window.__gridAnimLog = window.__gridAnimLog || [];
 // labels: [{id, x, y}] 予想ステップの選択肢ボタン
 // view: プレイヤー駒・足あとの差分更新API（アニメーション中はこちらのみ使う。draw全再構築はしない）
 //   view.moveTo(pos): 通常移動（450ms、reduced-motion時は即時）
+//   view.warpTo(pos): ワープの瞬間移動（入口で縮み出口で膨らむ。reduced-motion時は即時＋出口の輪0.5秒。Issue #64）
 //   view.bounce(dir, kind): 衝突の演出（kind='wall'|'cushion'|'water'、250ms〜。'water'は岸側に水しぶきを約0.9秒出し困り顔、失敗ではない、reduced-motion時はしぶきを静止表示して約0.9秒で消す。'wall'は約1.2秒の目回し星を出し、reduced-motion時は静止表示。Issue #168）
 //   view.fallOver(): 壁衝突でロボットが横に倒れる（300ms ease-outで倒れ、倒れたまま保持。reduced-motion時は何もしない。Issue #214）
 //   view.footprint(pos): 通過マスに足あとを追加
@@ -382,6 +385,36 @@ export function renderGrid(opts) {
       token.style.transition = reduce ? 'none' : `transform ${MOVE_MS}ms ease`;
       token.style.transform = `translate(${px.x}px, ${px.y}px)`;
       if (!reduce) window.__gridAnimLog.push({ type: 'move', ms: MOVE_MS });
+    },
+    // warpTo(nextPos): ワープ（Issue #64）。入口で縮んで消え、出口で膨らむ瞬間移動（滑らない）。
+    // reduced-motion時は即座に移り、出口の輪を0.5秒光らせる。足あとは呼び出し側が入口・出口にだけ置く。
+    warpTo(nextPos) {
+      pos = { ...nextPos };
+      const reduce = prefersReducedMotion();
+      const px = pixelFor(pos);
+      const jump = () => {
+        token.style.transition = 'none';
+        token.style.transform = `translate(${px.x}px, ${px.y}px)`;
+      };
+      if (reduce) {
+        jump();
+        const ring = document.createElement('div');
+        ring.className = 'grid-warp-ring absolute pointer-events-none rounded-full border-4 border-amber-400';
+        ring.style.top = '0';
+        ring.style.left = '0';
+        ring.style.width = `${CELL * 0.9}px`;
+        ring.style.height = `${CELL * 0.9}px`;
+        ring.style.transform = `translate(${px.x + CELL * 0.05}px, ${px.y + CELL * 0.05}px)`;
+        board.appendChild(ring);
+        setTimeout(() => ring.remove(), WARP_RING_MS);
+        return;
+      }
+      window.__gridAnimLog.push({ type: 'warp', ms: WARP_MS });
+      body.animate([{ scale: '1' }, { scale: '0', offset: 0.45 }, { scale: '0', offset: 0.5 }, { scale: '1' }], { duration: WARP_MS, easing: 'ease-in-out' });
+      // 縮み切った瞬間（45%）に出口へ移す。ロボットは見えないのでジャンプは見えない
+      setTimeout(() => {
+        if (token.isConnected) jump();
+      }, WARP_MS * 0.46);
     },
     // bounce(dir, kind): 'wall'は痛そうに震えて星が弾ける（口は困り顔のまま）、'cushion'はクッションが
     // 凹んでふわっと押し返し、ロボットがばねのように戻る（口はにっこり）。

@@ -472,9 +472,14 @@ export function createStepper(commands, spec, view, { onTick, onPickup, startInd
       const dir = dirAt(cmds, raw.stepOwner[i], raw.innerOwner[i]);
       const [ddx, ddy] = WATER_DELTA[dir] ?? [0, 0];
       const watered = cushioned && (spec.water ?? []).some((c) => c.x === from.x + ddx && c.y === from.y + ddy);
-      playSfx(bumped ? 'bump' : watered ? 'splash' : cushioned ? 'cushion' : result.slid[i] ? 'slide' : 'step', { index: i });
+      const warped = !bumped && !cushioned && result.warped?.[i] === true;
+      playSfx(bumped ? 'bump' : watered ? 'splash' : cushioned ? 'cushion' : warped ? 'whoosh' : result.slid[i] ? 'slide' : 'step', { index: i });
       if (bumped || cushioned) {
         view.bounce(dir, watered ? 'water' : cushioned ? 'cushion' : 'wall');
+      } else if (warped) {
+        // ワープ（Issue #64）：入口（from）に足あとを残し、滑らず出口へ移る
+        view.footprint(from);
+        view.warpTo(to);
       } else {
         view.footprint(from);
         view.moveTo(to);

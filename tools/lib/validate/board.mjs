@@ -64,6 +64,57 @@ function checkGroupSwitches(board, add, label) {
   return ng;
 }
 
+// ワープ（Issue #64）の形式検査。キーは warps のみ（単数形 warp は受け付けない）。
+// x は 0..cols-1・y は 0..rows-1 の整数、pair は 1 か 2、各 pair はちょうど2個、組は最大2。
+// 壁・start・goal・他ギミックのマスと重ならず、ice・paint・periodic とは併用できない。
+function checkWarps(board, add, label) {
+  const bad = (msg) => add('盤面の妥当性', `${label}${msg}`);
+  if (board.warp !== undefined) bad('warp は廃止（キーは warps）');
+  if (board.warps === undefined) return;
+  if (!Array.isArray(board.warps)) {
+    bad(`warps=${JSON.stringify(board.warps)} が配列でない`);
+    return;
+  }
+  const grid = board.grid || {};
+  const list = (v) => (Array.isArray(v) ? v : []);
+  const keyOf = (p) => `${p.x},${p.y}`;
+  const isInt2 = (p) => p && Number.isInteger(p.x) && Number.isInteger(p.y);
+  const counts = new Map();
+  const seen = new Set();
+  const cellSets = [
+    ['壁', list(board.walls)],
+    ['start', board.start ? [board.start] : []],
+    ['goal', board.goal ? [board.goal] : []],
+    ['items', list(board.items)],
+    ['cushion', list(board.cushion)],
+    ['water', list(board.water)],
+    ['bridge', list(board.bridge)],
+    ['keys', list(board.keys)],
+    ['doors', list(board.doors)],
+    ['switches', list(board.switches)],
+    ['switchesのtargets', list(board.switches).flatMap((s) => list(s?.targets))],
+    ['groupWalls', list(board.groupWalls)],
+  ].map(([name, pts]) => [name, new Set(pts.filter(isInt2).map(keyOf))]);
+  board.warps.forEach((w, i) => {
+    if (!isInt2(w) || !inGrid(grid, w)) {
+      bad(`warps[${i}]=${JSON.stringify(w)} が盤外か整数でない`);
+    } else {
+      const k = keyOf(w);
+      if (seen.has(k)) bad(`warps[${i}] が他のwarpsと同じマス`);
+      seen.add(k);
+      for (const [name, set] of cellSets) if (set.has(k)) bad(`warps[${i}] が${name}と重なる`);
+    }
+    if (w?.pair !== 1 && w?.pair !== 2) bad(`warps[${i}].pair=${JSON.stringify(w?.pair)} が1か2でない`);
+    else counts.set(w.pair, (counts.get(w.pair) ?? 0) + 1);
+  });
+  counts.forEach((n, pair) => {
+    if (n !== 2) bad(`warps の pair=${pair} が${n}個ある（ちょうど2個）`);
+  });
+  for (const field of ['ice', 'paint', 'periodic']) {
+    if (list(board[field]).length > 0) bad(`warps は${field}と併用できない`);
+  }
+}
+
 // play/tutorialに共通の盤面検証（allowedCommands・座標範囲・start/goal・壁重なり・item重複）。
 // labelはエラー文言の頭に付ける識別子（play=''、tutorialは`stepId="…" の`）（Issue #81）。
 export function checkBoard(board, add, label) {
@@ -124,6 +175,7 @@ export function checkBoard(board, add, label) {
     if (wallKeySet.has(`${board.goal.x},${board.goal.y}`)) add('盤面の妥当性', `${label}goal が壁と重なる`);
   }
 
+  checkWarps(board, add, label);
   for (const g of GIMMICKS) g.validate(board, add, label);
   return groupNg;
 }
