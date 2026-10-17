@@ -4,7 +4,8 @@ import { shortestPath, shortestSteps, simulate } from '../../js/engine-grid.js';
 import { GIMMICKS, mattersFor } from '../../js/gimmicks/index.js';
 import { KEY_COLORS } from '../../js/gimmicks/keys.js';
 import { mulberry32 } from '../../js/engine-generate.js';
-import { iceMustMatter, keysMustMatter, warpsMustMatter } from '../lib/must-matter.mjs';
+import { iceMustMatter, keysMustMatter, warpsMustMatter, periodicMustMatter } from '../lib/must-matter.mjs';
+import { OPEN_COUNT } from '../../js/gimmicks/periodic.js';
 
 // 生成器の出力が変わるときに上げる。stageGen.ver と gen.ver を揃えて書き直す。
 export const GEN_VERSION = 1;
@@ -67,6 +68,8 @@ export function canonicalKey(board) {
   }
   // warps の層（x,y,pair）も空でないときだけ足す。pair は色の欄に入れる。
   if (board.warps?.length) layers.push(['p', board.warps.map(({ x, y, pair }) => ({ x, y, color: pair }))]);
+  // 周期ドアの層（x,y,period）も空でないときだけ足す。period は色の欄に入れる。
+  if (board.periodic?.length) layers.push(['q', board.periodic.map(({ x, y, period }) => ({ x, y, color: period }))]);
   let best = null;
   for (const f of flips) {
     const parts = layers.map(([tag, cells]) => {
@@ -174,6 +177,31 @@ function placeWarps(rng, pairCount, spec, free) {
   return warps;
 }
 
+// 周期ドア（period 3・4 のみ）の配置。ドアは現盤の最短経路上の中間マスで、そこへ入る手番が閉の位相になる
+// period を選ぶ（開いているうちに通るだけの飾りにしない）。period 2 は生成しない。見つからなければ null。
+const PERIODS = [3, 4];
+function placePeriodic(rng, doorCount, spec) {
+  const periodic = [];
+  const used = new Set([spec.start, spec.goal, ...spec.walls].map(keyOf));
+  for (let n = 0; n < doorCount; n += 1) {
+    const cur = { ...spec, periodic };
+    const cmds = shortestPath(cur);
+    if (!cmds) return null;
+    const path = simulate(cmds, cur).path;
+    // path[i] へ入るのは i-1 手目（手番 i-1）。その手番で閉じる period だけを候補にする。
+    const options = [];
+    path.forEach((p, i) => {
+      if (i === 0 || i === path.length - 1 || used.has(keyOf(p))) return;
+      for (const period of PERIODS) if ((i - 1) % period >= OPEN_COUNT[period]) options.push({ p, period });
+    });
+    if (options.length === 0) return null;
+    const { p, period } = options[Math.floor(rng() * options.length)];
+    used.add(keyOf(p));
+    periodic.push({ x: p.x, y: p.y, period });
+  }
+  return periodic;
+}
+
 // teach のギミックの必須性
 function teachMatters(teach, board) {
   const dist = board.solution.length;
@@ -184,6 +212,7 @@ function teachMatters(teach, board) {
   if (teach === 'cushion') return mattersFor('cushion', board, dist);
   if (teach === 'switches') return mattersFor('switches', board, dist);
   if (teach === 'warps') return warpsMustMatter(play).matters;
+  if (teach === 'periodic') return periodicMustMatter(play, dist).matters;
   return true;
 }
 
@@ -260,7 +289,15 @@ export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts 
       if (!placed) continue;
       spec = { ...spec, warps: placed };
     }
-    work += cells.length * 2 ** (itemCount + pairCount + switchCount);
+    // periodic は warps の後ろ。範囲未指定なら乱数を引かない。状態数は周期（最大 lcm(3,4)=12）倍。
+    const periodicCount = gim.periodic ? countOf(rng, gim.periodic) : 0;
+    if (periodicCount > 0) {
+      work += cells.length * periodicCount * 12;
+      const placed = placePeriodic(rng, periodicCount, spec);
+      if (!placed) continue;
+      spec = { ...spec, periodic: placed };
+    }
+    work += cells.length * 2 ** (itemCount + pairCount + switchCount) * (periodicCount > 0 ? 12 : 1);
     const cmds = shortestPath(spec, { maxDepth: stageGen.shortestPath.max });
     if (!cmds || !inRange(cmds.length, stageGen.shortestPath)) continue;
     if (countTurns(cmds) < (stageGen.minTurns ?? 0)) continue;

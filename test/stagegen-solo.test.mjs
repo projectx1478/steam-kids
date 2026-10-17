@@ -14,9 +14,9 @@ const run = (gimmicks, solo) => {
   return errs;
 };
 
-test('単独集合の初期値は warps のみ', () => {
-  assert.deepEqual(SG_SOLO_GIMMICKS, ['warps']);
-  assert.deepEqual(GEN_SOLO_GIMMICKS, ['warps']);
+test('単独集合は warps・periodic（フォーム側も同じ）', () => {
+  assert.deepEqual(SG_SOLO_GIMMICKS, ['warps', 'periodic']);
+  assert.deepEqual(GEN_SOLO_GIMMICKS, ['warps', 'periodic']);
 });
 
 test('集合に仮の要素を渡すと、その要素との併用がNGになる', () => {
