@@ -14,7 +14,9 @@ export const FIXED_ITEMS = [
 export function buildPalette(gimmicks) {
   return [
     ...FIXED_ITEMS.map((p) => ({ ...p })),
-    ...gimmicks.map((g) => ({ key: g.key, label: g.label, kind: 'gimmick' })),
+    ...gimmicks.flatMap((g) => (g.key === 'warps'
+      ? [1, 2].map((n) => ({ key: `warps${n}`, label: `${g.label}${n}`, kind: 'gimmick' })) // ワープは組ごとに1個ずつ置く（#488）
+      : [{ key: g.key, label: g.label, kind: 'gimmick' }])),
   ];
 }
 
@@ -33,5 +35,6 @@ export function iconSpec(key) {
   if (key === 'wall') return { ...base, walls: [cell] };
   if (key === 'goal') return { ...base, goal: cell };
   if (key === 'start') return base;
+  if (key === 'warps1' || key === 'warps2') return { ...base, warps: [{ ...cell, pair: key === 'warps1' ? 1 : 2 }] };
   return { ...base, [key]: [cell], ...ICON_EXTRA[key] };
 }

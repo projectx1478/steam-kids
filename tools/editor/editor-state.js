@@ -12,6 +12,7 @@ export const SIMPLE_LISTS = ['walls', 'items', 'ice', 'cushion', 'water'];
 export const COMPLEX_KEYS = ['keys', 'paint', 'periodic'];
 export const SWITCH_COLORS = ['red', 'blue'];
 const SWITCH_KINDS = ['switches', 'switches.targets'];
+const WARP_KEYS = { warps1: 1, warps2: 2 }; // パレットの key → pair。1回で穴を1個置く（#488）。個数の検査は保存時の validate
 const GROUP_WALLS = 'groupWalls'; // 色連動の壁 [{ x, y, group }]（#404 段B）
 const SINGLE = ['start', 'goal'];
 
@@ -122,6 +123,13 @@ export function place(state, key, x, y, group) {
   const spec = state.spec;
   if (key === 'switches') return placeSwitch(state, x, y);
   if (key === GROUP_WALLS) return placeGroupWall(state, group, x, y);
+  if (WARP_KEYS[key]) {
+    if (!inGrid(spec, x, y)) return ng('盤外');
+    if (occupants(spec, x, y).length) return ng('そのマスには既に要素がある');
+    const next = clone(spec);
+    next.warps = [...list(next.warps), { x, y, pair: WARP_KEYS[key] }];
+    return commit(state, next);
+  }
   const isSimple = key === 'wall' || SIMPLE_LISTS.includes(key);
   if (!isSimple && !SINGLE.includes(key)) {
     return ng(COMPLEX_KEYS.includes(key) ? `${key} は組・設定が要るためまだ置けない（#404）` : `${key} は置けない`);
@@ -145,8 +153,13 @@ export function erase(state, x, y) {
   const here = occupants(spec, x, y);
   if (here.length === 0) return ng('消す物が無い');
   if (here.some((o) => SINGLE.includes(o.kind))) return ng('スタート・ゴールは消せない（各1個）');
-  if (here.some((o) => !SIMPLE_LISTS.includes(o.kind) && !SWITCH_KINDS.includes(o.kind) && o.kind !== GROUP_WALLS)) return ng('組・設定のある要素はまだ消せない（#404）');
+  if (here.some((o) => !SIMPLE_LISTS.includes(o.kind) && !SWITCH_KINDS.includes(o.kind) && o.kind !== GROUP_WALLS && o.kind !== 'warps')) return ng('組・設定のある要素はまだ消せない（#404）');
   const next = clone(spec);
+  if (here.some((o) => o.kind === 'warps')) {
+    next.warps = list(next.warps).filter((c) => !(c.x === x && c.y === y));
+    if (next.warps.length === 0) delete next.warps;
+    return commit(state, next);
+  }
   if (here.some((o) => o.kind === 'switches')) {
     // スイッチ本体を消す（同じマスの氷は残す）。対象の壁は他に持ち主がいなければ床に戻る。
     const gone = list(next.switches).find((c) => c.x === x && c.y === y);
@@ -190,6 +203,12 @@ export function move(state, fromX, fromY, toX, toY) {
     const moved = clone(spec);
     moved.switches[swHere.index].x = toX;
     moved.switches[swHere.index].y = toY;
+    return commit(state, moved);
+  }
+  if (here.every((o) => o.kind === 'warps')) {
+    if (occupants(spec, toX, toY).length) return ng('移動先に要素がある');
+    const moved = clone(spec);
+    for (const w of list(moved.warps)) if (w.x === fromX && w.y === fromY) { w.x = toX; w.y = toY; }
     return commit(state, moved);
   }
   if (here.every((o) => o.kind === GROUP_WALLS)) {

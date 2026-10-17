@@ -1,7 +1,7 @@
 // #397 段4: 盤面エディタの状態管理（置く・消す・動かす・元に戻す・やり直し、拒否値）。実行: npm run test:unit
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createState, setCellPx, setGrid, place, erase, move, undo, redo, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, COMPLEX_KEYS, HISTORY_MAX } from '../tools/editor/editor-state.js';
+import { occupants, createState, setCellPx, setGrid, place, erase, move, undo, redo, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, COMPLEX_KEYS, HISTORY_MAX } from '../tools/editor/editor-state.js';
 import { SAMPLE_SPEC, EDITOR_MAX_SIZE, pendingSwitches, switchModeOptions, switchGroupOptions, pendingGroupSwitches } from '../tools/editor/editor-view.js';
 import { analyzeSpec } from '../tools/editor/validate-worker.mjs';
 
@@ -61,6 +61,33 @@ test('editor-state: 組・設定が要る要素は置けない・消せない・
   for (const key of ['keys', 'paint', 'periodic']) assert.equal(place(s, key, 2, 1).ok, false, key);
   assert.equal(erase(s, 0, 2).ok, false); // かぎ
   assert.equal(move(s, 2, 2, 2, 1).ok, false); // ドア
+});
+
+test('editor-state: ワープ（warps1/warps2）は1個ずつ置く・同マスは NG・消す・動かす・空で warps キー削除', () => {
+  const s = fresh();
+  const free = [];
+  for (let y = 0; y < s.spec.grid.rows && free.length < 5; y++) for (let x = 0; x < s.spec.grid.cols && free.length < 5; x++) if (occupants(s.spec, x, y).length === 0) free.push({ x, y });
+  assert.ok(free.length >= 5);
+  const [a, b, c, d, e] = free;
+  assert.equal(s.spec.warps, undefined);
+  assert.equal(place(s, 'warps1', a.x, a.y).ok, true);
+  assert.deepEqual(s.spec.warps, [{ x: a.x, y: a.y, pair: 1 }]);
+  assert.equal(place(s, 'warps2', a.x, a.y).ok, false); // 同マスは NG
+  assert.equal(place(s, 'wall', a.x, a.y).ok, false);
+  assert.equal(place(s, 'warps1', b.x, b.y).ok, true);
+  assert.equal(place(s, 'warps2', c.x, c.y).ok, true);
+  assert.equal(place(s, 'warps2', d.x, d.y).ok, true);
+  assert.deepEqual(s.spec.warps.map((w) => w.pair), [1, 1, 2, 2]);
+  assert.equal(place(s, 'warps1', 99, 99).ok, false); // 盤外
+  assert.equal(move(s, c.x, c.y, a.x, a.y).ok, false); // 移動先に要素
+  assert.equal(move(s, c.x, c.y, e.x, e.y).ok, true);
+  assert.deepEqual(s.spec.warps[2], { x: e.x, y: e.y, pair: 2 }); // pair は保たれる
+  assert.equal(erase(s, e.x, e.y).ok, true); // 1個ずつ消える
+  assert.equal(s.spec.warps.length, 3);
+  for (const w of [a, b, d]) assert.equal(erase(s, w.x, w.y).ok, true);
+  assert.equal('warps' in s.spec, false); // 空になったらキーごと消える
+  assert.equal(undo(s).ok, true);
+  assert.equal(s.spec.warps.length, 1);
 });
 
 test('editor-state: 単純なギミック（items・ice・cushion・water）は置ける。空になった配列は消える', () => {

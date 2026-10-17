@@ -21,9 +21,17 @@ test('editor-palette: 固定4項目が先頭にある', () => {
 test('editor-palette: GIMMICKS の key が全部（登録順で）パレットに出る', () => {
   const p = buildPalette(GIMMICKS);
   const gim = p.filter((x) => x.kind === 'gimmick');
-  assert.deepEqual(gim.map((x) => x.key), GIMMICKS.map((g) => g.key));
-  assert.deepEqual(gim.map((x) => x.label), GIMMICKS.map((g) => g.label));
-  assert.equal(p.length, 4 + GIMMICKS.length);
+  // ワープだけは組ごとに「ワープ1」「ワープ2」の2項目（#488）
+  const expKeys = GIMMICKS.flatMap((g) => (g.key === 'warps' ? ['warps1', 'warps2'] : [g.key]));
+  const expLabels = GIMMICKS.flatMap((g) => (g.key === 'warps' ? ['ワープ1', 'ワープ2'] : [g.label]));
+  assert.deepEqual(gim.map((x) => x.key), expKeys);
+  assert.deepEqual(gim.map((x) => x.label), expLabels);
+  assert.equal(p.length, 4 + expKeys.length);
+});
+
+test('editor-palette: ワープ1・2 のアイコン盤面は pair が違う穴1個', () => {
+  assert.deepEqual(iconSpec('warps1').warps, [{ x: 0, y: 0, pair: 1 }]);
+  assert.deepEqual(iconSpec('warps2').warps, [{ x: 0, y: 0, pair: 2 }]);
 });
 
 test('editor-palette: 登録表に足したギミックもパレットに出る', () => {
