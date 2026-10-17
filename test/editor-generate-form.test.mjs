@@ -48,3 +48,21 @@ test('generateStatusText: 文言', () => {
   assert.equal(generateStatusText('aborted'), '重すぎて途中で止めた。大きさかギミックを減らす');
   assert.equal(generateStatusText('ok'), '');
 });
+
+test('ワープ（#492）: 単独なら通り、サーバーの入力検査も通る。ほかのギミックとの併用・範囲外は通さない', () => {
+  const f = form();
+  f.gimmicks.items.on = false;
+  f.gimmicks.warps = { on: true, min: 1, max: 2 };
+  f.teach = 'warps';
+  assert.deepEqual(checkGenerateForm(f), []);
+  assert.deepEqual(checkGenerateInput(buildGenerateBody(f, 1)), []);
+  const both = form();
+  both.gimmicks.warps = { on: true, min: 1, max: 1 };
+  both.teach = 'warps';
+  assert.ok(checkGenerateForm(both).length > 0);
+  const over = form();
+  over.gimmicks.items.on = false;
+  over.gimmicks.warps = { on: true, min: 1, max: 3 };
+  over.teach = 'warps';
+  assert.ok(checkGenerateForm(over).length > 0);
+});
