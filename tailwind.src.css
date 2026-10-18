@@ -454,6 +454,13 @@ dialog.result-row {
 #app[data-op-compact='true'] > header {
   display: none;
 }
+/* 操作画面は外側の余白を片側8px（#app 4px＋#stage 4px）に詰めて盤面を広げる（Issue #497 段B。見本の枠は端から8px）。 */
+#app[data-op-compact='true'] {
+  padding: 0.25rem;
+}
+#app[data-op-compact='true'] > #stage {
+  padding: 0.25rem;
+}
 .palette-row > [data-action='box-open'] {
   grid-column: 1 / -1;
 }

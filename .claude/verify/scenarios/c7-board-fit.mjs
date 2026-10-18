@@ -104,7 +104,17 @@ async function checkBoardAreaSize(page, check) {
     await resetTutorialFlags(page);
     await enterPlay(page, 'cmd-01-susumu');
     await page.waitForSelector('[data-sk-screen="frame"] .grid-board');
-    await check(`${vp.width}x${vp.height} play: 盤面エリアが ${minW + 1}x${minH + 1} 以上（問い文の行を撤去）`, async () => {
+    // 失敗時に実測が分かるよう、メッセージへ実測の幅x高さと周辺の高さを埋める（期待値は変えない）。
+    const info = async () => {
+      const s = await areaSize();
+      const d = await page.evaluate(() => {
+        const h = (el) => (el ? Math.round(el.getBoundingClientRect().height) : -1);
+        const q = document.querySelector('[data-sk-screen="question"]');
+        return { frame: h(document.querySelector('[data-sk-screen="frame"]')), q: h(q), qd: getComputedStyle(q).display, panel: h(document.querySelector('[data-sk-screen="panel"]')), stage: h(document.getElementById('stage')) };
+      });
+      return `実測 ${s.w}x${s.h} frame=${d.frame} 問い文行=${d.q}(${d.qd}) 操作パネル=${d.panel} stage=${d.stage}`;
+    };
+    await check(`${vp.width}x${vp.height} play: 盤面エリアが ${minW + 1}x${minH + 1} 以上（問い文の行を撤去。${await info()}）`, async () => {
       const s = await areaSize();
       return s.w >= minW && s.h >= minH;
     });
