@@ -38,11 +38,11 @@ export default async function run({ page, check }) {
     async () => (await page.locator('[data-goal]').innerHTML()).includes('polygon'),
     false
   );
-  // 指示文（play.text）は操作画面上部の問い文スロットに常時表示される
-  // （課題カードはIssue #97で廃止。「ゴール」表示自体は盤面の旗セルで確認済み・上記）。
+  // 指示文（play.text）は開始時に小鳥の吹き出しで出る（Issue #497。「スタート！」が消えてから。課題カードはIssue #97で廃止。
+  // 「ゴール」表示自体は盤面の旗セルで確認済み・上記）。
   await check(
-    '指示文がlessonのplay.text（問い文スロット）',
-    async () => page.locator('[data-sk-screen="question"] p').first().textContent(),
+    '指示文がlessonのplay.text（小鳥の吹き出し）',
+    async () => page.locator('[data-sk-bird="bubble"][data-question] p').first().textContent(),
     'ロボットを ゴールへ うごかそう'
   );
   await check('items無レッスンにのこり表示が無い', async () => (await page.$$('[data-remaining]')).length, 0);
@@ -97,7 +97,7 @@ export default async function run({ page, check }) {
   await page.click('[data-action="next"]');
   await check(
     'play.text未指定・items無の既定文言',
-    async () => page.locator('[data-sk-screen="question"] p').first().textContent(),
+    async () => page.locator('[data-sk-bird="bubble"][data-question] p').first().textContent(),
     'ロボットを ゴールへ うごかそう'
   );
 
@@ -150,7 +150,7 @@ export default async function run({ page, check }) {
   await page.click('[data-action="next"]');
   await check(
     'play.text未指定・items有の既定文言',
-    async () => page.locator('[data-sk-screen="question"] p').first().textContent(),
+    async () => page.locator('[data-sk-bird="bubble"][data-question] p').first().textContent(),
     'どんぐりを ぜんぶ とって ゴール'
   );
 

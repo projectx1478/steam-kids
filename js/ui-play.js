@@ -96,7 +96,7 @@ export function renderPlay(root, step) {
 
   // 画面の枠は共通部品（js/ui-screen.js。Issue #343）。問い文スロット（statusBar＝questionEl）には
   // 実行結果もここへ数秒だけトースト表示する（Issue #97）。
-  const screen = createOpScreen({ root, question: step.text ?? defaultText });
+  const screen = createOpScreen({ root, question: step.text ?? defaultText, stepKey: `${S.lesson.lessonId}:${step.stepId}` });
   const { frame: opScreen, questionEl: statusBar, boardArea, panel: controls, actions: actionsEl, bird } = screen;
   // 360px縦で4ボタンの文字を溢れさせないため、この行だけ間隔を詰める（Issue #385）。
   actionsEl.classList.replace('gap-2', 'gap-1');
@@ -882,6 +882,7 @@ export function renderPlay(root, step) {
   drawQueue();
   updateControls();
   showStartCue(boardArea); // ステージ開始時に1回（再開では出さない。#497）
+  screen.announceQuestion(); // 問い文の吹き出し。「スタート！」が消えてから出る（#497 段B）
   // 無操作時、いまの段階に応じた実物ボタンを促す（8秒後・最大2回。Issue #89）。
   local.nudge = createIdleNudge({
     getTarget: () => {

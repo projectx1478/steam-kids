@@ -77,6 +77,7 @@ export default async function run({ page, check }) {
     await page.setViewportSize(vp);
     for (const id of LESSONS) await runLesson(page, check, id, `${vp.width}x${vp.height}`);
   }
+  await checkBoardAreaSize(page, check); // 文字サイズ拡大の前（rem 基準の寸法が変わるため）
   // 端末の文字サイズ拡大（Android等の文字倍率）を想定
   await setFontScale(page, 1.25);
   for (const vp of VIEWPORTS.slice(0, 3)) {
@@ -84,6 +85,32 @@ export default async function run({ page, check }) {
     for (const id of LESSONS) await runLesson(page, check, id, `${vp.width}x${vp.height}@125%`);
   }
   await checkQueueOverflow(page, check);
+}
+
+// 問い文の行を撤去して盤面を広げた寸法（Issue #497 段B）。のこり表示・塗りの見本・鍵トレイの補助行が無い cmd-01 の play で、
+// 盤面エリアが 縦(360x640)=344x300・横(844x390)=500x374 以上であること（1px の丸め誤差は許容）。
+async function checkBoardAreaSize(page, check) {
+  const areaSize = () =>
+    page.evaluate(() => {
+      const r = document.querySelector('[data-sk-screen="board"]').getBoundingClientRect();
+      return { w: Math.round(r.width), h: Math.round(r.height) };
+    });
+  for (const [vp, minW, minH] of [
+    [{ width: 360, height: 640 }, 343, 299],
+    [{ width: 844, height: 390 }, 499, 373],
+  ]) {
+    await page.setViewportSize(vp);
+    await page.goto('/index.html?lesson=cmd-01-susumu');
+    await resetTutorialFlags(page);
+    await enterPlay(page, 'cmd-01-susumu');
+    await page.waitForSelector('[data-sk-screen="frame"] .grid-board');
+    await check(`${vp.width}x${vp.height} play: 盤面エリアが ${minW + 1}x${minH + 1} 以上（問い文の行を撤去）`, async () => {
+      const s = await areaSize();
+      return s.w >= minW && s.h >= minH;
+    });
+    await check(`${vp.width}x${vp.height} play: 問い文の行は出ない`, () =>
+      page.evaluate(() => getComputedStyle(document.querySelector('[data-sk-screen="question"]')).display), 'none');
+  }
 }
 
 // 命令をmaxCommandsまで積んだ時、命令列が横スクロールで最新チップを隠さないこと（Issue #102）。

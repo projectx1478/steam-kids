@@ -27,7 +27,7 @@ export function renderPredict(root, step) {
 
   // 画面の枠は共通部品（js/ui-screen.js。Issue #343・#355）。問い文スロット（statusBar＝questionEl）には
   // 実行結果もここへ数秒だけトースト表示する（Issue #97）。
-  const screen = createOpScreen({ root, question: step.text });
+  const screen = createOpScreen({ root, question: step.text, stepKey: `${S.lesson.lessonId}:${step.stepId}` });
   const { frame: opScreen, boardArea, actions: actionsEl, bird } = screen;
   opScreen.classList.add('sk-screen-frame--predict');
   actionsEl.classList.add('sk-screen-actions--predict');
@@ -119,6 +119,7 @@ export function renderPredict(root, step) {
   });
 
   showQuestion();
+  screen.announceQuestion(); // 問い文の吹き出し（#497 段B）
   observeBoard({
     boardArea,
     fit: () => fitCellSize({ spec, boardArea, noSplit: true }),
