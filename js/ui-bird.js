@@ -34,15 +34,35 @@ export function createBird(boardArea) {
   boardArea.appendChild(bubbleEl);
   boardArea.appendChild(iconEl);
 
+  // 「スタート！」表示中（boardArea の data-start-cue）に来た text は保留し、消えた時点で最後の1件だけ出す（後勝ち）。
+  let pending = null;
+  let attrKeys = [];
   function hideBubble() {
+    pending = null;
     bubbleEl.hidden = true;
     bubbleEl.textContent = '';
+    attrKeys.forEach((k) => delete bubbleEl.dataset[k]);
+    attrKeys = [];
   }
-  // text は呼び出し側が渡す（textContent で入れる）。すでに出ていれば置き換える。
-  function showBubble(text) {
-    bubbleEl.textContent = text;
+  // content は文字列（textContent で入れる）または DOM ノード（結果・ヒントの中身。Issue #497）。
+  // attrs は吹き出しの data 属性（例 { result: 'clear' }）。すでに出ていれば置き換える（後勝ち）。
+  function showBubble(content, attrs = {}) {
+    if (boardArea.dataset.startCue) {
+      pending = { content, attrs };
+      return;
+    }
+    hideBubble();
+    if (typeof content === 'string') bubbleEl.textContent = content;
+    else bubbleEl.appendChild(content);
+    Object.entries(attrs).forEach(([k, v]) => {
+      bubbleEl.dataset[k] = v;
+    });
+    attrKeys = Object.keys(attrs);
     bubbleEl.hidden = false;
   }
+  boardArea.addEventListener('sk-start-cue-end', () => {
+    if (pending !== null) showBubble(pending.content, pending.attrs);
+  });
   // 吹き出し自体のタップで消える（自動では消さない。#468 悠 10-18）。
   bubbleEl.addEventListener('click', hideBubble);
 
