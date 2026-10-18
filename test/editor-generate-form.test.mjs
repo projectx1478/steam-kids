@@ -103,6 +103,24 @@ test('色ぬり（#495）: 単独なら通り、サーバーの入力検査も�
   assert.ok(checkGenerateForm(over).length > 0);
 });
 
+test('水（#494）: 単独なら通り、サーバーの入力検査も通る。併用・範囲外は通さない', () => {
+  const f = form();
+  f.gimmicks.items.on = false;
+  f.gimmicks.water = { on: true, min: 2, max: 8 };
+  f.teach = 'water';
+  assert.deepEqual(checkGenerateForm(f), []);
+  assert.deepEqual(checkGenerateInput(buildGenerateBody(f, 1)), []);
+  const both = form();
+  both.gimmicks.water = { on: true, min: 2, max: 4 };
+  both.teach = 'water';
+  assert.ok(checkGenerateForm(both).length > 0);
+  const over = form();
+  over.gimmicks.items.on = false;
+  over.gimmicks.water = { on: true, min: 1, max: 8 };
+  over.teach = 'water';
+  assert.ok(checkGenerateForm(over).length > 0);
+});
+
 test('クッション・スイッチ（#492）: 単独で通り、サーバーの入力検査も通る。併用の禁止を送信前に止める', () => {
   const sw = form();
   sw.gimmicks.items.on = false;

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { generateBoard, canonicalKey, metrics, itemsMustMatter, GEN_VERSION, GEN_ABORTED, MAX_WORK } from '../tools/gen/stage-gen.mjs';
 import { simulate, isRunCleared, shortestSteps } from '../js/engine-grid.js';
 import { mattersFor } from '../js/gimmicks/index.js';
-import { iceMustMatter, keysMustMatter, warpsMustMatter, periodicMustMatter, paintMustMatter } from '../tools/lib/must-matter.mjs';
+import { iceMustMatter, keysMustMatter, warpsMustMatter, periodicMustMatter, paintMustMatter, waterMustMatter } from '../tools/lib/must-matter.mjs';
 import { checkStageGen } from '../tools/lib/validate/stagegen.mjs';
 
 const base = {
@@ -23,6 +23,7 @@ const cases = {
   warps: { ...base, gimmicks: { warps: { min: 1, max: 2 } }, teach: 'warps' },
   periodic: { ...base, gimmicks: { periodic: { min: 1, max: 2 } }, teach: 'periodic' },
   paint: { ...base, gimmicks: { paint: { min: 4, max: 8 } }, teach: 'paint' },
+  water: { ...base, gimmicks: { water: { min: 2, max: 4 } }, teach: 'water' },
 };
 const SEEDS = 30;
 
@@ -78,6 +79,28 @@ test('stage-gen: 受理した盤は solution でクリアでき、必須性が�
         assert.ok(b.paint.every((c) => !(set.has(`${c.x + 1},${c.y}`) && set.has(`${c.x},${c.y + 1}`) && set.has(`${c.x + 1},${c.y + 1}`))), `${tag}: 2×2 の塊がある`);
         assert.equal(b.maxCommands, b.solution.length);
         for (const k of ['items', 'ice', 'cushion', 'keys', 'doors', 'switches', 'warps', 'periodic', 'repeatBox', 'groupRepeats']) {
+          assert.ok(!(b[k]?.length || b[k] === true), `${tag}: ${k} を持つ`);
+        }
+      }
+      if (teach === 'water') {
+        assert.ok(waterMustMatter(b, b.solution.length).matters, `${tag}: 水必須でない`);
+        assert.ok(b.water.length >= 2 && b.water.length <= 4, `${tag}: 水マス数が範囲外`);
+        assert.equal(b.waterMode, 'cushion', tag);
+        const cells = new Set(b.water.map((c) => `${c.x},${c.y}`));
+        assert.equal(cells.size, b.water.length, `${tag}: 水が重なる`);
+        assert.ok(b.water.every((c) => !(c.x === b.start.x && c.y === b.start.y) && !(c.x === b.goal.x && c.y === b.goal.y)
+          && !b.walls.some((q) => q.x === c.x && q.y === c.y)), `${tag}: 水が start・goal・壁に重なる`);
+        // 迂回が +2 以上
+        const noWater = shortestSteps({ ...b, water: [], bridge: [] });
+        assert.ok(b.solution.length >= noWater + 2, `${tag}: 迂回が +2 未満`);
+        // 橋は無いか1つ。あれば反対側の2辺が水で、水・壁と重ならない
+        assert.ok((b.bridge ?? []).length <= 1, tag);
+        for (const br of b.bridge ?? []) {
+          const w = (dx, dy) => cells.has(`${br.x + dx},${br.y + dy}`);
+          assert.ok((w(-1, 0) && w(1, 0)) || (w(0, -1) && w(0, 1)), `${tag}: 橋の反対側が水でない`);
+          assert.ok(!cells.has(`${br.x},${br.y}`) && !b.walls.some((q) => q.x === br.x && q.y === br.y), `${tag}: 橋が水・壁に重なる`);
+        }
+        for (const k of ['items', 'ice', 'cushion', 'keys', 'doors', 'switches', 'warps', 'periodic', 'paint', 'repeatBox', 'groupRepeats']) {
           assert.ok(!(b[k]?.length || b[k] === true), `${tag}: ${k} を持つ`);
         }
       }
@@ -258,4 +281,59 @@ test('stage-gen: stagegen 検査 paint は単独・4〜8 の整数なら OK。�
   const singular = paintErrors({ paints: { min: 4, max: 6 } }, 'paints');
   assert.equal(singular.length, 1);
   assert.ok(singular[0].startsWith('stageGen 未対応のギミック'));
+});
+
+test('stage-gen: water を指定しない盤は water・bridge・waterMode を持たず、canonicalKey に水の層が出ない', () => {
+  for (const sg of [cases.items, cases.ice, cases.keys, cases.cushion, cases.switches, cases.warps, cases.periodic, cases.paint]) {
+    for (let seed = 0; seed < 5; seed += 1) {
+      const b = generateBoard(sg, seed);
+      if (!b) continue;
+      assert.equal('water' in b, false);
+      assert.equal('bridge' in b, false);
+      assert.equal('waterMode' in b, false);
+      assert.ok(!/\|e:/.test(canonicalKey(b)));
+    }
+  }
+  assert.ok(/\|e:/.test(canonicalKey(generateBoard(cases.water, 1))));
+});
+
+test('stage-gen: water は橋を置ける盤が少なくとも1つあり、橋は最短経路上にある', () => {
+  let withBridge = 0;
+  for (let seed = 0; seed < SEEDS; seed += 1) {
+    const b = generateBoard(cases.water, seed);
+    if (!b?.bridge) continue;
+    withBridge += 1;
+    const path = simulate(b.solution, b).path.map((p) => `${p.x},${p.y}`);
+    assert.ok(path.includes(`${b.bridge[0].x},${b.bridge[0].y}`), `seed=${seed}: 橋が最短経路上にない`);
+  }
+  assert.ok(withBridge > 0);
+});
+
+// 水（review/design/494-495-496/boards）。ok は単独、ng は 1 つの理由だけで NG。waterMode は stageGen の入力にしない。
+const waterErrors = (gimmicks, teach = 'water', extra = {}) => {
+  const errs = [];
+  checkStageGen({ stageGen: { ...specOf(gimmicks), teach, ...extra } }, [], (name, msg) => errs.push(`${name}: ${msg}`));
+  return errs;
+};
+
+test('stage-gen: stagegen 検査 water は単独・2〜8 の整数なら OK。他ギミック併用・範囲外・非整数・別名・waterMode は NG', () => {
+  assert.deepEqual(waterErrors({ water: { min: 2, max: 4 } }), []);
+  assert.deepEqual(waterErrors({ water: { min: 2, max: 8 } }), []);
+  for (const other of ['items', 'ice', 'keys', 'switches', 'cushion', 'warps', 'periodic', 'paint']) {
+    const e = waterErrors({ water: { min: 2, max: 4 }, [other]: one });
+    assert.ok(e.some((m) => m.includes('water は単独')), `${other} との併用`);
+  }
+  // groupRepeats・repeatBox は gimmicks の未対応キー（併用すると未対応で NG）
+  for (const other of ['groupRepeats', 'repeatBox']) {
+    assert.ok(waterErrors({ water: { min: 2, max: 4 }, [other]: one }).length > 0, other);
+  }
+  for (const bad of [{ min: 1, max: 4 }, { min: 2, max: 9 }, { min: 2.5, max: 4 }, { min: 4, max: 2 }]) {
+    const e = waterErrors({ water: bad });
+    assert.equal(e.length, 1, JSON.stringify(bad));
+    assert.ok(e[0].startsWith('stageGen: '));
+  }
+  const singular = waterErrors({ waters: { min: 2, max: 4 } }, 'waters');
+  assert.equal(singular.length, 1);
+  assert.ok(singular[0].startsWith('stageGen 未対応のギミック'));
+  assert.ok(waterErrors({ water: { min: 2, max: 4 } }, 'water', { waterMode: 'bump' }).length > 0);
 });

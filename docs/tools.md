@@ -34,7 +34,7 @@ npm run verify:fast -- --with-generate
 - 保存：`PUT /api/lessons/:id` が `validateLesson`・`validateIndex` をメモリ上で通し、エラー0件のときだけ `lessons/<id>.json` に書く（10秒で打ち切り、時間切れは保存不可）。書く前に `tools/editor/backups/<id>-<YYYYMMDD-HHmmss>.json`（同一秒は連番付き）へ退避し、レッスンごとに直近10件を残す。
 - 生成の打切りと20×20の実測（Issue #394。2026-10-14、grid 20×20・壁3〜60・最短2〜16）：`generateBoard` は探索量 `MAX_WORK`＝100万（マス数×2^(どんぐり＋かぎ/スイッチ)の足し上げ。時計は使わない）で `GEN_ABORTED` を返す。`gen-stages` の安全弁は `TIME_LIMIT_MS`＝600秒（超過は「未完了」エラー）。1盤の生成は壁・ギミックなしで平均15ms、ice 約60ms、switches 約0.2秒、cushion 約1秒、items・keys 約3秒（最悪7秒）。items で予備盤なし（400回使い切り）は最悪約80秒。`collectCandidates`（200 seed）は plain 約1.3秒、items 約523秒。各ギミックの必須判定 `strip()` は 1〜7ms で、時間の大半は `shortestPath`（`js/engine-grid.js`）。
 - ワープ：palette に「ワープ1」「ワープ2」（pair=1/2）。1回の配置で穴を1個置く。同じpairが2個になるまで保存時のvalidateがNG（3個以上もNG）。
-- たたき台生成：ギミックに「周期ドア」を選べる（ドア数1〜2。周期3・4のみ。単独で指定し、壁のみ併用可）。「色ぬり」も選べる（目標マス数4〜8。単独で指定し、壁のみ併用可）。
+- たたき台生成：ギミックに「周期ドア」を選べる（ドア数1〜2。周期3・4のみ。単独で指定し、壁のみ併用可）。「色ぬり」も選べる（目標マス数4〜8。単独で指定し、壁のみ併用可）。「水」も選べる（水マス数2〜8。単独で指定し、壁のみ併用可）。
 - 固定：stageGen のあるレッスンで面を固定すると、`stageGen.keepHandwritten` に足す（先頭から連続した面だけ。途中からは断る）。置き換え・複製は `gen` を外して手書きの面にする。固定しないまま `gen-stages --write` を回すと手書きの面は消える。
 - 下書き：`tools/editor/drafts/<name>.json`（`<name>` は `^[a-z0-9-]+$`、同名は上書き、数の上限なし）。保存時は形（JSON のオブジェクト）だけ確認し、「面として追加」して保存するときに上の保存検査を通る。
 - 書き込み先は `lessons/*.json`・`tools/editor/drafts/`・`tools/editor/backups/` だけ（後ろ2つは `.gitignore` 済み）。

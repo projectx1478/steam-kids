@@ -4,7 +4,7 @@ import { shortestPath, shortestSteps, simulate } from '../../js/engine-grid.js';
 import { GIMMICKS, mattersFor } from '../../js/gimmicks/index.js';
 import { KEY_COLORS } from '../../js/gimmicks/keys.js';
 import { mulberry32 } from '../../js/engine-generate.js';
-import { iceMustMatter, keysMustMatter, warpsMustMatter, periodicMustMatter, paintMustMatter } from '../lib/must-matter.mjs';
+import { iceMustMatter, keysMustMatter, warpsMustMatter, periodicMustMatter, paintMustMatter, waterMustMatter } from '../lib/must-matter.mjs';
 import { OPEN_COUNT } from '../../js/gimmicks/periodic.js';
 
 // 生成器の出力が変わるときに上げる。stageGen.ver と gen.ver を揃えて書き直す。
@@ -72,6 +72,8 @@ export function canonicalKey(board) {
   if (board.periodic?.length) layers.push(['q', board.periodic.map(({ x, y, period }) => ({ x, y, color: period }))]);
   // 色ぬりの目標の層も空でないときだけ足す。
   if (board.paint?.length) layers.push(['n', board.paint]);
+  // 水の層も空でないときだけ足す（橋は描画専用なので含めない）。
+  if (board.water?.length) layers.push(['e', board.water]);
   let best = null;
   for (const f of flips) {
     const parts = layers.map(([tag, cells]) => {
@@ -230,6 +232,44 @@ function placePaint(rng, len, spec) {
   return { paint: walk, goal: walk[walk.length - 1] };
 }
 
+// 水（water）の配置。盤を横か縦に横切る直線上の連続した (水マス数+1) マスのうち1マスだけ水にせず（隙間）、
+// 残りを水にした帯。水・橋を外した盤の最短より実際の最短が +2 以上長いものだけ採る（帯が迂回を強いる）。
+// 水は壁・start・goal に重ねない。waterMode は呼び出し側が cushion 固定で付ける。条件に合わなければ null。
+function placeWater(rng, waterCount, spec) {
+  const { cols, rows } = spec.grid;
+  const horizontal = rng() < 0.5; // true: 横一列の帯（行 y 固定）
+  const lineLen = horizontal ? cols : rows;
+  const lineCount = horizontal ? rows : cols;
+  const span = waterCount + 1;
+  if (span > lineLen) return null;
+  const line = Math.floor(rng() * lineCount);
+  const from = Math.floor(rng() * (lineLen - span + 1));
+  const gap = from + Math.floor(rng() * span);
+  const blocked = new Set([spec.start, spec.goal, ...spec.walls].map(keyOf));
+  const water = [];
+  for (let i = from; i < from + span; i += 1) {
+    if (i === gap) continue;
+    const p = horizontal ? { x: i, y: line } : { x: line, y: i };
+    if (blocked.has(keyOf(p))) return null;
+    water.push(p);
+  }
+  const base = shortestSteps(spec);
+  const actual = shortestSteps({ ...spec, water, waterMode: 'cushion' });
+  if (base === Infinity || actual === Infinity || actual < base + 2) return null;
+  return water;
+}
+
+// 橋は最短確定後に置く。最短経路の中間マスのうち、反対側の2辺（左右か上下）がどちらも水のマス。なければ null（橋なし）。
+function placeBridge(spec, cmds) {
+  const water = new Set(spec.water.map(keyOf));
+  const used = new Set([spec.start, spec.goal, ...spec.walls, ...spec.water].map(keyOf));
+  const path = simulate(cmds, spec).path;
+  const at = (p, dx, dy) => water.has(`${p.x + dx},${p.y + dy}`);
+  const found = path.find((p, i) => i > 0 && i < path.length - 1 && !used.has(keyOf(p))
+    && ((at(p, -1, 0) && at(p, 1, 0)) || (at(p, 0, -1) && at(p, 0, 1))));
+  return found ? [{ x: found.x, y: found.y }] : null;
+}
+
 // teach のギミックの必須性
 function teachMatters(teach, board) {
   const dist = board.solution.length;
@@ -242,6 +282,7 @@ function teachMatters(teach, board) {
   if (teach === 'warps') return warpsMustMatter(play).matters;
   if (teach === 'periodic') return periodicMustMatter(play, dist).matters;
   if (teach === 'paint') return paintMustMatter(play, dist).matters;
+  if (teach === 'water') return waterMustMatter(play, dist).matters;
   return true;
 }
 
@@ -318,6 +359,15 @@ export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts 
       if (!placed) continue;
       spec = { ...spec, warps: placed };
     }
+    // water は warps の後ろ（順序：水→色ぬり→周期ドア。単独指定なので他は無い）。範囲未指定なら乱数を引かない。
+    // 水は状態を増やさないので、見積りは 水なし・水ありの探索 2 回分（マス数 × 4）。waterMode は cushion 固定。
+    const waterCount = gim.water ? countOf(rng, gim.water) : 0;
+    if (waterCount > 0) {
+      work += cells.length * 4;
+      const placed = placeWater(rng, waterCount, spec);
+      if (!placed) continue;
+      spec = { ...spec, water: placed, waterMode: 'cushion' };
+    }
     // periodic は warps の後ろ。範囲未指定なら乱数を引かない。状態数は周期（最大 lcm(3,4)=12）倍。
     const periodicCount = gim.periodic ? countOf(rng, gim.periodic) : 0;
     if (periodicCount > 0) {
@@ -340,6 +390,11 @@ export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts 
     if (!cmds || !inRange(cmds.length, stageGen.shortestPath)) continue;
     if (countTurns(cmds) < (stageGen.minTurns ?? 0)) continue;
     if (cmds.some((c) => !allowed.includes(c))) continue;
+    // 橋は最短が確定してから置く（置けなければ橋なし）。
+    if (spec.water) {
+      const bridge = placeBridge(spec, cmds);
+      if (bridge) spec = { ...spec, bridge };
+    }
     const board = { ...spec, allowedCommands: allowed, solution: cmds, maxCommands: cmds.length };
     if (stageGen.teach && !teachMatters(stageGen.teach, board)) continue;
     return board;
