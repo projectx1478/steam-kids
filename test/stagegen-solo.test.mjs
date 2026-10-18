@@ -14,9 +14,9 @@ const run = (gimmicks, solo) => {
   return errs;
 };
 
-test('単独集合は warps・periodic・paint（フォーム側も同じ）', () => {
-  assert.deepEqual(SG_SOLO_GIMMICKS, ['warps', 'periodic', 'paint']);
-  assert.deepEqual(GEN_SOLO_GIMMICKS, ['warps', 'periodic', 'paint']);
+test('単独集合は warps・periodic・paint・water（フォーム側も同じ）', () => {
+  assert.deepEqual(SG_SOLO_GIMMICKS, ['warps', 'periodic', 'paint', 'water']);
+  assert.deepEqual(GEN_SOLO_GIMMICKS, ['warps', 'periodic', 'paint', 'water']);
 });
 
 test('集合に仮の要素を渡すと、その要素との併用がNGになる', () => {

@@ -64,6 +64,9 @@ test('checkGenerateInput: 範囲外・形の誤り・受け付けないキーは
   assert.deepEqual(checkGenerateInput({ stageGen: { ...SG, gimmicks: { paint: { min: 4, max: 8 } }, teach: 'paint' } }), []);
   bad({ stageGen: { ...SG, gimmicks: { paint: { min: 3, max: 8 } }, teach: 'paint' } }); // 色ぬりは4〜8
   bad({ stageGen: { ...SG, gimmicks: { paint: { min: 4, max: 4 }, items: { min: 1, max: 1 } }, teach: 'paint' } }); // 単独のみ
+  assert.deepEqual(checkGenerateInput({ stageGen: { ...SG, gimmicks: { water: { min: 2, max: 8 } }, teach: 'water' } }), []);
+  bad({ stageGen: { ...SG, gimmicks: { water: { min: 1, max: 8 } }, teach: 'water' } }); // 水は2〜8
+  bad({ stageGen: { ...SG, gimmicks: { water: { min: 2, max: 4 }, items: { min: 1, max: 1 } }, teach: 'water' } }); // 単独のみ
   bad({ stageGen: { ...SG, grid: { cols: { min: 2, max: 5 }, rows: SG.grid.rows } } });
   bad({ stageGen: { ...SG, grid: { cols: { min: 4, max: 21 }, rows: SG.grid.rows } } });
   bad({ stageGen: { ...SG, walls: { min: 0, max: 61 } } });

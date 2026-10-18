@@ -4,10 +4,10 @@ import { KEY_MODES } from '../../../js/gimmicks/keys.js';
 import { COMMANDS, isInt, isObj } from './common.mjs';
 
 const SG_KEYS = ['ver', 'stages', 'keepHandwritten', 'grid', 'walls', 'gimmicks', 'teach', 'shortestPath', 'minTurns', 'allowedCommands', 'seedBase', 'keyMode'];
-const SG_GIMMICK_RANGES = { items: [1, 4], ice: [1, 4], keys: [1, 2], cushion: [1, 4], switches: [1, 2], warps: [1, 2], periodic: [1, 2], paint: [4, 8] };
+const SG_GIMMICK_RANGES = { items: [1, 4], ice: [1, 4], keys: [1, 2], cushion: [1, 4], switches: [1, 2], warps: [1, 2], periodic: [1, 2], paint: [4, 8], water: [2, 8] };
 
 // 他のギミックと併用できない（単独で指定する）ギミック。要素を足せば同じ検査が働く。
-export const SG_SOLO_GIMMICKS = ['warps', 'periodic', 'paint'];
+export const SG_SOLO_GIMMICKS = ['warps', 'periodic', 'paint', 'water'];
 
 function checkStageGen(data, steps, add, soloGimmicks = SG_SOLO_GIMMICKS) {
   const sg = data.stageGen;
@@ -61,7 +61,7 @@ function checkStageGen(data, steps, add, soloGimmicks = SG_SOLO_GIMMICKS) {
         add(label, 'gimmicks がオブジェクトでない');
       } else {
         for (const [k, v] of Object.entries(gim)) {
-          if (!(k in SG_GIMMICK_RANGES)) add('stageGen 未対応のギミック', `gimmicks の ${k} は未対応（items・ice・keys・cushion・switches・warps・periodic・paint のみ）`);
+          if (!(k in SG_GIMMICK_RANGES)) add('stageGen 未対応のギミック', `gimmicks の ${k} は未対応（items・ice・keys・cushion・switches・warps・periodic・paint・water のみ）`);
           else range(v, SG_GIMMICK_RANGES[k][0], SG_GIMMICK_RANGES[k][1], `gimmicks.${k}`);
         }
         const names = Object.keys(gim);

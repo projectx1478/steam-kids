@@ -50,6 +50,14 @@ export function paintMustMatter(play, dist) {
   return { matters: dist > noPaintDist, dist: noPaintDist };
 }
 
+// 水と橋を外した盤の最短より、実際の最短（dist）が長くなければ水が飾り（生成側 teachMatters のみで使う。js/ の MATTER には載せない）。
+// dist が null / Infinity、または水が無いときは判定しない。
+export function waterMustMatter(play, dist) {
+  if (dist === null || dist === Infinity || !(Array.isArray(play.water) && play.water.length > 0)) return { matters: true, dist: null };
+  const noWaterDist = shortestSteps(boardSpec({ ...play, water: [], bridge: [] }));
+  return { matters: dist > noWaterDist, dist: noWaterDist };
+}
+
 // どんぐりの必須性：どんぐりを除いた盤の最短 < 実際の最短 (generateMap の itemsMustMatter と同じ向き)
 export function itemsMustMatter(spec, dist) {
   const strip = GIMMICKS.find((g) => g.key === 'items').strip(spec);

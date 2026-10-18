@@ -146,13 +146,13 @@ export function switchGroupOptions(spec, index) {
 
 // ---- たたき台の生成（#401 段2）。範囲は POST /api/generate（tools/lib/validate/stagegen.mjs の checkStageGen）と同じ ----
 export const GEN_COUNT = 4; // 1回に出す候補の数（2×2）。「もう4枚」は seed をこの数だけ進める
-export const GEN_LIMITS = { grid: [3, 20], walls: [0, 60], shortestPath: [2, 60], minTurns: [0, 8], items: [1, 4], ice: [1, 4], keys: [1, 2], cushion: [1, 4], switches: [1, 2], warps: [1, 2], periodic: [1, 2], paint: [4, 8] };
-export const GEN_GIMMICKS = [['items', 'どんぐり'], ['ice', 'こおり'], ['keys', 'かぎ'], ['cushion', 'クッション'], ['switches', 'スイッチ'], ['warps', 'ワープ'], ['periodic', '周期ドア'], ['paint', '色ぬり']];
+export const GEN_LIMITS = { grid: [3, 20], walls: [0, 60], shortestPath: [2, 60], minTurns: [0, 8], items: [1, 4], ice: [1, 4], keys: [1, 2], cushion: [1, 4], switches: [1, 2], warps: [1, 2], periodic: [1, 2], paint: [4, 8], water: [2, 8] };
+export const GEN_GIMMICKS = [['items', 'どんぐり'], ['ice', 'こおり'], ['keys', 'かぎ'], ['cushion', 'クッション'], ['switches', 'スイッチ'], ['warps', 'ワープ'], ['periodic', '周期ドア'], ['paint', '色ぬり'], ['water', '水']];
 // 他のギミックと併用できない（単独で使う）ギミック。要素を足せば checkGenerateForm の同じ検査が働く。
-export const GEN_SOLO_GIMMICKS = ['warps', 'periodic', 'paint'];
+export const GEN_SOLO_GIMMICKS = ['warps', 'periodic', 'paint', 'water'];
 const isInteger = (v) => Number.isInteger(v);
 
-// フォームの値 { cols:{min,max}, rows, walls, shortestPath, minTurns, seed, teach, gimmicks:{items:{on,min,max},ice,keys,cushion,switches,warps,periodic,paint} } を送る前に検査する。
+// フォームの値 { cols:{min,max}, rows, walls, shortestPath, minTurns, seed, teach, gimmicks:{items:{on,min,max},ice,keys,cushion,switches,warps,periodic,paint,water} } を送る前に検査する。
 // 問題の文字列の配列（空なら送れる）。
 export function checkGenerateForm(form) {
   const out = [];
