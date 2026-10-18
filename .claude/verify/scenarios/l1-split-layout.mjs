@@ -26,7 +26,7 @@ const LESSON_DEF = {
       items: [{ x: 1, y: 3 }],
       allowedCommands: ['up', 'down', 'left', 'right'],
       solution: ['right', 'down', 'down', 'down', 'up', 'up', 'up', 'right'],
-      maxCommands: 10,
+      maxCommands: 20,
     },
     { stepId: 's2', kind: 'summary', text: 'できたね' },
   ],
@@ -122,7 +122,7 @@ export default async function run({ page, check }) {
 
     // 命令を積み続けても盤面の大きさが変わらず、トレイ内でスクロールする
     const before = g.board.width;
-    for (let i = 0; i < 10; i += 1) {
+    for (let i = 0; i < 20; i += 1) {
       const btn = await page.$('.palette-row [data-command]:not(:disabled)');
       if (!btn) break;
       await btn.click();
