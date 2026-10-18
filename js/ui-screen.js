@@ -3,6 +3,7 @@
 // クリア演出（js/ui-clear.js）へは呼び出し側が frame・panel・questionEl・actions を渡す。
 import { S } from './state.js';
 import { renderInto } from './text-render.js';
+import { createBird } from './ui-bird.js';
 
 // createOpScreen({ root, question }): frame を root に追加して返す。
 // question は問い文の既定テキスト（renderQuestion(text) の text 省略時に使う）。
@@ -22,6 +23,9 @@ export function createOpScreen({ root, question }) {
   boardArea.className = 'sk-screen-board relative flex-1 min-h-0 flex items-center justify-center overflow-hidden';
   boardArea.dataset.skScreen = 'board';
   frame.appendChild(boardArea);
+
+  // 小鳥の顔アイコン＋吹き出しの器（Issue #468）。盤面の角に重ねる（枠の寸法は変えない）。
+  const bird = createBird(boardArea);
 
   const panel = document.createElement('div');
   panel.className = 'sk-screen-panel flex flex-col gap-2 shrink-0';
@@ -43,5 +47,5 @@ export function createOpScreen({ root, question }) {
     questionEl.appendChild(q);
   }
 
-  return { frame, questionEl, boardArea, panel, actions, renderQuestion };
+  return { frame, questionEl, boardArea, panel, actions, renderQuestion, bird };
 }

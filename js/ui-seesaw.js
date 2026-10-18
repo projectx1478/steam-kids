@@ -62,6 +62,7 @@ export function renderSeesaw(root, step) {
     .join('');
   const leftRobots = spec.left.map((w) => robotsSvg(cx0 - w.pos * UNIT, w.robots)).join('');
   const postX = (side) => cx0 + side * notches * UNIT;
+  const birdEls = Array.from(boardArea.querySelectorAll(':scope > [data-sk-bird]'));
   boardArea.innerHTML = `<svg class="seesaw-board w-full h-full" viewBox="0 0 ${boardW} ${BOARD_H}" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
     <rect x="0" y="${GROUND_Y}" width="${boardW}" height="6" rx="3" fill="#a16207" opacity="0.5" />
     <polygon points="${cx0 - 30},${GROUND_Y} ${cx0 + 30},${GROUND_Y} ${cx0},${pivotY}" fill="#92400e" />
@@ -78,6 +79,7 @@ export function renderSeesaw(root, step) {
       <g data-mover class="cursor-grab" style="touch-action: none"></g>
     </g>
   </svg>`;
+  birdEls.forEach((el) => boardArea.appendChild(el)); // innerHTML で消えた小鳥（#468）を戻す
   const svg = boardArea.querySelector('svg');
   const plank = svg.querySelector('[data-plank]');
   const support = svg.querySelector('[data-support]');
