@@ -473,6 +473,44 @@ dialog.result-row {
   }
 }
 
+/* 小鳥の顔アイコン（js/ui-bird.js・Issue #468）：盤面(relative)の右上の角に重ねる。見た目40px、押せる範囲は透明パディングで64px。
+   64x64 の枠は盤面内に収める（overflow-hidden で切られない）。顔は右上に寄せ、角の内側6pxに来る。盤面の flex 寸法には影響しない（absolute）。 */
+.sk-bird-icon {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 5;
+  box-sizing: border-box;
+  width: 64px;
+  height: 64px;
+  padding: 6px 6px 18px 18px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.sk-bird-bubble {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 56px;
+  z-index: 4;
+  padding: 0.4rem 0.75rem;
+  border-radius: 14px;
+  border: 2px solid #1e293b;
+  background: #fff;
+  color: #334155;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+}
+.sk-bird-bubble[hidden] {
+  display: none;
+}
+
 /* 操作画面（play・れんしゅう）：横向きは「盤面｜操作パネル」の左右分割、縦向きは従来の縦積み（Issue #156）。 */
 .tutorial-main,
 .tutorial-side {
