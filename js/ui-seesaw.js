@@ -11,10 +11,9 @@ import { createOpScreen } from './ui-screen.js';
 import { showHandHint } from './ui-hand.js';
 import { isLessonCleared } from './ui-picker.js';
 import { goToStep, setBackDisabled, setActiveHandHint, setActiveAnimation } from './ui-step.js';
-import { showHint } from './ui-reaction.js';
+import { showHint, clearResultBubble } from './ui-reaction.js';
 import { showClearSequence, recordClear } from './ui-clear.js';
-import { clearToast } from './ui-toast.js';
-import { setRetryButton, shakeBoard, showRestartCue } from './ui-retry.js';
+import { setRetryButton, shakeBoard, showStartCue } from './ui-retry.js';
 
 const UNIT = 40; // 1刻みの幅（viewBox単位）
 const BOARD_H = 260;
@@ -51,7 +50,7 @@ export function renderSeesaw(root, step) {
 
   // 画面の枠は共通部品（js/ui-screen.js。Issue #343）。
   const screen = createOpScreen({ root, question: step.text ?? 'つりあう ところに おこう' });
-  const { frame: opScreen, questionEl: statusBar, boardArea, actions: actionsEl } = screen;
+  const { frame: opScreen, boardArea, actions: actionsEl, bird } = screen;
   actionsEl.classList.add('sk-screen-actions--one-row');
   function renderQuestion() {
     screen.renderQuestion();
@@ -189,13 +188,12 @@ export function renderSeesaw(root, step) {
       recordClear({ isFinal: isFinalStage, stageIndex });
       clearSequence?.dispose();
       clearSequence = showClearSequence({
-        statusBar,
+        bird,
         controls: opScreen,
         lockEl: opScreen,
         host: root,
         gapEl: actionsEl,
         view,
-        restore: renderQuestion,
         primary: isFinalStage
           ? { label: 'つぎへ', action: () => goToStep(S.stepIndex + 1), id: 'next' }
           : { label: 'つぎの ステージ', action: () => goToStep(S.stepIndex + 1), id: 'next-stage' },
@@ -212,7 +210,7 @@ export function renderSeesaw(root, step) {
     playSfx('tryAgain');
     setMoodIn(svg, 'puzzled');
     shakeBoard(boardArea);
-    showHint(statusBar, { kind: 'tilt', message: HEAVY_MESSAGE[result.tilt], restore: renderQuestion });
+    showHint(null, { bird, kind: 'tilt', message: HEAVY_MESSAGE[result.tilt] });
   }
 
   function run() {
@@ -220,7 +218,7 @@ export function renderSeesaw(root, step) {
     local.phase = 'running';
     updateControls();
     setActiveHandHint(null);
-    clearToast(statusBar);
+    clearResultBubble(bird);
     vibrate();
     logEvent('run', { pos: local.pos });
     playSfx('run');
@@ -237,26 +235,20 @@ export function renderSeesaw(root, step) {
     });
   }
 
-  function restartCue() {
-    showRestartCue(statusBar, { restore: () => renderQuestion() });
-  }
-
   function retry() {
     vibrate();
     logEvent('retry', {});
-    clearToast(statusBar);
+    clearResultBubble(bird);
     setRunMode('run');
     resetBoard();
-    restartCue();
   }
 
   function replay() {
     vibrate();
     showNormalActions();
-    clearToast(statusBar);
+    clearResultBubble(bird);
     footprints.innerHTML = '';
     resetBoard();
-    restartCue();
   }
 
   leftBtn.addEventListener('click', () => {
@@ -295,6 +287,7 @@ export function renderSeesaw(root, step) {
   renderQuestion();
   showNormalActions();
   drawMover();
+  showStartCue(boardArea); // ステージ開始時に1回（再開では出さない。#497）
 
   // 未クリアレッスンの最初のステージだけ、◀▶の指ガイドを1回出す（最初の操作で消える）。
   if (stageIndex === 0 && !isLessonCleared(S.lesson.lessonId)) {

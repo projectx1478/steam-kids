@@ -1,0 +1,96 @@
+// ステージ開始時の「スタート！」（盤面中央・A案）：開始時に1回出て約1秒で消える・タップ素通し・
+// 失敗→もういちど／クリア→もういちどの再開では出ない（play・seesaw 各。Issue #497 段A）。
+// 凍結fixtureに依存しないよう play は routeLesson のインライン最小盤面、seesaw は teko-01-tsuriai。
+
+export const name = 'C12 スタート！: ステージ開始時に1回・約1秒で消える・再開（もういちど）では出ない(play・seesaw。Issue #497)';
+import { routeLesson, enterPlay, clickRetry } from '../helpers.mjs';
+
+const LESSON = {
+  lessonId: 'start-cue-smoke',
+  unitId: 'inline',
+  title: 'テスト',
+  type: 'grid-runtime',
+  estimatedMinutes: 5,
+  steps: [
+    { stepId: 's1', kind: 'intro', text: 'ゴールへ いこう' },
+    {
+      stepId: 'p1',
+      kind: 'play',
+      text: 'ゴールへ',
+      grid: { cols: 3, rows: 1 },
+      start: { x: 0, y: 0 },
+      goal: { x: 2, y: 0 },
+      walls: [],
+      allowedCommands: ['left', 'right'],
+      solution: ['right', 'right'],
+      maxCommands: 4,
+    },
+    { stepId: 's2', kind: 'summary', text: 'できたね' },
+  ],
+};
+
+const cueCount = (page) => page.$$eval('.sk-start-cue', (els) => els.length);
+const cueFlag = (page) => page.$eval('[data-sk-screen="board"]', (b) => b.hasAttribute('data-start-cue'));
+
+// 開始時の確認（1回出る→タップ素通し→約1秒後に消える）。enterPlay の直後に呼ぶ。
+async function checkStartThenGone(page, check, label) {
+  await check(`${label}: 開始時に「スタート！」が1回出る`, () => cueCount(page), 1);
+  await check(`${label}: 表示中は盤面に data-start-cue が立つ`, () => cueFlag(page), true);
+  await check(`${label}: タップは素通し（pointer-events:none）`, () =>
+    page.$eval('.sk-start-cue', (el) => getComputedStyle(el).pointerEvents), 'none');
+  await page.waitForFunction(() => !document.querySelector('.sk-start-cue'), null, { timeout: 3000 });
+  await check(`${label}: 約1秒後に消える`, () => cueCount(page), 0);
+  await check(`${label}: 消えたら data-start-cue も外れる`, () => cueFlag(page), false);
+}
+
+export default async function run({ page, check }) {
+  // --- play ---
+  await routeLesson(page, LESSON);
+  await enterPlay(page, 'start-cue-smoke');
+  await checkStartThenGone(page, check, 'play');
+
+  // 失敗（right 1回ではゴールに着かない）→ もういちど
+  await page.click('[data-command="right"]');
+  await page.click('[data-action="run"]');
+  await page.waitForSelector('[data-action="retry"]', { timeout: 8000 });
+  await clickRetry(page);
+  await page.waitForTimeout(300);
+  await check('play: 失敗→もういちどでは出ない', () => cueCount(page), 0);
+
+  // クリア → もういちど（replay）
+  await page.click('[data-command="right"]');
+  await page.click('[data-command="right"]');
+  await page.click('[data-action="run"]');
+  await page.waitForSelector('[data-action="replay"]', { timeout: 15000 });
+  await page.click('[data-action="replay"]');
+  await page.waitForSelector('[data-action="run"]');
+  await page.waitForTimeout(300);
+  await check('play: クリア→もういちどでは出ない', () => cueCount(page), 0);
+
+  // --- seesaw（次のステージでも開始時に出る） ---
+  await enterPlay(page, 'teko-01-tsuriai');
+  await checkStartThenGone(page, check, 'seesaw');
+
+  await page.click('[data-action="run"]'); // 動かさずに実行 → 傾いて失敗
+  await page.waitForSelector('[data-action="retry"]', { timeout: 10000 });
+  await page.click('[data-action="retry"]');
+  await page.waitForSelector('[data-action="run"]');
+  await page.waitForTimeout(300);
+  await check('seesaw: 失敗→もういちどでは出ない', () => cueCount(page), 0);
+
+  await page.click('[data-action="pos-right"]');
+  await page.click('[data-action="run"]');
+  await page.waitForSelector('[data-action="replay"]', { timeout: 10000 });
+  await page.click('[data-action="replay"]');
+  await page.waitForSelector('[data-action="run"]');
+  await page.waitForTimeout(300);
+  await check('seesaw: クリア→もういちどでは出ない', () => cueCount(page), 0);
+
+  // 次のステージでも開始時に出る
+  await page.click('[data-action="pos-right"]');
+  await page.click('[data-action="run"]');
+  await page.waitForSelector('[data-action="next-stage"]', { timeout: 10000 });
+  await page.click('[data-action="next-stage"]');
+  await page.waitForSelector('[data-action="pos-right"]');
+  await check('seesaw: 次のステージでも開始時に出る', () => cueCount(page), 1);
+}

@@ -511,6 +511,64 @@ dialog.result-row {
   display: none;
 }
 
+/* ステージ開始時の「スタート！」（js/ui-retry.js showStartCue・Issue #497 A案）：盤面中央、傾き-6度・二重縁・影・グラデ文字。
+   タップは素通し（pointer-events:none）。動きを止める設定では静止表示（アニメーションは no-preference のみ）。 */
+.sk-start-cue {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 6;
+  pointer-events: none;
+  white-space: nowrap;
+  font-size: clamp(2rem, 11vmin, 3.25rem);
+  font-weight: 900;
+  line-height: 1.1;
+  transform: translate(-50%, -50%) rotate(-6deg);
+}
+.sk-start-cue > span {
+  position: relative;
+  z-index: 1;
+  background: linear-gradient(180deg, #fde68a 0%, #facc15 50%, #f59e0b 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.sk-start-cue::before,
+.sk-start-cue::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  text-align: center;
+}
+.sk-start-cue::before {
+  color: #713f12;
+  -webkit-text-stroke: 0.32em #713f12;
+  text-shadow: 0.14em 0.2em 0 rgba(59, 29, 6, 0.35);
+}
+.sk-start-cue::after {
+  color: #fff;
+  -webkit-text-stroke: 0.18em #fff;
+}
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes sk-start-cue-pop {
+    0% {
+      transform: translate(-50%, -50%) rotate(-6deg) scale(0.6);
+      opacity: 0;
+    }
+    30% {
+      transform: translate(-50%, -50%) rotate(-6deg) scale(1.1);
+      opacity: 1;
+    }
+    100% {
+      transform: translate(-50%, -50%) rotate(-6deg) scale(1);
+      opacity: 1;
+    }
+  }
+  .sk-start-cue {
+    animation: sk-start-cue-pop 0.35s ease-out;
+  }
+}
+
 /* 操作画面（play・れんしゅう）：横向きは「盤面｜操作パネル」の左右分割、縦向きは従来の縦積み（Issue #156）。 */
 .tutorial-main,
 .tutorial-side {

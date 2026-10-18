@@ -160,16 +160,17 @@ export function disposeClear({ unlock, gapEl, dialogHandle }) {
 
 // showClearToast(slotEl, { view, restore, label, confetti }) → トースト（星）だけを出す。間・結果ダイアログは出さない。
 //   引数は showSuccess と同じ（confetti の既定は showSuccess と同じ true）。predict・tutorial 用（Issue #352）。
-export function showClearToast(slotEl, { view, restore, label, confetti } = {}) {
+export function showClearToast(slotEl, { view, restore, label, confetti, bird } = {}) {
   showSuccess(slotEl, {
     view,
     restore,
+    bird,
     ...(label !== undefined ? { label } : {}),
     ...(confetti !== undefined ? { confetti } : {}),
   });
 }
 
-// showClearSequence({ statusBar, controls, lockEl, host, gapEl, view, restore, label, primary, replay, heading,
+// showClearSequence({ bird, controls, lockEl, host, gapEl, view, restore, label, primary, replay, heading,
 // setActiveAnimation }) → { dispose() }
 //   lockEl: 間の始まりから inert にする操作画面の外枠（1要素）。keepEl: 外枠の中で押せるままにする要素（⚙。省略可）。host: ダイアログを置く外枠の親（root）。
 //   primary: { label, action, id }（action＝つぎへ押下時の処理、id＝data-action）。
@@ -177,7 +178,7 @@ export function showClearToast(slotEl, { view, restore, label, confetti } = {}) 
 //   dispose(): 間のタイマー・ダイアログ・inert を片付ける（冪等）。ダイアログ表示後も setActiveAnimation に
 //   登録したままなので、画面の作り直し（renderStep の activeAnimation.cancel()）でも呼ばれる。
 export function showClearSequence({
-  statusBar,
+  bird,
   controls,
   lockEl,
   keepEl,
@@ -201,7 +202,7 @@ export function showClearSequence({
     clearTimeout(timer);
     disposeClear({ unlock, gapEl, dialogHandle });
   }
-  showSuccess(statusBar, { view, restore, confetti: false, ...(label ? { label } : {}) });
+  showSuccess(null, { bird, view, restore, confetti: false, ...(label ? { label } : {}) });
   const primaryBtn = createPrimaryButton(primary.label, primary.action, primary.id);
   const replayBtn = createPrimaryButton('もういちど', replay, 'replay');
   const dots = showResultGap({ gapEl });

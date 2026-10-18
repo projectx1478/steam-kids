@@ -11,9 +11,8 @@ import { play as playSfx } from './sfx.js';
 import { createOpScreen } from './ui-screen.js';
 import { createIdleNudge } from './ui-guide.js';
 import { goToStep, createPrimaryButton, playAnimation, setActiveNudge } from './ui-step.js';
-import { showHint } from './ui-reaction.js';
+import { showHint, clearResultBubble } from './ui-reaction.js';
 import { showClearToast } from './ui-clear.js';
-import { clearToast } from './ui-toast.js';
 
 const RETRY_HINT_MESSAGE = 'ロボットは ここで とまったよ';
 
@@ -29,7 +28,7 @@ export function renderPredict(root, step) {
   // 画面の枠は共通部品（js/ui-screen.js。Issue #343・#355）。問い文スロット（statusBar＝questionEl）には
   // 実行結果もここへ数秒だけトースト表示する（Issue #97）。
   const screen = createOpScreen({ root, question: step.text });
-  const { frame: opScreen, questionEl: statusBar, boardArea, actions: actionsEl } = screen;
+  const { frame: opScreen, boardArea, actions: actionsEl, bird } = screen;
   opScreen.classList.add('sk-screen-frame--predict');
   actionsEl.classList.add('sk-screen-actions--predict');
 
@@ -68,7 +67,7 @@ export function renderPredict(root, step) {
   // 選択肢タップ待ちの状態を(再)表示する。もういちど よそう（不正解時・正解時とも）から再度呼ばれる。
   function showQuestion() {
     local.selected = null;
-    clearToast(statusBar);
+    clearResultBubble(bird);
     renderQuestion();
     actionsEl.innerHTML = '';
     commandRow.querySelectorAll('[data-index]').forEach((el) => delete el.dataset.active);
@@ -105,12 +104,12 @@ export function renderPredict(root, step) {
         local.view.markCell(finalPos, 'result');
 
         if (correct) {
-          showClearToast(statusBar, { view: local.view, restore: renderQuestion });
+          showClearToast(null, { bird, view: local.view });
           actionsEl.innerHTML = '';
           actionsEl.appendChild(createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'));
           actionsEl.appendChild(createPrimaryButton('もういちど', showQuestion, 'retry-predict'));
         } else {
-          showHint(statusBar, { kind: 'predict', message: RETRY_HINT_MESSAGE, restore: renderQuestion });
+          showHint(null, { bird, kind: 'predict', message: RETRY_HINT_MESSAGE });
           actionsEl.innerHTML = '';
           actionsEl.appendChild(createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'));
           actionsEl.appendChild(createPrimaryButton('もういちど', showQuestion, 'retry-predict'));

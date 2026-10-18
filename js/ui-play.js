@@ -23,13 +23,12 @@ import {
   setActiveHandHint,
   setActiveAnimation,
 } from './ui-step.js';
-import { showHint, diagnose } from './ui-reaction.js';
+import { showHint, diagnose, clearResultBubble } from './ui-reaction.js';
 import { showClearSequence, recordClear } from './ui-clear.js';
 import { isTrial, closeTrialTab } from './trial-lesson.js';
 import { paintMiniBoard } from './gimmicks/paint.js';
 import { renderKeyTray, resetKeyTray } from './gimmicks/keys.js';
-import { clearToast } from './ui-toast.js';
-import { setRetryButton, createRetryChoice, shakeBoard, showRestartCue as showRestartCueUi } from './ui-retry.js';
+import { setRetryButton, createRetryChoice, shakeBoard, showStartCue } from './ui-retry.js';
 
 // diagnose()の原因ごとの文言（20字以内・否定語なし。Issue #91）。
 const HINT_MESSAGE = {
@@ -98,7 +97,7 @@ export function renderPlay(root, step) {
   // 画面の枠は共通部品（js/ui-screen.js。Issue #343）。問い文スロット（statusBar＝questionEl）には
   // 実行結果もここへ数秒だけトースト表示する（Issue #97）。
   const screen = createOpScreen({ root, question: step.text ?? defaultText });
-  const { frame: opScreen, questionEl: statusBar, boardArea, panel: controls, actions: actionsEl } = screen;
+  const { frame: opScreen, questionEl: statusBar, boardArea, panel: controls, actions: actionsEl, bird } = screen;
   // 360px縦で4ボタンの文字を溢れさせないため、この行だけ間隔を詰める（Issue #385）。
   actionsEl.classList.replace('gap-2', 'gap-1');
 
@@ -185,9 +184,9 @@ export function renderPlay(root, step) {
     });
   }
 
+  // 結果の吹き出しは自動で消えない（#497）。resultShown だけ約3秒後（または次の操作）に戻す。問い文の行は結果で書き換えないので描き直し不要。
   function clearResult() {
     local.resultShown = false;
-    renderQuestion();
   }
 
   const boardWrap = document.createElement('div');
@@ -285,14 +284,6 @@ export function renderPlay(root, step) {
     shakeBoard(boardArea);
   }
 
-  // showRestartCue(): 盤面を作り直した直後（もういちど＝失敗後のretry・クリア後のreplay共通）に
-  // 「スタート！」を1秒だけ問い文スロットへ表示し、再スタート状態を明確に伝える（Issue #110）。
-  // 表示は js/ui-retry.js の共通部品に任せる（Issue #344）。
-  function showRestartCue() {
-    local.resultShown = true;
-    showRestartCueUi(statusBar, { restore: () => clearResult() });
-  }
-
   // やりかた帯・無操作促しの対象を決める段階（Issue #89）。0=強調なし（実行中・結果表示中）、
   // 1=けす/おす、3=じっこう。なおす系は編集済みか否かのみで1↔3を決める（②は経由しない）。
   // ロック中（不正解でもういちど待ち）は常に3（じっこうボタン＝もういちど）を対象にする（Issue #106）。
@@ -328,6 +319,8 @@ export function renderPlay(root, step) {
     S.drafts[step.stepId] = local.commands;
     local.fixOpened = false;
     local.locked = false;
+    // 塗りの失敗は結果トーストを出さず resultShown だけ立てる。旧 showRestartCue が戻していた分を、ここで確実に戻す（#497）。
+    local.resultShown = false;
   }
 
   // drawQueueFollowActive(): 実行中の再描画。再描画で戻るスクロール位置を復元し、今動いているチップを
@@ -570,13 +563,12 @@ export function renderPlay(root, step) {
 
   function replay() {
     showNormalActions();
-    clearToast(statusBar);
+    clearResultBubble(bird);
     resetToFresh();
     drawQueue();
     drawBoard(spec.start);
     local.view.popIn();
     updateControls();
-    showRestartCue();
     local.nudge?.poke();
   }
 
@@ -637,7 +629,7 @@ export function renderPlay(root, step) {
       recordClear({ isFinal: isFinalStage, stageIndex });
       clearSequence?.dispose();
       clearSequence = showClearSequence({
-        statusBar,
+        bird,
         controls,
         lockEl: opScreen,
         keepEl: paletteEl.querySelector('[data-action="menu"]'),
@@ -685,7 +677,7 @@ export function renderPlay(root, step) {
       if (info.reason !== 'wall' && info.reason !== 'periodic') local.view.shrug();
       local.resultShown = true;
       const far = info.reason === 'goal' && info.distance > NEAR_GOAL_DISTANCE;
-      showHint(statusBar, { kind: info.reason, message: far ? FAR_GOAL_MESSAGE : HINT_MESSAGE[info.reason], restore: clearResult });
+      showHint(null, { bird, kind: info.reason, message: far ? FAR_GOAL_MESSAGE : HINT_MESSAGE[info.reason], restore: clearResult });
     }
   }
 
@@ -700,7 +692,7 @@ export function renderPlay(root, step) {
       logEvent('retry', {});
       playRetryTransition(
         () => {
-          clearToast(statusBar);
+          clearResultBubble(bird);
           setRunButtonMode('run');
           resetToFresh();
           drawQueue();
@@ -709,7 +701,6 @@ export function renderPlay(root, step) {
         },
         () => {
           local.view.popIn();
-          showRestartCue();
           local.nudge?.poke();
         }
       );
@@ -731,7 +722,7 @@ export function renderPlay(root, step) {
     if (local.commands.length === 0) return;
     local.running = true;
     local.nudge?.stop();
-    clearToast(statusBar);
+    clearResultBubble(bird);
     logEvent('run', { commandCount: local.commands.length });
     updateControls();
     const stepper = beginSegment();
@@ -823,7 +814,7 @@ export function renderPlay(root, step) {
 
   // leaveFailState(): 失敗の表示（ロック・トースト・2ボタン）を片付けて通常のボタン行へ戻す。
   function leaveFailState() {
-    clearToast(statusBar);
+    clearResultBubble(bird);
     local.locked = false;
     local.resultShown = false;
     showNormalActions();
@@ -856,7 +847,6 @@ export function renderPlay(root, step) {
       },
       () => {
         local.view.popIn();
-        showRestartCue();
         local.nudge?.poke();
       }
     );
@@ -874,7 +864,7 @@ export function renderPlay(root, step) {
       if (local.commands.length === 0) return;
       local.stepping = true;
       local.nudge?.stop();
-      clearToast(statusBar);
+      clearResultBubble(bird);
       logEvent('run', { commandCount: local.commands.length, mode: 'step' });
       playSfx('run');
       setBackDisabled(true);
@@ -891,6 +881,7 @@ export function renderPlay(root, step) {
   drawBoard(spec.start);
   drawQueue();
   updateControls();
+  showStartCue(boardArea); // ステージ開始時に1回（再開では出さない。#497）
   // 無操作時、いまの段階に応じた実物ボタンを促す（8秒後・最大2回。Issue #89）。
   local.nudge = createIdleNudge({
     getTarget: () => {

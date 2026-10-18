@@ -62,7 +62,7 @@ export default async function run({ page, check }) {
   await check('もういちどだけ押せる', () => page.$eval('[data-action="retry"]', (b) => b.disabled), false);
   await check('パレットはロック', async () => (await page.$$('[data-command]:not([disabled])')).length, 0);
 
-  // --- もういちど: 暗転が出てから消え、盤面がstartへ戻り「スタート！」が出る ---
+  // --- もういちど: 暗転が出てから消え、盤面がstartへ戻る（「スタート！」は出さない） ---
   await page.click('[data-action="retry"]');
   await check('暗転の黒幕が出る', async () => (await page.waitForSelector('[data-transition="retry"]', { timeout: 1000 })) !== null, true);
   await check(
@@ -74,7 +74,7 @@ export default async function run({ page, check }) {
   await check('暗転が消える', async () => (await page.$$('[data-transition="retry"]')).length, 0);
   await check('盤面がstartに戻る', () => robotCell(page), '0,0');
   await check('足あとが消える', () => footprints(page), 0);
-  await check('スタート！が出る', async () => (await page.$$('[data-restart="true"]')).length, 1);
+  await check('再開時はスタート！が出ない（出るのはステージ開始時のみ。#497）', async () => (await page.$$('.sk-start-cue')).length, 0);
   await check('命令列が空に戻る', async () => (await page.$$('.command-chip')).length, 0);
 
   // --- 1コマ（reduced-motion）: 1タップ目(left)が盤外で終わる。retryは暗転せず即時に作り直す ---

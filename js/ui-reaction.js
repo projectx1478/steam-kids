@@ -10,28 +10,60 @@ import { shapeSvg } from './ui-grid.js';
 
 const STAGE_CONFETTI_COUNT = 60;
 const STAGE_CONFETTI_MS = 2000;
+const SETTLE_MS = 3000;
+
+// 結果の吹き出し（小鳥。js/ui-bird.js）は自動では消さない（Issue #497-2B）。ただし「結果が出ている間」を表す
+// 呼び出し側の状態（play の resultShown 等）は従来どおり約3秒で戻すため、restore だけをこの時間後に呼ぶ。
+// bird -> { gen, restore }。次の結果表示・clearResultBubble で世代が進み、古いタイマーは無効になる。
+const SETTLE = new WeakMap();
+function startSettle(bird, restore) {
+  const gen = (SETTLE.get(bird)?.gen ?? 0) + 1;
+  SETTLE.set(bird, { gen, restore });
+  setTimeout(() => {
+    if (SETTLE.get(bird)?.gen !== gen) return;
+    SETTLE.set(bird, { gen, restore: undefined });
+    restore?.();
+  }, SETTLE_MS);
+}
+
+// clearResultBubble(bird): 吹き出しを閉じ、保留中の restore を即座に呼ぶ（もういちど・うごかす等、次の操作で呼ぶ。clearToast の吹き出し版）。
+export function clearResultBubble(bird) {
+  const restore = SETTLE.get(bird)?.restore;
+  SETTLE.set(bird, { gen: (SETTLE.get(bird)?.gen ?? 0) + 1, restore: undefined });
+  bird.hideBubble();
+  restore?.();
+}
 
 // showSuccess(slotEl, { view, restore }): slotElに.clear-reaction・data-result="clear"をトースト
 // 表示する。view.confetti()/celebrateDance()があれば盤面側の演出も再生する（play・predict双方の
 // viewが持つ）。restoreはトーストが消えた時に呼ばれる（呼び出し側が問い文へ戻す）。
 // confetti: false なら view.confetti を呼ばない（結果ダイアログ側の紙吹雪に任せる呼び出し元用。既定 true。Issue #347）。
-export function showSuccess(slotEl, { view, restore, label = 'やったね！', confetti = true } = {}) {
+// bird を渡すと結果は小鳥の吹き出しに出る（slotEl は使わない。Issue #497）。bird なしは従来のトースト（tutorial 用）。
+export function showSuccess(slotEl, { view, restore, label = 'やったね！', confetti = true, bird } = {}) {
   playSfx('fanfare');
   vibrate();
   if (confetti) view?.confetti?.({ count: STAGE_CONFETTI_COUNT, duration: STAGE_CONFETTI_MS });
   view?.celebrateDance?.();
   view?.setMood?.('happy');
-  showToast(slotEl, {
-    render: (el) => {
-      el.dataset.result = 'clear';
-      const wrap = document.createElement('p');
-      wrap.className =
-        'clear-reaction sk-clear-reaction success-pop flex items-center justify-center gap-1 text-2xl font-bold text-amber-600';
-      wrap.innerHTML = `<svg viewBox="0 0 64 64" class="w-12 h-12 shrink-0" aria-hidden="true">
+  const buildClear = () => {
+    const wrap = document.createElement('p');
+    wrap.className =
+      'clear-reaction sk-clear-reaction success-pop flex items-center justify-center gap-1 text-2xl font-bold text-amber-600';
+    wrap.innerHTML = `<svg viewBox="0 0 64 64" class="w-12 h-12 shrink-0" aria-hidden="true">
         <polygon points="32,4 39,24 60,24 43,37 49,58 32,46 15,58 21,37 4,24 25,24"
           fill="#fbbf24" stroke="#f59e0b" stroke-width="2" />
       </svg>${label}`;
-      el.appendChild(wrap);
+    return wrap;
+  };
+  if (bird) {
+    bird.showBubble(buildClear(), { result: 'clear' });
+    startSettle(bird, restore);
+    return;
+  }
+  showToast(slotEl, {
+    render: (el) => {
+      el.dataset.result = 'clear';
+      el.appendChild(buildClear());
     },
     restore: (el) => {
       delete el.dataset.result;
@@ -45,32 +77,36 @@ export function showSuccess(slotEl, { view, restore, label = 'やったね！', 
 // 見出しとメッセージを別行にする（1行20字以内のUI規則を保つため。Issue #91のまま）。
 // 見出しの左に首をかしげたロボット＋「？」を添え、文字だけでなく非言語でも
 // 「もう一度」と伝わるようにする（失敗を責めない表現。Issue #106）。
-export function showHint(slotEl, { kind, message, restore }) {
-  showToast(slotEl, {
-    render: (el) => {
-      const panel = document.createElement('div');
-      panel.dataset.hint = kind;
-      panel.className = 'hint-panel flex flex-col items-center';
-      const headingRow = document.createElement('div');
-      headingRow.className = 'flex items-center gap-1';
-      const icon = document.createElement('div');
-      icon.className = 'hint-icon relative w-8 h-8 shrink-0';
-      icon.innerHTML = `<div class="w-full h-full" style="transform: rotate(-14deg)">${shapeSvg('player')}</div>
-        <span class="absolute -top-1 -right-1 flex items-center justify-center w-4 h-4 rounded-full bg-slate-600 text-white text-[10px] font-bold" aria-hidden="true">？</span>`;
-      headingRow.appendChild(icon);
-      const heading = document.createElement('p');
-      heading.className = 'text-lg font-bold text-slate-700';
-      heading.textContent = 'おしい！';
-      headingRow.appendChild(heading);
-      panel.appendChild(headingRow);
-      const msg = document.createElement('p');
-      msg.className = 'text-sm text-slate-600';
-      msg.textContent = message;
-      panel.appendChild(msg);
-      el.appendChild(panel);
-    },
-    restore,
-  });
+// bird を渡すと小鳥の吹き出しに出る（Issue #497。data-hint は吹き出し内の panel に付く）。bird なしは従来のトースト。
+export function showHint(slotEl, { kind, message, restore, bird }) {
+  const buildPanel = () => {
+    const panel = document.createElement('div');
+    panel.dataset.hint = kind;
+    panel.className = 'hint-panel flex flex-col items-center';
+    const headingRow = document.createElement('div');
+    headingRow.className = 'flex items-center gap-1';
+    const icon = document.createElement('div');
+    icon.className = 'hint-icon relative w-8 h-8 shrink-0';
+    icon.innerHTML = `<div class="w-full h-full" style="transform: rotate(-14deg)">${shapeSvg('player')}</div>
+      <span class="absolute -top-1 -right-1 flex items-center justify-center w-4 h-4 rounded-full bg-slate-600 text-white text-[10px] font-bold" aria-hidden="true">？</span>`;
+    headingRow.appendChild(icon);
+    const heading = document.createElement('p');
+    heading.className = 'text-lg font-bold text-slate-700';
+    heading.textContent = 'おしい！';
+    headingRow.appendChild(heading);
+    panel.appendChild(headingRow);
+    const msg = document.createElement('p');
+    msg.className = 'text-sm text-slate-600';
+    msg.textContent = message;
+    panel.appendChild(msg);
+    return panel;
+  };
+  if (bird) {
+    bird.showBubble(buildPanel());
+    startSettle(bird, restore);
+    return;
+  }
+  showToast(slotEl, { render: (el) => el.appendChild(buildPanel()), restore });
 }
 
 // diagnose(result, commands, spec) -> { reason: 'wall', cmdIndex, cell }
