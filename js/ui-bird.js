@@ -41,8 +41,50 @@ export function createBird(boardArea) {
     pending = null;
     bubbleEl.hidden = true;
     bubbleEl.textContent = '';
+    bubbleEl.style.top = '';
+    bubbleEl.style.maxWidth = '';
     attrKeys.forEach((k) => delete bubbleEl.dataset[k]);
     attrKeys = [];
+  }
+
+  // 盤面の「置き物」の矩形（boardArea 基準）。旗・かべ・ロボット・どんぐり・ギミックのマス等。何も無い素のマスは含めない。
+  function occupiedRects(a) {
+    const els = [];
+    boardArea.querySelectorAll('.grid-cell').forEach((c) => {
+      if (c.children.length > 0 || Object.keys(c.dataset).length > 2) els.push(c);
+    });
+    boardArea.querySelectorAll('.grid-player, .grid-item').forEach((e) => els.push(e));
+    return els.map((e) => {
+      const r = e.getBoundingClientRect();
+      return { l: r.left - a.left, r: r.right - a.left, t: r.top - a.top, b: r.bottom - a.top };
+    });
+  }
+
+  // 吹き出しの位置（#497 段B）：顔の直下1行に右端を顔へそろえる。その行に置き物のマスがあれば1行ずつ下げ（最大2行）、
+  // それでも空かなければ幅を縮める。盤面の寸法・入力には影響しない（absolute）。
+  function placeBubble() {
+    bubbleEl.style.top = '';
+    bubbleEl.style.maxWidth = '';
+    const a = boardArea.getBoundingClientRect();
+    const ic = iconEl.getBoundingClientRect();
+    const base = ic.top - a.top + 52;
+    const cell = boardArea.querySelector('.grid-cell');
+    const pitch = cell ? cell.getBoundingClientRect().height + 4 : 44;
+    const rects = occupiedRects(a);
+    const right = a.width - 6;
+    const w = bubbleEl.offsetWidth;
+    const h = bubbleEl.offsetHeight;
+    const hits = (top, left) => rects.filter((o) => o.r > left && o.l < right && o.b > top && o.t < top + h);
+    for (let k = 0; k <= 2; k += 1) {
+      const top = base + pitch * k;
+      if (hits(top, right - w).length === 0) {
+        bubbleEl.style.top = `${top}px`;
+        return;
+      }
+    }
+    bubbleEl.style.top = `${base}px`;
+    const limit = Math.max(0, ...hits(base, right - w).filter((o) => o.r < right).map((o) => o.r));
+    if (limit > 0) bubbleEl.style.maxWidth = `${Math.max(96, right - limit - 4)}px`;
   }
   // content は文字列（textContent で入れる）または DOM ノード（結果・ヒントの中身。Issue #497）。
   // attrs は吹き出しの data 属性（例 { result: 'clear' }）。すでに出ていれば置き換える（後勝ち）。
@@ -59,6 +101,12 @@ export function createBird(boardArea) {
     });
     attrKeys = Object.keys(attrs);
     bubbleEl.hidden = false;
+    placeBubble();
+  }
+  if (typeof ResizeObserver === 'function') {
+    new ResizeObserver(() => {
+      if (!bubbleEl.hidden) placeBubble();
+    }).observe(boardArea);
   }
   boardArea.addEventListener('sk-start-cue-end', () => {
     if (pending !== null) showBubble(pending.content, pending.attrs);

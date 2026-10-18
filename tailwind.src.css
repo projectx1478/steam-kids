@@ -454,6 +454,13 @@ dialog.result-row {
 #app[data-op-compact='true'] > header {
   display: none;
 }
+/* 操作画面は外側の余白を片側8px（#app 4px＋#stage 4px）に詰めて盤面を広げる（Issue #497 段B。見本の枠は端から8px）。 */
+#app[data-op-compact='true'] {
+  padding: 0.25rem;
+}
+#app[data-op-compact='true'] > #stage {
+  padding: 0.25rem;
+}
 .palette-row > [data-action='box-open'] {
   grid-column: 1 / -1;
 }
@@ -471,6 +478,11 @@ dialog.result-row {
   .sk-screen-panel.sk-screen-panel {
     padding: 0.5rem;
   }
+}
+
+/* 問い文は吹き出し。補助行（残数・塗りの見本）が空なら行ごと非表示にして盤面を広げる（Issue #497 段B）。 */
+.sk-screen-question:empty {
+  display: none;
 }
 
 /* 小鳥の顔アイコン（js/ui-bird.js・Issue #468）：盤面(relative)の右上の角に重ねる。見た目40px、押せる範囲は透明パディングで64px。
@@ -492,11 +504,14 @@ dialog.result-row {
   cursor: pointer;
 }
 .sk-bird-bubble {
+  /* 顔の直下に右端を顔へそろえて出す（Issue #497 段B）。縦位置は js/ui-bird.js が置き物のマスを避けて決める（既定は顔の下52px）。 */
   position: absolute;
-  top: 8px;
-  left: 8px;
-  right: 56px;
+  top: 52px;
+  right: 6px;
   z-index: 4;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: calc(100% - 12px);
   padding: 0.4rem 0.75rem;
   border-radius: 14px;
   border: 2px solid #1e293b;
@@ -506,6 +521,19 @@ dialog.result-row {
   font-weight: 700;
   text-align: center;
   cursor: pointer;
+}
+/* しっぽ：顔（右上）へ向ける */
+.sk-bird-bubble::before {
+  content: '';
+  position: absolute;
+  top: -9px;
+  right: 14px;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border-left: 2px solid #1e293b;
+  border-top: 2px solid #1e293b;
+  transform: rotate(45deg);
 }
 .sk-bird-bubble[hidden] {
   display: none;
@@ -597,6 +625,16 @@ dialog.result-row {
   .sk-screen-frame > .sk-screen-panel {
     grid-column: 2;
     grid-row: 1 / span 2;
+  }
+  /* 補助行が空：盤面を1行目へ（問い文は吹き出し。Issue #497 段B） */
+  .sk-screen-frame.sk-screen-frame:has(> .sk-screen-question:empty) {
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .sk-screen-frame:has(> .sk-screen-question:empty) > .sk-screen-board {
+    grid-row: 1;
+  }
+  .sk-screen-frame:has(> .sk-screen-question:empty) > .sk-screen-panel {
+    grid-row: 1;
   }
 
   .tutorial-screen.tutorial-screen {
@@ -700,6 +738,18 @@ dialog.result-row {
   .sk-screen-frame--predict > .predict-command-row ~ .sk-screen-panel {
     grid-row: 1 / span 3;
   }
+  .sk-screen-frame.sk-screen-frame.sk-screen-frame--predict:has(> .sk-screen-question:empty) {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .sk-screen-frame--predict:has(> .sk-screen-question:empty) > .predict-command-row {
+    grid-row: 1;
+  }
+  .sk-screen-frame--predict:has(> .sk-screen-question:empty) > .predict-command-row ~ .sk-screen-board {
+    grid-row: 2;
+  }
+  .sk-screen-frame--predict:has(> .sk-screen-question:empty) > .predict-command-row ~ .sk-screen-panel {
+    grid-row: 1 / span 2;
+  }
   .sk-screen-panel > .sk-screen-actions.sk-screen-actions--predict {
     display: flex;
     flex-direction: column;
@@ -725,6 +775,18 @@ dialog.result-row {
   }
   .sk-screen-frame--keys > .sk-key-tray-row ~ .sk-screen-panel {
     grid-row: 1 / span 3;
+  }
+  .sk-screen-frame.sk-screen-frame.sk-screen-frame--keys:has(> .sk-screen-question:empty) {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .sk-screen-frame--keys:has(> .sk-screen-question:empty) > .sk-key-tray-row {
+    grid-row: 1;
+  }
+  .sk-screen-frame--keys:has(> .sk-screen-question:empty) > .sk-key-tray-row ~ .sk-screen-board {
+    grid-row: 2;
+  }
+  .sk-screen-frame--keys:has(> .sk-screen-question:empty) > .sk-key-tray-row ~ .sk-screen-panel {
+    grid-row: 1 / span 2;
   }
 }
 

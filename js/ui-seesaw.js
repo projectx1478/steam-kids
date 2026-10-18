@@ -49,7 +49,7 @@ export function renderSeesaw(root, step) {
   const local = { pos: spec.mover.start, phase: 'edit', timer: null };
 
   // 画面の枠は共通部品（js/ui-screen.js。Issue #343）。
-  const screen = createOpScreen({ root, question: step.text ?? 'つりあう ところに おこう' });
+  const screen = createOpScreen({ root, question: step.text ?? 'つりあう ところに おこう', stepKey: `${S.lesson.lessonId}:${step.stepId}` });
   const { frame: opScreen, boardArea, actions: actionsEl, bird } = screen;
   actionsEl.classList.add('sk-screen-actions--one-row');
   function renderQuestion() {
@@ -288,6 +288,7 @@ export function renderSeesaw(root, step) {
   showNormalActions();
   drawMover();
   showStartCue(boardArea); // ステージ開始時に1回（再開では出さない。#497）
+  screen.announceQuestion(); // 問い文の吹き出し。「スタート！」が消えてから出る（#497 段B）
 
   // 未クリアレッスンの最初のステージだけ、◀▶の指ガイドを1回出す（最初の操作で消える）。
   if (stageIndex === 0 && !isLessonCleared(S.lesson.lessonId)) {

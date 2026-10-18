@@ -1,5 +1,6 @@
 // ステージ開始時の「スタート！」（盤面中央・A案）：開始時に1回出て約1秒で消える・タップ素通し・
 // 失敗→もういちど／クリア→もういちどの再開では出ない（play・seesaw 各。Issue #497 段A）。
+// 段B：問い文の吹き出しは「スタート！」が消えてから出る（順序 スタート！→吹き出し）。顔・吹き出しのタップで消え／再表示。
 // 凍結fixtureに依存しないよう play は routeLesson のインライン最小盤面、seesaw は teko-01-tsuriai。
 
 export const name = 'C12 スタート！: ステージ開始時に1回・約1秒で消える・再開（もういちど）では出ない(play・seesaw。Issue #497)';
@@ -30,17 +31,20 @@ const LESSON = {
 };
 
 const cueCount = (page) => page.$$eval('.sk-start-cue', (els) => els.length);
+const bubbleShown = (page) => page.$eval('[data-sk-bird="bubble"]', (b) => !b.hidden && b.dataset.question === 'true');
 const cueFlag = (page) => page.$eval('[data-sk-screen="board"]', (b) => b.hasAttribute('data-start-cue'));
 
 // 開始時の確認（1回出る→タップ素通し→約1秒後に消える）。enterPlay の直後に呼ぶ。
 async function checkStartThenGone(page, check, label) {
   await check(`${label}: 開始時に「スタート！」が1回出る`, () => cueCount(page), 1);
   await check(`${label}: 表示中は盤面に data-start-cue が立つ`, () => cueFlag(page), true);
+  await check(`${label}: 「スタート！」の間は問い文の吹き出しは出ない`, () => bubbleShown(page), false);
   await check(`${label}: タップは素通し（pointer-events:none）`, () =>
     page.$eval('.sk-start-cue', (el) => getComputedStyle(el).pointerEvents), 'none');
   await page.waitForFunction(() => !document.querySelector('.sk-start-cue'), null, { timeout: 3000 });
   await check(`${label}: 約1秒後に消える`, () => cueCount(page), 0);
   await check(`${label}: 消えたら data-start-cue も外れる`, () => cueFlag(page), false);
+  await check(`${label}: 「スタート！」が消えたあと問い文の吹き出しが出る`, () => bubbleShown(page), true);
 }
 
 export default async function run({ page, check }) {
@@ -48,6 +52,12 @@ export default async function run({ page, check }) {
   await routeLesson(page, LESSON);
   await enterPlay(page, 'start-cue-smoke');
   await checkStartThenGone(page, check, 'play');
+
+  // 吹き出しをタップで消す → 顔をタップで再表示（自動では消えない。盤面・操作ボタンのタップは素通し）
+  await page.click('[data-sk-bird="bubble"]');
+  await check('play: 吹き出しのタップで消える', () => bubbleShown(page), false);
+  await page.click('[data-sk-bird="icon"]');
+  await check('play: 顔のタップで問い文が再表示される', () => bubbleShown(page), true);
 
   // 失敗（right 1回ではゴールに着かない）→ もういちど
   await page.click('[data-command="right"]');

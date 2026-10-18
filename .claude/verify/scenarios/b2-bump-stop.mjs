@@ -50,6 +50,17 @@ export default async function run({ page, check }) {
 
   // --- じっこう: right,right,left,left,left(盤外でぶつかる),right,right ---
   await enterPlay(page, 'bump-stop-smoke');
+  // 問い文の吹き出し（Issue #497 段B）は盤面の置き物（ロボット・ゴール）を覆わず、盤面エリアの内側に出る
+  await page.waitForSelector('[data-sk-bird="bubble"]:not([hidden])', { timeout: 4000 });
+  await check('問い文の吹き出しがロボット・ゴールのマスを覆わない', () =>
+    page.evaluate(() => {
+      const b = document.querySelector('[data-sk-bird="bubble"]').getBoundingClientRect();
+      const hit = (el) => {
+        const r = el.getBoundingClientRect();
+        return r.left < b.right && r.right > b.left && r.top < b.bottom && r.bottom > b.top;
+      };
+      return [...document.querySelectorAll('.grid-player, [data-goal]')].some(hit);
+    }), false);
   for (const c of ['right', 'right', 'left', 'left', 'left', 'right', 'right']) {
     await page.click(`[data-command="${c}"]`);
   }

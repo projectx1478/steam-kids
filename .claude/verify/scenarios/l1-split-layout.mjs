@@ -26,12 +26,29 @@ const LESSON_DEF = {
       items: [{ x: 1, y: 3 }],
       allowedCommands: ['up', 'down', 'left', 'right'],
       solution: ['right', 'down', 'down', 'down', 'up', 'up', 'up', 'right'],
-      maxCommands: 10,
+      maxCommands: 20,
     },
     { stepId: 's2', kind: 'summary', text: 'できたね' },
   ],
 };
 const TUTORIAL_LESSON = 'cmd-01-susumu';
+
+// 顔アイコンの押せる範囲（64px）と操作ボタンの最短距離（px）。吹き出し化（Issue #497）で盤面が広がっても16px以上空ける。
+const birdGap = () =>
+  document.querySelectorAll('[data-sk-bird="icon"]').length === 0
+    ? -1
+    : (() => {
+        const a = document.querySelector('[data-sk-bird="icon"]').getBoundingClientRect();
+        let min = Infinity;
+        document.querySelectorAll('.palette-row button, [data-sk-screen="actions"] button').forEach((b) => {
+          const r = b.getBoundingClientRect();
+          if (r.width === 0) return;
+          const dx = Math.max(0, a.left - r.right, r.left - a.right);
+          const dy = Math.max(0, a.top - r.bottom, r.top - a.bottom);
+          min = Math.min(min, Math.hypot(dx, dy));
+        });
+        return Math.round(min);
+      })();
 
 async function geometry(page) {
   return page.evaluate(() => {
@@ -93,6 +110,7 @@ export default async function run({ page, check }) {
     await check(`${label} play: 操作パネルが盤面エリアの右`, () => rightOf(g));
     await check(`${label} play: #appが768pxを超える`, () => g.appW > 768);
     await check(`${label} play: 全ボタン64px以上`, () => g.smallButtons, 0);
+    await check(`${label} play: 顔の押せる範囲と操作ボタンは16px以上離れる`, async () => (await page.evaluate(birdGap)) >= 16);
     await check(`${label} play: 盤面が盤面エリア内`, () =>
       g.board.left >= g.area.left - 1 && g.board.right <= g.area.right + 1 && g.board.top >= g.area.top - 1 && g.board.bottom <= g.area.bottom + 1);
     if (vp.width === 1280) await check(`${label} play: セルが64pxを超える`, () => g.cellW > 64);
@@ -104,7 +122,7 @@ export default async function run({ page, check }) {
 
     // 命令を積み続けても盤面の大きさが変わらず、トレイ内でスクロールする
     const before = g.board.width;
-    for (let i = 0; i < 10; i += 1) {
+    for (let i = 0; i < 20; i += 1) {
       const btn = await page.$('.palette-row [data-command]:not(:disabled)');
       if (!btn) break;
       await btn.click();
@@ -127,6 +145,7 @@ export default async function run({ page, check }) {
   const pg = await geometry(page);
   await check('390x844 play: 操作パネルが盤面エリアの下', () => below(pg));
   await check('390x844 play: セルは64px以下', () => pg.cellW <= 64.5);
+  await check('390x844 play: 顔の押せる範囲と操作ボタンは16px以上離れる', async () => (await page.evaluate(birdGap)) >= 16);
   await check('390x844 play: #appは768px以下', () => pg.appW <= 768);
 
   // レッスン選択画面は横向きでも#app 768px以下

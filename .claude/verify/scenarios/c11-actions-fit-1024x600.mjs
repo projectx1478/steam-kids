@@ -7,6 +7,22 @@
 export const name = 'C11 1024×600: 操作ボタン行が#stageに収まる4状態(Issue #370)';
 import { enterPlay } from '../helpers.mjs';
 
+const birdGap = () =>
+  document.querySelectorAll('[data-sk-bird="icon"]').length === 0
+    ? -1
+    : (() => {
+        const a = document.querySelector('[data-sk-bird="icon"]').getBoundingClientRect();
+        let min = Infinity;
+        document.querySelectorAll('.palette-row button, [data-sk-screen="actions"] button').forEach((b) => {
+          const r = b.getBoundingClientRect();
+          if (r.width === 0) return;
+          const dx = Math.max(0, a.left - r.right, r.left - a.right);
+          const dy = Math.max(0, a.top - r.bottom, r.top - a.bottom);
+          min = Math.min(min, Math.hypot(dx, dy));
+        });
+        return Math.round(min);
+      })();
+
 export default async function run({ page, check }) {
   await page.unroute('**/lessons/cmd-01-susumu.json');
   await page.setViewportSize({ width: 1024, height: 600 });
@@ -19,6 +35,8 @@ export default async function run({ page, check }) {
   await enterPlay(page, 'cmd-01-susumu');
   await check('①命令トレイ空: #stage に収まる', fits, true);
   await check('①命令トレイ空: 操作ボタン行は2×2の132px', actionsHeight, 132);
+  await check('①命令トレイ空: 顔の押せる範囲と操作ボタンは16px以上離れる(Issue #497)', async () => (await page.evaluate(birdGap)) >= 16);
+  await check('①命令トレイ空: 問い文の行は出ない(吹き出しへ。Issue #497)', () => page.evaluate(() => getComputedStyle(document.querySelector('[data-sk-screen="question"]')).display), 'none');
 
   for (const dir of ['up', 'up', 'left', 'left']) await page.click(`[data-command="${dir}"]`);
   await check('②命令を積んだ状態: #stage に収まる', fits, true);
