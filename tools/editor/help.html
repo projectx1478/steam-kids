@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>盤面エディタ つかいかた（開発者用）</title>
+<!-- 盤面部品が使うクラスの定義（ルートの style.css）。index.html と同じ読み込み順。ヘルプ自身の見た目は help.css -->
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/help.css">
+</head>
+<body class="help-body">
+<header class="help-head">
+  <span class="dev-badge">開発者用</span>
+  <h1>盤面エディタ つかいかた</h1>
+</header>
+
+<p class="pc-only">このエディタはパソコン専用です。画面の幅が 1024px 以上のブラウザで開いてください（スマホ・タブレットでは操作できません）。</p>
+
+<p>エディタを別のタブで開いたまま、見ながら操作できます。</p>
+<ul class="toc">
+  <li><a href="#make">1. 5分で1面つくる</a></li>
+  <li><a href="#buttons">2. ボタン一覧</a></li>
+  <li><a href="#terms">3. 判定欄の用語表</a></li>
+</ul>
+
+<h2 id="make">1. 5分で1面つくる</h2>
+<p>起動直後は、スタートとゴールだけの空の盤（5×5）が出ています。壁とどんぐりを足して、遊べる盤にします。</p>
+<ol>
+  <li>左の「パレット」で「かべ」を選び、盤のマスをクリックすると壁が置けます。通れない道をつくります。</li>
+  <li>「どんぐり」を選んで、集めたい場所をクリックします。</li>
+  <li>スタート・ゴールは、パレットで選んで別のマスをクリックすると、いまの位置から移ります（各1個。消せません）。</li>
+  <li>置きまちがえたら「消しゴム」でそのマスをクリックします。または上の「元に戻す」（<kbd>Ctrl</kbd>+<kbd>Z</kbd>）を押します。</li>
+  <li>編集の手を止めて約0.3秒たつと、盤の下の判定欄が更新されます。「クリア: できる」と最短手数が出れば、遊べる盤です。<code>!</code> で始まる行が出たら、その内容を直します。</li>
+  <li>上の「ためしあそび」を押すと、いまの盤が子ども画面で別タブに開きます。実際に遊んで確かめます（記録は残りません。盤の検証はしません。先に判定欄で「クリア: できる」を確認してください）。</li>
+</ol>
+
+<figure class="fig">
+  <div id="fig1" class="fig-stage"></div>
+  <figcaption>図1：できあがりの例（5×3）。①スタートを置く（初めからある）→②壁を置く→③どんぐりを置く→④ゴールを置く（初めからある）。矢印は遊ぶときの道すじの一例。</figcaption>
+</figure>
+
+<div class="note">
+  <strong>操作のコツ</strong>
+  <ul>
+    <li>1マスに置けるのは1つだけです。すでに何かあるマスや盤の外は、置けない理由が状態行に出ます。</li>
+    <li>置いたものを別のマスへ動かすには、<kbd>Shift</kbd>+クリックで動かす元を選び、行き先のマスをクリックします。</li>
+    <li>「元に戻す」「やり直し」は最大100手です。下書き名などの入力欄にいるときの <kbd>Ctrl</kbd>+<kbd>Z</kbd> は、その欄の文字だけに効き、盤は戻りません。</li>
+    <li>盤の大きさは、いまは画面から変えられません。起動時は5×5の空盤で、レッスンの面や下書きを読み込むと、その大きさになります。</li>
+  </ul>
+</div>
+
+<h3>大きさの目安（エディタ 20×20／レッスン 6×6）</h3>
+<p>エディタが受け付ける盤の大きさは最大 20×20 です（検査も 20×20 まで通ります）。いっぽう、いま子ども画面にあるレッスンの盤は、いちばん大きいもので 6×6 です。レッスン用の面をつくるときは、6×6 以内を目安にしてください。規則の改定ではなく、いまのレッスンの実際の大きさです。</p>
+
+<h2 id="buttons">2. ボタン一覧</h2>
+<h3>上のバー</h3>
+<table>
+  <tr><th>ボタン</th><th>はたらき</th></tr>
+  <tr><td>元に戻す／やり直し</td><td>置く・消す・動かすの1回が1手。最大100手。使えないときは灰色。<kbd>Ctrl</kbd>+<kbd>Z</kbd>／<kbd>Ctrl</kbd>+<kbd>Y</kbd>（<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> も可）。面や下書きを読み込むと、履歴は作り直しになります。</td></tr>
+  <tr><td>たたき台</td><td>条件（大きさ・かべ・ギミック・最短手数など）を決めて、候補の盤を4枚つくります。「これで編集」で盤に読み込みます（編集中の盤は確認が出ます）。</td></tr>
+  <tr><td>ためしあそび</td><td>いまの盤を、記録なしの子ども画面で別タブに開きます。検証はしません。</td></tr>
+  <tr><td>つかいかた</td><td>このページを別タブで開きます。</td></tr>
+  <tr><td>拡大縮小・100%に戻す</td><td>盤の上でホイールを回すと拡大縮小（10%刻み・13%〜200%）。「100%に戻す」で元の大きさに戻ります。</td></tr>
+</table>
+
+<h3>左：パレット</h3>
+<p>置くものを選びます。選んだ状態で盤のマスをクリックすると置けます。「かべ」「スタート」「ゴール」「消しゴム」と、ギミック（どんぐり・氷・クッション・水・ワープ・スイッチなど）が並びます。右端の英字は内部名です。ギミックごとの置き方は、ここには書いていません（準備中）。</p>
+
+<h3>左：レッスンの面と下書き</h3>
+<table>
+  <tr><th>ボタン</th><th>はたらき</th></tr>
+  <tr><td>レッスンを選ぶ</td><td>選ぶと面の一覧が出ます。面（play／tutorial）をクリックすると盤に読み込みます。盤を直しても、面にはすぐ反映されません。</td></tr>
+  <tr><td>↑ ↓</td><td>選んだ面の並べ替え。</td></tr>
+  <tr><td>複製して追加</td><td>選んだ面のすぐ後ろに、同じ面のコピー（-copy）を足します。</td></tr>
+  <tr><td>この盤面で置き換え</td><td>いまの盤を、選んだ面に書き戻します（面の名前と種類はそのまま）。</td></tr>
+  <tr><td>この盤面を面として追加</td><td>いまの盤を新しい面として足します。面を選んでいればその後ろ、選んでいなければ末尾です。</td></tr>
+  <tr><td>固定する</td><td>自動生成された面を、手で書いた面に変えます。先頭の面から順にしかできません。</td></tr>
+  <tr><td>削除</td><td>選んだ面を消します（確認あり。最後の1面は消せません）。</td></tr>
+  <tr><td>保存</td><td>変更があるときだけ押せます。レッスン全体を検査して、通ればファイルに書き込みます（書く前に退避コピーを取ります）。通らなければ書かずに理由を出します。</td></tr>
+  <tr><td>下書き保存／読み込む</td><td>盤を名前をつけて保存・読み込みます。名前は半角の小文字英数字と <code>-</code> だけ。同じ名前は上書きです。保存のときの検査は形だけです。</td></tr>
+</table>
+<p>盤を直したあと、「置き換え」をせずに別の面・レッスン・下書き・たたき台を開くと、確認が出ます。</p>
+
+<h3>右：選択中の要素・とめる回数</h3>
+<p>スイッチを選んでいるときは、その設定がここに出ます。「とめる回数（maxPauses）」は0以上の整数です。空欄は0として扱います。負の数や小数は「できません」と出て、元の値に戻ります。</p>
+
+<h2 id="terms">3. 判定欄の用語表</h2>
+<p>盤の下の判定欄に出る言葉の意味です。</p>
+<table>
+  <tr><th>表示</th><th>意味</th></tr>
+  <tr><td>クリア: できる／できない</td><td>どんぐりを全部あつめてゴールに着けるか。「できない」のときは、たいてい下に <code>!</code> の行で理由が出ます。</td></tr>
+  <tr><td>最短手数</td><td>いちばん短くクリアできる命令の数。「とめる回数（maxPauses）」とは別のものです。</td></tr>
+  <tr><td>○○の必須: 必須</td><td>そのギミックを使わないと解けません。</td></tr>
+  <tr><td>○○の必須: 飾り（NG）</td><td>そのギミックを使わなくても解けます（置いた意味がありません）。</td></tr>
+  <tr><td>曲がる回数（一例）</td><td>見つかった道すじの一例で、曲がる回数です。</td></tr>
+  <tr><td>勾配（最短手数）</td><td>レッスンを選んでいるときの、前後の面との難しさの並びです。最短手数が減る面は（警告）が付きますが、保存はできます。</td></tr>
+  <tr><td>接続待ち</td><td>スイッチにつなぐ壁がまだ1つも無い状態です。壁をつなぐと消えます。</td></tr>
+  <tr><td>未判定（時間切れ）</td><td>10秒以内に判定が終わらなかったとき。クリアできる・できないは、まだ分かっていません。</td></tr>
+  <tr><td><code>!</code> で始まる行</td><td>盤の検査エラーです。直すまで保存やためしあそびが期待どおりにならないことがあります。</td></tr>
+</table>
+<p>ギミックの名前は、画面の場所によって少しちがいます（例：パレットの「氷」＝たたき台の「こおり」、「ぬりマス」＝「色ぬり」＝判定欄の「ぬり」、「水・橋」＝「水」）。どれも同じギミックです。</p>
+
+<figure class="fig">
+  <div id="fig2" class="fig-stage"></div>
+  <figcaption>図2：図1の盤で、スタートからどんぐりを通ってゴールまで行く道すじの一例（矢印）。「最短手数」はこうした道すじをたどる命令の数ですが、実際の値は判定欄の表示で確認してください。</figcaption>
+</figure>
+
+<script type="module">
+import { drawBoard } from '/js/ui-board.js';
+
+// 図の盤。マスの大きさ・すき間・余白を固定し、矢印・番号の座標を cellSize×マス番号で計算する。
+const CELL = 48;
+const GAP = 4;
+const PAD = 4;
+const SPEC = {
+  grid: { cols: 5, rows: 3 },
+  start: { x: 0, y: 1 },
+  goal: { x: 4, y: 1 },
+  walls: [{ x: 2, y: 0 }, { x: 2, y: 1 }],
+  items: [{ x: 3, y: 2 }],
+};
+const center = (p) => ({ x: PAD + p.x * (CELL + GAP) + CELL / 2, y: PAD + p.y * (CELL + GAP) + CELL / 2 });
+const NS = 'http://www.w3.org/2000/svg';
+const svgEl = (name, attrs) => {
+  const e = document.createElementNS(NS, name);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, String(v));
+  return e;
+};
+
+function drawFigure(host, { path, numbers }) {
+  drawBoard({ boardWrap: host, spec: SPEC, cellSize: CELL, gap: GAP, pad: PAD, playerPos: SPEC.start });
+  const board = host.firstElementChild;
+  const w = PAD * 2 + SPEC.grid.cols * CELL + (SPEC.grid.cols - 1) * GAP;
+  const h = PAD * 2 + SPEC.grid.rows * CELL + (SPEC.grid.rows - 1) * GAP;
+  const svg = svgEl('svg', { class: 'fig-overlay', width: w, height: h, viewBox: `0 0 ${w} ${h}`, 'aria-hidden': 'true' });
+  if (path) {
+    const pts = path.map(center);
+    svg.appendChild(svgEl('polyline', { class: 'arrow', points: pts.map((p) => `${p.x},${p.y}`).join(' ') }));
+    const a = pts[pts.length - 2];
+    const b = pts[pts.length - 1];
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    const ux = (b.x - a.x) / len;
+    const uy = (b.y - a.y) / len;
+    const tip = { x: b.x - ux * 6, y: b.y - uy * 6 };
+    const base = { x: tip.x - ux * 14, y: tip.y - uy * 14 };
+    const head = [tip, { x: base.x - uy * 8, y: base.y + ux * 8 }, { x: base.x + uy * 8, y: base.y - ux * 8 }];
+    svg.appendChild(svgEl('polygon', { class: 'arrow-head', points: head.map((p) => `${p.x},${p.y}`).join(' ') }));
+  }
+  (numbers || []).forEach(({ at, n, dx = 0, dy = 0 }) => {
+    const c = center(at);
+    const x = c.x + CELL / 2 - 4 + dx;
+    const y = c.y - CELL / 2 + 4 + dy;
+    svg.appendChild(svgEl('circle', { class: 'num-bg', cx: x, cy: y, r: 11 }));
+    const t = svgEl('text', { class: 'num', x, y });
+    t.textContent = String(n);
+    svg.appendChild(t);
+  });
+  board.style.position = 'relative';
+  board.appendChild(svg);
+}
+
+const ROUTE = [{ x: 0, y: 1 }, { x: 0, y: 2 }, { x: 3, y: 2 }, { x: 4, y: 2 }, { x: 4, y: 1 }];
+drawFigure(document.getElementById('fig1'), {
+  path: ROUTE,
+  numbers: [
+    { at: SPEC.start, n: 1 },
+    { at: SPEC.walls[0], n: 2 },
+    { at: SPEC.walls[1], n: 2 },
+    { at: SPEC.items[0], n: 3 },
+    { at: SPEC.goal, n: 4 },
+  ],
+});
+drawFigure(document.getElementById('fig2'), { path: ROUTE });
+</script>
+</body>
+</html>
