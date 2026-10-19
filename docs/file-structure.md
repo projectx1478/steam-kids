@@ -21,7 +21,7 @@ js/
   ui-seesaw.js # シーソーplay画面の描画（Issue #150）
   ui-screen.js # 操作画面の枠の共通部品（補助行・盤面・パネル・ボタン行と小鳥の吹き出し。play・シーソー・predict が使う。docs/components.md。Issue #343）
   ui-bird.js # 小鳥の顔アイコン（40px・押せる範囲64px）と吹き出しの器。createOpScreen が盤面の角に置く（Issue #468）
-  bird-hints.js # 小鳥の顔アイコンのタップ・失敗2回目の自動ヒントの固定文言（「とめる」・失敗後。docs/hint-bubble.md。Issue #468 段2）
+  bird-phrases.js # 小鳥の吹き出し文言テーブル（口調4種・ギミック別）と選び方（ランダム・同セッション重複回避・一巡リセット）。docs/hint-bubble.md。Issue #468 段3
   ui-clear.js # クリア演出の共通部品（星→間→結果ダイアログ。使い方は docs/clear-component.md。Issue #342）
   ui-retry.js # やり直しの流れの共通部品（失敗のゆれ shakeBoard・ボタン切替 setRetryButton・「スタート！」showStartCue〔開始時の「スタート！」。Issue #497〕。Issue #344）
   seed-code.js # れんしゅうの3桁の番号（'000'〜'999'）⇔シード変換（Issue #69・#398）
