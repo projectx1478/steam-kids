@@ -215,7 +215,7 @@ export function showClearSequence({
     dialogHandle = showResultDialog({ controls, host, observed: lockEl, primaryBtn, replayBtn, heading });
     // 最短超過のときだけ、結果ダイアログが出てから小鳥が続けて言う（Issue #491。ほめの吹き出しは後勝ちで置き換わる）。
     if (afterDialogSay && bird) bird.showBubble(afterDialogSay, { result: 'clear', shorter: 'true' });
-  },prefersReducedMotion() ? RESULT_GAP_REDUCED_MS : RESULT_GAP_MS);
+  }, prefersReducedMotion() ? RESULT_GAP_REDUCED_MS : RESULT_GAP_MS);
   setActiveAnimation({ cancel: dispose });
   return { dispose };
 }
