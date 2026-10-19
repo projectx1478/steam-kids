@@ -10,6 +10,7 @@
 | 操作画面の枠（補助行・盤面・小鳥の吹き出し・操作パネル・ボタン行の骨格。縦・横・背の低い横向き） | `js/ui-screen.js` | 本表（下の「操作画面の枠」） | 旧クラス名（`play-screen`・`status-bar`・`board-area`・`controller-panel`・`action-row`）での枠の自前組み立て | screen 0（allow 2） |
 | 盤面の描画（マスの大きさ計算・`renderGrid` 呼び出し・盤面エリアの大きさが変わったときの描き直し） | `js/ui-board.js` | 本表（下の「盤面の描画」） | `renderGrid(`・`computeCellSize(` の直呼び（`js/ui-board.js`・`js/ui-grid.js` 以外） | board 0（excluded の `js/ui-demo.js` に 1） |
 | やり直しの流れ（失敗のゆれ・「もういちど」ボタン切替・開始時の「スタート！」） | `js/ui-retry.js` | `js/ui-retry.js` 先頭のコメント | 検査なし（登録表に足さない。Issue #344） | — |
+| 小鳥の吹き出しでのヒント（失敗後のヒント・顔アイコンのタップ・失敗2回目の自動1回・「とめる」のヒント） | `js/ui-bird.js`・`js/bird-hints.js`・`js/ui-reaction.js`（`showHint`） | `docs/hint-bubble.md` | なし（#468-19B） | なし（#468-19B） |
 
 基準件数の正本は `test/forbidden-baseline.json`。`showsuccess 0`：`js/ui-predict.js`・`js/ui-tutorial.js` も `showClearToast` に移行済み（状態：移行完了）。`confetti 2` は `js/ui-reaction.js` の `showSuccess` 本体と `js/ui-seesaw.js` のアダプタ。
 
@@ -88,7 +89,6 @@
 | レッスンの枠 | 効果が小さい（2026-10-08 判断） | 同じ見た目かロジックが3画面以上で必要になったとき |
 | くりかえし箱の操作行 | 効果が小さい（2026-10-08 判断） | 同じ見た目かロジックが3画面以上で必要になったとき |
 | 最初のステージの指ガイド | 効果が小さい（2026-10-08 判断） | 同じ見た目かロジックが3画面以上で必要になったとき |
-| ヒント表示 | 効果が小さい（2026-10-08 判断） | 同じ見た目かロジックが3画面以上で必要になったとき |
 
 ## レイアウト・ビルドの落とし穴（SESSION.mdから移動。Issue #447）
 
