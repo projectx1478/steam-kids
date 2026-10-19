@@ -1,7 +1,7 @@
 // 小鳥の吹き出し文言テーブル（js/bird-phrases.js。Issue #468 段3）の静的チェックと選び方の確認。ブラウザ不要。実行: npm run test:unit
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { PHRASES, TONES, SCENES, boardFacts, pickPhrase, createPhraseState, nextTapHint } from '../js/bird-phrases.js';
+import { PHRASES, TONES, SCENES, boardFacts, pickPhrase, createPhraseState, nextTapHint, shorterPhrase } from '../js/bird-phrases.js';
 
 const compact = (t) => t.replace(/[ 　]/g, '');
 // ひらがな・カタカナ・長音・空白と「」、！…のみ（漢字・？禁止）
@@ -28,7 +28,16 @@ test('テーブル：id の重複なし・場面と口調は定義内', () => {
 });
 
 test('文言：ひらがな／カタカナのみ（漢字・？なし）', () => {
-  for (const p of PHRASES) assert.match(p.text, ALLOWED, `${p.id}: ${p.text}`);
+  // only 付き（最短超過のときだけ使う専用行。Issue #491）は問いかけの「？」を許す。
+  for (const p of PHRASES) assert.match(p.only ? p.text.replace(/？$/, '') : p.text, ALLOWED, `${p.id}: ${p.text}`);
+});
+
+test('文言：専用行（only）は通常の clear の選び方に混ざらず、shorterPhrase で取れる', () => {
+  const only = PHRASES.filter((p) => p.only);
+  assert.deepEqual(only.map((p) => [p.scene, p.tone, p.only]), [['clear', 'ask', 'shorter']]);
+  assert.equal(shorterPhrase(), 'もっと みじかく できる？');
+  const state = createPhraseState();
+  for (let i = 0; i < 40; i += 1) assert.notEqual(pickPhrase({ scene: 'clear', state }).text, shorterPhrase());
 });
 
 test('文言：1文20字以内（空白を数えない）', () => {
@@ -38,7 +47,8 @@ test('文言：1文20字以内（空白を数えない）', () => {
 test('文言：禁止表現・方向語・数詞・手順語・比較評価語を含まない（答えを言わない。#340）', () => {
   for (const p of PHRASES) {
     const c = compact(p.text);
-    for (const w of [...FORBIDDEN, ...NUMERAL, ...PROCEDURE, ...COMPARE]) assert.ok(!c.includes(w), `${p.id}: ${p.text} に「${w}」`);
+    // 専用行（only）の「もっと」は承認済みの文言（#491-1）なので比較語の検査だけ除く。
+    for (const w of [...FORBIDDEN, ...NUMERAL, ...PROCEDURE, ...(p.only ? [] : COMPARE)]) assert.ok(!c.includes(w), `${p.id}: ${p.text} に「${w}」`);
     assert.ok(!hasDirection(p.text), `${p.id}: ${p.text} に方向語`);
   }
 });

@@ -20,16 +20,18 @@ const GAP_FRAME_CLASSES = ['min-h-[64px]', 'items-center', 'rounded-2xl', 'borde
 // 途中ステージは stage_clear のみ（レッスン全体のクリアや単元スタンプの対象にしない。Issue #104）。
 // 番号選択で始めたとき（isStagePicked）は最終でも clear を記録せず再開点も消さない（Issue #399）。
 // ためしあそび（isTrial。Issue #403）は何も書かない。
-export function recordClear({ isFinal, stageIndex }) {
+// optimal（Issue #491）: 最短手数以内なら true、超過なら false、算出不能は undefined（payload にキーを付けない）。
+export function recordClear({ isFinal, stageIndex, optimal }) {
   if (isTrial()) return;
+  const extra = typeof optimal === 'boolean' ? { optimal } : {};
   if (isFinal) {
     if (!isStagePicked()) {
-      logEvent('clear', {});
+      logEvent('clear', { ...extra });
       clearResume(S.lesson.lessonId);
     }
     markLessonCleared();
   } else {
-    logEvent('stage_clear', { stage: stageIndex + 1 });
+    logEvent('stage_clear', { stage: stageIndex + 1, ...extra });
     saveResumePoint();
   }
 }
@@ -174,7 +176,7 @@ export function showClearToast(slotEl, { view, restore, label, confetti, bird } 
 // setActiveAnimation }) → { dispose() }
 //   lockEl: 間の始まりから inert にする操作画面の外枠（1要素）。keepEl: 外枠の中で押せるままにする要素（⚙。省略可）。host: ダイアログを置く外枠の親（root）。
 //   primary: { label, action, id }（action＝つぎへ押下時の処理、id＝data-action）。
-//   gapEl: 間のあいだ空き枠にする操作行（省略可）。
+//   gapEl: 間のあいだ空き枠にする操作行（省略可）。afterDialogSay: ダイアログ表示後に小鳥が言う文言（省略可。最短超過のとき）。
 //   dispose(): 間のタイマー・ダイアログ・inert を片付ける（冪等）。ダイアログ表示後も setActiveAnimation に
 //   登録したままなので、画面の作り直し（renderStep の activeAnimation.cancel()）でも呼ばれる。
 export function showClearSequence({
@@ -190,6 +192,7 @@ export function showClearSequence({
   primary,
   replay,
   heading,
+  afterDialogSay,
   setActiveAnimation,
 }) {
   let unlock = () => {};
@@ -210,7 +213,9 @@ export function showClearSequence({
   timer = setTimeout(() => {
     dots?.remove();
     dialogHandle = showResultDialog({ controls, host, observed: lockEl, primaryBtn, replayBtn, heading });
-  }, prefersReducedMotion() ? RESULT_GAP_REDUCED_MS : RESULT_GAP_MS);
+    // 最短超過のときだけ、結果ダイアログが出てから小鳥が続けて言う（Issue #491。ほめの吹き出しは後勝ちで置き換わる）。
+    if (afterDialogSay && bird) bird.showBubble(afterDialogSay, { result: 'clear', shorter: 'true' });
+  },prefersReducedMotion() ? RESULT_GAP_REDUCED_MS : RESULT_GAP_MS);
   setActiveAnimation({ cancel: dispose });
   return { dispose };
 }

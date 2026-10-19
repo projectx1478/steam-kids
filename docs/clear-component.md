@@ -28,7 +28,7 @@ clearSequence = showClearSequence({ statusBar, controls, lockEl, host, gapEl, vi
 
 - 返り値は `{ dispose() }`。ステージ切替・やり直し・画面を離れる時に必ず呼ぶ（タイマー・ダイアログ・紙吹雪・`inert`・空き枠・`relative`・リスナーを戻す。2回呼んでも安全）。
 - `showClearToast(slotEl, { view, restore, label, confetti })`：星のトーストだけを出す（間・ダイアログなし。引数・既定は showSuccess と同じ）。predict・tutorial 用（Issue #352）。
-- `recordClear`：最終ステージは clear → markLessonCleared → clearResume、途中は stage_clear → saveResumePoint（Issue #104）。
+- `recordClear`：最終ステージは clear → markLessonCleared → clearResume、途中は stage_clear → saveResumePoint（Issue #104）。`optimal`（任意。Issue #491）：最短手数以内なら true、超過なら false、算出不能（repeatBox 等）は省略し、stage_clear・clear の payload に入る。超過のとき `showClearSequence` の `afterDialogSay` で、ダイアログ表示後に小鳥が一言添える。
 
 ## 結果ダイアログ
 
