@@ -2,7 +2,7 @@
 // 操作画面に直接入る。説明は「れんしゅう」画面と指ガイドで行う（Issue #97。旧仕様はIssue #93）。
 // 画面上部の問い文スロットは、実行結果（やったね／ヒント）を数秒だけトースト表示する場所も兼ねる。
 import { S } from './state.js';
-import { boardSpec, isRunCleared } from './engine-grid.js';
+import { boardSpec, isRunCleared, judgeOptimal, shortestOfStep } from './engine-grid.js';
 import { logEvent } from './events.js';
 import { shapeSvg, prefersReducedMotion } from './ui-grid.js';
 import { fitCellSize, drawBoard as drawBoardUi, observeBoard } from './ui-board.js';
@@ -24,7 +24,7 @@ import {
   setActiveAnimation,
 } from './ui-step.js';
 import { showHint, diagnose, clearResultBubble } from './ui-reaction.js';
-import { boardFacts, nextFailHint, nextTapHint } from './bird-phrases.js';
+import { boardFacts, nextFailHint, nextTapHint, shorterPhrase } from './bird-phrases.js';
 import { showClearSequence, recordClear } from './ui-clear.js';
 import { isTrial, closeTrialTab } from './trial-lesson.js';
 import { paintMiniBoard } from './gimmicks/paint.js';
@@ -634,7 +634,9 @@ export function renderPlay(root, step) {
       local.resultShown = true;
       // 途中ステージのクリアはstage_clearのみを記録し、レッスン全体のクリア（clear）や
       // 単元スタンプの対象にはしない（Issue #104）。
-      recordClear({ isFinal: isFinalStage, stageIndex });
+      // 最短との比較（Issue #491）。算出不能は undefined＝記録も提示もしない。
+      const optimal = judgeOptimal(countChips(local.commands), shortestOfStep(step));
+      recordClear({ isFinal: isFinalStage, stageIndex, optimal });
       clearSequence?.dispose();
       clearSequence = showClearSequence({
         bird,
@@ -653,6 +655,7 @@ export function renderPlay(root, step) {
           : { label: 'つぎの ステージ', action: () => goToStep(S.stepIndex + 1), id: 'next-stage' },
         replay,
         ...(isFinalStage ? {} : { heading: 'つぎへ すすもう' }),
+        ...(optimal === false && !isTrial() ? { afterDialogSay: shorterPhrase() } : {}),
         setActiveAnimation,
       });
     } else {

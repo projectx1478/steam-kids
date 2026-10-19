@@ -91,6 +91,8 @@ const ROWS = [
   ['87', 'clear', null, 'k', 'ロボットも うれしそうだよ'],
   ['89', 'clear', null, 'g', 'さいごまで できたね'],
   ['91', 'clear', null, 'g', 'ほっと したね、よかった'],
+  // 最短超過でクリアしたときだけ、結果ダイアログの後に明示的に使う（Issue #491。通常の clear の選び方には混ぜない）。
+  ['SH1', 'clear', null, 'a', 'もっと みじかく できる？', { only: 'shorter' }],
   // ④ はげまし：失敗後（fail）
   ['93', 'fail', null, 'g', 'だいじょうぶ、ゆっくりで いいよ'],
   ['S11', 'fail', null, 'g', 'いろいろ ためして いいよ'],
@@ -291,7 +293,7 @@ function pickWeighted(tones, rng) {
 export function pickPhrase({ scene, facts, state = SESSION, rng = Math.random }) {
   const f = facts ?? boardFacts(null);
   if (scene === 'fail' && f.paint) return null;
-  let pool = PHRASES.filter((p) => p.scene === scene && whenOk(p.when, f));
+  let pool = PHRASES.filter((p) => p.scene === scene && !p.only && whenOk(p.when, f));
   if (scene === 'fail' || scene === 'stop') pool = pool.filter((p) => p.tone !== 'genki');
   if (scene === 'fail') {
     // 盤にあるギミックのうち1つ（直近は避ける）を、70%の確率で優先する。
@@ -333,6 +335,11 @@ export function pickPhrase({ scene, facts, state = SESSION, rng = Math.random })
   state.lastTopic = chosen.topic ?? null;
   if (chosen.gimmick) state.lastGimmick = chosen.gimmick;
   return { id: chosen.id, text: chosen.text };
+}
+
+// 最短超過でクリアしたときの一言（only:'shorter' の行。Issue #491）。
+export function shorterPhrase() {
+  return PHRASES.find((p) => p.only === 'shorter')?.text ?? null;
 }
 
 // 「失敗の後の自動1回」用：失敗後の文言から1つ（text）。出せなければ null/undefined。

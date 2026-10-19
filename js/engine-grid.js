@@ -306,6 +306,20 @@ export function shortestChips(rawSpec) {
   return best;
 }
 
+// ステージ(step)の最短手数。groupRepeatsはチップ数、それ以外は手数。repeatBox・到達不能など算出できなければundefined（Issue #491）。
+export function shortestOfStep(step) {
+  if (!step || step.repeatBox) return undefined;
+  const spec = boardSpec(step);
+  const n = step.groupRepeats ? shortestChips(spec) : shortestSteps(spec);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+// 最短判定（Issue #491）。手数 ≦ 最短ならtrue、超過ならfalse、最短が算出不能（数値でない）ならundefined。
+export function judgeOptimal(count, shortest) {
+  if (typeof shortest !== 'number' || !Number.isFinite(shortest)) return undefined;
+  return count <= shortest;
+}
+
 // start→goal（かつ全ギミックisCleared）の最短経路を命令（方向文字列）の配列で返す。到達不能ならnull。
 // 手数はshortestStepsと一致する。最短手数の経路のうち曲がり角（方向転換）が最少のものを返す（Issue #142）。
 // 状態は「位置＋ギミック状態＋直前の向き」で、手数の層ごとに曲がり角数の少ない到達を残す。
