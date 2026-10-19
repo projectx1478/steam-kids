@@ -1,6 +1,6 @@
 # 小鳥の吹き出しでのヒント（js/ui-bird.js・js/bird-hints.js）
 
-台帳は `docs/components.md`。禁止パターン・基準件数は「なし」（#468-19B）。文言の正本は `review/design/468/phrases-v2.md`（承認済み）。Issue #468 段2。
+台帳は `docs/components.md`。禁止パターン・基準件数は「なし」（#468-19B）。文言は承認済みの固定文言（#468 設計で承認）。この表自身が正本。Issue #468 段2。
 
 ## 出し方
 
