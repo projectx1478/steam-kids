@@ -1,0 +1,35 @@
+/* 盤面エディタのヘルプ（help.html）の見た目。開発者用。子ども向けの規則は流用しない。
+   読み込み順は index.html と同じ（/style.css → このファイル）。図の矢印・番号は SVG を盤に重ねる。 */
+html { background: #f1f5f9; }
+.help-body { margin: 0 auto; max-width: 860px; padding: 16px 20px 64px; color: #0f172a; font-family: system-ui, "Yu Gothic UI", "Meiryo", sans-serif; font-size: 15px; line-height: 1.75; }
+.help-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 14px; background: #4c1d95; color: #fff; border-bottom: 3px solid #f59e0b; border-radius: 8px; }
+.help-head h1 { font-size: 18px; margin: 0 8px 0 0; }
+.dev-badge { background: #f59e0b; color: #451a03; font-weight: 700; font-size: 12px; padding: 2px 8px; border-radius: 999px; }
+.pc-only { margin: 14px 0; padding: 10px 14px; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; font-weight: 700; }
+.toc { margin: 8px 0 0; padding: 0 0 0 1.4em; }
+.help-body h2 { font-size: 20px; margin: 40px 0 12px; padding-bottom: 4px; border-bottom: 2px solid #c4b5fd; }
+.help-body h3 { font-size: 16px; margin: 24px 0 6px; color: #4c1d95; }
+.help-body p { margin: 8px 0; }
+.help-body ol, .help-body ul { margin: 8px 0; padding-left: 1.6em; }
+.help-body ol { list-style: decimal; }
+.help-body ul { list-style: disc; }
+.help-body li { margin: 4px 0; }
+.help-body kbd { background: #fff; border: 1px solid #94a3b8; border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; font-size: 13px; font-family: inherit; }
+.help-body code { background: #e2e8f0; border-radius: 4px; padding: 0 4px; font-size: 13px; }
+.help-body table { width: 100%; border-collapse: collapse; margin: 10px 0; background: #fff; font-size: 14px; }
+.help-body th, .help-body td { border: 1px solid #cbd5e1; padding: 6px 10px; text-align: left; vertical-align: top; }
+.help-body th { background: #ede9fe; color: #2e1065; white-space: nowrap; }
+.note { margin: 10px 0; padding: 8px 12px; background: #fff; border-left: 4px solid #7c3aed; border-radius: 4px; font-size: 14px; }
+.fig { margin: 16px 0; padding: 12px; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; text-align: center; overflow-x: auto; }
+.fig figcaption { margin-top: 8px; font-size: 13px; color: #475569; text-align: left; }
+/* 図の盤。drawBoard が .grid-board を描く。重ねる SVG は盤と同じ左上に置く（cellSize 固定で座標を計算） */
+.fig-stage { position: relative; display: inline-block; line-height: 0; }
+.fig-overlay { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+.fig-overlay .arrow { stroke: #7c3aed; stroke-width: 4; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.fig-overlay .arrow-head { fill: #7c3aed; }
+.fig-overlay .num-bg { fill: #7c3aed; stroke: #fff; stroke-width: 2; }
+.fig-overlay .num { fill: #fff; font: 700 14px system-ui, sans-serif; text-anchor: middle; dominant-baseline: central; }
+@media (max-width: 640px) {
+  .help-body { padding: 12px 12px 48px; font-size: 14px; }
+  .help-body th { white-space: normal; }
+}
