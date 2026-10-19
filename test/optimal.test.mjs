@@ -22,3 +22,24 @@ test('optimal：算出不能（repeatBox・到達不能・数値でない）は 
   assert.equal(judgeOptimal(3, undefined), undefined);
   assert.equal(judgeOptimal(3, Infinity), undefined);
 });
+
+// 金スタンプの判定（Issue #491 段2）
+import { isLessonGold } from '../js/analytics.js';
+const gev = (type, payload, lessonId = 'L') => ({ lessonId, type, payload });
+
+test('金：いずれかの clear/stage_clear が optimal===true なら金', () => {
+  assert.equal(isLessonGold([gev('stage_clear', { optimal: true })], 'L'), true);
+  assert.equal(isLessonGold([gev('clear', { optimal: false }), gev('clear', { optimal: true })], 'L'), true);
+});
+
+test('金：optimal===false のみ・旧イベント（optimal なし）のみ・他レッスンは金にしない', () => {
+  assert.equal(isLessonGold([gev('clear', { optimal: false })], 'L'), false);
+  assert.equal(isLessonGold([gev('clear', {}), gev('stage_clear', { stage: 1 })], 'L'), false);
+  assert.equal(isLessonGold([gev('clear', undefined)], 'L'), false);
+  assert.equal(isLessonGold([gev('clear', { optimal: true }, 'M')], 'L'), false);
+});
+
+test('金：降格しない（後から optimal:false や旧イベントが来ても金のまま）', () => {
+  const evs = [gev('clear', { optimal: true }), gev('clear', { optimal: false }), gev('clear', {})];
+  assert.equal(isLessonGold(evs, 'L'), true);
+});

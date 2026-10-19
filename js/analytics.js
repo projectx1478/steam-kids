@@ -131,6 +131,15 @@ export function summarize(events, now, { longTrialIds = [] } = {}) {
   return { lessons, recentDays: computeRecentDays(events, now) };
 }
 
+// isLessonGold(events, lessonId) -> boolean（Issue #491 金スタンプ）
+// そのレッスンの clear / stage_clear のいずれかが payload.optimal===true なら金。加算のみ（降格なし）。
+// optimal の無い旧イベントは「不明」扱いで金の判定に使わない。保存は履歴イベントのみ。
+export function isLessonGold(events, lessonId) {
+  return events.some(
+    (e) => e.lessonId === lessonId && (e.type === 'clear' || e.type === 'stage_clear') && e.payload?.optimal === true
+  );
+}
+
 // lessonAchievements(events, lessonId, sinceTs, { shortest, playStepIds }) -> string[]
 // このレッスンを開始(sinceTs)してからのイベントだけを対象に、子ども向けの「できたこと」文言を
 // 作る（最大3件）。点数・割合・他人との比較は返さない（PROJECT.md非目標。Issue #91）。
