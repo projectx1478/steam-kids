@@ -24,7 +24,7 @@ import {
   setActiveAnimation,
 } from './ui-step.js';
 import { showHint, diagnose, clearResultBubble } from './ui-reaction.js';
-import { nextFailHint, nextTapHint } from './bird-hints.js';
+import { boardFacts, nextFailHint, nextTapHint } from './bird-phrases.js';
 import { showClearSequence, recordClear } from './ui-clear.js';
 import { isTrial, closeTrialTab } from './trial-lesson.js';
 import { paintMiniBoard } from './gimmicks/paint.js';
@@ -105,7 +105,8 @@ export function renderPlay(root, step) {
   // 360px縦で4ボタンの文字を溢れさせないため、この行だけ間隔を詰める（Issue #385）。
   actionsEl.classList.replace('gap-2', 'gap-1');
   // 顔アイコンのタップのヒント（Issue #468 段2）。「とめる」のあるステージは「とめる」、失敗後は汎用ヒント。paint盤は汎用ヒントを出さない（#468-14d）。
-  screen.setHintProvider(() => nextTapHint({ maxPauses, fails: spec.paint ? 0 : FAIL_COUNTS.get(S.lesson.lessonId) ?? 0 }));
+  const facts = boardFacts(step);
+  screen.setHintProvider(() => nextTapHint({ maxPauses, fails: spec.paint ? 0 : FAIL_COUNTS.get(S.lesson.lessonId) ?? 0, facts }));
 
   // 鍵トレイ行（Issue #391）。carry盤だけ、問い文の行の直下に別行で置く（remote盤・tutorial・demo・predictには出さない）。
   // トースト（問い文の行の差し替え）で消えないよう、questionElの外（兄弟）に置く。
@@ -687,7 +688,7 @@ export function renderPlay(root, step) {
       if (info.reason !== 'wall' && info.reason !== 'periodic') local.view.shrug();
       local.resultShown = true;
       const far = info.reason === 'goal' && info.distance > NEAR_GOAL_DISTANCE;
-      showHint(null, { bird, kind: info.reason, message: far ? FAR_GOAL_MESSAGE : HINT_MESSAGE[info.reason], restore: clearResult, extra: fails === AUTO_HINT_AT && !spec.paint ? nextFailHint() : undefined });
+      showHint(null, { bird, kind: info.reason, message: far ? FAR_GOAL_MESSAGE : HINT_MESSAGE[info.reason], restore: clearResult, extra: fails === AUTO_HINT_AT && !spec.paint ? nextFailHint(facts) ?? undefined : undefined });
     }
   }
 

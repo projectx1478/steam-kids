@@ -4,6 +4,7 @@
 
 export const name = 'H-bird-hint: 顔のタップで「とめる」／失敗後のヒント・失敗2回目の自動ヒントは1回だけ(Issue #468 段2)';
 import { routeLesson, enterPlay, clickRetry } from '../helpers.mjs';
+import { PHRASES } from '../../../js/bird-phrases.js';
 
 const makeLesson = (lessonId, extra) => ({
   lessonId,
@@ -30,24 +31,10 @@ const makeLesson = (lessonId, extra) => ({
   ],
 });
 
-const STOP_HINTS = [
-  'とちゅうで とめられるよ',
-  '「とめる」を おすと ようすが みられる',
-  'うごきが きになったら とめてみよう',
-  'とめてから もういちど かんがえよう',
-  'とまった ところで よく みよう',
-  '「とめる」は いつでも おせるよ',
-];
-const FAIL_HINTS = [
-  'もういちど ようすを みてみよう',
-  'とまった ところを みてみよう',
-  'ロボットの まわりに なにが あるかな',
-  'ゆびで みちを なぞってみよう',
-  'ならべた ブロックを みなおしてみよう',
-  'いちど ゆっくり みてみよう',
-  'ブロックを じゅんに みてみよう',
-  'うごきを もういちど みてみよう',
-];
+// 文言の正本は js/bird-phrases.js の PHRASES（段3でランダム選択）。場面ごとの文言集合（ギミック別・汎用とも）との照合にする。
+const textsOf = (scene) => PHRASES.filter((p) => p.scene === scene).map((p) => p.text);
+const STOP_HINTS = textsOf('stop');
+const FAIL_HINTS = textsOf('fail');
 
 const bubble = '[data-sk-bird="bubble"]';
 const bubbleShown = (page) => page.$eval(bubble, (b) => !b.hidden);
