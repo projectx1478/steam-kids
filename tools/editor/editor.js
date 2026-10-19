@@ -276,6 +276,9 @@ boardWrap.addEventListener('click', (e) => {
 undoEl.addEventListener('click', doUndo);
 redoEl.addEventListener('click', doRedo);
 document.addEventListener('keydown', (e) => {
+  // 入力欄（種類不問）・選択欄・編集可能な要素での Ctrl+Z/Y は盤面に効かせない（#512）。
+  const t = e.target;
+  if (t && t.closest && t.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return;
   if (!(e.ctrlKey || e.metaKey)) return;
   const k = e.key.toLowerCase();
   if (k === 'z' && !e.shiftKey) { e.preventDefault(); doUndo(); }
