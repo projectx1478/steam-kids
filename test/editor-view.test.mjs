@@ -1,7 +1,8 @@
 // #397 段2: 盤面エディタの cellPx（マス大きさ）の丸め・範囲。実行: npm run test:unit
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { clampCellPx, wheelCellPx, zoomPercent, CELL_PX_MIN, CELL_PX_MAX, CELL_PX_DEFAULT, SAMPLE_SPEC, EDITOR_MAX_SIZE, pendingSwitches, switchModeOptions, switchGroupOptions, pendingGroupSwitches } from '../tools/editor/editor-view.js';
+import { clampCellPx, wheelCellPx, zoomPercent, CELL_PX_MIN, CELL_PX_MAX, CELL_PX_DEFAULT, SAMPLE_SPEC, EMPTY_SPEC, EDITOR_MAX_SIZE, pendingSwitches, switchModeOptions, switchGroupOptions, pendingGroupSwitches } from '../tools/editor/editor-view.js';
+import { analyzeSpec } from '../tools/editor/validate-worker.mjs';
 
 test('editor-view: clampCellPx は正の整数で範囲内に収める', () => {
   assert.equal(clampCellPx(64), 64);
@@ -26,6 +27,13 @@ test('editor-view: zoomPercent と例盤面のサイズ', () => {
   assert.equal(zoomPercent(CELL_PX_DEFAULT), 100);
   assert.equal(zoomPercent(CELL_PX_MAX), 200);
   assert.ok(SAMPLE_SPEC.grid.cols <= EDITOR_MAX_SIZE && SAMPLE_SPEC.grid.rows <= EDITOR_MAX_SIZE);
+});
+
+test('editor-view: EMPTY_SPEC はサイズ内でクリア可（#512）', () => {
+  assert.ok(EMPTY_SPEC.grid.cols <= EDITOR_MAX_SIZE && EMPTY_SPEC.grid.rows <= EDITOR_MAX_SIZE);
+  const r = analyzeSpec(EMPTY_SPEC);
+  assert.equal(r.clearable, true);
+  assert.equal((r.messages || []).length, 0);
 });
 
 test('editor-view: pendingSwitches は targets が空で group も無いスイッチだけ', () => {
