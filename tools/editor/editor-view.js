@@ -73,6 +73,9 @@ export const SAMPLE_SPEC = {
   waterMode: 'bump',
 };
 
+// エディタ起動時の空盤面（#512）。5x5・start/goal のみ。maxCommands は持たせない（SAMPLE_SPEC と同じ）。
+export const EMPTY_SPEC = { grid: { cols: 5, rows: 5 }, start: { x: 0, y: 0 }, goal: { x: 4, y: 4 } };
+
 // ---- スイッチの設定欄（#404 段A）。spec は盤面 JSON。index は spec.switches の番号。----
 const swList = (spec) => (Array.isArray(spec.switches) ? spec.switches : []);
 const modeOf = (s) => s.mode ?? 'open';

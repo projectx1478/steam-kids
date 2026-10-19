@@ -1,13 +1,13 @@
 // 盤面エディタ（開発者用）の画面。盤面は js/ui-board.js の drawBoard 経由で描く。
 import { drawBoard } from '/js/ui-board.js';
-import { SAMPLE_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clampCellPx, wheelCellPx, zoomPercent, formatMetrics, pendingSwitches, pendingGroupSwitches, switchModeOptions, switchGroupOptions, GEN_COUNT, GEN_GIMMICKS, checkGenerateForm, buildGenerateBody, generateStatusText } from './editor-view.js';
+import { EMPTY_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clampCellPx, wheelCellPx, zoomPercent, formatMetrics, pendingSwitches, pendingGroupSwitches, switchModeOptions, switchGroupOptions, GEN_COUNT, GEN_GIMMICKS, checkGenerateForm, buildGenerateBody, generateStatusText } from './editor-view.js';
 
 import { GIMMICKS } from '/js/gimmicks/index.js';
 import { markGatePassedToday } from '/js/gate-date.js';
 import { buildPalette, iconSpec } from './palette.js';
 import { createState, setCellPx as setStateCellPx, place, erase, move, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, SWITCH_COLORS, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard, addDraftStep, explainSaveNg } from './editor-state.js';
 
-const state = createState(SAMPLE_SPEC, CELL_PX_DEFAULT);
+const state = createState(EMPTY_SPEC, CELL_PX_DEFAULT);
 state.selected = 'wall';
 let notice = ''; // 直前の操作の結果（拒否の理由など）
 let moveFrom = null; // 「Shift+クリックで選んだ動かす元のマス」
@@ -276,6 +276,9 @@ boardWrap.addEventListener('click', (e) => {
 undoEl.addEventListener('click', doUndo);
 redoEl.addEventListener('click', doRedo);
 document.addEventListener('keydown', (e) => {
+  // 入力欄（種類不問）・選択欄・編集可能な要素での Ctrl+Z/Y は盤面に効かせない（#512）。
+  const t = e.target;
+  if (t && t.closest && t.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return;
   if (!(e.ctrlKey || e.metaKey)) return;
   const k = e.key.toLowerCase();
   if (k === 'z' && !e.shiftKey) { e.preventDefault(); doUndo(); }
