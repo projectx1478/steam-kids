@@ -27,15 +27,16 @@ test('optimal：算出不能（repeatBox・到達不能・数値でない）は 
 import { isLessonGold } from '../js/analytics.js';
 const gev = (type, payload, lessonId = 'L') => ({ lessonId, type, payload });
 
-test('金：いずれかの clear/stage_clear が optimal===true なら金', () => {
-  assert.equal(isLessonGold([gev('stage_clear', { optimal: true })], 'L'), true);
+test('金：いずれかの clear が optimal===true なら金', () => {
+  assert.equal(isLessonGold([gev('clear', { optimal: true })], 'L'), true);
   assert.equal(isLessonGold([gev('clear', { optimal: false }), gev('clear', { optimal: true })], 'L'), true);
 });
 
-test('金：optimal===false のみ・旧イベント（optimal なし）のみ・他レッスンは金にしない', () => {
+test('金：optimal===false のみ・旧イベントのみ・途中ステージ（stage_clear）のみ・他レッスンは金にしない', () => {
   assert.equal(isLessonGold([gev('clear', { optimal: false })], 'L'), false);
   assert.equal(isLessonGold([gev('clear', {}), gev('stage_clear', { stage: 1 })], 'L'), false);
   assert.equal(isLessonGold([gev('clear', undefined)], 'L'), false);
+  assert.equal(isLessonGold([gev('stage_clear', { optimal: true })], 'L'), false);
   assert.equal(isLessonGold([gev('clear', { optimal: true }, 'M')], 'L'), false);
 });
 

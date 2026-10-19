@@ -132,11 +132,11 @@ export function summarize(events, now, { longTrialIds = [] } = {}) {
 }
 
 // isLessonGold(events, lessonId) -> boolean（Issue #491 金スタンプ）
-// そのレッスンの clear / stage_clear のいずれかが payload.optimal===true なら金。加算のみ（降格なし）。
+// そのレッスンの clear（最終ステージのクリア。途中ステージの stage_clear は単元スタンプの対象外＝#104）のいずれかが payload.optimal===true なら金。加算のみ（降格なし）。
 // optimal の無い旧イベントは「不明」扱いで金の判定に使わない。保存は履歴イベントのみ。
 export function isLessonGold(events, lessonId) {
   return events.some(
-    (e) => e.lessonId === lessonId && (e.type === 'clear' || e.type === 'stage_clear') && e.payload?.optimal === true
+    (e) => e.lessonId === lessonId && e.type === 'clear' && e.payload?.optimal === true
   );
 }
 
