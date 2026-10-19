@@ -629,6 +629,7 @@ export function renderPlay(root, step) {
     // 壁にぶつかった手が1つでもあれば、結果としてゴールに着いても正解にしない（Issue #104）。
     if (isRunCleared(result)) {
       delete S.drafts[step.stepId];
+      FAIL_COUNTS.delete(S.lesson.lessonId);
       local.resultShown = true;
       // 途中ステージのクリアはstage_clearのみを記録し、レッスン全体のクリア（clear）や
       // 単元スタンプの対象にはしない（Issue #104）。
