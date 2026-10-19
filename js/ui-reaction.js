@@ -77,8 +77,8 @@ export function showSuccess(slotEl, { view, restore, label = 'やったね！', 
 // 見出しとメッセージを別行にする（1行20字以内のUI規則を保つため。Issue #91のまま）。
 // 見出しの左に首をかしげたロボット＋「？」を添え、文字だけでなく非言語でも
 // 「もう一度」と伝わるようにする（失敗を責めない表現。Issue #106）。
-// bird を渡すと小鳥の吹き出しに出る（Issue #497。data-hint は吹き出し内の panel に付く）。bird なしは従来のトースト。
-export function showHint(slotEl, { kind, message, restore, bird }) {
+// extra は診断の文言の下に足す1行（任意）。bird を渡すと小鳥の吹き出しに出る（Issue #497。data-hint は吹き出し内の panel に付く）。bird なしは従来のトースト。
+export function showHint(slotEl, { kind, message, restore, bird, extra }) {
   const buildPanel = () => {
     const panel = document.createElement('div');
     panel.dataset.hint = kind;
@@ -99,6 +99,14 @@ export function showHint(slotEl, { kind, message, restore, bird }) {
     msg.className = 'text-sm text-slate-600';
     msg.textContent = message;
     panel.appendChild(msg);
+    if (extra) {
+      // 失敗2回目の自動ヒント（Issue #468 段2）。診断の文言の下に1行足す。
+      const ex = document.createElement('p');
+      ex.className = 'text-sm text-slate-600';
+      ex.dataset.hintExtra = 'true';
+      ex.textContent = extra;
+      panel.appendChild(ex);
+    }
     return panel;
   };
   if (bird) {

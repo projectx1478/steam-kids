@@ -24,6 +24,7 @@ import {
   setActiveAnimation,
 } from './ui-step.js';
 import { showHint, diagnose, clearResultBubble } from './ui-reaction.js';
+import { nextFailHint, nextTapHint } from './bird-hints.js';
 import { showClearSequence, recordClear } from './ui-clear.js';
 import { isTrial, closeTrialTab } from './trial-lesson.js';
 import { paintMiniBoard } from './gimmicks/paint.js';
@@ -37,6 +38,9 @@ const HINT_MESSAGE = {
   goal: 'ゴールまで あと すこし',
   periodic: 'ドアが しまって いたよ',
 };
+// 同じレッスンの失敗回数（メモリのみ。失敗2回目に1回だけ小鳥のヒントを自動で足す。Issue #468 段2・#468-20A）。
+const FAIL_COUNTS = new Map();
+const AUTO_HINT_AT = 2;
 const FAR_GOAL_MESSAGE = 'ほかの みちも ためして みよう';
 const NEAR_GOAL_DISTANCE = 2;
 // 壁衝突の失敗後、「もういちど」をパルスで強調するまでの待ち（Issue #214）。
@@ -100,6 +104,8 @@ export function renderPlay(root, step) {
   const { frame: opScreen, questionEl: statusBar, boardArea, panel: controls, actions: actionsEl, bird } = screen;
   // 360px縦で4ボタンの文字を溢れさせないため、この行だけ間隔を詰める（Issue #385）。
   actionsEl.classList.replace('gap-2', 'gap-1');
+  // 顔アイコンのタップのヒント（Issue #468 段2）。「とめる」のあるステージは「とめる」、失敗後は汎用ヒント。paint盤は汎用ヒントを出さない（#468-14d）。
+  screen.setHintProvider(() => nextTapHint({ maxPauses, fails: spec.paint ? 0 : FAIL_COUNTS.get(S.lesson.lessonId) ?? 0 }));
 
   // 鍵トレイ行（Issue #391）。carry盤だけ、問い文の行の直下に別行で置く（remote盤・tutorial・demo・predictには出さない）。
   // トースト（問い文の行の差し替え）で消えないよう、questionElの外（兄弟）に置く。
@@ -623,6 +629,7 @@ export function renderPlay(root, step) {
     // 壁にぶつかった手が1つでもあれば、結果としてゴールに着いても正解にしない（Issue #104）。
     if (isRunCleared(result)) {
       delete S.drafts[step.stepId];
+      FAIL_COUNTS.delete(S.lesson.lessonId);
       local.resultShown = true;
       // 途中ステージのクリアはstage_clearのみを記録し、レッスン全体のクリア（clear）や
       // 単元スタンプの対象にはしない（Issue #104）。
@@ -655,6 +662,9 @@ export function renderPlay(root, step) {
       updateControls();
       const info = diagnose(result, local.commands, spec);
       triggerFailFeedback(info.reason);
+      const failKey = S.lesson.lessonId;
+      const fails = (FAIL_COUNTS.get(failKey) ?? 0) + 1;
+      FAIL_COUNTS.set(failKey, fails);
       if (info.reason === 'wall' || info.reason === 'periodic') {
         queueEl.querySelector(`[data-index="${info.cmdIndex}"]`)?.classList.add('ring-4', 'ring-amber-400');
         local.view.markCell(info.cell, 'wall');
@@ -677,7 +687,7 @@ export function renderPlay(root, step) {
       if (info.reason !== 'wall' && info.reason !== 'periodic') local.view.shrug();
       local.resultShown = true;
       const far = info.reason === 'goal' && info.distance > NEAR_GOAL_DISTANCE;
-      showHint(null, { bird, kind: info.reason, message: far ? FAR_GOAL_MESSAGE : HINT_MESSAGE[info.reason], restore: clearResult });
+      showHint(null, { bird, kind: info.reason, message: far ? FAR_GOAL_MESSAGE : HINT_MESSAGE[info.reason], restore: clearResult, extra: fails === AUTO_HINT_AT && !spec.paint ? nextFailHint() : undefined });
     }
   }
 

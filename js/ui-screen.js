@@ -51,6 +51,7 @@ export function createOpScreen({ root, question, stepKey }) {
 
   function showQuestionBubble() {
     if (!questionText) return;
+    lastShown = 'question';
     const q = document.createElement('p');
     renderInto(q, questionText, S.readingLevel, S.furigana);
     bird.showBubble(q, { question: 'true' });
@@ -65,11 +66,29 @@ export function createOpScreen({ root, question, stepKey }) {
     showQuestionBubble();
   }
 
-  // 顔のタップ：出ていれば消し、無ければ問い文を再表示する。
+  // 顔のタップ用のヒント（Issue #468 段2）。画面側が setHintProvider(() => 文言 or null) で渡す（無ければ問い文のみ）。
+  let hintProvider = null;
+  let lastShown = null;
+  function setHintProvider(fn) {
+    hintProvider = fn;
+  }
+
+  // 顔のタップ：出ていれば消す。無ければ問い文とヒントを交互に出す（ヒントが無い画面・状況では問い文）。
+  // ヒントの吹き出しは data-tap-hint="true"（data-hint は結果のヒントの印なので使わない）。
   bird.iconEl.addEventListener('click', () => {
-    if (bird.isBubbleShown()) bird.hideBubble();
-    else showQuestionBubble();
+    if (bird.isBubbleShown()) {
+      bird.hideBubble();
+      return;
+    }
+    const hint = lastShown === 'question' && hintProvider ? hintProvider() : null;
+    if (hint) {
+      lastShown = 'hint';
+      bird.showBubble(hint, { tapHint: 'true' });
+    } else {
+      lastShown = 'question';
+      showQuestionBubble();
+    }
   });
 
-  return { frame, questionEl, boardArea, panel, actions, renderQuestion, announceQuestion, bird };
+  return { frame, questionEl, boardArea, panel, actions, renderQuestion, announceQuestion, bird, setHintProvider };
 }
