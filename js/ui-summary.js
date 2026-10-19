@@ -3,9 +3,9 @@
 // ステージクリアの演出はjs/ui-reaction.jsのshowSuccessが担う）。
 import { S } from './state.js';
 import { getEvents } from './events.js';
-import { summarize, lessonAchievements } from './analytics.js';
+import { summarize, lessonAchievements, isLessonGold } from './analytics.js';
 import { shortestSteps, shortestChips, boardSpec } from './engine-grid.js';
-import { stampSvg, flagSvg, medalSvg } from './ui-picker.js';
+import { stampSvg, goldStampSvg, flagSvg, medalSvg } from './ui-picker.js';
 import { play as playSfx } from './sfx.js';
 import { prefersReducedMotion, screenConfetti, shapeSvg } from './ui-grid.js';
 import { isUnitEndSeenStored, markUnitEndSeenStored } from './storage.js';
@@ -115,9 +115,10 @@ export function renderSummary(root) {
     S.unit.lessonIds.forEach((id) => {
       const dot = document.createElement('span');
       dot.className = 'inline-flex w-6 h-6';
-      dot.dataset.stamp = isCleared(id) ? 'done' : 'todo';
+      const gold = isCleared(id) && isLessonGold(events, id);
+      dot.dataset.stamp = gold ? 'gold' : isCleared(id) ? 'done' : 'todo';
       if (isCleared(id)) {
-        dot.innerHTML = stampSvg();
+        dot.innerHTML = gold ? goldStampSvg() : stampSvg();
         // 今回クリアしたレッスンのスタンプだけ「ぽん」と押される演出にする（reduced-motion時は
         // 静止表示のまま。Issue #104）。
         if (id === lessonId && !prefersReducedMotion()) dot.classList.add('stamp-pop');

@@ -45,6 +45,15 @@ export function stampSvg() {
   </svg>`;
 }
 
+// 金スタンプ（Issue #491）。通常と同じ形で、金色＋小さなきらめき。見本 review/design/491/mock/dialog-and-stamp.svg。
+export function goldStampSvg() {
+  return `<svg viewBox="0 0 32 32" class="w-7 h-7" aria-hidden="true">
+    <circle cx="16" cy="16" r="14" fill="#fde68a" stroke="#f59e0b" stroke-width="2" />
+    <path d="M9 16l5 5 9-11" fill="none" stroke="#b45309" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M27 2l1.4 3.6 3.6 1.4-3.6 1.4L27 12l-1.4-3.6L22 7l3.6-1.4z" fill="#f59e0b" />
+  </svg>`;
+}
+
 // summaryの単元ぜんぶクリア演出でも再利用する（Issue #104）。
 export function flagSvg() {
   return `<svg viewBox="0 0 32 32" class="w-7 h-7" aria-hidden="true">
