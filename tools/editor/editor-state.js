@@ -8,9 +8,12 @@ export const HISTORY_MAX = 100; // 超えたら先頭（古いもの）から捨
 
 // 1マスの単純な要素（盤面 JSON 側の配列名）。置く・消す・動かすができる。
 export const SIMPLE_LISTS = ['walls', 'items', 'ice', 'cushion', 'water'];
-// 組・周期・方向などの設定が要る要素。まだ置けない（#404 E6）。switches は #404 段A で外した（open/close のみ。group・toggle は段B・C）。
-export const COMPLEX_KEYS = ['keys', 'paint', 'periodic'];
+// 組・周期・方向などの設定が要る要素。まだ置けない（#404 E6）。switches は #404 段A、keys（かぎ・ドア）は #523 段1 で外した。
+export const COMPLEX_KEYS = ['paint', 'periodic'];
 export const SWITCH_COLORS = ['red', 'blue'];
+export const KEY_COLORS = ['red', 'blue'];
+export const KEY_MODES = ['remote', 'carry']; // keyMode。省略は carry（js/gimmicks/keys.js と同じ）
+const KEY_LISTS = ['keys', 'doors']; // パレットの key（かぎ・ドア）と盤面 JSON の配列名が同じ
 const SWITCH_KINDS = ['switches', 'switches.targets'];
 const WARP_KEYS = { warps1: 1, warps2: 2 }; // パレットの key → pair。1回で穴を1個置く（#488）。個数の検査は保存時の validate
 const GROUP_WALLS = 'groupWalls'; // 色連動の壁 [{ x, y, group }]（#404 段B）
@@ -123,6 +126,13 @@ export function place(state, key, x, y, group) {
   const spec = state.spec;
   if (key === 'switches') return placeSwitch(state, x, y);
   if (key === GROUP_WALLS) return placeGroupWall(state, group, x, y);
+  if (KEY_LISTS.includes(key)) {
+    if (!inGrid(spec, x, y)) return ng('盤外');
+    if (occupants(spec, x, y).length) return ng('そのマスには既に要素がある');
+    const next = clone(spec);
+    next[key] = [...list(next[key]), { x, y, color: 'red' }];
+    return commit(state, next);
+  }
   if (WARP_KEYS[key]) {
     if (!inGrid(spec, x, y)) return ng('盤外');
     if (occupants(spec, x, y).length) return ng('そのマスには既に要素がある');
@@ -153,8 +163,16 @@ export function erase(state, x, y) {
   const here = occupants(spec, x, y);
   if (here.length === 0) return ng('消す物が無い');
   if (here.some((o) => SINGLE.includes(o.kind))) return ng('スタート・ゴールは消せない（各1個）');
-  if (here.some((o) => !SIMPLE_LISTS.includes(o.kind) && !SWITCH_KINDS.includes(o.kind) && o.kind !== GROUP_WALLS && o.kind !== 'warps')) return ng('組・設定のある要素はまだ消せない（#404）');
+  if (here.some((o) => !SIMPLE_LISTS.includes(o.kind) && !SWITCH_KINDS.includes(o.kind) && o.kind !== GROUP_WALLS && o.kind !== 'warps' && !KEY_LISTS.includes(o.kind))) return ng('組・設定のある要素はまだ消せない（#404）');
   const next = clone(spec);
+  if (here.some((o) => KEY_LISTS.includes(o.kind))) {
+    for (const name of KEY_LISTS) {
+      next[name] = list(next[name]).filter((c) => !(c.x === x && c.y === y));
+      if (next[name].length === 0) delete next[name];
+    }
+    if (!next.keys && !next.doors) delete next.keyMode; // keyMode は keys・doors のある盤だけに指定できる（validate）
+    return commit(state, next);
+  }
   if (here.some((o) => o.kind === 'warps')) {
     next.warps = list(next.warps).filter((c) => !(c.x === x && c.y === y));
     if (next.warps.length === 0) delete next.warps;
@@ -211,6 +229,12 @@ export function move(state, fromX, fromY, toX, toY) {
     for (const w of list(moved.warps)) if (w.x === fromX && w.y === fromY) { w.x = toX; w.y = toY; }
     return commit(state, moved);
   }
+  if (here.every((o) => KEY_LISTS.includes(o.kind))) {
+    if (occupants(spec, toX, toY).length) return ng('移動先に要素がある');
+    const moved = clone(spec);
+    for (const name of KEY_LISTS) for (const c of list(moved[name])) if (c.x === fromX && c.y === fromY) { c.x = toX; c.y = toY; }
+    return commit(state, moved);
+  }
   if (here.every((o) => o.kind === GROUP_WALLS)) {
     if (occupants(spec, toX, toY).length) return ng('移動先に要素がある');
     const moved = clone(spec);
@@ -231,6 +255,30 @@ export function move(state, fromX, fromY, toX, toY) {
   const target = SINGLE.includes(o.kind) ? next[o.kind] : next[o.kind][o.index];
   target.x = toX;
   target.y = toY;
+  return commit(state, next);
+}
+
+// ---- かぎ・ドア（#523 段1）。選ぶ物は種類（keys か doors）と座標 (x,y) で指す（元に戻す・やり直しでも番号がずれない）。----
+function setKeyDoorColor(state, name, x, y, color) {
+  const i = list(state.spec[name]).findIndex((c) => c.x === x && c.y === y);
+  if (i < 0) return ng(name === 'keys' ? 'かぎが選ばれていない' : 'ドアが選ばれていない');
+  if (!KEY_COLORS.includes(color)) return ng('色は red か blue');
+  if (state.spec[name][i].color === color) return ok();
+  const next = clone(state.spec);
+  next[name][i].color = color;
+  return commit(state, next);
+}
+export const setKeyColor = (state, x, y, color) => setKeyDoorColor(state, 'keys', x, y, color);
+export const setDoorColor = (state, x, y, color) => setKeyDoorColor(state, 'doors', x, y, color);
+
+// keyMode（盤全体）。carry は既定（省略）なのでキーごと消す。かぎ・ドアが1つも無い盤には指定できない（validate）。
+export function setKeyMode(state, mode) {
+  if (!KEY_MODES.includes(mode)) return ng('keyMode は remote か carry');
+  if (list(state.spec.keys).length === 0 && list(state.spec.doors).length === 0) return ng('かぎ・ドアが無い盤には keyMode を指定できない');
+  if ((state.spec.keyMode ?? 'carry') === mode) return ok();
+  const next = clone(state.spec);
+  if (mode === 'carry') delete next.keyMode;
+  else next.keyMode = mode;
   return commit(state, next);
 }
 

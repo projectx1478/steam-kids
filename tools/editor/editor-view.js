@@ -147,6 +147,18 @@ export function switchGroupOptions(spec, index) {
   return options;
 }
 
+// ---- かぎ・ドア（#523 段1）----
+// 相手の無いかぎ・ドア（接続待ち）。[{ kind: 'keys' | 'doors', index, x, y }]。
+// ドアは「同じ色のかぎが無い」（validate の keys.js と同じ基準）、かぎは「同じ色のドアが無い」（置いただけでは飾り＝必須判定で NG になる先出し）。
+export function pendingKeys(spec) {
+  const keys = Array.isArray(spec.keys) ? spec.keys : [];
+  const doors = Array.isArray(spec.doors) ? spec.doors : [];
+  const out = [];
+  doors.forEach((d, index) => { if (!keys.some((k) => k.color === d.color)) out.push({ kind: 'doors', index, x: d.x, y: d.y }); });
+  keys.forEach((k, index) => { if (!doors.some((d) => d.color === k.color)) out.push({ kind: 'keys', index, x: k.x, y: k.y }); });
+  return out;
+}
+
 // ---- たたき台の生成（#401 段2）。範囲は POST /api/generate（tools/lib/validate/stagegen.mjs の checkStageGen）と同じ ----
 export const GEN_COUNT = 4; // 1回に出す候補の数（2×2）。「もう4枚」は seed をこの数だけ進める
 export const GEN_LIMITS = { grid: [3, 20], walls: [0, 60], shortestPath: [2, 60], minTurns: [0, 8], items: [1, 4], ice: [1, 4], keys: [1, 2], cushion: [1, 4], switches: [1, 2], warps: [1, 2], periodic: [1, 2], paint: [4, 8], water: [2, 8] };

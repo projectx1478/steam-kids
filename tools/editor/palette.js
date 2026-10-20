@@ -14,9 +14,11 @@ export const FIXED_ITEMS = [
 export function buildPalette(gimmicks) {
   return [
     ...FIXED_ITEMS.map((p) => ({ ...p })),
-    ...gimmicks.flatMap((g) => (g.key === 'warps'
-      ? [1, 2].map((n) => ({ key: `warps${n}`, label: `${g.label}${n}`, kind: 'gimmick' })) // ワープは組ごとに1個ずつ置く（#488）
-      : [{ key: g.key, label: g.label, kind: 'gimmick' }])),
+    ...gimmicks.flatMap((g) => {
+      if (g.key === 'warps') return [1, 2].map((n) => ({ key: `warps${n}`, label: `${g.label}${n}`, kind: 'gimmick' })); // ワープは組ごとに1個ずつ置く（#488）
+      if (g.key === 'keys') return [{ key: 'keys', label: 'かぎ', kind: 'gimmick' }, { key: 'doors', label: 'ドア', kind: 'gimmick' }]; // かぎとドアは別項目（#523）。色は設定欄
+      return [{ key: g.key, label: g.label, kind: 'gimmick' }];
+    }),
   ];
 }
 
@@ -24,6 +26,7 @@ export function buildPalette(gimmicks) {
 // 登録表に足した新しいギミックの既定は、その key の配列に {x:0,y:0} を1つ入れた盤面。
 const ICON_EXTRA = {
   keys: { keys: [{ x: 0, y: 0, color: 'red' }] },
+  doors: { doors: [{ x: 0, y: 0, color: 'red' }] },
   switches: { switches: [{ x: 0, y: 0, color: 'blue', targets: [] }] },
   periodic: { periodic: [{ x: 0, y: 0, period: 3 }] },
 };

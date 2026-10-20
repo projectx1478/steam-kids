@@ -1,8 +1,8 @@
 // #397 段4: 盤面エディタの状態管理（置く・消す・動かす・元に戻す・やり直し、拒否値）。実行: npm run test:unit
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { occupants, createState, setCellPx, setGrid, place, erase, move, undo, redo, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, COMPLEX_KEYS, HISTORY_MAX } from '../tools/editor/editor-state.js';
-import { SAMPLE_SPEC, EDITOR_MAX_SIZE, pendingSwitches, switchModeOptions, switchGroupOptions, pendingGroupSwitches } from '../tools/editor/editor-view.js';
+import { occupants, createState, setCellPx, setGrid, place, erase, move, undo, redo, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, COMPLEX_KEYS, HISTORY_MAX, setKeyColor, setDoorColor, setKeyMode } from '../tools/editor/editor-state.js';
+import { SAMPLE_SPEC, EDITOR_MAX_SIZE, pendingSwitches, switchModeOptions, switchGroupOptions, pendingGroupSwitches, pendingKeys } from '../tools/editor/editor-view.js';
 import { analyzeSpec } from '../tools/editor/validate-worker.mjs';
 
 const fresh = () => createState(SAMPLE_SPEC);
@@ -57,10 +57,10 @@ test('editor-state: 動かす（移動先に要素があれば拒否）', () => 
 
 test('editor-state: 組・設定が要る要素は置けない・消せない・動かせない', () => {
   const s = fresh();
-  assert.deepEqual(COMPLEX_KEYS, ['keys', 'paint', 'periodic']); // switches は #404 段A で外した
-  for (const key of ['keys', 'paint', 'periodic']) assert.equal(place(s, key, 2, 1).ok, false, key);
-  assert.equal(erase(s, 0, 2).ok, false); // かぎ
-  assert.equal(move(s, 2, 2, 2, 1).ok, false); // ドア
+  assert.deepEqual(COMPLEX_KEYS, ['paint', 'periodic']); // switches は #404 段A、keys は #523 段1 で外した
+  for (const key of ['paint', 'periodic']) assert.equal(place(s, key, 2, 1).ok, false, key);
+  assert.equal(erase(s, 4, 2).ok, false); // 周期ドア
+  assert.equal(move(s, 4, 2, 4, 3).ok, false);
 });
 
 test('editor-state: ワープ（warps1/warps2）は1個ずつ置く・同マスは NG・消す・動かす・空で warps キー削除', () => {
@@ -587,4 +587,105 @@ test('editor-state: setMaxPauses は設定・undo/redo でき、0 でキーを�
   const z = fresh();
   assert.equal(setMaxPauses(z, 0).ok, true); // 既に 0 なら履歴を積まない
   assert.equal(z.cursor, 0);
+});
+
+// ---- かぎ・ドア（#523 段1）。盤は床だけの 5×1（start 左端・goal 右端）。----
+test('editor-state(keys): かぎ・ドアを置く（既定 red）→ 判定を通る。重なりは拒否', () => {
+  const s = row();
+  assert.equal(place(s, 'keys', 1, 0).ok, true);
+  assert.deepEqual(s.spec.keys, [{ x: 1, y: 0, color: 'red' }]);
+  assert.deepEqual(pendingKeys(s.spec), [{ kind: 'keys', index: 0, x: 1, y: 0 }]); // ドアが無いかぎ
+  assert.equal(place(s, 'doors', 2, 0).ok, true);
+  assert.deepEqual(s.spec.doors, [{ x: 2, y: 0, color: 'red' }]);
+  assert.deepEqual(pendingKeys(s.spec), []);
+  assert.deepEqual(line(s.spec).messages, []);
+  assert.equal(line(s.spec).clearable, true);
+  assert.equal(place(s, 'keys', 2, 0).ok, false); // ドアの上
+  assert.equal(place(s, 'doors', 1, 0).ok, false); // かぎの上
+  assert.equal(place(s, 'keys', 0, 0).ok, false); // start の上
+  assert.equal(place(s, 'doors', 9, 0).ok, false); // 盤外
+});
+
+test('editor-state(keys): ドアだけ・色ちがいは接続待ち。validate の「対応する色のかぎが無い」と一致', () => {
+  const s = row();
+  place(s, 'doors', 2, 0);
+  assert.deepEqual(pendingKeys(s.spec), [{ kind: 'doors', index: 0, x: 2, y: 0 }]);
+  assert.ok(line(s.spec).messages.some((m) => m.includes('対応する色のかぎが無い')));
+  place(s, 'keys', 1, 0);
+  assert.equal(setKeyColor(s, 1, 0, 'blue').ok, true);
+  assert.equal(s.spec.keys[0].color, 'blue');
+  assert.equal(pendingKeys(s.spec).length, 2); // かぎ（blue）にドアが無く、ドア（red）にかぎが無い
+  assert.ok(line(s.spec).messages.some((m) => m.includes('対応する色のかぎが無い')));
+  assert.equal(setDoorColor(s, 2, 0, 'blue').ok, true);
+  assert.deepEqual(pendingKeys(s.spec), []);
+  assert.deepEqual(line(s.spec).messages, []);
+});
+
+test('editor-state(keys): 色変更の拒否（不正な色・無い物）と同じ色は履歴を積まない', () => {
+  const s = row();
+  place(s, 'keys', 1, 0);
+  const n = s.history.length;
+  assert.equal(setKeyColor(s, 1, 0, 'green').ok, false);
+  assert.equal(setKeyColor(s, 3, 0, 'blue').ok, false);
+  assert.equal(setDoorColor(s, 1, 0, 'blue').ok, false); // かぎの座標はドアではない
+  assert.equal(setKeyColor(s, 1, 0, 'red').ok, true);
+  assert.equal(s.history.length, n);
+});
+
+test('editor-state(keys): 消去・移動。かぎ・ドアが無くなると keyMode も消える', () => {
+  const s = row();
+  place(s, 'keys', 1, 0);
+  place(s, 'doors', 2, 0);
+  setKeyMode(s, 'remote');
+  assert.equal(move(s, 2, 0, 3, 0).ok, true);
+  assert.deepEqual(s.spec.doors, [{ x: 3, y: 0, color: 'red' }]);
+  assert.equal(move(s, 1, 0, 3, 0).ok, false); // 移動先に要素がある
+  assert.equal(move(s, 1, 0, 0, 0).ok, false); // start の上
+  assert.equal(erase(s, 3, 0).ok, true);
+  assert.equal('doors' in s.spec, false);
+  assert.equal(s.spec.keyMode, 'remote'); // かぎが残っている間は keyMode も残る
+  assert.equal(erase(s, 1, 0).ok, true);
+  assert.equal('keys' in s.spec, false);
+  assert.equal('keyMode' in s.spec, false);
+  assert.equal(erase(s, 1, 0).ok, false);
+});
+
+test('editor-state(keys): keyMode は carry が既定（キーを持たない）。remote のとき持つ。かぎ・ドアの無い盤では拒否', () => {
+  const s = row();
+  assert.equal(setKeyMode(s, 'remote').ok, false);
+  assert.equal(setKeyMode(s, 'bogus').ok, false);
+  place(s, 'keys', 1, 0);
+  place(s, 'doors', 2, 0);
+  const n = s.history.length;
+  assert.equal(setKeyMode(s, 'carry').ok, true); // 既に carry（省略）
+  assert.equal(s.history.length, n);
+  assert.equal(setKeyMode(s, 'remote').ok, true);
+  assert.equal(s.spec.keyMode, 'remote');
+  assert.deepEqual(line(s.spec).messages, []);
+  assert.equal(setKeyMode(s, 'carry').ok, true);
+  assert.equal('keyMode' in s.spec, false);
+});
+
+test('editor-state(keys): 置く・色・keyMode・移動・消去は元に戻す／やり直しで整合する', () => {
+  const s = row();
+  const states = [snap(s.spec)];
+  const step = (r) => { assert.equal(r.ok, true); states.push(snap(s.spec)); };
+  step(place(s, 'keys', 1, 0));
+  step(place(s, 'doors', 2, 0));
+  step(setKeyColor(s, 1, 0, 'blue'));
+  step(setDoorColor(s, 2, 0, 'blue'));
+  step(setKeyMode(s, 'remote'));
+  step(move(s, 2, 0, 3, 0));
+  step(erase(s, 3, 0));
+  for (let i = states.length - 2; i >= 0; i--) { assert.equal(undo(s).ok, true); assert.deepEqual(s.spec, states[i]); }
+  for (let i = 1; i < states.length; i++) { assert.equal(redo(s).ok, true); assert.deepEqual(s.spec, states[i]); }
+});
+
+test('editor-state(keys): 読み込んだ盤のかぎ・ドアも消せる・動かせる（SAMPLE_SPEC）', () => {
+  const s = fresh();
+  assert.equal(move(s, 0, 2, 0, 1).ok, true); // かぎ
+  assert.deepEqual(s.spec.keys, [{ x: 0, y: 1, color: 'red' }]);
+  assert.equal(erase(s, 2, 2).ok, true); // ドア
+  assert.equal('doors' in s.spec, false);
+  assert.equal(s.spec.keyMode, 'remote'); // かぎが残る
 });

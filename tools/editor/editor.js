@@ -1,17 +1,18 @@
 // 盤面エディタ（開発者用）の画面。盤面は js/ui-board.js の drawBoard 経由で描く。
 import { drawBoard } from '/js/ui-board.js';
-import { EMPTY_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clampCellPx, wheelCellPx, zoomPercent, formatMetrics, pendingSwitches, pendingGroupSwitches, switchModeOptions, switchGroupOptions, GEN_COUNT, GEN_GIMMICKS, checkGenerateForm, buildGenerateBody, generateStatusText } from './editor-view.js';
+import { EMPTY_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clampCellPx, wheelCellPx, zoomPercent, formatMetrics, pendingSwitches, pendingGroupSwitches, pendingKeys, switchModeOptions, switchGroupOptions, GEN_COUNT, GEN_GIMMICKS, checkGenerateForm, buildGenerateBody, generateStatusText } from './editor-view.js';
 
 import { GIMMICKS } from '/js/gimmicks/index.js';
 import { markGatePassedToday } from '/js/gate-date.js';
 import { buildPalette, iconSpec } from './palette.js';
-import { createState, setCellPx as setStateCellPx, place, erase, move, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, SWITCH_COLORS, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard, addDraftStep, explainSaveNg } from './editor-state.js';
+import { createState, setCellPx as setStateCellPx, place, erase, move, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, setKeyColor, setDoorColor, setKeyMode, SWITCH_COLORS, KEY_COLORS, KEY_MODES, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard, addDraftStep, explainSaveNg } from './editor-state.js';
 
 const state = createState(EMPTY_SPEC, CELL_PX_DEFAULT);
 state.selected = 'wall';
 let notice = ''; // 直前の操作の結果（拒否の理由など）
 let moveFrom = null; // 「Shift+クリックで選んだ動かす元のマス」
 let selSwitch = null; // 「選択中のスイッチ」の座標 { x, y }（パレットが switches のとき）。番号でなく座標で持つ（元に戻すでずれない）
+let selKey = null; // 「選択中のかぎ／ドア」{ kind: 'keys' | 'doors', x, y }（パレットが keys／doors のとき。座標で持つ）
 
 const ICON_CELL_PX = 32;
 // 消しゴムは盤面部品に無いので専用の SVG（見本のとおり）
@@ -52,6 +53,7 @@ function paletteRow(item) {
 function selectPalette(key) {
   state.selected = key;
   if (key !== 'switches') selSwitch = null;
+  if (!selKey || selKey.kind !== key) selKey = null;
   moveFrom = null;
   notice = '';
   for (const row of document.querySelectorAll('#plist .pi')) row.classList.toggle('sel', row.dataset.key === key);
@@ -89,6 +91,7 @@ function render() {
   markSwitches();
   renderSettings();
   maxPausesEl.value = String(maxPausesOf(state.spec));
+  renderKeyMode();
   undoEl.disabled = !canUndo(state);
   redoEl.disabled = !canRedo(state);
 }
@@ -97,8 +100,12 @@ function render() {
 const swIndex = () => (selSwitch ? (state.spec.switches || []).findIndex((c) => c.x === selSwitch.x && c.y === selSwitch.y) : -1);
 const cellEl = (x, y) => boardWrap.querySelector(`.grid-cell[data-x="${x}"][data-y="${y}"]`);
 
+// 選択中のかぎ／ドアの番号（無ければ -1）
+const keyIndex = () => (selKey ? (state.spec[selKey.kind] || []).findIndex((c) => c.x === selKey.x && c.y === selKey.y) : -1);
+
 function markSwitches() {
-  for (const p of [...pendingSwitches(state.spec), ...pendingGroupSwitches(state.spec)]) { const c = cellEl(p.x, p.y); if (c) c.classList.add('ed-sw-pending'); }
+  for (const p of [...pendingSwitches(state.spec), ...pendingGroupSwitches(state.spec), ...pendingKeys(state.spec)]) { const c = cellEl(p.x, p.y); if (c) c.classList.add('ed-sw-pending'); }
+  if (keyIndex() >= 0) { const kc = cellEl(selKey.x, selKey.y); if (kc) kc.classList.add('ed-sw-sel'); }
   for (const w of state.spec.groupWalls || []) { const gc = cellEl(w.x, w.y); if (gc) { gc.classList.add('ed-gw'); gc.title = `group「${w.group}」の壁`; } }
   const i = swIndex();
   if (i < 0) return;
@@ -149,9 +156,11 @@ function initialRows(sw) {
 // 盤の横の「選択中の要素」パネル。スイッチ選択中だけ設定が出る（色・mode はラジオ）。
 function renderSettings() {
   const i = swIndex();
+  const ki = keyIndex();
+  if (i < 0 && ki >= 0) { renderKeySettings(); return; }
   settingsBody.className = i < 0 ? 'empty' : 'sw-panel';
   if (i < 0) {
-    settingsBody.textContent = 'スイッチを選ぶと設定が出ます（パレットでスイッチを選び、盤上のスイッチをクリック）';
+    settingsBody.textContent = 'スイッチ・かぎ・ドアを選ぶと設定が出ます（パレットで選び、盤上のその物をクリック）';
     return;
   }
   const sw = state.spec.switches[i];
@@ -177,6 +186,52 @@ function renderSettings() {
   groupHd.className = 'sw-hd';
   groupHd.textContent = 'group（同じ名前のスイッチと壁が対応する）';
   settingsBody.replaceChildren(title, colorHd, radioGroup('sw-color', colors, sw.color ?? 'blue', (v) => apply(setSwitchColor(state, sw.x, sw.y, v))), modeHd, radioGroup('sw-mode', switchModeOptions(state.spec, i), sw.mode ?? 'open', (v) => apply(setSwitchMode(state, sw.x, sw.y, v))), groupHd, radioGroup('sw-group', switchGroupOptions(state.spec, i), grouped ? sw.group : '', (v) => apply(setSwitchGroup(state, sw.x, sw.y, v))), ...initialRows(sw), conn);
+}
+
+// かぎ／ドアの設定欄（色のラジオ）。色を変えると、対応するかぎ・ドアの有無で接続待ちの印が変わる。
+function renderKeySettings() {
+  const isKey = selKey.kind === 'keys';
+  const item = state.spec[selKey.kind][keyIndex()];
+  settingsBody.className = 'sw-panel';
+  const title = document.createElement('div');
+  title.className = 'sw-title';
+  title.textContent = `${isKey ? 'かぎ' : 'ドア'} (${item.x},${item.y})`;
+  const colorHd = document.createElement('div');
+  colorHd.className = 'sw-hd';
+  colorHd.textContent = '色';
+  const colors = KEY_COLORS.map((c) => ({ value: c, label: c === 'red' ? 'あか（まる）' : 'あお（さんかく）', disabled: false, reason: '' }));
+  const setter = isKey ? setKeyColor : setDoorColor;
+  const wait = pendingKeys(state.spec).some((p) => p.kind === selKey.kind && p.x === item.x && p.y === item.y);
+  const conn = document.createElement('div');
+  conn.className = wait ? 'sw-wait' : 'sw-conn';
+  conn.textContent = wait ? `接続待ち：同じ色の${isKey ? 'ドア' : 'かぎ'}がありません` : `同じ色の${isKey ? 'ドア' : 'かぎ'}があります`;
+  settingsBody.replaceChildren(title, colorHd, radioGroup('key-color', colors, item.color, (v) => apply(setter(state, item.x, item.y, v))), conn);
+}
+
+// 盤全体の keyMode（remote／carry。既定 carry）。maxPauses 欄の下に出す。かぎ・ドアが無い盤では選べない。
+const keyModeEl = document.createElement('div');
+keyModeEl.id = 'key-mode';
+document.getElementById('stage-settings').append(keyModeEl);
+
+function renderKeyMode() {
+  const has = (state.spec.keys || []).length > 0 || (state.spec.doors || []).length > 0;
+  const hd = document.createElement('div');
+  hd.className = 'sw-hd';
+  hd.textContent = 'keyMode（かぎの動き）';
+  const labels = { carry: 'carry（かぎを持ってドアへ行くと開く）', remote: 'remote（かぎを取ると同じ色のドアが開く）' };
+  const opts = KEY_MODES.map((m) => ({ value: m, label: labels[m], disabled: !has, reason: has ? '' : 'かぎ・ドアを置くと選べる' }));
+  keyModeEl.replaceChildren(hd, radioGroup('key-mode', opts, state.spec.keyMode ?? 'carry', (v) => apply(setKeyMode(state, v))));
+}
+
+// パレットが keys／doors のときのクリック。同じ種類の物をクリック＝選ぶ／もう一度で外す。空きマスなら置いて選ぶ。
+function keyClick(kind, x, y) {
+  if ((state.spec[kind] || []).some((c) => c.x === x && c.y === y)) {
+    selKey = selKey && selKey.kind === kind && selKey.x === x && selKey.y === y ? null : { kind, x, y };
+    return { ok: true };
+  }
+  const r = place(state, kind, x, y);
+  if (r.ok) selKey = { kind, x, y };
+  return r;
 }
 
 // パレットが switches のときのクリック。スイッチをクリック＝選ぶ／もう一度で外す。選択中なら空きマスは対象のトグル。選んでいなければスイッチを置く。
@@ -224,7 +279,10 @@ async function analyzeNow() {
   } catch {
     lines = ['未判定（判定サーバーに接続できません）'];
   }
-  const wait = [...pendingSwitches(state.spec), ...pendingGroupSwitches(state.spec)].map((p) => `接続待ち: スイッチ (${p.x},${p.y}) に壁がつながっていない`);
+  const wait = [
+    ...[...pendingSwitches(state.spec), ...pendingGroupSwitches(state.spec)].map((p) => `接続待ち: スイッチ (${p.x},${p.y}) に壁がつながっていない`),
+    ...pendingKeys(state.spec).map((p) => `接続待ち: ${p.kind === 'keys' ? 'かぎ' : 'ドア'} (${p.x},${p.y}) に同じ色の${p.kind === 'keys' ? 'ドア' : 'かぎ'}が無い`),
+  ];
   if (shouldApplyResult(state, gen)) showMetrics([...wait, ...lines]);
 }
 
@@ -260,6 +318,7 @@ boardWrap.addEventListener('click', (e) => {
     moveFrom = null;
     const r = move(state, from.x, from.y, x, y);
     if (r.ok && selSwitch && selSwitch.x === from.x && selSwitch.y === from.y) selSwitch = { x, y };
+    if (r.ok && selKey && selKey.x === from.x && selKey.y === from.y) selKey = { kind: selKey.kind, x, y };
     apply(r);
     return;
   }
@@ -270,6 +329,7 @@ boardWrap.addEventListener('click', (e) => {
     return;
   }
   if (state.selected === 'switches') { apply(switchClick(x, y)); return; }
+  if (state.selected === 'keys' || state.selected === 'doors') { apply(keyClick(state.selected, x, y)); return; }
   apply(state.selected === 'eraser' ? erase(state, x, y) : place(state, state.selected, x, y));
 });
 
