@@ -1,7 +1,7 @@
 // #397 段2: 盤面エディタの cellPx（マス大きさ）の丸め・範囲。実行: npm run test:unit
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { clampCellPx, wheelCellPx, zoomPercent, CELL_PX_MIN, CELL_PX_MAX, CELL_PX_DEFAULT, SAMPLE_SPEC, EMPTY_SPEC, EDITOR_MAX_SIZE, pendingSwitches, switchModeOptions, switchGroupOptions, pendingGroupSwitches } from '../tools/editor/editor-view.js';
+import { clampCellPx, wheelCellPx, zoomPercent, CELL_PX_MIN, CELL_PX_MAX, CELL_PX_DEFAULT, SAMPLE_SPEC, EMPTY_SPEC, EDITOR_MAX_SIZE, pendingSwitches, switchModeOptions, switchGroupOptions, pendingGroupSwitches, pendingKeys } from '../tools/editor/editor-view.js';
 import { analyzeSpec } from '../tools/editor/validate-worker.mjs';
 
 test('editor-view: clampCellPx は正の整数で範囲内に収める', () => {
@@ -78,4 +78,13 @@ test('editor-view: group のスイッチでは close がグレー。pendingGroup
   const spec = { switches: [{ x: 0, y: 0, group: 'a' }, { x: 1, y: 0, group: 'b' }, { x: 2, y: 0, targets: [] }], groupWalls: [{ x: 3, y: 3, group: 'b' }] };
   assert.deepEqual(pendingGroupSwitches(spec), [{ index: 0, x: 0, y: 0 }]);
   assert.deepEqual(pendingGroupSwitches({}), []);
+});
+
+test('editor-view: pendingKeys はかぎの無いドア・ドアの無いかぎ', () => {
+  assert.deepEqual(pendingKeys(SAMPLE_SPEC), []);
+  assert.deepEqual(pendingKeys({}), []);
+  const spec = { keys: [{ x: 0, y: 0, color: 'red' }, { x: 1, y: 0, color: 'blue' }], doors: [{ x: 2, y: 0, color: 'red' }, { x: 3, y: 0, color: 'blue' }, { x: 4, y: 0, color: 'blue' }] };
+  assert.deepEqual(pendingKeys(spec), []);
+  assert.deepEqual(pendingKeys({ doors: [{ x: 2, y: 0, color: 'red' }] }), [{ kind: 'doors', index: 0, x: 2, y: 0 }]);
+  assert.deepEqual(pendingKeys({ keys: [{ x: 1, y: 1, color: 'red' }], doors: [{ x: 2, y: 0, color: 'blue' }] }), [{ kind: 'doors', index: 0, x: 2, y: 0 }, { kind: 'keys', index: 0, x: 1, y: 1 }]);
 });

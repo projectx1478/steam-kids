@@ -22,8 +22,9 @@ test('editor-palette: GIMMICKS の key が全部（登録順で）パレット�
   const p = buildPalette(GIMMICKS);
   const gim = p.filter((x) => x.kind === 'gimmick');
   // ワープだけは組ごとに「ワープ1」「ワープ2」の2項目（#488）
-  const expKeys = GIMMICKS.flatMap((g) => (g.key === 'warps' ? ['warps1', 'warps2'] : [g.key]));
-  const expLabels = GIMMICKS.flatMap((g) => (g.key === 'warps' ? ['ワープ1', 'ワープ2'] : [g.label]));
+  // かぎ・ドアも別項目の2つ（#523）
+  const expKeys = GIMMICKS.flatMap((g) => (g.key === 'warps' ? ['warps1', 'warps2'] : g.key === 'keys' ? ['keys', 'doors'] : [g.key]));
+  const expLabels = GIMMICKS.flatMap((g) => (g.key === 'warps' ? ['ワープ1', 'ワープ2'] : g.key === 'keys' ? ['かぎ', 'ドア'] : [g.label]));
   assert.deepEqual(gim.map((x) => x.key), expKeys);
   assert.deepEqual(gim.map((x) => x.label), expLabels);
   assert.equal(p.length, 4 + expKeys.length);
@@ -44,4 +45,11 @@ test('editor-palette: アイコン用の盤面は消しゴム以外すべてに�
     if (p.key === 'eraser') assert.equal(iconSpec(p.key), null);
     else assert.deepEqual(iconSpec(p.key).grid, { cols: 1, rows: 1 }, p.key);
   }
+});
+
+test('editor-palette: かぎとドアは別項目。アイコン盤面はそれぞれ1個', () => {
+  const p = buildPalette(GIMMICKS);
+  assert.deepEqual(p.filter((x) => x.key === 'keys' || x.key === 'doors').map((x) => x.label), ['かぎ', 'ドア']);
+  assert.deepEqual(iconSpec('keys').keys, [{ x: 0, y: 0, color: 'red' }]);
+  assert.deepEqual(iconSpec('doors').doors, [{ x: 0, y: 0, color: 'red' }]);
 });
