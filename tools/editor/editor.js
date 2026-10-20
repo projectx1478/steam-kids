@@ -5,14 +5,14 @@ import { EMPTY_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clam
 import { GIMMICKS } from '/js/gimmicks/index.js';
 import { markGatePassedToday } from '/js/gate-date.js';
 import { buildPalette, iconSpec } from './palette.js';
-import { createState, setCellPx as setStateCellPx, place, erase, move, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, setKeyColor, setDoorColor, setKeyMode, SWITCH_COLORS, KEY_COLORS, KEY_MODES, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard, addDraftStep, explainSaveNg } from './editor-state.js';
+import { createState, setCellPx as setStateCellPx, place, erase, move, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, setKeyColor, setDoorColor, setKeyMode, setPeriodicPeriod, PERIODIC_PERIODS, SWITCH_COLORS, KEY_COLORS, KEY_MODES, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard, addDraftStep, explainSaveNg } from './editor-state.js';
 
 const state = createState(EMPTY_SPEC, CELL_PX_DEFAULT);
 state.selected = 'wall';
 let notice = ''; // 直前の操作の結果（拒否の理由など）
 let moveFrom = null; // 「Shift+クリックで選んだ動かす元のマス」
 let selSwitch = null; // 「選択中のスイッチ」の座標 { x, y }（パレットが switches のとき）。番号でなく座標で持つ（元に戻すでずれない）
-let selKey = null; // 「選択中のかぎ／ドア」{ kind: 'keys' | 'doors', x, y }（パレットが keys／doors のとき。座標で持つ）
+let selKey = null; // 「選択中のかぎ／ドア」{ kind: 'keys' | 'doors' | 'periodic', x, y }（パレットが keys／doors／periodic のとき。座標で持つ）
 
 const ICON_CELL_PX = 32;
 // 消しゴムは盤面部品に無いので専用の SVG（見本のとおり）
@@ -160,7 +160,7 @@ function renderSettings() {
   if (i < 0 && ki >= 0) { renderKeySettings(); return; }
   settingsBody.className = i < 0 ? 'empty' : 'sw-panel';
   if (i < 0) {
-    settingsBody.textContent = 'スイッチ・かぎ・ドアを選ぶと設定が出ます（パレットで選び、盤上のその物をクリック）';
+    settingsBody.textContent = 'スイッチ・かぎ・ドア・周期ドアを選ぶと設定が出ます（パレットで選び、盤上のその物をクリック）';
     return;
   }
   const sw = state.spec.switches[i];
@@ -190,6 +190,7 @@ function renderSettings() {
 
 // かぎ／ドアの設定欄（色のラジオ）。色を変えると、対応するかぎ・ドアの有無で接続待ちの印が変わる。
 function renderKeySettings() {
+  if (selKey.kind === 'periodic') { renderPeriodicSettings(); return; }
   const isKey = selKey.kind === 'keys';
   const item = state.spec[selKey.kind][keyIndex()];
   settingsBody.className = 'sw-panel';
@@ -206,6 +207,20 @@ function renderKeySettings() {
   conn.className = wait ? 'sw-wait' : 'sw-conn';
   conn.textContent = wait ? `接続待ち：同じ色の${isKey ? 'ドア' : 'かぎ'}がありません` : `同じ色の${isKey ? 'ドア' : 'かぎ'}があります`;
   settingsBody.replaceChildren(title, colorHd, radioGroup('key-color', colors, item.color, (v) => apply(setter(state, item.x, item.y, v))), conn);
+}
+
+// 周期ドアの設定欄（period のラジオ 2／3／4。初期位相は無い）
+function renderPeriodicSettings() {
+  const item = state.spec.periodic[keyIndex()];
+  settingsBody.className = 'sw-panel';
+  const title = document.createElement('div');
+  title.className = 'sw-title';
+  title.textContent = `周期ドア (${item.x},${item.y})`;
+  const hd = document.createElement('div');
+  hd.className = 'sw-hd';
+  hd.textContent = 'period（何手ごとに開閉するか）';
+  const opts = PERIODIC_PERIODS.map((n) => ({ value: String(n), label: `${n}手`, disabled: false, reason: '' }));
+  settingsBody.replaceChildren(title, hd, radioGroup('periodic-period', opts, String(item.period), (v) => apply(setPeriodicPeriod(state, item.x, item.y, Number(v)))));
 }
 
 // 盤全体の keyMode（remote／carry。既定 carry）。maxPauses 欄の下に出す。かぎ・ドアが無い盤では選べない。
@@ -329,7 +344,7 @@ boardWrap.addEventListener('click', (e) => {
     return;
   }
   if (state.selected === 'switches') { apply(switchClick(x, y)); return; }
-  if (state.selected === 'keys' || state.selected === 'doors') { apply(keyClick(state.selected, x, y)); return; }
+  if (state.selected === 'keys' || state.selected === 'doors' || state.selected === 'periodic') { apply(keyClick(state.selected, x, y)); return; }
   apply(state.selected === 'eraser' ? erase(state, x, y) : place(state, state.selected, x, y));
 });
 

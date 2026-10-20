@@ -1,7 +1,7 @@
 // #397 段4: 盤面エディタの状態管理（置く・消す・動かす・元に戻す・やり直し、拒否値）。実行: npm run test:unit
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { occupants, createState, setCellPx, setGrid, place, erase, move, undo, redo, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, COMPLEX_KEYS, HISTORY_MAX, setKeyColor, setDoorColor, setKeyMode } from '../tools/editor/editor-state.js';
+import { occupants, createState, setCellPx, setGrid, place, erase, move, undo, redo, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, COMPLEX_KEYS, HISTORY_MAX, setKeyColor, setDoorColor, setKeyMode, setPeriodicPeriod, canUndo as canUndoState } from '../tools/editor/editor-state.js';
 import { SAMPLE_SPEC, EDITOR_MAX_SIZE, pendingSwitches, switchModeOptions, switchGroupOptions, pendingGroupSwitches, pendingKeys } from '../tools/editor/editor-view.js';
 import { analyzeSpec } from '../tools/editor/validate-worker.mjs';
 
@@ -55,12 +55,39 @@ test('editor-state: 動かす（移動先に要素があれば拒否）', () => 
   assert.equal(move(s, 3, 3, 3, 3).ok, false); // 同じマスは移動先に要素がある扱い
 });
 
-test('editor-state: 組・設定が要る要素は置けない・消せない・動かせない', () => {
+test('editor-state: 組・設定が要る要素（paint）は置けない', () => {
   const s = fresh();
-  assert.deepEqual(COMPLEX_KEYS, ['paint', 'periodic']); // switches は #404 段A、keys は #523 段1 で外した
-  for (const key of ['paint', 'periodic']) assert.equal(place(s, key, 2, 1).ok, false, key);
-  assert.equal(erase(s, 4, 2).ok, false); // 周期ドア
-  assert.equal(move(s, 4, 2, 4, 3).ok, false);
+  assert.deepEqual(COMPLEX_KEYS, ['paint']); // switches は #404 段A、keys は #523 段1、periodic は #523 段2 で外した
+  assert.equal(place(s, 'paint', 2, 1).ok, false);
+});
+
+test('editor-state: 周期ドア（置く・period 変更・消す・動かす・undo/redo）', () => {
+  const s = fresh();
+  const original = snap(s.spec); // SAMPLE_SPEC は (4,2) に period 3 を持つ
+  assert.equal(place(s, 'periodic', 4, 2).ok, false); // 重なり
+  assert.equal(place(s, 'periodic', 9, 9).ok, false); // 盤外
+  assert.equal(place(s, 'periodic', 2, 1).ok, true);
+  assert.deepEqual(s.spec.periodic.at(-1), { x: 2, y: 1, period: 3 }); // 既定 3・初期位相なし
+  for (const n of [2, 4, 3]) {
+    assert.equal(setPeriodicPeriod(s, 2, 1, n).ok, true);
+    assert.equal(s.spec.periodic.find((c) => c.x === 2 && c.y === 1).period, n);
+  }
+  assert.equal(setPeriodicPeriod(s, 2, 1, 5).ok, false);
+  assert.equal(setPeriodicPeriod(s, 2, 1, '2').ok, false);
+  assert.equal(setPeriodicPeriod(s, 0, 3, 2).ok, false); // 周期ドアが無いマス
+  const len = s.history.length;
+  assert.equal(setPeriodicPeriod(s, 2, 1, 3).ok, true); // 同値は履歴に積まない
+  assert.equal(s.history.length, len);
+  assert.equal(move(s, 2, 1, 3, 2).ok, true);
+  assert.deepEqual(s.spec.periodic.at(-1), { x: 3, y: 2, period: 3 });
+  assert.equal(move(s, 3, 2, 1, 0).ok, false); // 移動先に壁
+  assert.equal(erase(s, 3, 2).ok, true);
+  assert.equal(erase(s, 4, 2).ok, true);
+  assert.equal('periodic' in s.spec, false); // 空になればキーごと消す
+  while (canUndoState(s)) undo(s);
+  assert.deepEqual(s.spec, original);
+  assert.equal(redo(s).ok, true);
+  assert.equal(s.spec.periodic.length, 2);
 });
 
 test('editor-state: ワープ（warps1/warps2）は1個ずつ置く・同マスは NG・消す・動かす・空で warps キー削除', () => {
