@@ -159,6 +159,14 @@ export function pendingKeys(spec) {
   return out;
 }
 
+// ---- 水の橋（#523 段3）----
+// 上下左右に水が無い橋（接続待ち）。[{ index, x, y }]。基準は validate の water.js（「bridge の上下左右に水が無い」）と同じ。
+export function pendingBridges(spec) {
+  const bridge = Array.isArray(spec.bridge) ? spec.bridge : [];
+  const water = Array.isArray(spec.water) ? spec.water : [];
+  return bridge.map((b, index) => ({ b, index })).filter(({ b }) => !water.some((w) => Math.abs(w.x - b.x) + Math.abs(w.y - b.y) === 1)).map(({ b, index }) => ({ index, x: b.x, y: b.y }));
+}
+
 // ---- たたき台の生成（#401 段2）。範囲は POST /api/generate（tools/lib/validate/stagegen.mjs の checkStageGen）と同じ ----
 export const GEN_COUNT = 4; // 1回に出す候補の数（2×2）。「もう4枚」は seed をこの数だけ進める
 export const GEN_LIMITS = { grid: [3, 20], walls: [0, 60], shortestPath: [2, 60], minTurns: [0, 8], items: [1, 4], ice: [1, 4], keys: [1, 2], cushion: [1, 4], switches: [1, 2], warps: [1, 2], periodic: [1, 2], paint: [4, 8], water: [2, 8] };

@@ -1,7 +1,7 @@
 // #397 段2: 盤面エディタの cellPx（マス大きさ）の丸め・範囲。実行: npm run test:unit
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { clampCellPx, wheelCellPx, zoomPercent, CELL_PX_MIN, CELL_PX_MAX, CELL_PX_DEFAULT, SAMPLE_SPEC, EMPTY_SPEC, EDITOR_MAX_SIZE, pendingSwitches, switchModeOptions, switchGroupOptions, pendingGroupSwitches, pendingKeys } from '../tools/editor/editor-view.js';
+import { clampCellPx, wheelCellPx, zoomPercent, CELL_PX_MIN, CELL_PX_MAX, CELL_PX_DEFAULT, SAMPLE_SPEC, EMPTY_SPEC, EDITOR_MAX_SIZE, pendingSwitches, switchModeOptions, switchGroupOptions, pendingGroupSwitches, pendingKeys, pendingBridges } from '../tools/editor/editor-view.js';
 import { analyzeSpec } from '../tools/editor/validate-worker.mjs';
 
 test('editor-view: clampCellPx は正の整数で範囲内に収める', () => {
@@ -87,4 +87,11 @@ test('editor-view: pendingKeys はかぎの無いドア・ドアの無いかぎ'
   assert.deepEqual(pendingKeys(spec), []);
   assert.deepEqual(pendingKeys({ doors: [{ x: 2, y: 0, color: 'red' }] }), [{ kind: 'doors', index: 0, x: 2, y: 0 }]);
   assert.deepEqual(pendingKeys({ keys: [{ x: 1, y: 1, color: 'red' }], doors: [{ x: 2, y: 0, color: 'blue' }] }), [{ kind: 'doors', index: 0, x: 2, y: 0 }, { kind: 'keys', index: 0, x: 1, y: 1 }]);
+});
+
+test('editor-view: pendingBridges は上下左右に水が無い橋だけ', () => {
+  assert.deepEqual(pendingBridges(SAMPLE_SPEC), []);
+  assert.deepEqual(pendingBridges({}), []);
+  assert.deepEqual(pendingBridges({ bridge: [{ x: 1, y: 1 }] }), [{ index: 0, x: 1, y: 1 }]);
+  assert.deepEqual(pendingBridges({ water: [{ x: 2, y: 2 }], bridge: [{ x: 1, y: 2 }, { x: 1, y: 1 }, { x: 2, y: 1 }] }), [{ index: 1, x: 1, y: 1 }]); // 斜めは隣でない
 });

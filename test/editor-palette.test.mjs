@@ -22,9 +22,9 @@ test('editor-palette: GIMMICKS の key が全部（登録順で）パレット�
   const p = buildPalette(GIMMICKS);
   const gim = p.filter((x) => x.kind === 'gimmick');
   // ワープだけは組ごとに「ワープ1」「ワープ2」の2項目（#488）
-  // かぎ・ドアも別項目の2つ（#523）
-  const expKeys = GIMMICKS.flatMap((g) => (g.key === 'warps' ? ['warps1', 'warps2'] : g.key === 'keys' ? ['keys', 'doors'] : [g.key]));
-  const expLabels = GIMMICKS.flatMap((g) => (g.key === 'warps' ? ['ワープ1', 'ワープ2'] : g.key === 'keys' ? ['かぎ', 'ドア'] : [g.label]));
+  // かぎ・ドアも別項目の2つ、水と橋も別項目（#523）
+  const expKeys = GIMMICKS.flatMap((g) => (g.key === 'warps' ? ['warps1', 'warps2'] : g.key === 'keys' ? ['keys', 'doors'] : g.key === 'water' ? ['water', 'bridge'] : [g.key]));
+  const expLabels = GIMMICKS.flatMap((g) => (g.key === 'warps' ? ['ワープ1', 'ワープ2'] : g.key === 'keys' ? ['かぎ', 'ドア'] : g.key === 'water' ? [g.label, '橋'] : [g.label]));
   assert.deepEqual(gim.map((x) => x.key), expKeys);
   assert.deepEqual(gim.map((x) => x.label), expLabels);
   assert.equal(p.length, 4 + expKeys.length);
@@ -58,4 +58,10 @@ test('editor-palette: 周期ドアは1項目。アイコン盤面は period 3 �
   const p = buildPalette(GIMMICKS);
   assert.deepEqual(p.filter((x) => x.key === 'periodic').map((x) => x.label), ['周期ドア']);
   assert.deepEqual(iconSpec('periodic').periodic, [{ x: 0, y: 0, period: 3 }]);
+});
+
+test('editor-palette: 橋は水と別項目。アイコン盤面は橋が1個', () => {
+  const p = buildPalette(GIMMICKS);
+  assert.deepEqual(p.filter((x) => x.key === 'water' || x.key === 'bridge').map((x) => x.label), [GIMMICKS.find((g) => g.key === 'water').label, '橋']);
+  assert.deepEqual(iconSpec('bridge').bridge, [{ x: 0, y: 0 }]);
 });

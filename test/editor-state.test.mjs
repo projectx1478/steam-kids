@@ -1,8 +1,8 @@
 // #397 段4: 盤面エディタの状態管理（置く・消す・動かす・元に戻す・やり直し、拒否値）。実行: npm run test:unit
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { occupants, createState, setCellPx, setGrid, place, erase, move, undo, redo, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, COMPLEX_KEYS, HISTORY_MAX, setKeyColor, setDoorColor, setKeyMode, setPeriodicPeriod, canUndo as canUndoState } from '../tools/editor/editor-state.js';
-import { SAMPLE_SPEC, EDITOR_MAX_SIZE, pendingSwitches, switchModeOptions, switchGroupOptions, pendingGroupSwitches, pendingKeys } from '../tools/editor/editor-view.js';
+import { occupants, createState, setCellPx, setGrid, place, erase, move, undo, redo, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, COMPLEX_KEYS, HISTORY_MAX, setKeyColor, setDoorColor, setKeyMode, setPeriodicPeriod, setWaterMode, canUndo as canUndoState } from '../tools/editor/editor-state.js';
+import { SAMPLE_SPEC, EDITOR_MAX_SIZE, pendingSwitches, switchModeOptions, switchGroupOptions, pendingGroupSwitches, pendingKeys, pendingBridges } from '../tools/editor/editor-view.js';
 import { analyzeSpec } from '../tools/editor/validate-worker.mjs';
 
 const fresh = () => createState(SAMPLE_SPEC);
@@ -715,4 +715,76 @@ test('editor-state(keys): 読み込んだ盤のかぎ・ドアも消せる・動
   assert.equal(erase(s, 2, 2).ok, true); // ドア
   assert.equal('doors' in s.spec, false);
   assert.equal(s.spec.keyMode, 'remote'); // かぎが残る
+});
+
+// ---- 水の橋・waterMode（#523 段3）----
+const wrow = () => createState({ grid: { cols: 6, rows: 3 }, start: { x: 0, y: 0 }, goal: { x: 5, y: 0 }, walls: [] });
+
+test('editor-state(bridge): 置く・消す・動かす。水が無くても置ける（接続待ち）', () => {
+  const s = wrow();
+  assert.equal(place(s, 'bridge', 2, 1).ok, true);
+  assert.deepEqual(s.spec.bridge, [{ x: 2, y: 1 }]);
+  assert.deepEqual(pendingBridges(s.spec), [{ index: 0, x: 2, y: 1 }]);
+  assert.equal(place(s, 'bridge', 2, 1).ok, false); // 重なり
+  assert.equal(place(s, 'bridge', 0, 0).ok, false); // start の上
+  assert.equal(place(s, 'bridge', 9, 9).ok, false); // 盤外
+  assert.equal(place(s, 'water', 3, 1).ok, true);
+  assert.deepEqual(pendingBridges(s.spec), []);
+  assert.equal(move(s, 2, 1, 2, 2).ok, true);
+  assert.deepEqual(s.spec.bridge, [{ x: 2, y: 2 }]);
+  assert.equal(move(s, 2, 2, 3, 1).ok, false); // 移動先が水
+  assert.equal(erase(s, 2, 2).ok, true);
+  assert.equal('bridge' in s.spec, false);
+});
+
+test('editor-state(bridge): 水を消したとき、隣に水が残る橋は残り、残らない橋は消える', () => {
+  const s = wrow();
+  place(s, 'water', 2, 1);
+  place(s, 'water', 4, 1);
+  place(s, 'bridge', 3, 1); // 両隣が水
+  place(s, 'bridge', 1, 1); // 左の水だけが隣
+  place(s, 'bridge', 0, 2); // 元から水の隣でない（接続待ち）
+  assert.equal(erase(s, 2, 1).ok, true);
+  assert.deepEqual(s.spec.bridge, [{ x: 3, y: 1 }, { x: 0, y: 2 }]); // (3,1) は (4,1) が残る。(1,1) は消える。接続待ちの橋は触らない
+  assert.deepEqual(s.spec.water, [{ x: 4, y: 1 }]);
+  assert.equal(erase(s, 4, 1).ok, true);
+  assert.deepEqual(s.spec.bridge, [{ x: 0, y: 2 }]); // (3,1) も隣の水が無くなって消える
+  assert.equal('water' in s.spec, false);
+});
+
+test('editor-state(bridge): 水が全部無くなると waterMode も消える。水が残る間は waterMode も残る', () => {
+  const s = wrow();
+  place(s, 'water', 2, 1);
+  place(s, 'water', 3, 1);
+  assert.equal(setWaterMode(s, 'bump').ok, true);
+  erase(s, 2, 1);
+  assert.equal(s.spec.waterMode, 'bump');
+  erase(s, 3, 1);
+  assert.equal('waterMode' in s.spec, false);
+});
+
+test('editor-state(waterMode): cushion が既定（キーを持たない）。bump のとき持つ。水の無い盤・不正値は拒否', () => {
+  const s = wrow();
+  assert.equal(setWaterMode(s, 'bump').ok, false);
+  place(s, 'water', 2, 1);
+  assert.equal(setWaterMode(s, 'bogus').ok, false);
+  assert.equal(setWaterMode(s, 'cushion').ok, true); // 既に cushion（省略）
+  assert.equal(s.history.length, s.cursor + 1);
+  assert.equal(setWaterMode(s, 'bump').ok, true);
+  assert.equal(s.spec.waterMode, 'bump');
+  assert.equal(setWaterMode(s, 'cushion').ok, true);
+  assert.equal('waterMode' in s.spec, false);
+});
+
+test('editor-state(bridge): 置く・消す・waterMode は元に戻す／やり直しで整合する', () => {
+  const s = wrow();
+  const states = [snap(s.spec)];
+  const step = (r) => { assert.equal(r.ok, true); states.push(snap(s.spec)); };
+  step(place(s, 'water', 2, 1));
+  step(place(s, 'bridge', 1, 1));
+  step(setWaterMode(s, 'bump'));
+  step(move(s, 1, 1, 1, 2));
+  step(erase(s, 2, 1));
+  for (let i = states.length - 2; i >= 0; i--) { assert.equal(undo(s).ok, true); assert.deepEqual(s.spec, states[i]); }
+  for (let i = 1; i < states.length; i++) { assert.equal(redo(s).ok, true); assert.deepEqual(s.spec, states[i]); }
 });
