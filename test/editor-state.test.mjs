@@ -1,7 +1,7 @@
 // #397 段4: 盤面エディタの状態管理（置く・消す・動かす・元に戻す・やり直し、拒否値）。実行: npm run test:unit
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { occupants, createState, setCellPx, setGrid, place, erase, move, undo, redo, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, COMPLEX_KEYS, HISTORY_MAX, setKeyColor, setDoorColor, setKeyMode, setPeriodicPeriod, setWaterMode, canUndo as canUndoState } from '../tools/editor/editor-state.js';
+import { occupants, createState, setCellPx, setGrid, place, erase, move, undo, redo, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, COMPLEX_KEYS, HISTORY_MAX, setKeyColor, setDoorColor, setKeyMode, setPeriodicPeriod, setWaterMode, togglePaint, canUndo as canUndoState } from '../tools/editor/editor-state.js';
 import { SAMPLE_SPEC, EDITOR_MAX_SIZE, pendingSwitches, switchModeOptions, switchGroupOptions, pendingGroupSwitches, pendingKeys, pendingBridges } from '../tools/editor/editor-view.js';
 import { analyzeSpec } from '../tools/editor/validate-worker.mjs';
 
@@ -55,10 +55,10 @@ test('editor-state: 動かす（移動先に要素があれば拒否）', () => 
   assert.equal(move(s, 3, 3, 3, 3).ok, false); // 同じマスは移動先に要素がある扱い
 });
 
-test('editor-state: 組・設定が要る要素（paint）は置けない', () => {
+test('editor-state: COMPLEX_KEYS は空（paint も置ける。#523 段4）', () => {
+  assert.deepEqual(COMPLEX_KEYS, []);
   const s = fresh();
-  assert.deepEqual(COMPLEX_KEYS, ['paint']); // switches は #404 段A、keys は #523 段1、periodic は #523 段2 で外した
-  assert.equal(place(s, 'paint', 2, 1).ok, false);
+  assert.equal(place(s, 'nothing', 2, 1).reason, 'nothing は置けない');
 });
 
 test('editor-state: 周期ドア（置く・period 変更・消す・動かす・undo/redo）', () => {
@@ -787,4 +787,41 @@ test('editor-state(bridge): 置く・消す・waterMode は元に戻す／やり
   step(erase(s, 2, 1));
   for (let i = states.length - 2; i >= 0; i--) { assert.equal(undo(s).ok, true); assert.deepEqual(s.spec, states[i]); }
   for (let i = 1; i < states.length; i++) { assert.equal(redo(s).ok, true); assert.deepEqual(s.spec, states[i]); }
+});
+
+test('editor-state(paint): 目標のトグル。start・goal と重なってよく、他の要素とは重ならない', () => {
+  const s = createState({ grid: { cols: 4, rows: 4 }, start: { x: 0, y: 0 }, goal: { x: 3, y: 3 }, walls: [{ x: 1, y: 1 }] });
+  assert.equal(togglePaint(s, 9, 9).ok, false); // 盤外
+  assert.equal(togglePaint(s, 1, 1).ok, false); // 壁
+  assert.equal(togglePaint(s, 0, 0).ok, true); // start と重なる
+  assert.equal(togglePaint(s, 3, 3).ok, true); // goal と重なる
+  assert.equal(place(s, 'paint', 1, 0).ok, true); // place 経由も同じ
+  assert.deepEqual(s.spec.paint, [{ x: 0, y: 0 }, { x: 3, y: 3 }, { x: 1, y: 0 }]);
+  assert.deepEqual(s.spec.start, { x: 0, y: 0 });
+  assert.equal(togglePaint(s, 1, 0).ok, true); // もう一度で外す
+  assert.equal(s.spec.paint.length, 2);
+  assert.equal(place(s, 'wall', 3, 3).ok, false); // 目標のあるマスに壁は置けない
+  assert.equal(place(s, 'items', 3, 3).ok, false);
+  assert.equal(togglePaint(s, 0, 0).ok, true);
+  assert.equal(togglePaint(s, 3, 3).ok, true);
+  assert.equal('paint' in s.spec, false); // 空になったらキーごと消す
+});
+
+test('editor-state(paint): 消す・動かす（start・goal と重なるマスを含む）', () => {
+  const s = createState({ grid: { cols: 4, rows: 4 }, start: { x: 0, y: 0 }, goal: { x: 3, y: 3 }, walls: [], paint: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 3, y: 3 }] });
+  assert.equal(erase(s, 0, 0).ok, false); // start と重なるマスは消しゴムで消せない（ぬりマスで外す）
+  assert.equal(erase(s, 1, 0).ok, true);
+  assert.equal(s.spec.paint.length, 2);
+  assert.equal(place(s, 'paint', 1, 0).ok, true);
+  assert.equal(move(s, 1, 0, 2, 0).ok, true); // 目標だけのマスは目標を動かす
+  assert.deepEqual(s.spec.paint.at(-1), { x: 2, y: 0 });
+  assert.equal(move(s, 2, 0, 3, 3).ok, false); // 目標のあるマスへは動かせない
+  assert.equal(move(s, 2, 0, 3, 2).ok, true);
+  assert.equal(move(s, 3, 2, 3, 3).ok, false);
+  assert.equal(move(s, 0, 0, 0, 1).ok, true); // start と重なるマスでは start が動く（目標は残る）
+  assert.deepEqual(s.spec.start, { x: 0, y: 1 });
+  assert.ok(s.spec.paint.some((c) => c.x === 0 && c.y === 0));
+  assert.equal(move(s, 0, 1, 3, 3).ok, false); // goal は重ねてよいが、goal 自身がいるマスは不可
+  assert.equal(move(s, 0, 1, 0, 0).ok, true); // start を目標のマスへ（重なってよい）
+  assert.deepEqual(s.spec.start, { x: 0, y: 0 });
 });
