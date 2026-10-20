@@ -167,6 +167,15 @@ export function pendingBridges(spec) {
   return bridge.map((b, index) => ({ b, index })).filter(({ b }) => !water.some((w) => Math.abs(w.x - b.x) + Math.abs(w.y - b.y) === 1)).map(({ b, index }) => ({ index, x: b.x, y: b.y }));
 }
 
+// ---- ぬりマス（#523 段4）----
+// 目標マス（paint）があるのに start（または goal）が目標に含まれない印。[{ kind: 'start' | 'goal', x, y }]。基準は validate の paint.js（「paint に start のマスが含まれない」）と同じ。
+// 目標が1つも無い盤（paint 未使用）は対象外。
+export function pendingPaint(spec) {
+  const paint = Array.isArray(spec.paint) ? spec.paint : [];
+  if (paint.length === 0) return [];
+  return ['start', 'goal'].filter((k) => spec[k] && !paint.some((c) => c.x === spec[k].x && c.y === spec[k].y)).map((k) => ({ kind: k, x: spec[k].x, y: spec[k].y }));
+}
+
 // ---- たたき台の生成（#401 段2）。範囲は POST /api/generate（tools/lib/validate/stagegen.mjs の checkStageGen）と同じ ----
 export const GEN_COUNT = 4; // 1回に出す候補の数（2×2）。「もう4枚」は seed をこの数だけ進める
 export const GEN_LIMITS = { grid: [3, 20], walls: [0, 60], shortestPath: [2, 60], minTurns: [0, 8], items: [1, 4], ice: [1, 4], keys: [1, 2], cushion: [1, 4], switches: [1, 2], warps: [1, 2], periodic: [1, 2], paint: [4, 8], water: [2, 8] };

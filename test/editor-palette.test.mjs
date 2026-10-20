@@ -65,3 +65,9 @@ test('editor-palette: 橋は水と別項目。アイコン盤面は橋が1個', 
   assert.deepEqual(p.filter((x) => x.key === 'water' || x.key === 'bridge').map((x) => x.label), [GIMMICKS.find((g) => g.key === 'water').label, '橋']);
   assert.deepEqual(iconSpec('bridge').bridge, [{ x: 0, y: 0 }]);
 });
+
+test('editor-palette: ぬりマスは1項目。アイコン盤面は paint が1個', () => {
+  const p = buildPalette(GIMMICKS);
+  assert.deepEqual(p.filter((x) => x.key === 'paint').map((x) => x.label), ['ぬりマス']);
+  assert.deepEqual(iconSpec('paint').paint, [{ x: 0, y: 0 }]);
+});

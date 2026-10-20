@@ -1,7 +1,7 @@
 // #397 段2: 盤面エディタの cellPx（マス大きさ）の丸め・範囲。実行: npm run test:unit
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { clampCellPx, wheelCellPx, zoomPercent, CELL_PX_MIN, CELL_PX_MAX, CELL_PX_DEFAULT, SAMPLE_SPEC, EMPTY_SPEC, EDITOR_MAX_SIZE, pendingSwitches, switchModeOptions, switchGroupOptions, pendingGroupSwitches, pendingKeys, pendingBridges } from '../tools/editor/editor-view.js';
+import { clampCellPx, wheelCellPx, zoomPercent, CELL_PX_MIN, CELL_PX_MAX, CELL_PX_DEFAULT, SAMPLE_SPEC, EMPTY_SPEC, EDITOR_MAX_SIZE, pendingSwitches, switchModeOptions, switchGroupOptions, pendingGroupSwitches, pendingKeys, pendingBridges, pendingPaint } from '../tools/editor/editor-view.js';
 import { analyzeSpec } from '../tools/editor/validate-worker.mjs';
 
 test('editor-view: clampCellPx は正の整数で範囲内に収める', () => {
@@ -94,4 +94,13 @@ test('editor-view: pendingBridges は上下左右に水が無い橋だけ', () =
   assert.deepEqual(pendingBridges({}), []);
   assert.deepEqual(pendingBridges({ bridge: [{ x: 1, y: 1 }] }), [{ index: 0, x: 1, y: 1 }]);
   assert.deepEqual(pendingBridges({ water: [{ x: 2, y: 2 }], bridge: [{ x: 1, y: 2 }, { x: 1, y: 1 }, { x: 2, y: 1 }] }), [{ index: 1, x: 1, y: 1 }]); // 斜めは隣でない
+});
+
+test('editor-view: pendingPaint は目標に含まれない start・goal だけ', () => {
+  const base = { start: { x: 0, y: 0 }, goal: { x: 3, y: 3 } };
+  assert.deepEqual(pendingPaint(base), []); // paint 未使用
+  assert.deepEqual(pendingPaint({ ...base, paint: [] }), []);
+  assert.deepEqual(pendingPaint({ ...base, paint: [{ x: 1, y: 0 }] }), [{ kind: 'start', x: 0, y: 0 }, { kind: 'goal', x: 3, y: 3 }]);
+  assert.deepEqual(pendingPaint({ ...base, paint: [{ x: 0, y: 0 }] }), [{ kind: 'goal', x: 3, y: 3 }]);
+  assert.deepEqual(pendingPaint({ ...base, paint: [{ x: 0, y: 0 }, { x: 3, y: 3 }] }), []);
 });

@@ -8,8 +8,8 @@ export const HISTORY_MAX = 100; // 超えたら先頭（古いもの）から捨
 
 // 1マスの単純な要素（盤面 JSON 側の配列名）。置く・消す・動かすができる。
 export const SIMPLE_LISTS = ['walls', 'items', 'ice', 'cushion', 'water'];
-// 組・周期・方向などの設定が要る要素。まだ置けない（#404 E6）。switches は #404 段A、keys（かぎ・ドア）は #523 段1、periodic は #523 段2 で外した（bridge は SIMPLE_LISTS ではなく専用の分岐。段3）。
-export const COMPLEX_KEYS = ['paint'];
+// 組・周期・方向などの設定が要り、まだ置けない要素。switches は #404 段A、keys（かぎ・ドア）は #523 段1、periodic は #523 段2、paint は #523 段4 で外し、空になった（bridge は SIMPLE_LISTS ではなく専用の分岐。段3）。
+export const COMPLEX_KEYS = [];
 export const SWITCH_COLORS = ['red', 'blue'];
 export const KEY_COLORS = ['red', 'blue'];
 export const KEY_MODES = ['remote', 'carry']; // keyMode。省略は carry（js/gimmicks/keys.js と同じ）
@@ -129,6 +129,7 @@ export function place(state, key, x, y, group) {
   const spec = state.spec;
   if (key === 'switches') return placeSwitch(state, x, y);
   if (key === GROUP_WALLS) return placeGroupWall(state, group, x, y);
+  if (key === 'paint') return togglePaint(state, x, y);
   if (KEY_LISTS.includes(key)) {
     if (!inGrid(spec, x, y)) return ng('盤外');
     if (occupants(spec, x, y).length) return ng('そのマスには既に要素がある');
@@ -152,10 +153,10 @@ export function place(state, key, x, y, group) {
   }
   const isSimple = key === 'wall' || SIMPLE_LISTS.includes(key);
   if (!isSimple && !SINGLE.includes(key)) {
-    return ng(COMPLEX_KEYS.includes(key) ? `${key} は組・設定が要るためまだ置けない（#404）` : `${key} は置けない`);
+    return ng(`${key} は置けない`);
   }
   if (!inGrid(spec, x, y)) return ng('盤外');
-  if (occupants(spec, x, y).length) return ng('そのマスには既に要素がある');
+  if (occupants(spec, x, y).some((o) => !(SINGLE.includes(key) && o.kind === 'paint'))) return ng('そのマスには既に要素がある'); // start・goal は目標マス（paint）と重なってよい
   const next = clone(spec);
   if (SINGLE.includes(key)) {
     next[key] = { x, y };
@@ -173,8 +174,13 @@ export function erase(state, x, y) {
   const here = occupants(spec, x, y);
   if (here.length === 0) return ng('消す物が無い');
   if (here.some((o) => SINGLE.includes(o.kind))) return ng('スタート・ゴールは消せない（各1個）');
-  if (here.some((o) => !SIMPLE_LISTS.includes(o.kind) && !SWITCH_KINDS.includes(o.kind) && o.kind !== GROUP_WALLS && o.kind !== 'warps' && o.kind !== 'periodic' && o.kind !== 'bridge' && !KEY_LISTS.includes(o.kind))) return ng('組・設定のある要素はまだ消せない（#404）');
+  if (here.some((o) => !SIMPLE_LISTS.includes(o.kind) && !SWITCH_KINDS.includes(o.kind) && o.kind !== GROUP_WALLS && o.kind !== 'warps' && o.kind !== 'periodic' && o.kind !== 'bridge' && o.kind !== 'paint' && !KEY_LISTS.includes(o.kind))) return ng('消せない要素');
   const next = clone(spec);
+  if (here.some((o) => o.kind === 'paint')) {
+    next.paint = list(next.paint).filter((c) => !(c.x === x && c.y === y));
+    if (next.paint.length === 0) delete next.paint;
+    return commit(state, next);
+  }
   if (here.some((o) => o.kind === 'bridge')) {
     next.bridge = list(next.bridge).filter((c) => !(c.x === x && c.y === y));
     if (next.bridge.length === 0) delete next.bridge;
@@ -283,13 +289,40 @@ export function move(state, fromX, fromY, toX, toY) {
     for (const sw of list(moved.switches)) for (const t of list(sw.targets)) if (t.x === fromX && t.y === fromY) { t.x = toX; t.y = toY; }
     return commit(state, moved);
   }
-  if (here.length > 1 || !(SINGLE.includes(here[0].kind) || SIMPLE_LISTS.includes(here[0].kind))) return ng('組・設定のある要素はまだ動かせない（#404）');
-  if (occupants(spec, toX, toY).length) return ng('移動先に要素がある');
+  if (here.some((o) => o.kind === 'paint') && here.every((o) => o.kind === 'paint' || SINGLE.includes(o.kind))) {
+    // 目標マス（paint）。start・goal と重なるマスでは start・goal のほうを動かす（目標マスは残る）。
+    const single = here.find((o) => SINGLE.includes(o.kind));
+    const blockers = occupants(spec, toX, toY).filter((o) => !(single && o.kind === 'paint') && !(!single && SINGLE.includes(o.kind)));
+    if (blockers.length) return ng('移動先に要素がある');
+    const moved = clone(spec);
+    const target = single ? moved[single.kind] : list(moved.paint).find((c) => c.x === fromX && c.y === fromY);
+    target.x = toX;
+    target.y = toY;
+    return commit(state, moved);
+  }
+  if (here.length > 1 || !(SINGLE.includes(here[0].kind) || SIMPLE_LISTS.includes(here[0].kind))) return ng('動かせない要素');
+  if (occupants(spec, toX, toY).some((o) => !(SINGLE.includes(here[0].kind) && o.kind === 'paint'))) return ng('移動先に要素がある');
   const next = clone(spec);
   const o = here[0];
   const target = SINGLE.includes(o.kind) ? next[o.kind] : next[o.kind][o.index];
   target.x = toX;
   target.y = toY;
+  return commit(state, next);
+}
+
+// ---- ぬりマス（#523 段4）。目標マスのトグル（あれば外し、無ければ足す）。start・goal と重なってよい（validate は start・goal を目標に含めさせる）。他の要素とは重ならない。----
+export function togglePaint(state, x, y) {
+  const spec = state.spec;
+  if (!inGrid(spec, x, y)) return ng('盤外');
+  const here = occupants(spec, x, y);
+  const next = clone(spec);
+  if (here.some((o) => o.kind === 'paint')) {
+    next.paint = list(next.paint).filter((c) => !(c.x === x && c.y === y));
+    if (next.paint.length === 0) delete next.paint;
+    return commit(state, next);
+  }
+  if (here.some((o) => !SINGLE.includes(o.kind))) return ng('そのマスには既に要素がある');
+  next.paint = [...list(next.paint), { x, y }];
   return commit(state, next);
 }
 
