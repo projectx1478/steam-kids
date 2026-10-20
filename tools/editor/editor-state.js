@@ -8,11 +8,13 @@ export const HISTORY_MAX = 100; // 超えたら先頭（古いもの）から捨
 
 // 1マスの単純な要素（盤面 JSON 側の配列名）。置く・消す・動かすができる。
 export const SIMPLE_LISTS = ['walls', 'items', 'ice', 'cushion', 'water'];
-// 組・周期・方向などの設定が要る要素。まだ置けない（#404 E6）。switches は #404 段A、keys（かぎ・ドア）は #523 段1 で外した。
-export const COMPLEX_KEYS = ['paint', 'periodic'];
+// 組・周期・方向などの設定が要る要素。まだ置けない（#404 E6）。switches は #404 段A、keys（かぎ・ドア）は #523 段1、periodic は #523 段2 で外した。
+export const COMPLEX_KEYS = ['paint'];
 export const SWITCH_COLORS = ['red', 'blue'];
 export const KEY_COLORS = ['red', 'blue'];
 export const KEY_MODES = ['remote', 'carry']; // keyMode。省略は carry（js/gimmicks/keys.js と同じ）
+export const PERIODIC_PERIODS = [2, 3, 4]; // 周期ドアの period（初期位相は無い）
+const PERIODIC_DEFAULT = 3;
 const KEY_LISTS = ['keys', 'doors']; // パレットの key（かぎ・ドア）と盤面 JSON の配列名が同じ
 const SWITCH_KINDS = ['switches', 'switches.targets'];
 const WARP_KEYS = { warps1: 1, warps2: 2 }; // パレットの key → pair。1回で穴を1個置く（#488）。個数の検査は保存時の validate
@@ -133,6 +135,13 @@ export function place(state, key, x, y, group) {
     next[key] = [...list(next[key]), { x, y, color: 'red' }];
     return commit(state, next);
   }
+  if (key === 'periodic') {
+    if (!inGrid(spec, x, y)) return ng('盤外');
+    if (occupants(spec, x, y).length) return ng('そのマスには既に要素がある');
+    const next = clone(spec);
+    next.periodic = [...list(next.periodic), { x, y, period: PERIODIC_DEFAULT }];
+    return commit(state, next);
+  }
   if (WARP_KEYS[key]) {
     if (!inGrid(spec, x, y)) return ng('盤外');
     if (occupants(spec, x, y).length) return ng('そのマスには既に要素がある');
@@ -163,8 +172,13 @@ export function erase(state, x, y) {
   const here = occupants(spec, x, y);
   if (here.length === 0) return ng('消す物が無い');
   if (here.some((o) => SINGLE.includes(o.kind))) return ng('スタート・ゴールは消せない（各1個）');
-  if (here.some((o) => !SIMPLE_LISTS.includes(o.kind) && !SWITCH_KINDS.includes(o.kind) && o.kind !== GROUP_WALLS && o.kind !== 'warps' && !KEY_LISTS.includes(o.kind))) return ng('組・設定のある要素はまだ消せない（#404）');
+  if (here.some((o) => !SIMPLE_LISTS.includes(o.kind) && !SWITCH_KINDS.includes(o.kind) && o.kind !== GROUP_WALLS && o.kind !== 'warps' && o.kind !== 'periodic' && !KEY_LISTS.includes(o.kind))) return ng('組・設定のある要素はまだ消せない（#404）');
   const next = clone(spec);
+  if (here.some((o) => o.kind === 'periodic')) {
+    next.periodic = list(next.periodic).filter((c) => !(c.x === x && c.y === y));
+    if (next.periodic.length === 0) delete next.periodic;
+    return commit(state, next);
+  }
   if (here.some((o) => KEY_LISTS.includes(o.kind))) {
     for (const name of KEY_LISTS) {
       next[name] = list(next[name]).filter((c) => !(c.x === x && c.y === y));
@@ -229,6 +243,12 @@ export function move(state, fromX, fromY, toX, toY) {
     for (const w of list(moved.warps)) if (w.x === fromX && w.y === fromY) { w.x = toX; w.y = toY; }
     return commit(state, moved);
   }
+  if (here.every((o) => o.kind === 'periodic')) {
+    if (occupants(spec, toX, toY).length) return ng('移動先に要素がある');
+    const moved = clone(spec);
+    for (const c of list(moved.periodic)) if (c.x === fromX && c.y === fromY) { c.x = toX; c.y = toY; }
+    return commit(state, moved);
+  }
   if (here.every((o) => KEY_LISTS.includes(o.kind))) {
     if (occupants(spec, toX, toY).length) return ng('移動先に要素がある');
     const moved = clone(spec);
@@ -270,6 +290,17 @@ function setKeyDoorColor(state, name, x, y, color) {
 }
 export const setKeyColor = (state, x, y, color) => setKeyDoorColor(state, 'keys', x, y, color);
 export const setDoorColor = (state, x, y, color) => setKeyDoorColor(state, 'doors', x, y, color);
+
+// ---- 周期ドア（#523 段2）。選ぶ物は座標 (x,y) で指す。period は 2・3・4 のみ。----
+export function setPeriodicPeriod(state, x, y, period) {
+  const i = list(state.spec.periodic).findIndex((c) => c.x === x && c.y === y);
+  if (i < 0) return ng('周期ドアが選ばれていない');
+  if (!PERIODIC_PERIODS.includes(period)) return ng('period は 2・3・4');
+  if (state.spec.periodic[i].period === period) return ok();
+  const next = clone(state.spec);
+  next.periodic[i].period = period;
+  return commit(state, next);
+}
 
 // keyMode（盤全体）。carry は既定（省略）なのでキーごと消す。かぎ・ドアが1つも無い盤には指定できない（validate）。
 export function setKeyMode(state, mode) {

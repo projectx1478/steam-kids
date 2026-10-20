@@ -53,3 +53,9 @@ test('editor-palette: かぎとドアは別項目。アイコン盤面はそれ�
   assert.deepEqual(iconSpec('keys').keys, [{ x: 0, y: 0, color: 'red' }]);
   assert.deepEqual(iconSpec('doors').doors, [{ x: 0, y: 0, color: 'red' }]);
 });
+
+test('editor-palette: 周期ドアは1項目。アイコン盤面は period 3 が1個', () => {
+  const p = buildPalette(GIMMICKS);
+  assert.deepEqual(p.filter((x) => x.key === 'periodic').map((x) => x.label), ['周期ドア']);
+  assert.deepEqual(iconSpec('periodic').periodic, [{ x: 0, y: 0, period: 3 }]);
+});
