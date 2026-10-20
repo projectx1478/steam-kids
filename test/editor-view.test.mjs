@@ -36,6 +36,10 @@ test('editor-view: EMPTY_SPEC はサイズ内でクリア可（#512）', () => {
   assert.equal((r.messages || []).length, 0);
 });
 
+test('editor-view: EMPTY_SPEC.walls は配列（#514 起動時に renderGrid が walls.map で落ちない）', () => {
+  assert.ok(Array.isArray(EMPTY_SPEC.walls));
+});
+
 test('editor-view: pendingSwitches は targets が空で group も無いスイッチだけ', () => {
   assert.deepEqual(pendingSwitches(SAMPLE_SPEC), []);
   assert.deepEqual(pendingSwitches({ switches: [{ x: 1, y: 2, targets: [] }, { x: 0, y: 0, group: 'g' }, { x: 3, y: 3 }] }), [{ index: 0, x: 1, y: 2 }, { index: 2, x: 3, y: 3 }]);
