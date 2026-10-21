@@ -168,6 +168,8 @@ export default async function run({ page, check }) {
   await p.reload();
   await p.waitForLoadState('load');
   await p.mouse.click(4, 4);
+  await p.waitForTimeout(1500);
+  await check('DIAG', () => p.evaluate(() => JSON.stringify(window.__bgmLog)), '');
   await check('SWキャッシュのみで再生できる', () => hasLog(p, 'play', 'title'), true);
   await check('再生で外部へ音源リクエストを出さない', async () => audioNotFromSw, []);
   await ctx.setOffline(false);
