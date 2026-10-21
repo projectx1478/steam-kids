@@ -193,7 +193,7 @@ test('stage-gen: periodic を指定しない盤は periodic キーを持たず�
   assert.ok(/\|q:/.test(canonicalKey(w)));
 });
 
-// boards の断片（review/design/488/boards）。ok は warps のみ、ng は併用。stageGen の検査に通した結果を確かめる。
+// boards の断片（review/design/488/boards・531/boards）。warps は items・ice 等と併用できる。warps・periodic・water は同時に1種まで（#531）。stageGen の検査に通した結果を確かめる。
 const specOf = (gimmicks) => ({
   ver: 1, stages: 4, grid: { cols: { min: 4, max: 6 }, rows: { min: 4, max: 6 } }, walls: { min: 1, max: 4 },
   gimmicks, teach: 'warps', shortestPath: { min: 4, max: 12 },
@@ -205,13 +205,17 @@ const errorsOf = (gimmicks) => {
 };
 const one = { min: 1, max: 1 };
 
-test('stage-gen: stagegen 検査 warps は単独なら OK、他のギミックとの併用は NG', () => {
+test('stage-gen: stagegen 検査 warps は items・ice 等と併用できる。periodic・water・paint・groupRepeats との併用は NG', () => {
   assert.deepEqual(errorsOf({ warps: { min: 1, max: 2 } }), []);
   assert.deepEqual(errorsOf({ warps: one }), []);
-  for (const other of ['ice', 'keys', 'switches', 'cushion', 'items', 'groupRepeats', 'paint', 'periodic']) {
+  for (const other of ['ice', 'keys', 'switches', 'cushion', 'items']) {
+    assert.deepEqual(errorsOf({ warps: one, [other]: one }), [], `${other} との併用が OK でない`);
+  }
+  for (const other of ['groupRepeats', 'paint', 'periodic', 'water']) {
     assert.ok(errorsOf({ warps: one, [other]: one }).length > 0, `${other} との併用が NG でない`);
   }
-  assert.ok(errorsOf({ warps: one, ice: one }).some((e) => e.includes('warps は単独')));
+  assert.ok(errorsOf({ warps: one, water: one }).some((e) => e === 'stageGen: warps・water は同時に指定できない（warps・periodic・water は1種まで）'));
+  assert.ok(errorsOf({ warps: one, periodic: one, water: one }).some((e) => e.includes('warps・periodic・water は同時に指定できない')));
 });
 
 test('stage-gen: stagegen 検査 warps の個数は 1〜2 の整数。単数形 warp は NG', () => {
@@ -228,11 +232,9 @@ const periodicErrors = (gimmicks, teach = 'periodic') => {
   return errs;
 };
 
-test('stage-gen: stagegen 検査 periodic は単独・1〜2 の整数なら OK。items 併用・範囲外・非整数・別名は NG（各1理由）', () => {
+test('stage-gen: stagegen 検査 periodic は 1〜2 の整数なら OK（items 併用も OK）。範囲外・非整数・別名は NG（各1理由）', () => {
   assert.deepEqual(periodicErrors({ periodic: { min: 1, max: 2 } }), []);
-  const items = periodicErrors({ periodic: { min: 1, max: 2 }, items: { min: 1, max: 2 } });
-  assert.equal(items.length, 1);
-  assert.ok(items[0].includes('periodic は単独'));
+  assert.deepEqual(periodicErrors({ periodic: { min: 1, max: 2 }, items: { min: 1, max: 2 } }), []);
   for (const bad of [{ min: 0, max: 2 }, { min: 1, max: 3 }, { min: 1.5, max: 2 }]) {
     const e = periodicErrors({ periodic: bad });
     assert.equal(e.length, 1, JSON.stringify(bad));
@@ -267,7 +269,7 @@ test('stage-gen: stagegen 検査 paint は単独・4〜8 の整数なら OK。�
   assert.deepEqual(paintErrors({ paint: { min: 4, max: 8 } }), []);
   for (const other of ['items', 'ice', 'keys', 'switches', 'cushion', 'warps', 'periodic']) {
     const e = paintErrors({ paint: { min: 4, max: 6 }, [other]: one });
-    assert.ok(e.some((m) => m.includes('paint は単独')), `${other} との併用`); // warps・periodic 同士は双方の文言が出る
+    assert.ok(e.some((m) => m.includes('paint は単独')), `${other} との併用`);
   }
   // groupRepeats・repeatBox は gimmicks の未対応キー（併用すると未対応で NG）
   for (const other of ['groupRepeats', 'repeatBox']) {
@@ -316,13 +318,17 @@ const waterErrors = (gimmicks, teach = 'water', extra = {}) => {
   return errs;
 };
 
-test('stage-gen: stagegen 検査 water は単独・2〜8 の整数なら OK。他ギミック併用・範囲外・非整数・別名・waterMode は NG', () => {
+test('stage-gen: stagegen 検査 water は 2〜8 の整数なら OK（items・ice 等との併用も OK）。warps・periodic・paint 併用・範囲外・非整数・別名・waterMode は NG', () => {
   assert.deepEqual(waterErrors({ water: { min: 2, max: 4 } }), []);
   assert.deepEqual(waterErrors({ water: { min: 2, max: 8 } }), []);
-  for (const other of ['items', 'ice', 'keys', 'switches', 'cushion', 'warps', 'periodic', 'paint']) {
-    const e = waterErrors({ water: { min: 2, max: 4 }, [other]: one });
-    assert.ok(e.some((m) => m.includes('water は単独')), `${other} との併用`);
+  for (const other of ['items', 'ice', 'keys', 'switches', 'cushion']) {
+    assert.deepEqual(waterErrors({ water: { min: 2, max: 4 }, [other]: one }), [], `${other} との併用`);
   }
+  for (const other of ['warps', 'periodic']) {
+    const e = waterErrors({ water: { min: 2, max: 4 }, [other]: one });
+    assert.ok(e.some((m) => m.includes('は同時に指定できない（warps・periodic・water は1種まで）')), `${other} との併用`);
+  }
+  assert.ok(waterErrors({ water: { min: 2, max: 4 }, paint: { min: 4, max: 6 } }).some((m) => m.includes('paint は単独')));
   // groupRepeats・repeatBox は gimmicks の未対応キー（併用すると未対応で NG）
   for (const other of ['groupRepeats', 'repeatBox']) {
     assert.ok(waterErrors({ water: { min: 2, max: 4 }, [other]: one }).length > 0, other);

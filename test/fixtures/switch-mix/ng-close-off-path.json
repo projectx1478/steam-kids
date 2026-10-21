@@ -1,0 +1,1 @@
+{"stepId":"p1","kind":"play","text":"board","allowedCommands":["up","down","left","right"],"maxCommands":9,"grid":{"cols":6,"rows":3},"start":{"x":0,"y":2},"goal":{"x":5,"y":0},"walls":[{"x":2,"y":1},{"x":2,"y":2}],"switches":[{"x":0,"y":0,"mode":"open","targets":[{"x":2,"y":0}]},{"x":5,"y":2,"mode":"close","targets":[{"x":4,"y":0}]}]}

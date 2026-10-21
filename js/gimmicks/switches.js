@@ -1,6 +1,6 @@
 // switches（スイッチ）ギミック：スイッチのマスへ入ると対応する切替壁が消えて通れる。
 // 同じ対象を複数のスイッチが持つと全部踏むまで開かない（AND）。1回で固定（戻らない）。消える代わりに壁が沈み込んで床に埋まる（Issue #168）。踏む前の切替壁は壁と同じ通行不可（当たると失敗）。Issue #63。
-// mode:"close"（Issue #149）は逆に、踏むと対象に壁が出る（初期は床。出た壁は通行不可）。closeは単独で使う。
+// mode:"close"（Issue #149）は逆に、踏むと対象に壁が出る（初期は床。出た壁は通行不可）。mode は混在してよい（Issue #530。どれか1つが壁なら壁）。
 import { mark } from './keys.js';
 
 const keyOf = (p) => `${p.x},${p.y}`;
@@ -131,6 +131,17 @@ function raiseWall(cell, colors) {
 
 const fromHtml = (html) => Object.assign(document.createElement('template'), { innerHTML: html }).content.firstElementChild;
 
+// toggleの対象か（沈んだ壁に点線の輪郭を残す。Issue #388）。
+const isToggleTarget = (spec, t) => list(spec.switches).some((s) => s.mode === 'toggle' && list(s.targets).some((u) => u.x === t.x && u.y === t.y));
+
+// 切替壁の判定（Issue #530）。blocks・onStep・初期描画が共有する唯一の述語。mode が混在しても「どれか1つが壁なら壁」。
+// has(i)＝i番のスイッチが（toggleは奇数回）踏まれているか。open：踏む前が壁。close：踏んだ後が壁。toggle：踏んだ状態と初期（targets[].initial。省略はclosed＝壁）の入れ替え。
+export function isWallAt(has, spec, pos) {
+  return list(spec.switches).some((s, i) =>
+    list(s.targets).some((t) => t.x === pos.x && t.y === pos.y && has(i) === (s.mode === 'toggle' ? t.initial === 'open' : s.mode === 'close'))
+  );
+}
+
 export const switches = {
   key: 'switches',
   label: 'スイッチ・切替壁',
@@ -162,11 +173,7 @@ export const switches = {
   // open：踏む前の対象が壁。close：踏んだ後の対象が壁（Issue #149）。
   // toggle：奇数回踏んだ状態と初期（targets[].initial。省略はclosed＝壁）の入れ替え。壁＝（奇数回か）と（初期がopenか）が一致（Issue #388）。
   blocks(state, pos, spec) {
-    return list(spec.switches).some((s, i) =>
-      list(s.targets).some(
-        (t) => t.x === pos.x && t.y === pos.y && state.pressed.includes(i) === (s.mode === 'toggle' ? t.initial === 'open' : s.mode === 'close')
-      )
-    );
+    return isWallAt((i) => state.pressed.includes(i), spec, pos);
   },
 
   // 解法関与チェック用。このギミックを除いた盤面specを返す（Issue #371）。
@@ -177,70 +184,42 @@ export const switches = {
   onStep({ pos, spec, view, run }) {
     const i = list(spec.switches).findIndex((s) => s.x === pos.x && s.y === pos.y);
     run.pressed ??= new Set();
-    if (i >= 0 && spec.switches[i].mode === 'toggle') {
-      // toggleは入るたびに入れ替える（Issue #388）。奇数回でレバーが右に倒れ・偶数回で直立に戻り、壁は浮き沈みする。
-      if (run.pressed.has(i)) run.pressed.delete(i);
-      else run.pressed.add(i);
-      const els = view.gimmickEls?.switches;
-      const sw = spec.switches[i];
-      const swCell = els?.switchCells.get(keyOf(sw));
-      if (swCell) {
-        swCell.dataset.switchPressed = String(run.pressed.has(i));
-        swCell.querySelector('.grid-switch-svg')?.replaceWith(fromHtml(switchSvg(run.pressed.has(i), switchColor(sw, i))));
-      }
-      list(sw.targets).forEach((t) => {
-        const cell = els?.wallCells.get(keyOf(t));
-        if (!cell) return;
-        // 前のアニメが残っていれば最終状態に揃えてから次を始める（連続タップ・滑走で重ならない）。
-        cell.getAnimations?.({ subtree: true }).forEach((a) => a.finish());
-        const on = run.pressed.has(i) === (t.initial === 'open');
-        cell.dataset.switchWall = on ? 'on' : 'off';
-        if (on) {
-          const colors = wallColors(spec.switches, t);
-          if (colors.length > 0) {
-            cell.dataset.color = colors[0];
-            cell.dataset.mark = markName(colors[0]);
-          }
-          raiseWall(cell, colors);
-        } else {
-          delete cell.dataset.color;
-          delete cell.dataset.mark;
-          sinkWall(cell, true);
-        }
-      });
-      return 'wallSink';
-    }
-    if (i < 0 || run.pressed.has(i)) return undefined;
-    run.pressed.add(i);
-    const els = view.gimmickEls?.switches;
+    if (i < 0) return undefined;
     const sw = spec.switches[i];
+    const toggle = sw.mode === 'toggle';
+    if (!toggle && run.pressed.has(i)) return undefined;
+    const before = new Set(run.pressed);
+    // toggleは入るたびに入れ替える（Issue #388）。奇数回でレバーが右に倒れ・偶数回で直立に戻る。
+    if (toggle && run.pressed.has(i)) run.pressed.delete(i);
+    else run.pressed.add(i);
+    const els = view.gimmickEls?.switches;
     const swCell = els?.switchCells.get(keyOf(sw));
     if (swCell) {
-      swCell.dataset.switchPressed = 'true';
-      swCell.querySelector('.grid-switch-svg')?.replaceWith(fromHtml(switchSvg(true, switchColor(sw, i))));
+      swCell.dataset.switchPressed = String(run.pressed.has(i));
+      swCell.querySelector('.grid-switch-svg')?.replaceWith(fromHtml(switchSvg(run.pressed.has(i), switchColor(sw, i))));
     }
+    // 壁は判定（isWallAt）で再計算し、踏む前後で変わったマスだけ浮き沈みさせる（Issue #530。mode が混在しても見た目と判定が一致する）。
     list(sw.targets).forEach((t) => {
-      if (sw.mode === 'close') {
-        // 壁が出る：床の表示から壁の表示へ差し替える（Issue #149）。
-        const cell = els?.wallCells.get(keyOf(t));
-        if (!cell) return;
-        cell.dataset.switchWall = 'on';
+      const was = isWallAt((j) => before.has(j), spec, t);
+      const now = isWallAt((j) => run.pressed.has(j), spec, t);
+      if (was === now) return;
+      const cell = els?.wallCells.get(keyOf(t));
+      if (!cell) return;
+      // 前のアニメが残っていれば最終状態に揃えてから次を始める（連続タップ・滑走で重ならない）。
+      cell.getAnimations?.({ subtree: true }).forEach((a) => a.finish());
+      cell.dataset.switchWall = now ? 'on' : 'off';
+      if (now) {
         const colors = wallColors(spec.switches, t);
         if (colors.length > 0) {
           cell.dataset.color = colors[0];
           cell.dataset.mark = markName(colors[0]);
         }
         raiseWall(cell, colors);
-        return;
+      } else {
+        delete cell.dataset.color;
+        delete cell.dataset.mark;
+        sinkWall(cell, isToggleTarget(spec, t));
       }
-      // 同じ対象を持つスイッチ（AND）が未踏なら、まだ開かない（blocksと同じ規則）。
-      if (list(spec.switches).some((o, j) => !run.pressed.has(j) && list(o.targets).some((u) => u.x === t.x && u.y === t.y))) return;
-      const cell = els?.wallCells.get(keyOf(t));
-      if (!cell) return;
-      cell.dataset.switchWall = 'off';
-      delete cell.dataset.color;
-      delete cell.dataset.mark;
-      sinkWall(cell);
     });
     return 'wallSink';
   },
@@ -272,7 +251,6 @@ export const switches = {
         else if (t.initial !== 'closed' && t.initial !== 'open') add('盤面の妥当性', `${label}switches[${i}].targets[${j}] のinitial=${JSON.stringify(t.initial)} が不正（"closed"か"open"）`);
       });
       if (s.mode === 'toggle') {
-        if (swList.some((o) => o.mode !== 'toggle')) add('盤面の妥当性', `${label}switches[${i}] のtoggle は他のmode（open・close）と併用できない`);
         const mine = list(s.targets);
         swList.forEach((o, j) => {
           if (j !== i && list(o.targets).some((u) => mine.some((t) => t.x === u.x && t.y === u.y))) add('盤面の妥当性', `${label}switches[${i}] のtoggle は他のスイッチと対象を共有できない`);
@@ -282,7 +260,6 @@ export const switches = {
       }
       // closeは初版では単独（openとの併用・複数スイッチによる対象の共有=ANDは不可。Issue #149）。
       if (s.mode === 'close') {
-        if (swList.some((o) => (o.mode ?? 'open') !== 'close')) add('盤面の妥当性', `${label}switches[${i}] のclose はopenと併用できない`);
         const mine = list(s.targets);
         swList.forEach((o, j) => {
           if (j > i && list(o.targets).some((u) => mine.some((t) => t.x === u.x && t.y === u.y))) add('盤面の妥当性', `${label}switches[${i}] のclose は他のスイッチと対象を共有できない（AND不可）`);
@@ -335,15 +312,15 @@ export const switches = {
       list(s.targets).forEach((t) => {
         const wall = cellAt(t);
         if (!wall || wallCells.has(keyOf(t))) return;
-        const toggle = s.mode === 'toggle';
-        const closing = s.mode === 'close' || (toggle && t.initial === 'open');
-        wall.dataset.switchWall = closing ? 'off' : 'on';
+        // 初期の壁は判定（isWallAt）と同じ述語で決める（Issue #530）。
+        const on = isWallAt(() => false, { switches: swList }, t);
+        wall.dataset.switchWall = on ? 'on' : 'off';
         const colors = wallColors(swList, t);
-        if (!closing && colors.length > 0) {
+        if (on && colors.length > 0) {
           wall.dataset.color = colors[0];
           wall.dataset.mark = markName(colors[0]);
         }
-        wall.insertAdjacentHTML('afterbegin', wallSvg(!closing, colors, toggle));
+        wall.insertAdjacentHTML('afterbegin', wallSvg(on, colors, isToggleTarget({ switches: swList }, t)));
         wallCells.set(keyOf(t), wall);
       });
     });

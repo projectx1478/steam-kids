@@ -7,9 +7,11 @@ const SG_KEYS = ['ver', 'stages', 'keepHandwritten', 'grid', 'walls', 'gimmicks'
 const SG_GIMMICK_RANGES = { items: [1, 4], ice: [1, 4], keys: [1, 2], cushion: [1, 4], switches: [1, 2], warps: [1, 2], periodic: [1, 2], paint: [4, 8], water: [2, 8] };
 
 // 他のギミックと併用できない（単独で指定する）ギミック。要素を足せば同じ検査が働く。
-export const SG_SOLO_GIMMICKS = ['warps', 'periodic', 'paint', 'water'];
+export const SG_SOLO_GIMMICKS = ['paint'];
+// 同時に1種までしか指定できないギミック（他の items・ice 等とは併用できる。#531）。
+export const SG_ONE_OF_GIMMICKS = ['warps', 'periodic', 'water'];
 
-function checkStageGen(data, steps, add, soloGimmicks = SG_SOLO_GIMMICKS) {
+function checkStageGen(data, steps, add, soloGimmicks = SG_SOLO_GIMMICKS, oneOfGimmicks = SG_ONE_OF_GIMMICKS) {
   const sg = data.stageGen;
   const label = 'stageGen';
   const unknown = (obj, allowed, where) => {
@@ -78,6 +80,8 @@ function checkStageGen(data, steps, add, soloGimmicks = SG_SOLO_GIMMICKS) {
           const others = Object.keys(gim).filter((k) => k !== solo);
           if (others.length > 0) add(label, `${solo} は単独で指定する（${others.join('・')} と併用できない）`);
         }
+        const oneOfOn = oneOfGimmicks.filter((k) => k in gim);
+        if (oneOfOn.length > 1) add(label, `${oneOfOn.join('・')} は同時に指定できない（${oneOfGimmicks.join('・')} は1種まで）`);
         if (sg.teach === 'cushion' && !(isObj(gim.ice) && isInt(gim.ice.max) && gim.ice.max >= 1)) add(label, 'teach=cushion には gimmicks.ice（最大1以上）の併用が必要');
       }
       range(sg.shortestPath, 2, 60, 'shortestPath');

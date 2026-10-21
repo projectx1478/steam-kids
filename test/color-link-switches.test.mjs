@@ -61,7 +61,8 @@ for (const k of 'abcdefghi') {
     assert.deepEqual(r.errors, []);
     assert.equal(r.groupNg, false);
   });
-  test(`validate 検査(${k}): fail 盤は (${k}) の NG（理由は1つ）`, () => {
+  // 検査(d)（group と close・toggle の併用禁止）は #530 で解除した。(d) の fail 盤は下の専用テストで扱う。
+  if (k !== 'd') test(`validate 検査(${k}): fail 盤は (${k}) の NG（理由は1つ）`, () => {
     const r = run(load(`v-${k}-fail`));
     assert.equal(r.groupNg, true, JSON.stringify(r.errors));
     assert.equal(r.errors.length, k === 'h' ? 2 : 1, JSON.stringify(r.errors));
@@ -69,6 +70,14 @@ for (const k of 'abcdefghi') {
     assert.equal(r.errors.some((e) => /スイッチの必須性|スイッチの罠の意味|トグルの意味|スイッチ→かぎ/.test(e)), false, JSON.stringify(r.errors));
   });
 }
+
+test('validate 検査(d)（#530 で解除）: group と mode:close の併用は group の検査を通り、残る NG は罠の意味の1件だけ', () => {
+  const r = run(load('v-d-fail'));
+  assert.equal(r.groupNg, false, JSON.stringify(r.errors));
+  assert.equal(r.boardErrors, 0, JSON.stringify(r.errors));
+  assert.equal(r.errors.length, 1, JSON.stringify(r.errors));
+  assert.match(r.errors[0], /スイッチの罠の意味/);
+});
 
 test('validate 検査(e): groupWalls が周期ドア・paint と重なると NG（理由は(e)の1件だけ）', () => {
   const r = run(load('v-e-periodic-fail'));
