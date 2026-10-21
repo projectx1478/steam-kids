@@ -262,8 +262,7 @@ export const switches = {
       if (s.mode === 'close') {
         const mine = list(s.targets);
         swList.forEach((o, j) => {
-          // 後ろのスイッチとは必ず、前のスイッチとは（closeどうしは前側で報告済みなので）close以外のときだけ比べる。
-          if ((j > i || o.mode !== 'close') && j !== i && list(o.targets).some((u) => mine.some((t) => t.x === u.x && t.y === u.y))) add('盤面の妥当性', `${label}switches[${i}] のclose は他のスイッチと対象を共有できない（AND不可）`);
+          if (j > i && list(o.targets).some((u) => mine.some((t) => t.x === u.x && t.y === u.y))) add('盤面の妥当性', `${label}switches[${i}] のclose は他のスイッチと対象を共有できない（AND不可）`);
         });
       }
       if (typeof s.group !== 'string' && (!Array.isArray(s.targets) || s.targets.length === 0)) add('盤面の妥当性', `${label}switches[${i}] のtargetsが空`);

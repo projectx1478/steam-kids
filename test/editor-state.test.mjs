@@ -359,20 +359,21 @@ test('editor-state: 壁のタップで targets をトグル（1手ずつ history
   assert.equal(toggleTarget(s, 3, 1, 3, 0).ok, false); // スイッチが無い
 });
 
-test('editor-state: close と open の併用禁止はグレー・拒否。close の盤は validate を通る／併用は落ちる', () => {
+test('editor-state: close と open は併用できる（#530）。close は対象を共有できない。close の盤は validate を通る', () => {
   const s = createState({ grid: { cols: 5, rows: 3 }, start: { x: 0, y: 0 }, goal: { x: 4, y: 0 }, walls: [] });
   place(s, 'switches', 1, 0);
   place(s, 'switches', 1, 2); // 選択を外して2つ目
-  assert.deepEqual(switchModeOptions(s.spec, 1).map((o) => o.disabled), [false, true, true]); // 相手が open → close・toggle はグレー
-  assert.equal(setSwitchMode(s, 1, 2, 'close').ok, false);
-  assert.equal(setSwitchMode(s, 1, 0, 'close').ok, false);
+  assert.deepEqual(switchModeOptions(s.spec, 1).map((o) => o.disabled), [false, false, false]); // 相手が open でも close・toggle を選べる
   assert.equal(setSwitchMode(s, 1, 2, 'bogus').ok, false);
-  // 併用の盤は validate が落とす（正本）
+  assert.equal(setSwitchMode(s, 1, 2, 'close').ok, true);
+  assert.equal(s.spec.switches[1].mode, 'close');
+  assert.equal(setSwitchMode(s, 1, 2, 'open').ok, true); // 混在から戻せる
+  // 混在の盤は validate の mode 併用では落ちない
   const both = JSON.parse(JSON.stringify(s.spec));
   both.switches[0].mode = 'close';
   both.switches[0].targets = [{ x: 2, y: 0 }];
   both.switches[1].targets = [{ x: 2, y: 2 }];
-  assert.ok(line(both).messages.some((m) => m.includes('併用できない')));
+  assert.ok(!line(both).messages.some((m) => m.includes('併用できない')));
   // 1つだけなら close にできる
   const t = createState({ grid: { cols: 5, rows: 1 }, start: { x: 0, y: 0 }, goal: { x: 4, y: 0 }, walls: [] });
   place(t, 'switches', 1, 0);
@@ -381,7 +382,8 @@ test('editor-state: close と open の併用禁止はグレー・拒否。close 
   assert.equal(t.spec.switches[0].mode, 'close');
   assert.equal(place(t, 'switches', 2, 0).ok, true); // 新しいスイッチは close を引き継ぐ
   assert.equal(t.spec.switches[1].mode, 'close');
-  assert.equal(setSwitchMode(t, 1, 0, 'open').ok, false);
+  assert.equal(setSwitchMode(t, 1, 0, 'open').ok, true); // 混在になっても open へ変えられる
+  assert.equal(setSwitchMode(t, 1, 0, 'close').ok, true);
   assert.equal(toggleTarget(t, 2, 0, 3, 0).ok, false); // close は対象を共有できない
   assert.equal(setSwitchColor(t, 1, 0, 'red').ok, true);
   assert.equal(t.spec.switches[0].color, 'red');
@@ -461,7 +463,7 @@ test('editor-state(group): place(groupWalls)・erase・move と、スイッチ�
   assert.equal('switches' in s.spec, false);
 });
 
-test('editor-state(group): 併用禁止（close・toggle・targets・同じ group）は拒否。state は変わらない', () => {
+test('editor-state(group): 併用禁止（targets・同じ group）は拒否。state は変わらない。close・toggle との併用は許可（#530）', () => {
   const s = gboard();
   place(s, 'switches', 1, 0);
   place(s, 'switches', 3, 0);
@@ -469,7 +471,6 @@ test('editor-state(group): 併用禁止（close・toggle・targets・同じ grou
   assert.equal(setSwitchGroup(s, 3, 0, 'a').ok, false); // 同じ group は1スイッチだけ
   assert.equal(setSwitchGroup(s, 3, 0, 'bogus').ok, false);
   assert.equal(setSwitchGroup(s, 4, 1, 'b').ok, false); // スイッチが無い
-  assert.equal(setSwitchMode(s, 1, 0, 'close').ok, false); // group と close
   const before = snap(s.spec);
   toggleTarget(s, 3, 0, 2, 0); // 3,0 は targets 方式
   assert.equal(setSwitchGroup(s, 3, 0, 'b').ok, false); // targets と group
@@ -479,14 +480,16 @@ test('editor-state(group): 併用禁止（close・toggle・targets・同じ grou
   const t = gboard();
   place(t, 'switches', 1, 0);
   setSwitchMode(t, 1, 0, 'close');
-  assert.equal(setSwitchGroup(t, 1, 0, 'a').ok, false); // close と group
-  assert.equal('group' in t.spec.switches[0], false);
+  assert.equal(setSwitchGroup(t, 1, 0, 'a').ok, true); // close と group は併用できる
+  assert.equal(t.spec.switches[0].group, 'a');
+  assert.equal(setSwitchMode(t, 1, 0, 'open').ok, true);
+  assert.equal(setSwitchMode(t, 1, 0, 'close').ok, true); // group を付けたまま mode を変えられる
   const m = gboard();
   m.spec.switches = [{ x: 1, y: 0, mode: 'toggle', color: 'blue', targets: [] }];
-  assert.equal(setSwitchGroup(m, 1, 0, 'a').ok, false);
-  // 併用した盤は validate も落ちる
+  assert.equal(setSwitchGroup(m, 1, 0, 'a').ok, true); // toggle と group も併用できる
+  // targets と group の併用は validate も落ちる
   const bad = snap(s.spec);
-  bad.switches[0].mode = 'close';
+  bad.switches[0].targets = [{ x: 2, y: 0 }];
   bad.groupWalls = [{ x: 2, y: 0, group: 'a' }];
   assert.equal(line(bad).clearable, false);
   assert.ok(line(bad).messages.length > 0);
@@ -533,36 +536,31 @@ test('editor-state(toggle): mode を toggle にして壁を複数つなぎ、壁
   assert.equal(s.spec.switches[0].mode, 'toggle');
 });
 
-test('editor-state(toggle): 他の mode との併用は拒否（state は変わらない）。validate も落ちる', () => {
+test('editor-state(toggle): 他の mode と併用できる（#530）。toggle は対象を共有できない。validate も mode 併用では落とさない', () => {
   const s = row();
   place(s, 'switches', 1, 0);
   place(s, 'switches', 3, 0);
-  const before = snap(s.spec);
-  assert.equal(setSwitchMode(s, 1, 0, 'toggle').ok, false); // 相手が open
-  assert.equal(setSwitchMode(s, 1, 0, 'toggle').reason.includes('併用'), true);
-  assert.deepEqual(s.spec, before);
+  assert.equal(setSwitchMode(s, 1, 0, 'toggle').ok, true); // 相手が open でも toggle にできる
+  assert.equal(s.spec.switches[0].mode, 'toggle');
   const t = row();
   place(t, 'switches', 1, 0);
   setSwitchMode(t, 1, 0, 'toggle');
   place(t, 'switches', 3, 0); // 2つ目は先のスイッチと同じ mode（toggle）で置く
   assert.equal(t.spec.switches[1].mode, 'toggle');
-  assert.equal(setSwitchMode(t, 3, 0, 'close').ok, false); // toggle と close
-  assert.equal(setSwitchMode(t, 3, 0, 'open').ok, false);
+  assert.equal(setSwitchMode(t, 3, 0, 'close').ok, true); // toggle と close
+  assert.equal(setSwitchMode(t, 3, 0, 'open').ok, true);
   assert.equal(toggleTarget(t, 1, 0, 2, 0).ok, true);
-  assert.equal(toggleTarget(t, 3, 0, 2, 0).ok, false); // toggle は対象を共有できない
-  const bad = snap(t.spec);
-  bad.switches[1].mode = 'open';
-  const r = line(bad);
-  assert.equal(r.clearable, false);
-  assert.ok(r.messages.some((m) => m.includes('併用できない')));
+  assert.equal(toggleTarget(t, 3, 0, 2, 0).ok, false); // toggle は対象を共有できない（相手が open でも）
+  const mixed = snap(t.spec);
+  assert.ok(!line(mixed).messages.some((m) => m.includes('併用できない')));
   const g = row();
   place(g, 'switches', 1, 0);
   setSwitchGroup(g, 1, 0, 'a');
-  assert.equal(setSwitchMode(g, 1, 0, 'toggle').ok, false); // group と toggle
+  assert.equal(setSwitchMode(g, 1, 0, 'toggle').ok, true); // group と toggle
   const h = row();
   place(h, 'switches', 1, 0);
   setSwitchMode(h, 1, 0, 'toggle');
-  assert.equal(setSwitchGroup(h, 1, 0, 'a').ok, false);
+  assert.equal(setSwitchGroup(h, 1, 0, 'a').ok, true);
 });
 
 test('editor-state(toggle): 氷・クッションの上には置けない・動かせない・変えられない。validate も落ちる', () => {
