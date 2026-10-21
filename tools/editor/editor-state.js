@@ -443,7 +443,7 @@ function dropGroupWalls(spec, group) {
   if (spec.groupWalls.length === 0) delete spec.groupWalls;
 }
 
-// group を選ぶ（'' か null は「なし」）。グレーの選択肢（switchGroupOptions の disabled）は選べない＝close・toggle と targets のある間は併用不可、同じ group は1スイッチだけ。
+// group を選ぶ（'' か null は「なし」）。グレーの選択肢（switchGroupOptions の disabled）は選べない＝targets のある間は併用不可、同じ group は1スイッチだけ。
 // 「なし」に戻すと、その group の壁は床に戻り、スイッチは接続待ち（targets 空）になる。別の group へ変えると壁も付いていく。
 export function setSwitchGroup(state, sx, sy, group) {
   const i = findSwitch(state.spec, sx, sy);
