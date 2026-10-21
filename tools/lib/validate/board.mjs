@@ -86,6 +86,7 @@ function checkWarps(board, add, label) {
     ['start', board.start ? [board.start] : []],
     ['goal', board.goal ? [board.goal] : []],
     ['items', list(board.items)],
+    ['ice', list(board.ice)],
     ['cushion', list(board.cushion)],
     ['water', list(board.water)],
     ['bridge', list(board.bridge)],
@@ -94,6 +95,7 @@ function checkWarps(board, add, label) {
     ['switches', list(board.switches)],
     ['switchesのtargets', list(board.switches).flatMap((s) => list(s?.targets))],
     ['groupWalls', list(board.groupWalls)],
+    ['periodic', list(board.periodic)],
   ].map(([name, pts]) => [name, new Set(pts.filter(isInt2).map(keyOf))]);
   board.warps.forEach((w, i) => {
     if (!isInt2(w) || !inGrid(grid, w)) {
@@ -110,9 +112,6 @@ function checkWarps(board, add, label) {
   counts.forEach((n, pair) => {
     if (n !== 2) bad(`warps の pair=${pair} が${n}個ある（ちょうど2個）`);
   });
-  for (const field of ['ice', 'paint', 'periodic']) {
-    if (list(board[field]).length > 0) bad(`warps は${field}と併用できない`);
-  }
 }
 
 // play/tutorialに共通の盤面検証（allowedCommands・座標範囲・start/goal・壁重なり・item重複）。

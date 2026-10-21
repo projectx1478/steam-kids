@@ -78,7 +78,7 @@ export const paint = {
     return undefined;
   },
 
-  // 盤面の妥当性。目標は盤内・壁と重ならず、startとgoalを含む。paint単独（かべ以外のギミックと併用不可）。盤面の大きさの上限は盤面共通（20×20）。
+  // 盤面の妥当性。目標は盤内・壁・水・氷と重ならず、startとgoalを含む。他ギミックとは併用できる（Issue #529）。盤面の大きさの上限は盤面共通（20×20）。
   validate(board, add, label) {
     if (board.paint === undefined) return;
     if (!Array.isArray(board.paint) || board.paint.length === 0) {
@@ -86,12 +86,9 @@ export const paint = {
       return;
     }
     const grid = board.grid || {};
-    for (const field of ['items', 'ice', 'cushion', 'warps', 'keys', 'doors', 'switches', 'periodic']) {
-      if (list(board[field]).length > 0) add('盤面の妥当性', `${label}paint は${field}と併用できない（paint単独。かべのみ可）`);
-    }
-    if (board.repeatBox === true || board.groupRepeats === true) add('盤面の妥当性', `${label}paint は repeatBox・groupRepeats と併用できない（4方向のみ）`);
     const walls = new Set(list(board.walls).map(keyOf));
     const waterCells = new Set(list(board.water).map(keyOf));
+    const iceCells = new Set(list(board.ice).map(keyOf));
     const seen = new Set();
     board.paint.forEach((c, i) => {
       if (!c || typeof c.x !== 'number' || typeof c.y !== 'number') {
@@ -101,6 +98,7 @@ export const paint = {
       if (c.x < 0 || c.x >= grid.cols || c.y < 0 || c.y >= grid.rows) add('座標範囲', `${label}paint[${i}]=${JSON.stringify(c)} が盤外`);
       if (walls.has(keyOf(c))) add('盤面の妥当性', `${label}paint[${i}] が壁と重なる`);
       if (waterCells.has(keyOf(c))) add('盤面の妥当性', `${label}paint[${i}] が水と重なる`);
+      if (iceCells.has(keyOf(c))) add('盤面の妥当性', `${label}paint[${i}] が氷と重なる`);
       if (seen.has(keyOf(c))) add('盤面の妥当性', `${label}paint[${i}] が他のpaintと座標重複`);
       seen.add(keyOf(c));
     });

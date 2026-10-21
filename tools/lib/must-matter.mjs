@@ -9,6 +9,14 @@ function shortest(play, spec) {
   return play.groupRepeats ? shortestChips(spec) : shortestSteps(spec);
 }
 
+// 壁にしたマス（ドア・ワープの穴）は通れないので、ぬりの目標に残すと外した盤が解けず「必須」と誤判定する
+// （偽の合格）。壁にしたマスを目標から除いた paint を返す。氷はぬりの目標と重ねられない（validate）ので対象外。
+function paintWithout(play, cells) {
+  if (!Array.isArray(play.paint) || play.paint.length === 0) return play.paint;
+  const wall = new Set(cells.map(({ x, y }) => `${x},${y}`));
+  return play.paint.filter(({ x, y }) => !wall.has(`${x},${y}`));
+}
+
 // 氷を壁扱いにしても到達できるなら、氷を踏まずにクリアできてしまう。
 export function iceMustMatter(play) {
   if (!(Array.isArray(play.ice) && play.ice.length > 0)) return { matters: true, dist: null };
@@ -20,7 +28,7 @@ export function iceMustMatter(play) {
 // ワープの穴を壁扱いにしても到達できるなら、ワープを使わずにクリアできてしまう（ワープが飾り）。氷と同形。
 export function warpsMustMatter(play) {
   if (!(Array.isArray(play.warps) && play.warps.length > 0)) return { matters: true, dist: null };
-  const noWarp = boardSpec({ ...play, walls: [...(play.walls || []), ...play.warps.map(({ x, y }) => ({ x, y }))], warps: [] });
+  const noWarp = boardSpec({ ...play, walls: [...(play.walls || []), ...play.warps.map(({ x, y }) => ({ x, y }))], warps: [], paint: paintWithout(play, play.warps) });
   const dist = shortest(play, noWarp);
   return { matters: !(dist <= play.maxCommands), dist };
 }
@@ -28,7 +36,7 @@ export function warpsMustMatter(play) {
 // ドアは壁扱いにしても到達できるなら、かぎを取らずにクリアできてしまう（ドアが飾り）。
 export function keysMustMatter(play) {
   if (!(Array.isArray(play.doors) && play.doors.length > 0)) return { matters: true, dist: null };
-  const noDoor = boardSpec({ ...play, walls: [...(play.walls || []), ...play.doors], doors: [], keys: [] });
+  const noDoor = boardSpec({ ...play, walls: [...(play.walls || []), ...play.doors], doors: [], keys: [], paint: paintWithout(play, play.doors) });
   const dist = shortest(play, noDoor);
   return { matters: !(dist <= play.maxCommands), dist };
 }
@@ -46,7 +54,7 @@ export function periodicMustMatter(play, dist) {
 // dist が null、または paint が無いときは判定しない。
 export function paintMustMatter(play, dist) {
   if (dist === null || !(Array.isArray(play.paint) && play.paint.length > 0)) return { matters: true, dist: null };
-  const noPaintDist = shortestSteps(boardSpec({ ...play, paint: [] }));
+  const noPaintDist = shortest(play, boardSpec({ ...play, paint: [] }));
   return { matters: dist > noPaintDist, dist: noPaintDist };
 }
 
