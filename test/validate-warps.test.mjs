@@ -1,4 +1,4 @@
-// validate-lessons: ワープ(warps)の検査（形式・範囲・pair・重なり・併用禁止・単数形warp・必須性・手数）(Issue #64 段3)。
+// validate-lessons: ワープ(warps)の検査（形式・範囲・pair・重なり・単数形warp・必須性・手数）(Issue #64 段3)。
 // リポジトリ直下で実行すること。盤は review/design/64/boards の ok-*/ng-* と同じ内容をここに持つ。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -77,9 +77,8 @@ test('validate-lessons: ワープの追加の不合格盤（盤外・重複・st
     ['start上', (p) => { p.warps[0] = { x: 0, y: 0, pair: 1 }; }, 'startと重なる'],
     ['items上', (p) => { p.items = [{ x: 1, y: 2 }]; }, 'itemsと重なる'],
     ['keys上', (p) => { p.keys = [{ x: 3, y: 2, color: 'red' }]; }, 'keysと重なる'],
-    ['ice併用', (p) => { p.ice = [{ x: 0, y: 3 }]; }, 'iceと併用できない'],
-    ['paint併用', (p) => { p.paint = [{ x: 0, y: 0 }]; }, 'paintと併用できない'],
-    ['periodic併用', (p) => { p.periodic = [{ x: 0, y: 3, period: 2, open: 1 }]; }, 'periodicと併用できない'],
+    ['ice上', (p) => { p.ice = [{ x: 1, y: 2 }]; }, 'iceと重なる'],
+    ['periodic上', (p) => { p.periodic = [{ x: 3, y: 2, period: 2 }]; }, 'periodicと重なる'],
     ['pair=0', (p) => { p.warps = p.warps.map((w) => ({ ...w, pair: 0 })); }, 'pair=0'],
     ['pair=3', (p) => { p.warps = p.warps.map((w) => ({ ...w, pair: 3 })); }, 'pair=3'],
     ['pair=文字列', (p) => { p.warps = p.warps.map((w) => ({ ...w, pair: '1' })); }, 'pair="1"'],

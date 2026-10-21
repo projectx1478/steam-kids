@@ -166,7 +166,7 @@ export const periodic = {
   },
 
   // 盤面の妥当性。形（period 2〜4・openフィールドは廃止）、他要素との重なり、
-  // paint・repeatBox・groupRepeatsとの併用禁止。必須性（常に開とみなした盤の最短）はtools/validate-lessons.mjsのplay側。
+  // repeatBoxとの併用禁止。必須性（常に開とみなした盤の最短）はtools/validate-lessons.mjsのplay側。
   validate(board, add, label) {
     if (board.periodic === undefined) return;
     if (!Array.isArray(board.periodic) || board.periodic.length === 0) {
@@ -174,10 +174,9 @@ export const periodic = {
       return;
     }
     const grid = board.grid || {};
-    if (list(board.paint).length > 0) add('盤面の妥当性', `${label}periodic は paint と併用できない`);
-    // 周期をまたぐ箱・同方向まとめは手番とずれるため、周期ドア盤では使わせない（初期は禁止で簡潔に）。
-    if (board.repeatBox === true || board.groupRepeats === true) {
-      add('盤面の妥当性', `${label}periodic は repeatBox・groupRepeats と併用できない（箱の展開が手番の周期をまたぐため。4方向のみ）`);
+    // 周期をまたぐ箱は手番とずれるため、周期ドア盤では使わせない（初期は禁止で簡潔に）。
+    if (board.repeatBox === true) {
+      add('盤面の妥当性', `${label}periodic は repeatBox と併用できない（箱の展開が手番の周期をまたぐため。4方向のみ）`);
     }
     const keyOf = (p) => `${p.x},${p.y}`;
     const sets = [
@@ -192,6 +191,7 @@ export const periodic = {
       ['doors', list(board.doors)],
       ['switches', list(board.switches)],
       ['switchesのtargets', list(board.switches).flatMap((s) => list(s?.targets))],
+      ['warps', list(board.warps)],
     ].map(([name, pts]) => [name, new Set(pts.filter((p) => p && typeof p.x === 'number').map(keyOf))]);
     const seen = new Set();
     board.periodic.forEach((d, i) => {
