@@ -38,6 +38,12 @@ export function initMenu() {
   const zoomOut = byId('zoom-out');
   const zoomAll = byId('zoom-all');
   const zoomBack = byId('zoom-back');
+  const menuMain = byId('menu-main');
+  const creditOpen = byId('menu-credit-open');
+  const creditView = byId('menu-credit-view');
+  const creditClose = byId('menu-credit-close');
+  const creditGuardian = byId('menu-credit-guardian');
+  if (!menuMain || !creditOpen || !creditView || !creditClose || !creditGuardian) return;
   let opener = gear;
 
   // 拡大できない盤（24px以上）や選択画面では「がめん」を出さない。
@@ -61,10 +67,15 @@ export function initMenu() {
   const closeBar = () => {
     bar.hidden = true;
   };
+  const showCredit = (show) => {
+    menuMain.hidden = show;
+    creditView.hidden = !show;
+  };
   const closeAll = () => {
     menu.hidden = true;
     overlay.hidden = true;
     confirmBox.hidden = true;
+    showCredit(false);
     opener.setAttribute('aria-expanded', 'false');
     gear.setAttribute('aria-expanded', 'false');
   };
@@ -110,11 +121,16 @@ export function initMenu() {
   }
 
   byId('menu-close').addEventListener('click', closeAll);
-  byId('menu-guardian').addEventListener('click', () => {
+  // 「クレジット」：パネルを「BGM: MusMus」の表示に差し替える（外部リンクなし。Issue #378 段2）。
+  creditOpen.addEventListener('click', () => showCredit(true));
+  creditClose.addEventListener('click', closeAll);
+  const openGuardian = () => {
     menu.hidden = true;
     overlay.hidden = true;
     confirmBox.hidden = false;
-  });
+  };
+  byId('menu-guardian').addEventListener('click', openGuardian);
+  creditGuardian.addEventListener('click', openGuardian);
   byId('guardian-cancel').addEventListener('click', closeAll);
   byId('guardian-go').addEventListener('click', () => {
     location.href = GUARDIAN_URL;
