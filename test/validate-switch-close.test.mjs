@@ -41,9 +41,9 @@ test('validate-lessons: NG検出: 罠が無意味（スイッチが最短経路�
   assert.equal(ng(r, 'スイッチの罠の意味'), true, r.out);
 });
 
-test('validate-lessons: NG検出: openとの併用', () => {
+test('validate-lessons: openとの併用は mode の併用では落ちない（#530）', () => {
   const r = validate((p) => p.switches.push({ x: 0, y: 0, targets: [{ x: 4, y: 0 }] }));
-  assert.equal(ng(r, 'openと併用できない'), true, r.out);
+  assert.equal(r.out.includes('openと併用できない'), false, r.out);
 });
 
 test('validate-lessons: NG検出: closeのAND（対象の共有）', () => {

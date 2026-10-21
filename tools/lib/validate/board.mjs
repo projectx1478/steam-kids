@@ -22,7 +22,6 @@ function checkGroupSwitches(board, add, label) {
     else counts.set(s.group, (counts.get(s.group) ?? 0) + 1);
     if (s.targets !== undefined) bad(`switches[${i}] が group と targets を併用している`);
     if (s.color === undefined) bad(`switches[${i}] の group にはcolorの明示が必要`);
-    if (s.mode === 'close' || s.mode === 'toggle') bad(`switches[${i}] の group は mode=${JSON.stringify(s.mode)} と併用できない`);
   });
   counts.forEach((n, g) => {
     if (n > 1) bad(`group=${JSON.stringify(g)} のスイッチが${n}個ある（1つだけ）`);
@@ -188,7 +187,32 @@ export function checkSwitchMatters(rawPlay, dist, add, label) {
   // closeは罠：スイッチを無効化（踏んでも壁が出ない=スイッチ無し）した盤の最短より、実際の最短が長くなければ罠が無意味
   // （最短経路がスイッチを通らない、または出た壁が経路に効かない）。出現後の到達不能は上のゴール到達可能性で検出する。
   const toggleSwitches = Array.isArray(play.switches) && play.switches.length > 0 && play.switches.every((s) => s?.mode === 'toggle');
-  if (dist !== null && closeSwitches) {
+  // mode が混在した盤（Issue #530）：スイッチごとに「自分だけ外した盤」で、そのスイッチの mode の既存検査を当てる。均質盤は下の既存分岐のまま。
+  const modeOf = (s) => s?.mode ?? 'open';
+  const mixedSwitches = Array.isArray(play.switches) && play.switches.length > 0 && play.switches.some((s) => modeOf(s) !== modeOf(play.switches[0]));
+  const distOf = (b) => (play.groupRepeats ? shortestChips(b) : shortestSteps(b));
+  const targetsOf = (s) => (Array.isArray(s.targets) ? s.targets : []);
+  if (dist !== null && mixedSwitches) {
+    play.switches.forEach((s, i) => {
+      const rest = play.switches.filter((_, j) => j !== i);
+      const mode = modeOf(s);
+      if (mode === 'close') {
+        const withoutDist = distOf(boardSpec({ ...play, switches: rest }));
+        if (!(dist > withoutDist)) add('スイッチの罠の意味', `${label}switches[${i}] を外した盤の最短(${withoutDist})より最短(${dist})が長くない（出る壁が経路に効かない）`);
+        return;
+      }
+      const closed = mode === 'toggle' ? targetsOf(s).filter((t) => t?.initial !== 'open') : targetsOf(s);
+      const noStepDist = distOf(boardSpec({ ...play, walls: [...(play.walls || []), ...closed], switches: rest }));
+      if (noStepDist <= play.maxCommands) {
+        add('スイッチの必須性', `${label}switches[${i}] を踏まずにmaxCommands=${play.maxCommands}以内でゴールできる（最短${noStepDist}）`);
+      }
+      if (mode === 'toggle' && dist !== Infinity) {
+        const asOpen = boardSpec({ ...play, switches: play.switches.map((o, j) => (j === i ? { ...o, mode: 'open', targets: closed.map(({ x, y }) => ({ x, y })) } : o)) });
+        const asOpenDist = distOf(asOpen);
+        if (!(dist > asOpenDist)) add('トグルの意味', `${label}switches[${i}] をopenに置き換えた盤の最短(${asOpenDist})より最短(${dist})が長くない（もう一度踏む・戻る手が要らず、toggleが飾り）`);
+      }
+    });
+  } else if (dist !== null && closeSwitches) {
     const disabled = boardSpec({ ...play, switches: [] });
     const disabledDist = play.groupRepeats ? shortestChips(disabled) : shortestSteps(disabled);
     if (!(dist > disabledDist)) {
@@ -228,7 +252,8 @@ export function checkSwitchMatters(rawPlay, dist, add, label) {
     Array.isArray(play.keys) &&
     play.keys.length === 1
   ) {
-    const targets = play.switches.flatMap((s) => (Array.isArray(s.targets) ? s.targets : []));
+    // 混在盤ではcloseの対象（初期は床）を壁にしない。
+    const targets = play.switches.filter((s) => !mixedSwitches || modeOf(s) !== 'close').flatMap((s) => (Array.isArray(s.targets) ? s.targets : []));
     const toKey = boardSpec({
       ...play,
       walls: [...(play.walls || []), ...targets],

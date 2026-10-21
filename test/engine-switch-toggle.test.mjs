@@ -93,10 +93,10 @@ test('toggle validate: 合格盤（meaningful・mixed）はエラーなし', () 
   assert.deepEqual(errs(mixed), []);
 });
 
-test('toggle validate: 併用禁止・initialの不正・氷の上', () => {
+test('toggle validate: 他modeとの併用は可（#530）・initialの不正・氷の上', () => {
   const toggle = { x: 1, y: 1, mode: 'toggle', targets: [{ x: 3, y: 1 }] };
-  assert.equal(has(lane({ switches: [toggle, { x: 0, y: 1, mode: 'close', targets: [{ x: 4, y: 1 }] }] }), '併用できない'), true, 'closeとの併用');
-  assert.equal(has(lane({ switches: [toggle, { x: 0, y: 1, targets: [{ x: 4, y: 1 }] }] }), '併用できない'), true, 'open（省略）との併用');
+  assert.equal(has(lane({ switches: [toggle, { x: 0, y: 1, mode: 'close', targets: [{ x: 4, y: 1 }] }] }), '併用できない'), false, 'closeとの併用は可');
+  assert.equal(has(lane({ switches: [toggle, { x: 0, y: 1, targets: [{ x: 4, y: 1 }] }] }), '併用できない'), false, 'open（省略）との併用は可');
   assert.equal(has(lane({ switches: [toggle, { x: 0, y: 1, mode: 'toggle', targets: [{ x: 3, y: 1 }] }] }), '対象を共有できない'), true, 'toggle同士の対象共有');
   assert.equal(has(lane({ switches: [{ ...toggle, targets: [{ x: 3, y: 1, initial: 'x' }] }] }), 'initial'), true, 'initialが2語以外');
   assert.equal(has(lane({ switches: [{ x: 1, y: 1, targets: [{ x: 3, y: 1, initial: 'open' }] }] }), 'toggleでのみ'), true, 'toggle以外のinitial');
