@@ -20,23 +20,28 @@ async function openDashboard(page) {
 
 // makeSwPage: SWを許可した独自コンテキストのページを作る。run.mjs既定はSWブロックのため、
 // BGM（SW登録がある環境でのみ音源を読む設計）はこちらで検証する。
-// controllerchangeによる自動リロード（js/register-sw.js）が1回入るため、SWのclaimを待ってから
-// 自分で1回reloadし、安定状態（SW制御下からの読み込み）にして返す。
+// js/register-sw.js の controllerchange 自動リロードを止めてから、SWのclaimを待ち、
+// 自分で1回reloadして安定状態（SW制御下からの読み込み）にする。
 async function makeSwPage(browser, origin, setupRoutes) {
   const ctx = await browser.newContext({
     baseURL: origin,
     serviceWorkers: 'allow',
     viewport: { width: 1280, height: 800 },
   });
+  await ctx.addInitScript(() => {
+    const sw = navigator.serviceWorker;
+    if (!sw) return;
+    const orig = sw.addEventListener.bind(sw);
+    sw.addEventListener = (type, fn, opts) => {
+      if (type === 'controllerchange') return;
+      orig(type, fn, opts);
+    };
+  });
   const p = await ctx.newPage();
   await setupRoutes(p);
   await p.goto('/index.html');
   await p.waitForFunction(() => navigator.serviceWorker?.controller, null, { timeout: 20000 });
-  try {
-    await p.reload();
-  } catch {
-    // controllerchangeによる自動リロードと競合した場合は、その遷移の完了を待つ
-  }
+  await p.reload();
   await p.waitForLoadState('load');
   return { ctx, p };
 }

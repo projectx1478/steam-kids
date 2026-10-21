@@ -18,11 +18,24 @@ function log(event, detail) {
   window.__bgmLog.push([event, detail]);
 }
 
-// SWが使える環境か。ブロック・非対応なら false（曲なし）。swOk は非同期的に確定し、
-// crossfadeTo（start()以外の経路：場面切替・ミュート解除・タブ復帰）でも参照する。
-const swReady = ('serviceWorker' in navigator)
-  ? navigator.serviceWorker.ready.then(() => true).catch(() => false)
-  : Promise.resolve(false);
+// SWが使える環境かを判定する。SWブロック環境（テストハーネス等）では register が解決しても
+// getRegistration が undefined のまま（ready も永遠にpending）になるため、登録が本当に
+// 機能しているかを確認してから active になるまで待つ。未対応・ブロックなら false（曲なし）。
+// swOk は非同期的に確定し、crossfadeTo（start()以外の経路：場面切替・ミュート解除・タブ復帰）でも参照する。
+async function detectSw() {
+  if (!('serviceWorker' in navigator)) return false;
+  try {
+    // app.js の registerServiceWorker とは別に自前で登録を試す（同一URL・スコープの二重登録は冪等）。
+    await navigator.serviceWorker.register('./service-worker.js');
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) return false;
+    if (!reg.active) await navigator.serviceWorker.ready;
+    return true;
+  } catch {
+    return false;
+  }
+}
+const swReady = detectSw();
 let swOk = false;
 swReady.then((ok) => {
   swOk = ok;
@@ -32,6 +45,8 @@ let scene = null; // 現在の場面（'title'|'map'|'play'|'clear'。未設定�
 let started = false; // 最初のジェスチャーがあったか
 let active = null; // 再生中 { name, audio, target }
 let fadeTimer = null;
+
+let playingName = null; // 'playing'は短いループ曲で巻き戻しのたびに再発火するため、同名は1回だけ記録する
 
 function createTrack(name) {
   const def = BGM_TRACKS[name];
@@ -44,7 +59,11 @@ function createTrack(name) {
     log('error', name);
     if (active?.audio === audio) active = null;
   });
-  audio.addEventListener('playing', () => log('play', name));
+  audio.addEventListener('playing', () => {
+    if (playingName === name) return;
+    playingName = name;
+    log('play', name);
+  });
   log('load', name);
   return { name, audio, target: def.volume };
 }
