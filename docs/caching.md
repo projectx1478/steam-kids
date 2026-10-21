@@ -31,6 +31,17 @@ kids-player（出典コミット`74adf54`）の`service-worker.js`から移植�
 指定しないとGitHub Pagesの`max-age=600`がSWを介しても残る。`no-cache`はETagによる再検証を強制し、
 変更が無ければ304で帯域も無駄にしない（kids-playerはVercel配信のためこの指定が無い）。
 
+## BGM音源（audio/）の例外（Issue #378）
+
+BGM音源（`audio/*.ogg`、MusMus）は**`APP_SHELL`に入れない**。`cache.addAll`は1件の
+404で`install`全体が失敗し、音源を持たない環境（Pagesデプロイ前の検証・取得失敗時）で
+アプリ自体が更新できなくなるため。取得はPagesデプロイ時に非公開リポジトリから行い、
+配信物には含まれない環境もある。
+
+代わりに**初回再生時の遅延保存**を使う（`service-worker.js`の実装は段2）。
+ネットワーク優先の方針は他ファイルと同じで、オフラインではキャッシュ済みの
+音源のみ再生する。`install`の挙動は変えない。
+
 ## 版数管理
 
 `service-worker.js`の`CACHE_NAME`と`js/config.js`の`APP_VERSION`を同値にする。SWは`import`できず

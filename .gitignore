@@ -71,3 +71,7 @@ review/handoff-*.md
 # 盤面エディタ（開発者用）の下書き・レッスン退避。公開しない
 tools/editor/drafts/
 tools/editor/backups/
+
+# BGM音源（MusMus）は公開リポジトリに置かない（#378）。配信時は pages.yml が
+# 非公開 steam-kids-state から _site/audio/ へコピーする。手元の audio/ はコミット対象外
+audio/

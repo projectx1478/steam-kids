@@ -24,6 +24,9 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      # 非公開リポジトリ steam-kids-state からの音源取得用 deploy key の有無（#378）
+      STATE_KEY_SET: ${{ secrets.STATE_DEPLOY_KEY != '' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -35,6 +38,29 @@ jobs:
             echo "::error::tools/ が配信物に残っています。"
             exit 1
           fi
+
+      # BGM 音源（MusMus）は規約上公開リポジトリに置かない。Pages デプロイ時に
+      # 非公開リポジトリ steam-kids-state から読み取り deploy key で取得し _site/audio/ へ同名コピーする（#378）。
+      # Secret 未設定・取得失敗時は警告のみで曲なし配信を続ける（失敗にはしない）。
+      - name: SSH鍵を登録する（BGM音源取得用）
+        if: ${{ env.STATE_KEY_SET == 'true' }}
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.STATE_DEPLOY_KEY }}
+
+      - name: BGM音源を取得する（失敗時は曲なしで配信を続ける）
+        if: ${{ env.STATE_KEY_SET == 'true' }}
+        run: |
+          mkdir -p _site/audio
+          ssh-keygen -F github.com >/dev/null 2>&1 || ssh-keyscan github.com >> "$HOME/.ssh/known_hosts"
+          if ! git clone --depth 1 git@github.com:projectx1478/steam-kids-state.git /tmp/steam-kids-state; then
+            echo "::warning::steam-kids-state の取得に失敗しました。BGMなしで配信を続けます。"
+            exit 0
+          fi
+          if ! cp /tmp/steam-kids-state/bgm/*.ogg _site/audio/; then
+            echo "::warning::bgm/*.ogg のコピーに失敗しました。BGMなしで配信を続けます。"
+          fi
+          ls -la _site/audio/
 
       - uses: actions/configure-pages@v5
 
