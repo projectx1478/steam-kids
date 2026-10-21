@@ -60,13 +60,14 @@ test('checkGenerateInput: 範囲外・形の誤り・受け付けないキーは
   bad({ stageGen: { ...SG, gimmicks: { switches: { min: 1, max: 1 }, keys: { min: 1, max: 1 } }, teach: 'switches' } }); // switches は #492 で受け付けるが keys とは併用不可
   assert.deepEqual(checkGenerateInput({ stageGen: { ...SG, gimmicks: { periodic: { min: 1, max: 2 } }, teach: 'periodic' } }), []);
   bad({ stageGen: { ...SG, gimmicks: { periodic: { min: 1, max: 3 } }, teach: 'periodic' } }); // 周期ドアは1〜2
-  bad({ stageGen: { ...SG, gimmicks: { periodic: { min: 1, max: 1 }, items: { min: 1, max: 1 } }, teach: 'periodic' } }); // 単独のみ
+  assert.deepEqual(checkGenerateInput({ stageGen: { ...SG, gimmicks: { periodic: { min: 1, max: 1 }, items: { min: 1, max: 1 } }, teach: 'periodic' } }), []); // items との併用は通る（#531）
+  bad({ stageGen: { ...SG, gimmicks: { periodic: { min: 1, max: 1 }, water: { min: 2, max: 4 } }, teach: 'periodic' } }); // warps・periodic・water は1種まで
   assert.deepEqual(checkGenerateInput({ stageGen: { ...SG, gimmicks: { paint: { min: 4, max: 8 } }, teach: 'paint' } }), []);
   bad({ stageGen: { ...SG, gimmicks: { paint: { min: 3, max: 8 } }, teach: 'paint' } }); // 色ぬりは4〜8
   bad({ stageGen: { ...SG, gimmicks: { paint: { min: 4, max: 4 }, items: { min: 1, max: 1 } }, teach: 'paint' } }); // 単独のみ
   assert.deepEqual(checkGenerateInput({ stageGen: { ...SG, gimmicks: { water: { min: 2, max: 8 } }, teach: 'water' } }), []);
   bad({ stageGen: { ...SG, gimmicks: { water: { min: 1, max: 8 } }, teach: 'water' } }); // 水は2〜8
-  bad({ stageGen: { ...SG, gimmicks: { water: { min: 2, max: 4 }, items: { min: 1, max: 1 } }, teach: 'water' } }); // 単独のみ
+  assert.deepEqual(checkGenerateInput({ stageGen: { ...SG, gimmicks: { water: { min: 2, max: 4 }, items: { min: 1, max: 1 } }, teach: 'water' } }), []); // items との併用は通る（#531）
   bad({ stageGen: { ...SG, grid: { cols: { min: 2, max: 5 }, rows: SG.grid.rows } } });
   bad({ stageGen: { ...SG, grid: { cols: { min: 4, max: 21 }, rows: SG.grid.rows } } });
   bad({ stageGen: { ...SG, walls: { min: 0, max: 61 } } });

@@ -59,7 +59,15 @@ test('ワープ（#492）: 単独なら通り、サーバーの入力検査も�
   const both = form();
   both.gimmicks.warps = { on: true, min: 1, max: 1 };
   both.teach = 'warps';
-  assert.ok(checkGenerateForm(both).length > 0);
+  assert.deepEqual(checkGenerateForm(both), []); // items との併用は通る（#531）
+  assert.deepEqual(checkGenerateInput(buildGenerateBody(both, 1)), []);
+  const two = form();
+  two.gimmicks.items.on = false;
+  two.gimmicks.warps = { on: true, min: 1, max: 1 };
+  two.gimmicks.water = { on: true, min: 2, max: 4 };
+  two.teach = 'warps';
+  assert.deepEqual(checkGenerateForm(two), ['warps・water は同時に指定できない（warps・periodic・water は1種まで）']);
+  assert.ok(checkGenerateInput(buildGenerateBody(two, 1)).length > 0);
   const over = form();
   over.gimmicks.items.on = false;
   over.gimmicks.warps = { on: true, min: 1, max: 3 };
@@ -77,7 +85,8 @@ test('周期ドア（#496）: 単独なら通り、サーバーの入力検査�
   const both = form();
   both.gimmicks.periodic = { on: true, min: 1, max: 1 };
   both.teach = 'periodic';
-  assert.ok(checkGenerateForm(both).length > 0);
+  assert.deepEqual(checkGenerateForm(both), []); // items との併用は通る（#531）
+  assert.deepEqual(checkGenerateInput(buildGenerateBody(both, 1)), []);
   const over = form();
   over.gimmicks.items.on = false;
   over.gimmicks.periodic = { on: true, min: 1, max: 3 };
@@ -113,7 +122,8 @@ test('水（#494）: 単独なら通り、サーバーの入力検査も通る�
   const both = form();
   both.gimmicks.water = { on: true, min: 2, max: 4 };
   both.teach = 'water';
-  assert.ok(checkGenerateForm(both).length > 0);
+  assert.deepEqual(checkGenerateForm(both), []); // items との併用は通る（#531）
+  assert.deepEqual(checkGenerateInput(buildGenerateBody(both, 1)), []);
   const over = form();
   over.gimmicks.items.on = false;
   over.gimmicks.water = { on: true, min: 1, max: 8 };
