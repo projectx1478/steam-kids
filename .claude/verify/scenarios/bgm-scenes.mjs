@@ -121,7 +121,7 @@ export default async function run({ page, check }) {
   await check('操作画面: play_logic.ogg に切り替わる', () => hasLog(p, 'play', 'play'), true);
 
   // クリア: ファンファーレに重ねてクリア曲。
-  for (const c of ['up', 'up', 'up', 'right', 'right', 'right']) {
+  for (const c of ['up', 'up', 'left', 'left']) {
     await p.click(`[data-command="${c}"]`);
   }
   await p.click('[data-action="run"]');
