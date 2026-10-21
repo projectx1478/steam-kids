@@ -159,17 +159,18 @@ export default async function run({ page, check }) {
   await p.evaluate(() => localStorage.setItem('steamkids.sound', 'on'));
 
   // Service Worker のキャッシュのみで再生（外部へ音源リクエストを出さない）。
-  let audioRouteHits = 0;
-  await p.route('**/audio/**', (route) => {
-    audioRouteHits += 1;
-    return route.abort();
+  // page.route はSW経由の取得を横取りするため、オフラインにしてキャッシュ命中だけで鳴ることを確かめる。
+  const audioNotFromSw = [];
+  p.on('response', (res) => {
+    if (res.url().includes('/audio/') && !res.fromServiceWorker()) audioNotFromSw.push(res.url());
   });
+  await ctx.setOffline(true);
   await p.reload();
   await p.waitForLoadState('load');
   await p.mouse.click(4, 4);
   await check('SWキャッシュのみで再生できる', () => hasLog(p, 'play', 'title'), true);
-  await check('再生で外部へ音源リクエストを出さない', async () => audioRouteHits, 0);
-  await p.unroute('**/audio/**');
+  await check('再生で外部へ音源リクエストを出さない', async () => audioNotFromSw, []);
+  await ctx.setOffline(false);
 
   // 検証中の pageerror・console.error が無いこと（曲なしシナリオを除く）。
   await check('SW環境で pageerror・console.error が無い', async () => errors, []);
@@ -181,7 +182,8 @@ export default async function run({ page, check }) {
   const errors2 = [];
   p2.on('pageerror', (e) => errors2.push(`pageerror: ${e.message}`));
   p2.on('console', (m) => {
-    if (m.type() === 'error') errors2.push(`console.error: ${m.text()}`);
+    // 曲なしの404は、ブラウザ自身が「Failed to load resource」として記録する（アプリのエラーではない）。
+    if (m.type() === 'error' && !m.location().url.includes('/audio/')) errors2.push(`console.error: ${m.text()}`);
   });
   await p2.goto('/index.html');
   await p2.waitForLoadState('load');
