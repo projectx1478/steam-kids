@@ -4,6 +4,7 @@
 // 単発クリアの実機反応が薄いという指摘を受け、Issue #91時点より拡大した。Issue #104）。
 // 不正解: showHint（「おしい！」＋否定語を使わないヒント文。data-hintを持ちdata-resultは付けない）。
 import { play as playSfx } from './sfx.js';
+import { setScene } from './bgm.js';
 import { vibrate } from './ui-commands.js';
 import { showToast } from './ui-toast.js';
 import { shapeSvg } from './ui-grid.js';
@@ -41,6 +42,8 @@ export function clearResultBubble(bird) {
 // bird を渡すと結果は小鳥の吹き出しに出る（slotEl は使わない。Issue #497）。bird なしは従来のトースト（tutorial 用）。
 export function showSuccess(slotEl, { view, restore, label = 'やったね！', confetti = true, bird } = {}) {
   playSfx('fanfare');
+  // クリア曲はファンファーレに重ねる（音量はこちらを小さく。Issue #378 段2）。
+  setScene('clear');
   vibrate();
   if (confetti) view?.confetti?.({ count: STAGE_CONFETTI_COUNT, duration: STAGE_CONFETTI_MS });
   view?.celebrateDance?.();

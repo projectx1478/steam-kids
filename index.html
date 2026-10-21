@@ -38,7 +38,7 @@
   <div id="menu-overlay" hidden class="fixed inset-0 z-40 bg-slate-900/45"></div>
   <!-- 中央パネル（Issue #467）。⚙（#gear-btn・パレットの⚙）が開く。header の外に置き、覆いの上に出す。入りきらなければパネル内スクロール。 -->
   <div id="gear-menu" hidden class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[320px] max-w-[92vw] max-h-[90dvh] overflow-y-auto bg-white rounded-2xl shadow-xl p-3">
-    <div class="flex flex-col gap-2">
+    <div id="menu-main" class="flex flex-col gap-2">
       <!-- いまの ばしょ。play・tutorial のときだけ ui-step.js が描く（単元名・区分チップ・点列）。 -->
       <div id="menu-stage" hidden class="flex flex-col items-center gap-1 text-center">
         <p id="menu-stage-title" class="text-sm font-bold leading-tight"></p>
@@ -53,9 +53,21 @@
       <div id="menu-zoom" hidden>
         <button id="menu-zoom-open" type="button" class="w-full min-h-[64px] rounded-lg bg-sky-100 text-slate-700 font-bold text-lg flex items-center justify-center gap-2"><svg viewBox="0 0 24 24" class="w-6 h-6 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="10" r="6" /><path d="M15 15l6 6" /></svg><span>がめん</span></button>
       </div>
+      <!-- クレジット（Issue #378 段2）。「クレジット」を押すと「BGM: MusMus」を文字で表示（外部リンクなし。
+           見本: review/design/378/mock/ 承認済み）。 -->
+      <button id="menu-credit-open" type="button" class="w-full min-h-[64px] rounded-lg bg-slate-100 text-slate-700 font-bold text-lg">クレジット</button>
       <div class="flex gap-2 items-stretch">
         <button id="menu-guardian" type="button" class="flex-1 min-h-[64px] text-xs text-slate-500 underline">ほごしゃの かた</button>
         <button id="menu-close" type="button" class="flex-1 min-h-[64px] rounded-lg bg-slate-200 text-slate-700 font-bold text-lg">とじる</button>
+      </div>
+    </div>
+    <!-- クレジットの表示（#378 段2）。#menu-credit-open が押されたら #menu-main と差し替える。 -->
+    <div id="menu-credit-view" hidden class="flex flex-col gap-2">
+      <p class="text-lg font-bold text-slate-700 text-center">クレジット</p>
+      <p class="min-h-[64px] rounded-lg bg-slate-100 text-slate-700 font-bold text-lg flex items-center justify-center">BGM: MusMus</p>
+      <div class="flex gap-2 items-stretch">
+        <button id="menu-credit-guardian" type="button" class="flex-1 min-h-[64px] text-xs text-slate-500 underline">ほごしゃの かた</button>
+        <button id="menu-credit-close" type="button" class="flex-1 min-h-[64px] rounded-lg bg-slate-200 text-slate-700 font-bold text-lg">とじる</button>
       </div>
     </div>
   </div>
