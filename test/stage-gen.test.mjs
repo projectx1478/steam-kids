@@ -271,6 +271,10 @@ test('stage-gen: stagegen 検査 paint は単独・4〜8 の整数なら OK。�
     const e = paintErrors({ paint: { min: 4, max: 6 }, [other]: one });
     assert.ok(e.some((m) => m.includes('paint は単独')), `${other} との併用`);
   }
+  // water とだけ併用できる（#531 段2）。water に別のギミックを足すと、そちらの名前で NG
+  assert.deepEqual(paintErrors({ paint: { min: 4, max: 6 }, water: { min: 2, max: 4 } }), []);
+  assert.deepEqual(paintErrors({ paint: { min: 4, max: 6 }, water: { min: 2, max: 4 } }, 'water'), []);
+  assert.deepEqual(paintErrors({ paint: { min: 4, max: 6 }, water: { min: 2, max: 4 }, items: one }), ['stageGen: paint は単独で指定する（items と併用できない）']);
   // groupRepeats・repeatBox は gimmicks の未対応キー（併用すると未対応で NG）
   for (const other of ['groupRepeats', 'repeatBox']) {
     assert.ok(paintErrors({ paint: { min: 4, max: 6 }, [other]: one }).length > 0, other);
@@ -318,7 +322,7 @@ const waterErrors = (gimmicks, teach = 'water', extra = {}) => {
   return errs;
 };
 
-test('stage-gen: stagegen 検査 water は 2〜8 の整数なら OK（items・ice 等との併用も OK）。warps・periodic・paint 併用・範囲外・非整数・別名・waterMode は NG', () => {
+test('stage-gen: stagegen 検査 water は 2〜8 の整数なら OK（items・ice・paint 等との併用も OK）。warps・periodic 併用・範囲外・非整数・別名・waterMode は NG', () => {
   assert.deepEqual(waterErrors({ water: { min: 2, max: 4 } }), []);
   assert.deepEqual(waterErrors({ water: { min: 2, max: 8 } }), []);
   for (const other of ['items', 'ice', 'keys', 'switches', 'cushion']) {
@@ -328,7 +332,7 @@ test('stage-gen: stagegen 検査 water は 2〜8 の整数なら OK（items・ic
     const e = waterErrors({ water: { min: 2, max: 4 }, [other]: one });
     assert.ok(e.some((m) => m.includes('は同時に指定できない（warps・periodic・water は1種まで）')), `${other} との併用`);
   }
-  assert.ok(waterErrors({ water: { min: 2, max: 4 }, paint: { min: 4, max: 6 } }).some((m) => m.includes('paint は単独')));
+  assert.deepEqual(waterErrors({ water: { min: 2, max: 4 }, paint: { min: 4, max: 6 } }), []); // paint とは併用できる（#531 段2）
   // groupRepeats・repeatBox は gimmicks の未対応キー（併用すると未対応で NG）
   for (const other of ['groupRepeats', 'repeatBox']) {
     assert.ok(waterErrors({ water: { min: 2, max: 4 }, [other]: one }).length > 0, other);
@@ -342,4 +346,36 @@ test('stage-gen: stagegen 検査 water は 2〜8 の整数なら OK（items・ic
   assert.equal(singular.length, 1);
   assert.ok(singular[0].startsWith('stageGen 未対応のギミック'));
   assert.ok(waterErrors({ water: { min: 2, max: 4 } }, 'water', { waterMode: 'bump' }).length > 0);
+});
+
+// ぬり×水の混在（#531 段2）。単独 paint の経路は変えず、混在時だけ新経路（目標は水・壁を踏まず、橋の1マスを通る）。
+test('stage-gen: paint×water は目標が水に重ならず橋のマスを通り、解ける。水と塗りの必須性は橋の有無で見る', () => {
+  const sgPW = (teach) => ({ ...base, grid: { cols: { min: 5, max: 7 }, rows: { min: 5, max: 7 } }, gimmicks: { paint: { min: 4, max: 8 }, water: { min: 2, max: 5 } }, teach });
+  let made = 0;
+  for (const teach of ['paint', 'water']) {
+    for (let seed = 0; seed < 20; seed += 1) {
+      const b = generateBoard(sgPW(teach), seed);
+      if (!b) continue;
+      made += 1;
+      const tag = `teach=${teach} seed=${seed}`;
+      const key = (p) => `${p.x},${p.y}`;
+      const paint = new Set(b.paint.map(key));
+      assert.ok(b.paint.every((c) => !b.water.some((w) => key(w) === key(c))), `${tag}: 目標が水に重なる`);
+      assert.ok(b.paint.every((c) => !b.walls.some((w) => key(w) === key(c))), `${tag}: 目標が壁に重なる`);
+      assert.ok(paint.has(key(b.start)) && paint.has(key(b.goal)), `${tag}: start・goal が目標に含まれない`);
+      assert.ok(b.bridge?.length === 1 && paint.has(key(b.bridge[0])), `${tag}: 橋が目標に含まれない`);
+      assert.ok(!b.items?.length && !b.ice?.length, `${tag}: どんぐり・氷がある`);
+      assert.ok(isRunCleared(simulate(b.solution, b)), `${tag}: solution でクリアできない`);
+      assert.ok(paintMustMatter(b, b.solution.length).matters, `${tag}: 塗りが飾り`);
+      assert.equal(b.solution.length, b.paint.length - 1, `${tag}: 最短が目標の細い経路でない`);
+    }
+  }
+  assert.ok(made >= 30, `混在盤が十分に生成できない（${made}/40）`);
+});
+
+test('stage-gen: paint×water の seed 掃引で成功率が半分以上', () => {
+  const sg = { ...base, grid: { cols: { min: 4, max: 6 }, rows: { min: 4, max: 6 } }, gimmicks: { paint: { min: 4, max: 8 }, water: { min: 2, max: 4 } }, teach: 'paint' };
+  let ok = 0;
+  for (let seed = 0; seed < 40; seed += 1) if (generateBoard(sg, seed)) ok += 1;
+  assert.ok(ok >= 20, `成功 ${ok}/40`);
 });

@@ -170,6 +170,8 @@ export const GEN_LIMITS = { grid: [3, 20], walls: [0, 60], shortestPath: [2, 60]
 export const GEN_GIMMICKS = [['items', 'どんぐり'], ['ice', 'こおり'], ['keys', 'かぎ'], ['cushion', 'クッション'], ['switches', 'スイッチ'], ['warps', 'ワープ'], ['periodic', '周期ドア'], ['paint', '色ぬり'], ['water', '水']];
 // 他のギミックと併用できない（単独で使う）ギミック。要素を足せば checkGenerateForm の同じ検査が働く。
 export const GEN_SOLO_GIMMICKS = ['paint'];
+// 単独集合の要素ごとの例外（併用してよい相手）。paint は water とだけ併用できる（#531 段2）。
+export const GEN_SOLO_EXCEPT = { paint: ['water'] };
 // 同時に1種までのギミック（他のギミックとは併用できる。#531）。
 export const GEN_ONE_OF_GIMMICKS = ['warps', 'periodic', 'water'];
 const isInteger = (v) => Number.isInteger(v);
@@ -193,7 +195,7 @@ export function checkGenerateForm(form) {
   if (isOn('switches') && isOn('keys')) out.push('スイッチと かぎは いっしょに 使えません');
   if (form.teach === 'cushion' && on.length > 0 && !isOn('ice')) out.push('おしえる物が クッションのときは こおりも オンにしてください');
   for (const [k, label] of on) {
-    if (GEN_SOLO_GIMMICKS.includes(k) && on.length > 1) out.push(`${label}は ほかのギミックと いっしょに 使えません（${label}だけ オンにしてください）`);
+    if (GEN_SOLO_GIMMICKS.includes(k) && on.some(([o]) => o !== k && !(GEN_SOLO_EXCEPT[k] ?? []).includes(o))) out.push(`${label}は ほかのギミックと いっしょに 使えません（${label}だけ オンにしてください）`);
   }
   const oneOfOn = GEN_ONE_OF_GIMMICKS.filter((k) => isOn(k));
   if (oneOfOn.length > 1) out.push(`${oneOfOn.join('・')} は同時に指定できない（${GEN_ONE_OF_GIMMICKS.join('・')} は1種まで）`);

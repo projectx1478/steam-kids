@@ -8,6 +8,8 @@ const SG_GIMMICK_RANGES = { items: [1, 4], ice: [1, 4], keys: [1, 2], cushion: [
 
 // 他のギミックと併用できない（単独で指定する）ギミック。要素を足せば同じ検査が働く。
 export const SG_SOLO_GIMMICKS = ['paint'];
+// 単独集合の要素ごとの例外（併用してよい相手）。paint は water とだけ併用できる（#531 段2）。
+export const SG_SOLO_EXCEPT = { paint: ['water'] };
 // 同時に1種までしか指定できないギミック（他の items・ice 等とは併用できる。#531）。
 export const SG_ONE_OF_GIMMICKS = ['warps', 'periodic', 'water'];
 
@@ -77,7 +79,7 @@ function checkStageGen(data, steps, add, soloGimmicks = SG_SOLO_GIMMICKS, oneOfG
         if ('switches' in gim && 'keys' in gim) add(label, 'switches と keys は併用できない');
         for (const solo of soloGimmicks) {
           if (!(solo in gim)) continue;
-          const others = Object.keys(gim).filter((k) => k !== solo);
+          const others = Object.keys(gim).filter((k) => k !== solo && !(SG_SOLO_EXCEPT[solo] ?? []).includes(k));
           if (others.length > 0) add(label, `${solo} は単独で指定する（${others.join('・')} と併用できない）`);
         }
         const oneOfOn = oneOfGimmicks.filter((k) => k in gim);

@@ -105,6 +105,16 @@ test('色ぬり（#495）: 単独なら通り、サーバーの入力検査も�
   both.gimmicks.paint = { on: true, min: 4, max: 4 };
   both.teach = 'paint';
   assert.ok(checkGenerateForm(both).length > 0);
+  // water とだけ併用できる（#531 段2）。items を足すと NG
+  const pw = form();
+  pw.gimmicks.items.on = false;
+  pw.gimmicks.paint = { on: true, min: 4, max: 6 };
+  pw.gimmicks.water = { on: true, min: 2, max: 4 };
+  pw.teach = 'paint';
+  assert.deepEqual(checkGenerateForm(pw), []);
+  assert.deepEqual(checkGenerateInput(buildGenerateBody(pw, 1)), []);
+  pw.gimmicks.items.on = true;
+  assert.ok(checkGenerateForm(pw).length > 0);
   const over = form();
   over.gimmicks.items.on = false;
   over.gimmicks.paint = { on: true, min: 3, max: 8 };
