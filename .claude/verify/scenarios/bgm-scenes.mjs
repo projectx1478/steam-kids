@@ -79,11 +79,16 @@ export default async function run({ page, check }) {
   // 設定メニューのクレジット（子ども画面。⚙は4場面すべてから開ける）。
   await page.click('#gear-btn');
   await check('⚙メニューに「クレジット」項目がある', () => page.isVisible('#menu-credit-open'), true);
+  await check('⚙を開いた直後は「BGM: MusMus」が見えない', () => page.isVisible('#menu-credit-view'), false);
   await page.click('#menu-credit-open');
   await check('クレジット表示に「BGM: MusMus」が出る（外部リンクなし）', async () =>
-    (await page.textContent('#menu-credit-view')).includes('BGM: MusMus'), true);
+    (await page.textContent('#menu-credit-view')).includes('BGM: MusMus')
+    && await page.isVisible('#menu-credit-view'), true);
   await page.click('#menu-credit-close');
   await check('「とじる」でメニューが閉じる', () => page.isVisible('#gear-menu'), false);
+  await page.click('#gear-btn');
+  await check('「とじる」の後に開き直しても「BGM: MusMus」は見えない', () => page.isVisible('#menu-credit-view'), false);
+  await page.click('#menu-close');
 
   // 保護者画面のクレジット。
   await openDashboard(page);
