@@ -153,13 +153,20 @@ function placeSwitches(rng, pairCount, spec, free) {
   return switches;
 }
 
+// いま盤で使われているマス（start・goal・壁・items・ice・cushion・かぎ・ドア・スイッチとその対象・warps・periodic・water）。
+// warps・periodic・water の配置が避けるマスを1か所に集める（Issue #531）。
+function occupied(spec) {
+  const cells = [spec.start, spec.goal, ...spec.walls, ...(spec.items ?? []), ...(spec.ice ?? []), ...(spec.cushion ?? []),
+    ...(spec.keys ?? []), ...(spec.doors ?? []), ...(spec.warps ?? []), ...(spec.periodic ?? []), ...(spec.water ?? [])];
+  for (const s of spec.switches ?? []) cells.push(s, ...(s.targets ?? []));
+  return new Set(cells.map(keyOf));
+}
+
 // ワープ（pair 1・2 を組ごとに2個）の配置。入口は現盤の最短経路上の中間マス、出口は未使用の床。
 // 穴に入ると組のもう一方へ移るので、その組を足すと最短が縮む出口だけを選ぶ。見つからなければ null。
 function placeWarps(rng, pairCount, spec, free) {
   const warps = [];
-  const used = new Set(
-    [spec.start, spec.goal, ...spec.walls, ...(spec.items ?? []), ...(spec.ice ?? [])].map(keyOf)
-  );
+  const used = occupied(spec);
   const pool = free.filter((p) => !used.has(keyOf(p)));
   for (let n = 0; n < pairCount; n += 1) {
     const pair = n + 1;
@@ -186,17 +193,22 @@ function placeWarps(rng, pairCount, spec, free) {
 const PERIODS = [3, 4];
 function placePeriodic(rng, doorCount, spec) {
   const periodic = [];
-  const used = new Set([spec.start, spec.goal, ...spec.walls].map(keyOf));
+  const used = occupied(spec);
   for (let n = 0; n < doorCount; n += 1) {
     const cur = { ...spec, periodic };
     const cmds = shortestPath(cur);
     if (!cmds) return null;
     const path = simulate(cmds, cur).path;
-    // path[i] へ入るのは i-1 手目（手番 i-1）。その手番で閉じる period だけを候補にする。
+    // path[i] へ入る手は moveOf[i-1] 番目（氷の滑走・ワープ・停止で path と手が1対1でなくても正しい）。
+    // 手番は1手ごとに1進むので、手の番号＝その手の手番。その手番で閉じる period だけを候補にする。
+    // 停止で積まれる重複のマス（直前と同じ位置）は入る手ではないので除く。
+    const { moveOf } = simulate(cmds, cur);
     const options = [];
     path.forEach((p, i) => {
       if (i === 0 || i === path.length - 1 || used.has(keyOf(p))) return;
-      for (const period of PERIODS) if ((i - 1) % period >= OPEN_COUNT[period]) options.push({ p, period });
+      if (keyOf(p) === keyOf(path[i - 1])) return;
+      const turn = moveOf[i - 1];
+      for (const period of PERIODS) if (turn % period >= OPEN_COUNT[period]) options.push({ p, period });
     });
     if (options.length === 0) return null;
     const { p, period } = options[Math.floor(rng() * options.length)];
@@ -245,7 +257,7 @@ function placeWater(rng, waterCount, spec) {
   const line = Math.floor(rng() * lineCount);
   const from = Math.floor(rng() * (lineLen - span + 1));
   const gap = from + Math.floor(rng() * span);
-  const blocked = new Set([spec.start, spec.goal, ...spec.walls].map(keyOf));
+  const blocked = occupied(spec);
   const water = [];
   for (let i = from; i < from + span; i += 1) {
     if (i === gap) continue;
@@ -351,10 +363,12 @@ export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts 
       if (!placed) continue;
       spec = { ...spec, switches: placed };
     }
+    // items・かぎ・スイッチは状態数を倍にする。warps・water・periodic の配置中の探索見積りへ掛ける（単独指定では 1）。
+    const stateMul = 2 ** (itemCount + pairCount + switchCount);
     // warps は switches の後ろ。範囲未指定なら乱数を引かない（既存 seed の盤を変えない）。
     const warpCount = gim.warps ? countOf(rng, gim.warps) : 0;
     if (warpCount > 0) {
-      work += cells.length * warpCount * 4;
+      work += cells.length * warpCount * 4 * stateMul;
       const placed = placeWarps(rng, warpCount, spec, free);
       if (!placed) continue;
       spec = { ...spec, warps: placed };
@@ -363,7 +377,7 @@ export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts 
     // 水は状態を増やさないので、見積りは 水なし・水ありの探索 2 回分（マス数 × 4）。waterMode は cushion 固定。
     const waterCount = gim.water ? countOf(rng, gim.water) : 0;
     if (waterCount > 0) {
-      work += cells.length * 4;
+      work += cells.length * 4 * stateMul;
       const placed = placeWater(rng, waterCount, spec);
       if (!placed) continue;
       spec = { ...spec, water: placed, waterMode: 'cushion' };
@@ -371,7 +385,7 @@ export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts 
     // periodic は warps の後ろ。範囲未指定なら乱数を引かない。状態数は周期（最大 lcm(3,4)=12）倍。
     const periodicCount = gim.periodic ? countOf(rng, gim.periodic) : 0;
     if (periodicCount > 0) {
-      work += cells.length * periodicCount * 12;
+      work += cells.length * periodicCount * 12 * stateMul;
       const placed = placePeriodic(rng, periodicCount, spec);
       if (!placed) continue;
       spec = { ...spec, periodic: placed };
@@ -396,7 +410,12 @@ export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts 
       if (bridge) spec = { ...spec, bridge };
     }
     const board = { ...spec, allowedCommands: allowed, solution: cmds, maxCommands: cmds.length };
-    if (stageGen.teach && !teachMatters(stageGen.teach, board)) continue;
+    // teach＋新たに混ぜた1種（warps・periodic・water のうち指定されたもの。teach と同じなら重ねない）を判定する。
+    if (stageGen.teach) {
+      const mixed = ['warps', 'periodic', 'water'].find((k) => board[k]?.length > 0 && k !== stageGen.teach);
+      if (!teachMatters(stageGen.teach, board)) continue;
+      if (mixed && !teachMatters(mixed, board)) continue;
+    }
     return board;
   }
   return null;
