@@ -26,6 +26,9 @@
 
     {"name": "ok-paint", "expect": "pass", "reason": "paint 単独（壁 walls は併用）で teach=paint", "patch": {"gimmicks": {"paint": {"min": 4, "max": 6}}, "teach": "paint"}},
     {"name": "fail-paint-with-items", "expect": "fail", "expectError": "stageGen", "reason": "paint と items の併用は受け付けない", "patch": {"gimmicks": {"paint": {"min": 4, "max": 6}, "items": {"min": 1, "max": 2}}, "teach": "paint"}},
+    {"name": "ok-paint-with-water", "expect": "pass", "reason": "paint は water とだけ併用できる（#531 段2）", "patch": {"gimmicks": {"paint": {"min": 4, "max": 6}, "water": {"min": 2, "max": 4}}, "teach": "paint"}},
+    {"name": "fail-paint-with-water-items", "expect": "fail", "expectError": "stageGen", "reason": "paint×water に items を足すのは受け付けない（paint の相手は water だけ）", "patch": {"gimmicks": {"paint": {"min": 4, "max": 6}, "water": {"min": 2, "max": 4}, "items": {"min": 1, "max": 2}}, "teach": "paint"}},
+    {"name": "fail-paint-with-warps", "expect": "fail", "expectError": "stageGen", "reason": "paint と warps の併用は受け付けない", "patch": {"gimmicks": {"paint": {"min": 4, "max": 6}, "warps": {"min": 1, "max": 2}}, "teach": "paint"}},
     {"name": "fail-paint-range-low", "expect": "fail", "expectError": "stageGen", "reason": "paint の min が範囲外（4〜8）", "patch": {"gimmicks": {"paint": {"min": 3, "max": 6}}, "teach": "paint"}},
     {"name": "fail-paint-range-high", "expect": "fail", "expectError": "stageGen", "reason": "paint の max が範囲外（4〜8）", "patch": {"gimmicks": {"paint": {"min": 4, "max": 9}}, "teach": "paint"}},
     {"name": "fail-paint-nonint", "expect": "fail", "expectError": "stageGen", "reason": "paint の min が非整数", "patch": {"gimmicks": {"paint": {"min": 4.5, "max": 6}}, "teach": "paint"}},

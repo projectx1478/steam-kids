@@ -64,7 +64,8 @@ test('checkGenerateInput: 範囲外・形の誤り・受け付けないキーは
   bad({ stageGen: { ...SG, gimmicks: { periodic: { min: 1, max: 1 }, water: { min: 2, max: 4 } }, teach: 'periodic' } }); // warps・periodic・water は1種まで
   assert.deepEqual(checkGenerateInput({ stageGen: { ...SG, gimmicks: { paint: { min: 4, max: 8 } }, teach: 'paint' } }), []);
   bad({ stageGen: { ...SG, gimmicks: { paint: { min: 3, max: 8 } }, teach: 'paint' } }); // 色ぬりは4〜8
-  bad({ stageGen: { ...SG, gimmicks: { paint: { min: 4, max: 4 }, items: { min: 1, max: 1 } }, teach: 'paint' } }); // 単独のみ
+  bad({ stageGen: { ...SG, gimmicks: { paint: { min: 4, max: 4 }, items: { min: 1, max: 1 } }, teach: 'paint' } }); // 単独（water とだけ併用可）
+  assert.deepEqual(checkGenerateInput({ stageGen: { ...SG, gimmicks: { paint: { min: 4, max: 4 }, water: { min: 2, max: 4 } }, teach: 'paint' } }), []); // 混在（#531 段2）
   assert.deepEqual(checkGenerateInput({ stageGen: { ...SG, gimmicks: { water: { min: 2, max: 8 } }, teach: 'water' } }), []);
   bad({ stageGen: { ...SG, gimmicks: { water: { min: 1, max: 8 } }, teach: 'water' } }); // 水は2〜8
   assert.deepEqual(checkGenerateInput({ stageGen: { ...SG, gimmicks: { water: { min: 2, max: 4 }, items: { min: 1, max: 1 } }, teach: 'water' } }), []); // items との併用は通る（#531）

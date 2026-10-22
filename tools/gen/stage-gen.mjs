@@ -221,33 +221,95 @@ function placePeriodic(rng, doorCount, spec) {
 // 色ぬり（paint）の目標。start からの自己回避ランダムウォーク（長さ＝目標マス数 len）の細い経路型。
 // 歩いたマスのうち直前の1マス以外とは隣り合わないので、2×2 などの塊は作らない。末端を goal にする
 // （goal は spec.goal を上書き）。壁は踏まない。行き止まりなら null。目標マス数の上限は検査側（4〜8）。
+const PAINT_BUDGET = 3000; // 混在時の経路探索の節点数の上限
 const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-function placePaint(rng, len, spec) {
-  const walls = new Set(spec.walls.map(keyOf));
+// 混在時（#531 段2。水とだけ併用）は避けるマスを occupied(spec) に広げる（水マス・どんぐり・氷などを目標にしない。start・goal は除く）。
+// 単独時は壁だけ避ける（旧経路。乱数の消費も結果も変えない）。
+function placePaint(rng, len, spec, mixed = false) {
+  const walls = mixed ? occupied(spec) : new Set(spec.walls.map(keyOf));
+  if (mixed) { walls.delete(keyOf(spec.start)); walls.delete(keyOf(spec.goal)); }
+  // aim があれば、そのマスを踏むまでは 8 割の確率で近づく向きへ歩く（混在時に川の隙間へ向かう）。
+  const walkOnce = (aim) => {
+    const walk = [{ x: spec.start.x, y: spec.start.y }];
+    const seen = new Set([keyOf(spec.start)]);
+    while (walk.length < len) {
+      const last = walk[walk.length - 1];
+      const next = DIRS.map(([dx, dy]) => ({ x: last.x + dx, y: last.y + dy })).filter((p) => {
+        if (p.x < 0 || p.y < 0 || p.x >= spec.grid.cols || p.y >= spec.grid.rows) return false;
+        if (walls.has(keyOf(p)) || seen.has(keyOf(p))) return false;
+        return DIRS.every(([dx, dy]) => {
+          const q = { x: p.x + dx, y: p.y + dy };
+          return !seen.has(keyOf(q)) || keyOf(q) === keyOf(last);
+        });
+      });
+      if (next.length === 0) return null;
+      let p;
+      if (aim && !seen.has(keyOf(aim)) && rng() < 0.8) {
+        const dist = (q) => Math.abs(q.x - aim.x) + Math.abs(q.y - aim.y);
+        const best = Math.min(...next.map(dist));
+        const near = next.filter((q) => dist(q) === best);
+        p = near[Math.floor(rng() * near.length)];
+      } else {
+        p = next[Math.floor(rng() * next.length)];
+      }
+      walk.push(p);
+      seen.add(keyOf(p));
+    }
+    return walk;
+  };
+  if (!mixed) {
+    const walk = walkOnce();
+    return walk && { paint: walk, goal: walk[walk.length - 1] };
+  }
+  // 混在時は、水に挟まれた隙間（橋になるマス）を途中で通る経路を、順序を乱数で振った深さ優先で探す（川を渡る目標にする）。
+  // 隙間に届かない枝は残り手数で切る。塗りが飾りにならないよう、塗り無しの最短（水ありのまま）より経路が長いものだけ採る
+  // （paintMustMatter と同じ向き）。探索は PAINT_BUDGET 節点で打ち切る（決定的）。
+  const water = new Set((spec.water ?? []).map(keyOf));
+  const at = (p, dx, dy) => water.has(`${p.x + dx},${p.y + dy}`);
+  const crosses = (p) => (at(p, -1, 0) && at(p, 1, 0)) || (at(p, 0, -1) && at(p, 0, 1));
+  const aims = [];
+  for (let y = 0; y < spec.grid.rows; y += 1) {
+    for (let x = 0; x < spec.grid.cols; x += 1) if (!water.has(`${x},${y}`) && !walls.has(`${x},${y}`) && crosses({ x, y })) aims.push({ x, y });
+  }
+  if (water.size > 0 && aims.length === 0) return null;
+  const toAim = (q) => Math.min(...aims.map((a) => Math.abs(q.x - a.x) + Math.abs(q.y - a.y)));
+  let budget = PAINT_BUDGET;
   const walk = [{ x: spec.start.x, y: spec.start.y }];
   const seen = new Set([keyOf(spec.start)]);
-  while (walk.length < len) {
+  const dfs = () => {
     const last = walk[walk.length - 1];
-    const next = DIRS.map(([dx, dy]) => ({ x: last.x + dx, y: last.y + dy })).filter((p) => {
-      if (p.x < 0 || p.y < 0 || p.x >= spec.grid.cols || p.y >= spec.grid.rows) return false;
-      if (walls.has(keyOf(p)) || seen.has(keyOf(p))) return false;
-      return DIRS.every(([dx, dy]) => {
+    if (walk.length === len) {
+      if (water.size > 0 && !walk.some((p, i) => i > 0 && i < len - 1 && crosses(p))) return false;
+      return shortestSteps({ ...spec, goal: last }) < len - 1;
+    }
+    if (budget <= 0) return false;
+    budget -= 1;
+    const crossed = water.size === 0 || walk.some((p) => aims.some((a) => keyOf(a) === keyOf(p)));
+    for (const p of shuffle(rng, DIRS.map(([dx, dy]) => ({ x: last.x + dx, y: last.y + dy })))) {
+      if (p.x < 0 || p.y < 0 || p.x >= spec.grid.cols || p.y >= spec.grid.rows) continue;
+      if (walls.has(keyOf(p)) || seen.has(keyOf(p))) continue;
+      if (!DIRS.every(([dx, dy]) => {
         const q = { x: p.x + dx, y: p.y + dy };
         return !seen.has(keyOf(q)) || keyOf(q) === keyOf(last);
-      });
-    });
-    if (next.length === 0) return null;
-    const p = next[Math.floor(rng() * next.length)];
-    walk.push(p);
-    seen.add(keyOf(p));
-  }
-  return { paint: walk, goal: walk[walk.length - 1] };
+      })) continue;
+      // 隙間をまだ通っていなければ、隙間の先に最低 1 マス残る手数で届くこと
+      if (!crossed && toAim(p) + 1 > len - walk.length - 1) continue;
+      walk.push(p);
+      seen.add(keyOf(p));
+      if (dfs()) return true;
+      walk.pop();
+      seen.delete(keyOf(p));
+    }
+    return false;
+  };
+  return dfs() ? { paint: [...walk], goal: walk[walk.length - 1] } : null;
 }
 
 // 水（water）の配置。盤を横か縦に横切る直線上の連続した (水マス数+1) マスのうち1マスだけ水にせず（隙間）、
 // 残りを水にした帯。水・橋を外した盤の最短より実際の最短が +2 以上長いものだけ採る（帯が迂回を強いる）。
 // 水は壁・start・goal に重ねない。waterMode は呼び出し側が cushion 固定で付ける。条件に合わなければ null。
-function placeWater(rng, waterCount, spec) {
+// paint と併用のとき（detour=false）は、goal が後で目標の末端に置き換わるので、この仮の goal での迂回条件は見ない（橋を通る経路は placePaint 側で求める）。
+function placeWater(rng, waterCount, spec, detour = true) {
   const { cols, rows } = spec.grid;
   const horizontal = rng() < 0.5; // true: 横一列の帯（行 y 固定）
   const lineLen = horizontal ? cols : rows;
@@ -267,7 +329,7 @@ function placeWater(rng, waterCount, spec) {
   }
   const base = shortestSteps(spec);
   const actual = shortestSteps({ ...spec, water, waterMode: 'cushion' });
-  if (base === Infinity || actual === Infinity || actual < base + 2) return null;
+  if (base === Infinity || actual === Infinity || (detour && actual < base + 2)) return null;
   return water;
 }
 
@@ -378,7 +440,7 @@ export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts 
     const waterCount = gim.water ? countOf(rng, gim.water) : 0;
     if (waterCount > 0) {
       work += cells.length * 4 * stateMul;
-      const placed = placeWater(rng, waterCount, spec);
+      const placed = placeWater(rng, waterCount, spec, !gim.paint);
       if (!placed) continue;
       spec = { ...spec, water: placed, waterMode: 'cushion' };
     }
@@ -395,7 +457,9 @@ export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts 
     const paintLen = gim.paint ? countOf(rng, gim.paint) : 0;
     if (paintLen > 0) {
       work += cells.length * paintLen * 8;
-      const placed = placePaint(rng, paintLen, spec);
+      const mixed = Boolean(spec.water || spec.warps || spec.periodic || spec.keys || spec.switches || spec.cushion
+        || spec.items?.length || spec.ice?.length);
+      const placed = placePaint(rng, paintLen, spec, mixed);
       if (!placed) continue;
       spec = { ...spec, goal: placed.goal, paint: placed.paint };
     }
@@ -411,10 +475,14 @@ export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts 
     }
     const board = { ...spec, allowedCommands: allowed, solution: cmds, maxCommands: cmds.length };
     // teach＋新たに混ぜた1種（warps・periodic・water のうち指定されたもの。teach と同じなら重ねない）を判定する。
+    // paint×water は、水が最短を伸ばさない（目標の細い経路は水を踏まない）ので、水の必須性の代わりに
+    // 「目標の経路が橋のマス（水に挟まれた隙間）を通る」ことを求める（川を渡る盤にする）。
+    const paintWater = board.paint?.length > 0 && board.water?.length > 0;
+    if (paintWater && !board.bridge) continue;
     if (stageGen.teach) {
       const mixed = ['warps', 'periodic', 'water'].find((k) => board[k]?.length > 0 && k !== stageGen.teach);
-      if (!teachMatters(stageGen.teach, board)) continue;
-      if (mixed && !teachMatters(mixed, board)) continue;
+      if (!(paintWater && stageGen.teach === 'water') && !teachMatters(stageGen.teach, board)) continue;
+      if (mixed && !(paintWater && mixed === 'water') && !teachMatters(mixed, board)) continue;
     }
     return board;
   }

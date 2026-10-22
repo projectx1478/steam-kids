@@ -56,7 +56,7 @@
 - 移動規則：水は通行不可のマス（`blocks`）。`waterMode`が`"cushion"`なら`soft`になり、当たったら手前で止まり失敗にしない（`## cushion`と同じ。命令1つは無駄）。`"bump"`なら壁と同じ失敗（`blockedAt`・`bumped`）。壁・盤外は従来どおり失敗。BFS（最短手数）は動けない手を採らない
 - 描画：水のセルに波のSVGを重ね`data-water="true"`、橋のセルに板橋のSVGを重ね`data-bridge="true"`・`data-bridge-dir`（`h`横／`v`縦。上下に水があれば横、左右に水があれば縦、それ以外は横）を付ける。隣り合うタイルは各辺2pxずつ広げて枠の色を見せずにつなげる。水で止まると`view.bounce(dir, 'water')`（水しぶき＋困り顔）と効果音`splash`
 - 数値条件：水は盤内・重複不可で、壁・start・goal・items・ice・cushion・keys・doors・switches（targetsを含む）・paint・periodicと重ならない（併用自体は可）。橋は盤内・重複不可で、water・壁・cushion・doors・switches.targetsと重ならず、上下左右に水が1つ以上ある。`waterMode`は`"cushion"`/`"bump"`以外はNG、`water`が空のときの指定もNG
-- stageGen：`water`単独で指定する（壁`walls`のみ併用可。他のギミック・`groupRepeats`・`repeatBox`とは併用不可）。水マス数は2〜8。`waterMode`は入力にせず、`"cushion"`固定で出力する。水は連続した帯＋1マスの隙間（隙間が橋＝最短経路上）。橋は最短確定後、最短経路上で置けるときのみ置く（置けなければ橋なし）。`repeatBox`・`groupRepeats`は生成しない。`teach`には`water`のみ指定できる。
+- stageGen：`water`は単独で指定する。ただし`paint`とだけ併用できる（`## paint`のstageGen参照）。壁`walls`は従来どおり併用可。他のギミック・`groupRepeats`・`repeatBox`とは併用不可。水マス数は2〜8。`waterMode`は入力にせず、`"cushion"`固定で出力する。水は連続した帯＋1マスの隙間（隙間が橋＝最短経路上）。橋は最短確定後、最短経路上で置けるときのみ置く（置けなければ橋なし）。`repeatBox`・`groupRepeats`は生成しない。`teach`には`water`のみ指定できる。
 
 ## keys（かぎとドア）
 
@@ -97,7 +97,7 @@
 - 移動規則：通ったマス（startを含む）が塗られる。クリアは「ゴール到達かつ最後の塗り＝目標」（塗り残しも目標外を塗るのも失敗。同じマスの再通過は変化なし）。`simulate`の`unmet`に`'paint'`、`paintOver`に目標外のマスが入る。BFSは塗り集合を状態に含み、目標外を塗った状態は`dead`で捨てる
 - 描画：塗ったマスに黄（amber-300）の全面＋白い丸のSVGを重ね`.grid-paint`（0.3秒でフェードイン。reduced-motion時は即時）。補助行に目標を同じ色・図形で小さく見せる「みほん」ミニ盤（`data-paint-sample`）。クリア時は「みほんと おなじ！」。失敗時は目標外のマスに枠を出すだけで、文言のヒントは出さない
 - 数値条件：盤面の大きさは盤面共通の20×20以内。他のギミック・repeatBox・groupRepeatsと併用できる（#529。併用盤はエディタ限定でレッスンには出さない）。目標は盤内・壁・水・氷と重ならず重複なし・start/goalを含む（目標×氷の同じマスは検証NG）。目標を外した（塗り無し）最短より塗りありの最短が長いこと、`maxCommands`＝最短ちょうど。必須性の判定で、ドア・ワープの穴など壁にして外すマスは、ぬりの目標から除いて再判定する（目標に残すと外した盤が解けず「必須」と誤判定するため）
-- stageGen：`paint`単独で指定する（壁`walls`のみ併用可。他のギミック・`groupRepeats`・`repeatBox`とは併用不可）。目標マス数は4〜8。目標はstartからの細い経路型（2×2などの塊は作らず、末端をgoalにする）。`repeatBox`・`groupRepeats`は生成しない。`teach`には`paint`のみ指定できる。
+- stageGen：`paint`は単独で指定する。ただし`water`とだけ併用できる（目標は水マスに置かず、橋の1マスを通る。items・ice・keys・cushion・switches・warps・periodicとは併用できない。壁`walls`は従来どおり併用可。`groupRepeats`・`repeatBox`とは併用不可）。目標マス数は4〜8。目標はstartからの細い経路型（2×2などの塊は作らず、末端をgoalにする）。`repeatBox`・`groupRepeats`は生成しない。`teach`には`paint`のみ指定できる。
 
 ## warps（ワープ）
 
