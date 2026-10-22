@@ -538,6 +538,10 @@ dialog.result-row {
 .sk-bird-bubble[hidden] {
   display: none;
 }
+/* index.html は hidden と .flex を併記しており、.flex が UA の [hidden] を上書きするため（#540・#543） */
+#menu-credit-view[hidden] {
+  display: none;
+}
 
 /* ステージ開始時の「スタート！」（js/ui-retry.js showStartCue・Issue #497 A案）：盤面中央、傾き-6度・二重縁・影・グラデ文字。
    タップは素通し（pointer-events:none）。動きを止める設定では静止表示（アニメーションは no-preference のみ）。 */
