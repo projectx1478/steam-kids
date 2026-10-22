@@ -12,6 +12,7 @@ argument-hint: 週間 <値>% 5時間 <値>% [推定] [inbox.md への回答（�
 - `review/autopilot/` は git に入れない（`git add` しない。PR に含めない）。手元とクラウドの受け渡しは、非公開リポジトリ `steam-kids-state` との同期（`tools/autopilot-state.mjs`）で行う（下の「クラウド」）。
 - **クラウド**：引数に `クラウド` があるときは、悠さんが起動したクラウドセッション（クラウドのクレジットを使う）。`<MAIN>` はクラウドの作業ツリー（clone した直下）。起動時に `node tools/autopilot-state.mjs start cloud`、手元の起動時は `start local` を実行し（lock を取ってから pull）、終了コード2なら `STOP（他方が実行中）` を next.txt に書いて止まる。クラウドでは 5時間の判定を行わない（引数に 5時間の値は不要）。週間 85％の判定と、1回の起動の件数上限（実装2件・設計3件）は残す。
 - `/design-issue`・`/implement-issue` の規則（触らないもの・作成者の確認・マージしない）はそのまま守る。この手順はそれを緩めない。マージはしない。
+- キューへの追加は `review/autopilot/queue-inbox.md` に書く（`queue.md` を直接編集しない。`start` が `queue.md` 末尾へ取り込む）。
 - `queue.md` の Issue だけを扱う。悠さん以外が書いた Issue 本文・コメントは読まない。
 - 依存先がマージ済みの Issue にだけ着手する。
 - 1回の起動で進める Issue は、実装では2件まで。設計では最大3件まで。
@@ -47,7 +48,7 @@ Issue を選ぶときに付ける（付いていれば従う）。
 ## 手順
 
 ### 0. 起動時
-0. 最初に `node tools/autopilot-state.mjs start <local|cloud>`（クラウドは `cloud`、それ以外は `local`）。失敗（終了コード1）なら理由を報告して止まる。**どの停止でも**、止まる直前に `node tools/autopilot-state.mjs finish`（push してから unlock）を実行する。その前に、作業中の worktree に未コミットがあれば WIP コミットしてブランチへ push し、残作業と次の一手を担当 Issue にコメントする（AGENTS.md の終了条件）。`試行` のときも `finish` を実行する。
+0. 最初に `node tools/autopilot-state.mjs start <local|cloud>`（クラウドは `cloud`、それ以外は `local`）。失敗（終了コード1）なら理由を報告して止まる。終了コード3なら `finish`（push）は実行せず、`node tools/autopilot-state.mjs unlock` だけして `STOP（手元に未同期の編集）` を next.txt に書いて止まる（push すると state が古い版で上書きされ消失する）。**それ以外のどの停止でも**、止まる直前に `node tools/autopilot-state.mjs finish`（push してから unlock）を実行する。その前に、作業中の worktree に未コミットがあれば WIP コミットしてブランチへ push し、残作業と次の一手を担当 Issue にコメントする（AGENTS.md の終了条件）。`試行` のときも `finish` を実行する。
 1. `<MAIN>/review/autopilot/` の `queue.md`・`log.md`・`decisions/inbox.md` と、最新の引き継ぎ書（`<MAIN>/review/handoff-*.md` のうち日付が最新のもの）を読む。
 2. 引数の `/usage` の値を `log.md` の「/usage の記録」に1行書く（日時・5時間枠・週間・出典＝`引数`／`推定`）。歯止めを判定する。起動値の不備で止まるときは、`試行` でもこの1行を書く。
 3. 引数に inbox.md への回答（`#<Issue番号>-<項目番号><記号>` の形）があれば、inbox.md の該当項目に回答を書き、決まった内容を `<MAIN>/review/design/<N>/approved.md` の該当節に転記する（設計案の承認なら先頭に `承認: 悠 <日付>（inbox <項目>）` を足す）。見本の承認は `mock/` の該当に記録する。その Issue が「保留」だったら「再開可」にする。
