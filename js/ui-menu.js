@@ -1,6 +1,6 @@
 // 設定メニュー（Issue #389 段A・#467 段A）。
 // ⚙（ヘッダの #gear-btn、のちにパレットの ⚙）→ 画面中央のパネル #gear-menu →
-// 確認パネル（「すすむ」「やめる」）→ dashboard.html。
+// 確認（ui-dialog.js。「ほごしゃの がめんへ」「とじる」）→ dashboard.html。
 // 開いている間は全面の覆い（#menu-overlay）が盤面・じっこうボタンへのタップを受け止めるので、
 // 実行ボタンは押せず、メニューは覆いのタップか「とじる」で閉じる。
 // <dialog>は使わない（hiddenの切替のみ）。
@@ -10,6 +10,7 @@
 // もどる（#zoom-back）か Esc で閉じる。
 
 import { getActiveZoom } from './ui-zoom.js';
+import { confirmDialog } from './ui-dialog.js';
 
 const GUARDIAN_URL = 'dashboard.html';
 
@@ -28,8 +29,7 @@ export function initMenu() {
   const gear = byId('gear-btn');
   const menu = byId('gear-menu');
   const overlay = byId('menu-overlay');
-  const confirmBox = byId('guardian-confirm');
-  if (!gear || !menu || !overlay || !confirmBox) return;
+  if (!gear || !menu || !overlay) return;
 
   const zoomBox = byId('menu-zoom');
   const zoomOpen = byId('menu-zoom-open');
@@ -45,6 +45,7 @@ export function initMenu() {
   const creditGuardian = byId('menu-credit-guardian');
   if (!menuMain || !creditOpen || !creditView || !creditClose || !creditGuardian) return;
   let opener = gear;
+  let guardianDialog = null;
 
   // 拡大できない盤（24px以上）や選択画面では「がめん」を出さない。
   const refreshZoom = () => {
@@ -74,7 +75,8 @@ export function initMenu() {
   const closeAll = () => {
     menu.hidden = true;
     overlay.hidden = true;
-    confirmBox.hidden = true;
+    guardianDialog?.close();
+    guardianDialog = null;
     showCredit(false);
     opener.setAttribute('aria-expanded', 'false');
     gear.setAttribute('aria-expanded', 'false');
@@ -84,7 +86,8 @@ export function initMenu() {
     closeBar();
     menu.hidden = false;
     overlay.hidden = false;
-    confirmBox.hidden = true;
+    guardianDialog?.close();
+    guardianDialog = null;
     refreshZoom();
     opener.setAttribute('aria-expanded', 'true');
   };
@@ -94,9 +97,9 @@ export function initMenu() {
     else closeAll();
   });
   overlay.addEventListener('click', closeAll);
-  // 点列ノード・まえ・えらぶ を押したらパネルを閉じる（遷移の処理は ui-step.js が行う）。
+  // 点列ノード・レッスンせんたくがめん を押したらパネルを閉じる（遷移の処理は ui-step.js が行う）。
   menu.addEventListener('click', (e) => {
-    if (e.target.closest('#menu-back, #menu-home, button.step-dot')) closeAll();
+    if (e.target.closest('#menu-home,button.step-dot')) closeAll();
   });
 
   // 「がめん」：パネルを閉じて、盤面を見ながら調節できるズームバーへ。
@@ -127,14 +130,21 @@ export function initMenu() {
   const openGuardian = () => {
     menu.hidden = true;
     overlay.hidden = true;
-    confirmBox.hidden = false;
+    guardianDialog = confirmDialog({
+      question: 'ほごしゃの がめんを ひらく？',
+      keepLabel: 'とじる',
+      leaveLabel: 'ほごしゃの がめんへ',
+      onKeep: closeAll,
+      onLeave: () => {
+        location.href = GUARDIAN_URL;
+      },
+      overlayId: 'guardian-confirm',
+      keepId: 'guardian-cancel',
+      leaveId: 'guardian-go',
+    });
   };
   byId('menu-guardian').addEventListener('click', openGuardian);
   creditGuardian.addEventListener('click', openGuardian);
-  byId('guardian-cancel').addEventListener('click', closeAll);
-  byId('guardian-go').addEventListener('click', () => {
-    location.href = GUARDIAN_URL;
-  });
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       closeAll();

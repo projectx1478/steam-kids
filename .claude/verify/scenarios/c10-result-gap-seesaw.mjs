@@ -43,7 +43,7 @@ export default async function run({ page, check }) {
   await check('トースト消去後も盤面の境界ボックスが変わらない', async () => await boardBox(), boardBefore);
   await check('ダイアログ表示中: 背面の盤面・操作行が inert', async () =>
     page.evaluate(() => ['[data-sk-screen="board"]', '[data-sk-screen="actions"]'].every((s) => document.querySelector(s).closest('[inert]') !== null)), true);
-  await check('ダイアログ表示中: 「← もどる」は inert でない', async () =>
+  await check('ダイアログ表示中: 「← もどる」(#back-btn)は inert でない', async () =>
     page.evaluate(() => document.querySelector('#back-btn').closest('[inert]') === null), true);
 
   // もういちど：ダイアログと inert が片付き、操作行が戻る

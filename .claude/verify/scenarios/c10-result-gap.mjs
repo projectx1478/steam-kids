@@ -51,8 +51,8 @@ export default async function run({ page, check }) {
       ['.palette-row [data-command]', '.command-queue', '[data-sk-screen="actions"]'].every((s) => document.querySelector(s).closest('[inert]') !== null)
     )
   );
-  await check('ダイアログ表示中: メニューの「← まえの がめん」は inert でない', async () =>
-    page.evaluate(() => document.querySelector('#menu-back').closest('[inert]') === null)
+  await check('ダイアログ表示中: メニューの「レッスンせんたくがめん」は inert でない', async () =>
+    page.evaluate(() => document.querySelector('#menu-home').closest('[inert]') === null)
   );
   await check('ダイアログ表示中: ⚙は inert でなく、結果ダイアログに隠れず実クリックが届く（Issue #467）', async () =>
     page.evaluate(() => {
@@ -74,9 +74,11 @@ export default async function run({ page, check }) {
   await page.evaluate(() => localStorage.removeItem('steamkids.events'));
   for (let i = 0; i < 10 && (await page.$('[data-action="step"]')); i += 1) await page.click('[data-action="step"]');
   await page.waitForSelector('[data-result-gap]');
-  // 間の最中も ⚙ だけは inert から外れる（Issue #467）。⚙ → まえ を実クリックする。
+  // 間の最中も ⚙ だけは inert から外れる（Issue #467）。⚙ → レッスンせんたくがめん → 確認の「もどる」を実クリックする（Issue #542）。
   await page.click('[data-action="menu"]');
-  await page.click('#menu-back');
+  await page.click('#menu-home');
+  await page.click('[data-action="leave-ok"]');
+  await page.waitForSelector('[data-screen="picker"]');
   await check('もどる: playから出る', async () => (await page.getAttribute('#stage', 'data-step')) !== 'play');
   await page.waitForTimeout(2200);
   await check('もどる: 間のタイマーが片付き結果ボタンが現れない', async () => (await page.$$('[data-result-row]')).length, 0);

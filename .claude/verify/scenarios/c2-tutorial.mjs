@@ -77,9 +77,10 @@ export default async function run({ page, check }) {
   await check('スキップ済みは強調されない', async () => page.getAttribute('[data-action="how-to"]', 'data-highlight'), null);
   await page.click('[data-action="start"]');
   await check('はじめるはplay(p1)へ(tutorialを飛ばす)', async () => page.getAttribute('#stage', 'data-step'), 'play');
-  await page.click('[data-action="menu"]');
-  await page.click('#menu-back');
-  await check('p1から← もどるはintroへ(tutorialを飛ばす)', async () => page.getAttribute('#stage', 'data-step'), 'intro');
+  // ⚙の「まえ」は廃止（Issue #542）。端末の戻る＋確認の「もどる」で1ステップ戻す。
+  await page.goBack();
+  await page.click('[data-action="leave-ok"]');
+  await check('p1から端末の戻る＋確認でintroへ(tutorialを飛ばす)', async () => page.getAttribute('#stage', 'data-step'), 'intro');
 
   // --- 「そうさほうほう」で明示的に入り直し、実行完了→区切り画面まで確認 ---
   await page.goto('/index.html?lesson=cmd-01-susumu');

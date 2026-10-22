@@ -450,7 +450,7 @@ dialog.result-row {
   padding-top: 0;
   padding-bottom: 0;
 }
-/* 命令パレットのある画面（play・tutorial）はヘッダを隠す（#467。⚙・まえ・えらぶ はパレットとメニュー側へ） */
+/* 命令パレットのある画面（play・tutorial）はヘッダを隠す（#467。⚙・レッスンせんたくがめん はパレットとメニュー側へ。まえは #542 で廃止） */
 #app[data-op-compact='true'] > header {
   display: none;
 }

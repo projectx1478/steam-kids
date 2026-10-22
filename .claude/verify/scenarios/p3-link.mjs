@@ -321,7 +321,7 @@ export default async function run({ page, check }) {
   });
   const pageChild = await contextChild.newPage();
   await pageChild.goto(`${origin}/index.html`);
-  // 歯車メニュー経由（Issue #389 段A）：歯車→「ほごしゃの かた」→確認パネルの「すすむ」でdashboard.htmlへ
+  // 歯車メニュー経由（Issue #389 段A）：歯車→「ほごしゃの かた」→確認の「ほごしゃの がめんへ」（Issue #542。ui-dialog.js の confirmDialog）でdashboard.htmlへ
   const gearBox = await pageChild.locator('#gear-btn').boundingBox();
   await check('歯車のタップ領域が64px四方以上', async () => gearBox.width >= 64 && gearBox.height >= 64);
   await pageChild.locator('#gear-btn').click();
@@ -329,6 +329,8 @@ export default async function run({ page, check }) {
   await check('「ほごしゃの かた」のタップ領域が64px高以上', async () => guardianBox.height >= 64 && guardianBox.width >= 64);
   await pageChild.locator('#menu-guardian').click();
   await check('確認パネルが開く', async () => pageChild.locator('#guardian-confirm').isVisible(), true);
+  await check('確認の「ほごしゃの がめんへ」の文言', async () => pageChild.locator('#guardian-go').textContent(), 'ほごしゃの がめんへ');
+  await check('確認の「とじる」の文言', async () => pageChild.locator('#guardian-cancel').textContent(), 'とじる');
   await pageChild.locator('#guardian-go').click();
   await pageChild.waitForURL(/dashboard\.html/);
   await check('メニューと確認パネルを経由してdashboard.htmlに着く', async () => new URL(pageChild.url()).pathname.endsWith('/dashboard.html'), true);
