@@ -57,6 +57,8 @@ review/principles/screens/*
 review/principles/round1/
 review/principles/round2/
 review/principles/archive/
+# 画面・導線の点検（design-ui-audit）の報告・スクリーンショットは Git 管理外（#546）
+review/ui-audit/
 review/lesson-ideas/round1/
 review/lesson-ideas/round2/
 
