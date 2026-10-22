@@ -46,35 +46,35 @@ test('editor-view: pendingSwitches は targets が空で group も無いスイ�
   assert.deepEqual(pendingSwitches({}), []);
 });
 
-test('editor-view: switchModeOptions は併用禁止・共有・toggle の選択肢をグレーにする', () => {
+test('editor-view: switchModeOptions は共有・toggle（氷・クッション）をグレーにし、mode 混在はグレーにしない（#530）', () => {
   const dis = (spec, i) => switchModeOptions(spec, i).map((o) => o.disabled);
   assert.deepEqual(dis({ switches: [{ x: 0, y: 0, targets: [] }] }, 0), [false, false, false]);
-  assert.deepEqual(dis({ switches: [{ x: 0, y: 0 }, { x: 1, y: 0, mode: 'close' }] }, 0), [true, false, true]); // 相手が close → open 不可・toggle 不可
-  assert.deepEqual(dis({ switches: [{ x: 0, y: 0 }, { x: 1, y: 0 }] }, 0), [false, true, true]); // 相手が open → close 不可・toggle 不可
+  assert.deepEqual(dis({ switches: [{ x: 0, y: 0 }, { x: 1, y: 0, mode: 'close' }] }, 0), [false, false, false]); // 相手が close でも open・toggle を選べる
+  assert.deepEqual(dis({ switches: [{ x: 0, y: 0 }, { x: 1, y: 0 }] }, 0), [false, false, false]); // 相手が open でも close・toggle を選べる
   assert.deepEqual(dis({ switches: [{ x: 0, y: 0, targets: [{ x: 5, y: 5 }] }, { x: 1, y: 0, targets: [{ x: 5, y: 5 }] }] }, 0), [false, true, true]);
   assert.deepEqual(dis({ switches: [{ x: 0, y: 0, mode: 'toggle' }] }, 0), [false, false, false]); // 単独なら戻せる
-  assert.deepEqual(dis({ switches: [{ x: 0, y: 0, mode: 'toggle' }, { x: 1, y: 0, mode: 'toggle' }] }, 0), [true, true, false]); // toggle 同士。open・close は併用不可
+  assert.deepEqual(dis({ switches: [{ x: 0, y: 0, mode: 'toggle' }, { x: 1, y: 0, mode: 'toggle' }] }, 0), [false, false, false]); // toggle 同士でも open・close を選べる
   assert.deepEqual(dis({ switches: [{ x: 0, y: 0 }], ice: [{ x: 0, y: 0 }] }, 0), [false, false, true]); // 氷の上は toggle 不可
   assert.deepEqual(dis({ switches: [{ x: 0, y: 0 }], cushion: [{ x: 0, y: 0 }] }, 0), [false, false, true]); // クッションの上も
-  assert.deepEqual(dis({ switches: [{ x: 0, y: 0, group: 'a' }] }, 0), [false, true, true]); // group 付きは close も toggle も不可
-  assert.ok(switchModeOptions({ switches: [{ x: 0, y: 0 }, { x: 1, y: 0 }] }, 0)[1].reason.length > 0);
+  assert.deepEqual(dis({ switches: [{ x: 0, y: 0, group: 'a' }] }, 0), [false, false, false]); // group 付きでも close・toggle を選べる
+  assert.ok(switchModeOptions({ switches: [{ x: 0, y: 0, targets: [{ x: 5, y: 5 }] }, { x: 1, y: 0, targets: [{ x: 5, y: 5 }] }] }, 0)[1].reason.length > 0);
 });
 
-test('editor-view: switchGroupOptions は close・toggle・targets あり・他が使用中の group をグレーにする', () => {
+test('editor-view: switchGroupOptions は targets あり・他が使用中の group をグレーにする', () => {
   const dis = (spec, i) => switchGroupOptions(spec, i).map((o) => o.disabled);
   assert.deepEqual(switchGroupOptions({ switches: [{ x: 0, y: 0 }] }, 0).map((o) => o.value), ['', 'a', 'b', 'c', 'd']);
   assert.deepEqual(dis({ switches: [{ x: 0, y: 0, targets: [] }] }, 0), [false, false, false, false, false]);
-  assert.deepEqual(dis({ switches: [{ x: 0, y: 0, mode: 'close' }] }, 0), [false, true, true, true, true]);
-  assert.deepEqual(dis({ switches: [{ x: 0, y: 0, mode: 'toggle' }] }, 0), [false, true, true, true, true]);
+  assert.deepEqual(dis({ switches: [{ x: 0, y: 0, mode: 'close' }] }, 0), [false, false, false, false, false]); // close・toggle でも group を付けられる（#530）
+  assert.deepEqual(dis({ switches: [{ x: 0, y: 0, mode: 'toggle' }] }, 0), [false, false, false, false, false]);
   assert.deepEqual(dis({ switches: [{ x: 0, y: 0, targets: [{ x: 3, y: 3 }] }] }, 0), [false, true, true, true, true]);
   assert.deepEqual(dis({ switches: [{ x: 0, y: 0 }, { x: 1, y: 0, group: 'b' }] }, 0), [false, false, true, false, false]);
   assert.deepEqual(dis({ switches: [{ x: 0, y: 0, group: 'b' }] }, 0), [false, false, false, false, false]); // 自分の group は選べる
-  assert.ok(switchGroupOptions({ switches: [{ x: 0, y: 0, mode: 'close' }] }, 0)[1].reason.length > 0);
+  assert.ok(switchGroupOptions({ switches: [{ x: 0, y: 0, targets: [{ x: 3, y: 3 }] }] }, 0)[1].reason.length > 0);
   assert.ok(switchGroupOptions({ switches: [{ x: 0, y: 0, group: 'zz' }] }, 0).some((o) => o.value === 'zz')); // 盤にある別名も並ぶ
 });
 
-test('editor-view: group のスイッチでは close がグレー。pendingGroupSwitches は壁の無い group だけ', () => {
-  assert.deepEqual(switchModeOptions({ switches: [{ x: 0, y: 0, group: 'a' }] }, 0).map((o) => o.disabled), [false, true, true]);
+test('editor-view: group のスイッチでも close・toggle はグレーにならない。pendingGroupSwitches は壁の無い group だけ', () => {
+  assert.deepEqual(switchModeOptions({ switches: [{ x: 0, y: 0, group: 'a' }] }, 0).map((o) => o.disabled), [false, false, false]);
   const spec = { switches: [{ x: 0, y: 0, group: 'a' }, { x: 1, y: 0, group: 'b' }, { x: 2, y: 0, targets: [] }], groupWalls: [{ x: 3, y: 3, group: 'b' }] };
   assert.deepEqual(pendingGroupSwitches(spec), [{ index: 0, x: 0, y: 0 }]);
   assert.deepEqual(pendingGroupSwitches({}), []);

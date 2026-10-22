@@ -78,7 +78,6 @@ export const EMPTY_SPEC = { grid: { cols: 5, rows: 5 }, start: { x: 0, y: 0 }, g
 
 // ---- スイッチの設定欄（#404 段A）。spec は盤面 JSON。index は spec.switches の番号。----
 const swList = (spec) => (Array.isArray(spec.switches) ? spec.switches : []);
-const modeOf = (s) => s.mode ?? 'open';
 
 // targets が空で group も無いスイッチ（接続待ち）。[{ index, x, y }]。保存は止める側（E4）が使う。
 export function pendingSwitches(spec) {
@@ -86,7 +85,7 @@ export function pendingSwitches(spec) {
 }
 
 // mode のラジオ選択肢 [{ value, label, disabled, reason }]。disabled はグレーにして選ばせない（正本は validate の併用禁止）。
-// close は open と併用できず、他のスイッチと対象を共有できない。toggle は他の mode と併用できず、氷・クッションの上・group のスイッチには使えない（段C）。
+// mode は混在してよい（#530）。close は他のスイッチと対象を共有できない。toggle は氷・クッションの上には置けず、他のスイッチと対象を共有できない。
 export function switchModeOptions(spec, index) {
   const list = swList(spec);
   const me = list[index];
@@ -98,22 +97,12 @@ export function switchModeOptions(spec, index) {
   ];
   if (!me) return options.map((o) => ({ ...o, disabled: true, reason: 'スイッチが無い' }));
   const set = (value, reason) => { const o = options.find((x) => x.value === value); o.disabled = true; o.reason = reason; };
-  // toggle：他に open・close のスイッチがあるとき、氷・クッションの上、group 付き、対象を他と共有しているときは選べない
-  if (others.some((o) => modeOf(o) !== 'toggle')) set('toggle', 'toggle は他の mode（open・close）と併用できない');
-  else if (spec.ice && spec.ice.some((c) => c.x === me.x && c.y === me.y)) set('toggle', 'toggle は氷の上に置けない');
+  // toggle：氷・クッションの上、対象を他と共有しているときは選べない
+  if (spec.ice && spec.ice.some((c) => c.x === me.x && c.y === me.y)) set('toggle', 'toggle は氷の上に置けない');
   else if (spec.cushion && spec.cushion.some((c) => c.x === me.x && c.y === me.y)) set('toggle', 'toggle はクッションの上に置けない');
-  else if (typeof me.group === 'string') set('toggle', 'group は toggle と併用できない（先に group を外す）');
   const mine = Array.isArray(me.targets) ? me.targets : [];
   const shared = others.some((o) => (Array.isArray(o.targets) ? o.targets : []).some((u) => mine.some((t) => t.x === u.x && t.y === u.y)));
   if (!options.find((x) => x.value === 'toggle').disabled && shared) set('toggle', 'toggle は他のスイッチと対象を共有できない');
-  if (others.some((o) => modeOf(o) === 'toggle')) {
-    set('open', 'toggle は他の mode と併用できない');
-    set('close', 'toggle は他の mode と併用できない');
-    return options;
-  }
-  if (typeof me.group === 'string') set('close', 'group は open だけで使える（close と併用できない）');
-  if (others.some((o) => modeOf(o) === 'close')) set('open', 'close は open と併用できない');
-  if (others.some((o) => modeOf(o) === 'open')) set('close', 'close は open と併用できない');
   if (shared) set('close', 'close は他のスイッチと対象を共有できない（AND不可）');
   return options;
 }
@@ -128,7 +117,7 @@ export function pendingGroupSwitches(spec) {
 }
 
 // group のラジオ選択肢 [{ value, label, disabled, reason }]。value '' は「なし」。disabled はグレーで選べない（正本は validate）。
-// close・toggle のスイッチと、targets のあるスイッチは group を付けられない。同じ group を付けられるスイッチは1つだけ。
+// targets のあるスイッチは group を付けられない（mode は問わない。#530）。同じ group を付けられるスイッチは1つだけ。
 export function switchGroupOptions(spec, index) {
   const list = swList(spec);
   const me = list[index];
@@ -140,8 +129,7 @@ export function switchGroupOptions(spec, index) {
   const mine = typeof me.group === 'string' ? me.group : '';
   for (const o of options) {
     if (o.value === '' || o.value === mine) continue;
-    if (modeOf(me) !== 'open') { o.disabled = true; o.reason = 'group は open だけで使える（close・toggle と併用できない）'; }
-    else if (Array.isArray(me.targets) && me.targets.length > 0) { o.disabled = true; o.reason = 'group と targets は併用できない（先に壁の接続を外す）'; }
+    if (Array.isArray(me.targets) && me.targets.length > 0) { o.disabled = true; o.reason = 'group と targets は併用できない（先に壁の接続を外す）'; }
     else if (used.has(o.value)) { o.disabled = true; o.reason = 'この group は他のスイッチが使っている（1つだけ）'; }
   }
   return options;

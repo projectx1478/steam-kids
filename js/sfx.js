@@ -73,6 +73,16 @@ export function isMuted() {
 export function setMuted(next) {
   muted = next;
   localStorage.setItem(STORAGE_KEY, next ? 'off' : 'on');
+  muteListeners.forEach((fn) => fn(muted));
+}
+
+// subscribeMuted(fn): ミュート状態の購読口（Issue #378 段2。BGM等、play()以外の音も
+// ミュートに連動させるため）。fn は直後ではなく setMuted 呼び出し時にだけ走る。
+// 返り値は解除関数。初期状態は isMuted() で読む。
+const muteListeners = new Set();
+export function subscribeMuted(fn) {
+  muteListeners.add(fn);
+  return () => muteListeners.delete(fn);
 }
 
 // initSoundToggle(button): ミュート切替ボタンの配線。dataset.mutedをDOM判定用に反映する。

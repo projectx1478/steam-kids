@@ -102,6 +102,36 @@ test('service-worker: レッスンJSONはfetchされキャッシュにも書き�
   assert.equal(r.respondWithCalled === true && r.fetched === true && r.cachePut === true, true, 'レッスンJSONはfetchされキャッシュにも書き込まれる');
 });
 
+test('service-worker: 音源(audio/)はキャッシュ未ヒット時のみfetchして保存する（遅延保存）', async () => {
+  const r = await fire(`${origin}/audio/title.ogg`, 'GET');
+  assert.equal(r.respondWithCalled === true && r.fetched === true, true, 'audioはキャッシュ未ヒット時はfetchされる');
+  assert.equal(r.cachePut, true, 'audioは取得後にキャッシュへ保存される');
+  assert.equal(fetchCalls.some((c) => c.cache === 'no-cache'), false, 'audioは同名更新のためno-cache再検証を挟まない（キャッシュ優先）');
+});
+
+test('service-worker: 音源(audio/)はキャッシュヒット時はfetchしない', async () => {
+  fetchCalls.length = 0;
+  cachePutCalls.length = 0;
+  const hitCaches = { open: async () => fakeCache, match: async () => new Response('ogg') };
+  const hitHandler = makeFetchHandler(stubFetch, hitCaches);
+  const r = await fireWith(hitHandler, `${origin}/audio/title.ogg`, 'GET');
+  assert.equal(r.respondWithCalled, true, 'audioキャッシュヒットでもrespondWithで応答する');
+  assert.equal(r.respondWithValue instanceof Response, true, 'audioキャッシュヒット時はキャッシュのResponseが返る');
+  assert.equal(fetchCalls.length, 0, 'audioキャッシュヒット時はfetchしない');
+  assert.equal(cachePutCalls.length, 0, 'audioキャッシュヒット時は再保存しない');
+});
+
+test('service-worker: 音源(audio/)の取得が404でもrejectしない（曲なし環境）', async () => {
+  fetchCalls.length = 0;
+  cachePutCalls.length = 0;
+  const notFoundFetch = async () => new Response('nf', { status: 404 });
+  const nfHandler = makeFetchHandler(notFoundFetch, fakeCaches);
+  const r = await fireWith(nfHandler, `${origin}/audio/title.ogg`, 'GET');
+  assert.equal(r.respondWithRejected, false, 'audioの404でもrespondWithはrejectしない');
+  assert.equal(r.respondWithValue.status, 404, 'audioの404はそのまま返す');
+  assert.equal(cachePutCalls.length, 0, 'audioの404はキャッシュへ保存しない');
+});
+
 test('service-worker: オフライン・未キャッシュでもResponseを返しrejectしない', async () => {
   const offlineHandler = makeFetchHandler(failingFetch, fakeCaches);
   const r = await fireWith(offlineHandler, `${origin}/app.js`, 'GET');

@@ -5,7 +5,7 @@
 // steam-kids固有の追加: GitHub Pages配信（Cache-Control: max-age=600）のため、
 // アプリシェル取得に cache: "no-cache" を指定しHTTPキャッシュを迂回する（kids-playerはVercel
 // 配信のためこの指定が無い）。CACHE_NAMEはjs/config.jsのAPP_VERSIONと同値にする（docs/caching.md）。
-const CACHE_NAME = "steam-kids-cache-v78";
+const CACHE_NAME = "steam-kids-cache-v80";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -14,6 +14,7 @@ const APP_SHELL = [
   "./fonts/mplusrounded1c-800.woff2",
   "./app.js",
   "./js/analytics.js",
+  "./js/bgm.js",
   "./js/config.js",
   "./js/index-units.js",
   "./js/gimmick-unlock.js",
@@ -121,6 +122,24 @@ self.addEventListener("fetch", (event) => {
           return response;
         })
         .catch(() => caches.match(event.request).then((cached) => cached || Response.error()))
+    );
+    return;
+  }
+
+  // BGM音源（audio/）はAPP_SHELLに入れず、初回再生時に遅延保存（docs/caching.md。Issue #378 段2）。
+  // 容量を抑え・installを壊さないため。キャッシュ優先（配布物の音源は同名更新のため再検証しない）。
+  if (url.includes("/audio/")) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(event.request).then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone).catch(() => {}));
+          }
+          return response;
+        });
+      })
     );
     return;
   }
