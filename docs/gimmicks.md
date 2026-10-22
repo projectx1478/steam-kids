@@ -96,7 +96,7 @@
 - 移動規則：通ったマス（startを含む）が塗られる。クリアは「ゴール到達かつ最後の塗り＝目標」（塗り残しも目標外を塗るのも失敗。同じマスの再通過は変化なし）。`simulate`の`unmet`に`'paint'`、`paintOver`に目標外のマスが入る。BFSは塗り集合を状態に含み、目標外を塗った状態は`dead`で捨てる
 - 描画：塗ったマスに黄（amber-300）の全面＋白い丸のSVGを重ね`.grid-paint`（0.3秒でフェードイン。reduced-motion時は即時）。補助行に目標を同じ色・図形で小さく見せる「みほん」ミニ盤（`data-paint-sample`）。クリア時は「みほんと おなじ！」。失敗時は目標外のマスに枠を出すだけで、文言のヒントは出さない
 - 数値条件：盤面の大きさは盤面共通の20×20以内。他のギミック・repeatBox・groupRepeatsと併用できる（#529。併用盤はエディタ限定でレッスンには出さない）。目標は盤内・壁・水・氷と重ならず重複なし・start/goalを含む（目標×氷の同じマスは検証NG）。目標を外した（塗り無し）最短より塗りありの最短が長いこと、`maxCommands`＝最短ちょうど。必須性の判定で、ドア・ワープの穴など壁にして外すマスは、ぬりの目標から除いて再判定する（目標に残すと外した盤が解けず「必須」と誤判定するため）
-- stageGen：`paint`単独で指定する（壁`walls`のみ併用可。他のギミック・`groupRepeats`・`repeatBox`とは併用不可）。目標マス数は4〜8。目標はstartからの細い経路型（2×2などの塊は作らず、末端をgoalにする）。`repeatBox`・`groupRepeats`は生成しない。`teach`には`paint`のみ指定できる。
+- stageGen：`paint`は単独で指定する。ただし`water`とだけ併用できる（目標は水マスに置かず、橋の1マスを通る。items・ice・keys・cushion・switches・warps・periodicとは併用できない。壁`walls`は従来どおり併用可。`groupRepeats`・`repeatBox`とは併用不可）。目標マス数は4〜8。目標はstartからの細い経路型（2×2などの塊は作らず、末端をgoalにする）。`repeatBox`・`groupRepeats`は生成しない。`teach`には`paint`のみ指定できる。
 
 ## warps（ワープ）
 
