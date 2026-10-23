@@ -75,7 +75,13 @@ export default async function run({ page, check }) {
       })), true);
   await check('2〜3行に折り返している', () =>
     page.$$eval('.step-dot', (els) => {
-      const n = new Set(els.map((el) => Math.round(el.getBoundingClientRect().top))).size;
+      const centers = [];
+      for (const el of els) {
+        const r = el.getBoundingClientRect();
+        const cy = r.top + r.height / 2;
+        if (!centers.some((c) => Math.abs(c - cy) < 4)) centers.push(cy);
+      }
+      const n = centers.length;
       return n >= 2 && n <= 3;
     }), true);
   await check('同じ行で隣り合うノードの間隔が12px以上', () =>
