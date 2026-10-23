@@ -6,7 +6,7 @@ import { balance } from './engine-seesaw.js';
 import { logEvent } from './events.js';
 import { shapeSvg, setMoodIn, prefersReducedMotion, screenConfetti } from './ui-grid.js';
 import { vibrate } from './ui-commands.js';
-import { play as playSfx } from './sfx.js';
+import { play as playSfx, skipClickSfx } from './sfx.js';
 import { createOpScreen } from './ui-screen.js';
 import { showHandHint } from './ui-hand.js';
 import { isLessonCleared } from './ui-picker.js';
@@ -146,9 +146,12 @@ export function renderSeesaw(root, step) {
 
   function setPos(pos, via) {
     const next = Math.max(1, Math.min(notches, pos));
-    if (local.phase !== 'edit' || next === local.pos) return;
+    if (local.phase !== 'edit' || next === local.pos) {
+      skipClickSfx();
+      return;
+    }
     local.pos = next;
-    playSfx(via === 'drag' ? 'snap' : 'tap');
+    if (via === 'drag') playSfx('snap');
     drawMover();
   }
 

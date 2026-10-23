@@ -1,5 +1,7 @@
 // Web Audio APIで合成する効果音。音声ファイル・BGMなし（Issue #54）。
 // 単一API play(name, opts)。optsは stack の count、step の index のみ使用する。
+import { CLICK_SFX_EXEMPT } from './config.js';
+
 const STORAGE_KEY = 'steamkids.sound';
 const MASTER_VOLUME = 0.3;
 
@@ -339,4 +341,40 @@ export function play(name, opts = {}) {
   window.__sfxLog.push(name);
   const ctx = ensureContext();
   SOUND[name]?.(ctx, ctx.currentTime, opts);
+}
+
+// クリック音の共通処理（Issue #550）。document の click を委譲して tap を1か所で鳴らす。
+// - ボタン（button / [role=button]）以外・disabled・CLICK_SFX_EXEMPT・ミュート中は鳴らさない。
+// - pointerdown（capture）から click までの間に別の play() があれば鳴らさない
+//   （命令ボタンは pointerup で stack 等を鳴らす。専用音と二重にならないようにする）。
+// - 実行中・上限到達など、押下を受け付けない分岐は skipClickSfx() を呼んで無音を保つ（#550-7A）。
+let downLogLength = null;
+let clickSkipped = false;
+
+// skipClickSfx(): 今の押下に対するクリック音を鳴らさない。次の pointerdown で解除される。
+export function skipClickSfx() {
+  clickSkipped = true;
+}
+
+export function initClickSfx() {
+  document.addEventListener(
+    'pointerdown',
+    () => {
+      downLogLength = window.__sfxLog.length;
+      clickSkipped = false;
+    },
+    true
+  );
+  document.addEventListener('click', (e) => {
+    const skipped = clickSkipped;
+    const baseline = downLogLength;
+    downLogLength = null;
+    clickSkipped = false;
+    if (skipped || muted) return;
+    const btn = e.target instanceof Element ? e.target.closest('button,[role=button]') : null;
+    if (!btn || btn.disabled || btn.getAttribute('aria-disabled') === 'true') return;
+    if (CLICK_SFX_EXEMPT.some(({ selector }) => btn.matches(selector))) return;
+    if (baseline !== null && window.__sfxLog.length !== baseline) return;
+    play('tap');
+  });
 }

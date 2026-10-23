@@ -18,6 +18,7 @@ import { ensureDailyGate } from './js/ui-parental-gate.js';
 import { IS_DEV } from './js/dev-mode.js';
 import { initMenu } from './js/ui-menu.js';
 import { initBgm, setScene } from './js/bgm.js';
+import { initClickSfx } from './js/sfx.js';
 import { sceneFor } from './js/config.js';
 import { isTrial, composeTrialLesson, readTrialStage, TRIAL_MISSING_MESSAGE } from './js/trial-lesson.js';
 
@@ -187,6 +188,7 @@ async function showTitle() {
 
 initMenu();
 initBgm();
+initClickSfx();
 
 // ?lesson=直リンクを含む全起動経路で、その日初回のみ保護者の合言葉を求める（Issue #217）。
 await ensureDailyGate();

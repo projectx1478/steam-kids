@@ -9,7 +9,7 @@ import { fitCellSize, drawBoard as drawBoardUi, observeBoard } from './ui-board.
 import { createZoom } from './ui-zoom.js';
 import { openMenu } from './ui-menu.js';
 import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, vibrate, countChips, planRun, clearUnlocked, isLockedIndex, stepsBefore, isPause, setPauseLeft } from './ui-commands.js';
-import { play as playSfx } from './sfx.js';
+import { play as playSfx, skipClickSfx } from './sfx.js';
 import { UNDO_CLEAR_MS, snapshotUnlocked, restoreUnlocked } from './undo-clear.js';
 import { createOpScreen } from './ui-screen.js';
 import { createIdleNudge } from './ui-guide.js';
@@ -447,11 +447,12 @@ export function renderPlay(root, step) {
     maxPauses,
     onMenu: openMenu,
     onPause: () => {
-      if (local.running || local.stepping || local.locked || local.boxOpen >= 0) return;
-      if (local.commands.filter(isPause).length >= maxPauses) return;
+      if (local.running || local.stepping || local.locked || local.boxOpen >= 0 || local.commands.filter(isPause).length >= maxPauses) {
+        skipClickSfx();
+        return;
+      }
       local.commands.push({ pause: true });
       if (isFix) local.fixOpened = true;
-      playSfx('tap');
       drawQueue();
       queueEl.scrollLeft = queueEl.scrollWidth;
       queueEl.scrollTop = queueEl.scrollHeight;
@@ -461,11 +462,17 @@ export function renderPlay(root, step) {
     dropTarget: () => queueEl.getBoundingClientRect(),
     onDragOver: (active) => toggleGhostSlot(queueEl, active),
     onAdd: (dir, { via } = {}) => {
-      if (local.running || local.stepping || local.locked) return;
+      if (local.running || local.stepping || local.locked) {
+        skipClickSfx();
+        return;
+      }
       if (local.boxOpen >= 0) {
-        if (countChips(local.commands) >= step.maxCommands) return;
+        if (countChips(local.commands) >= step.maxCommands) {
+          skipClickSfx();
+          return;
+        }
         local.commands[local.boxOpen].box.push(dir);
-        playSfx(via === 'drag' ? 'snap' : 'tap');
+        if (via === 'drag') playSfx('snap');
         drawQueue();
         queueEl.scrollLeft = queueEl.scrollWidth;
         queueEl.scrollTop = queueEl.scrollHeight;
@@ -478,9 +485,12 @@ export function renderPlay(root, step) {
         last.times += 1;
         playSfx('stack', { count: last.times });
       } else {
-        if (countChips(local.commands) >= step.maxCommands) return;
+        if (countChips(local.commands) >= step.maxCommands) {
+          skipClickSfx();
+          return;
+        }
         local.commands.push({ dir, times: 1 });
-        playSfx(via === 'drag' ? 'snap' : 'tap');
+        if (via === 'drag') playSfx('snap');
       }
       if (isFix) local.fixOpened = true;
       drawQueue();
@@ -512,11 +522,13 @@ export function renderPlay(root, step) {
   timesBtn.className =
     'min-w-[64px] min-h-[64px] px-3 rounded-lg bg-amber-400 text-white text-sm font-bold whitespace-nowrap break-keep transition-transform duration-100 active:scale-95 disabled:opacity-40';
   timesBtn.addEventListener('click', () => {
-    if (local.running || local.stepping || local.locked || local.boxOpen < 0) return;
+    if (local.running || local.stepping || local.locked || local.boxOpen < 0) {
+      skipClickSfx();
+      return;
+    }
     vibrate();
     const box = local.commands[local.boxOpen];
     box.times = box.times >= 4 ? 2 : box.times + 1;
-    playSfx('tap');
     drawQueue();
     updateControls();
   });
@@ -527,10 +539,12 @@ export function renderPlay(root, step) {
   closeBtn.className =
     'btn-tactile px-4 bg-emerald-500 text-white text-lg font-bold whitespace-nowrap break-keep disabled:opacity-40';
   closeBtn.addEventListener('click', () => {
-    if (local.running || local.stepping || local.locked) return;
+    if (local.running || local.stepping || local.locked) {
+      skipClickSfx();
+      return;
+    }
     vibrate();
     closeBox();
-    playSfx('tap');
     drawQueue();
     updateControls();
   });
@@ -555,12 +569,13 @@ export function renderPlay(root, step) {
       'command-btn btn-tactile flex flex-col items-center justify-center gap-1 px-3 py-2 bg-amber-500 text-white disabled:opacity-40';
     boxBtn.innerHTML = '<span class="text-xl leading-none" aria-hidden="true">🔁</span><span class="text-sm whitespace-nowrap">はこ</span>';
     boxBtn.addEventListener('click', () => {
-      if (local.running || local.stepping || local.locked || local.boxOpen >= 0) return;
-      if (countChips(local.commands) >= step.maxCommands) return;
+      if (local.running || local.stepping || local.locked || local.boxOpen >= 0 || countChips(local.commands) >= step.maxCommands) {
+        skipClickSfx();
+        return;
+      }
       vibrate();
       local.commands.push({ box: [], times: 2 });
       local.boxOpen = local.commands.length - 1;
-      playSfx('tap');
       drawQueue();
       queueEl.scrollLeft = queueEl.scrollWidth;
       queueEl.scrollTop = queueEl.scrollHeight;
@@ -616,12 +631,14 @@ export function renderPlay(root, step) {
   });
 
   undoBtn.addEventListener('click', () => {
-    if (!undoSnap || local.running || local.stepping || local.locked) return;
+    if (!undoSnap || local.running || local.stepping || local.locked) {
+      skipClickSfx();
+      return;
+    }
     vibrate();
     // 同じ配列へ戻す（S.drafts[step.stepId]との共有参照を保つ）。
     restoreUnlocked(local.commands, undoSnap, local.lockedCount);
     dropUndo();
-    playSfx('tap');
     drawQueue();
     updateControls();
     local.nudge?.poke();
