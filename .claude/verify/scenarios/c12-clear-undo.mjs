@@ -70,6 +70,22 @@ export default async function run({ page, check }) {
   await check('命令を足すと札が消える', async () => (await page.$$('[data-action="undo-clear"]')).length, 0);
   await check('足した命令だけが残る', () => queue(page), ['left']);
 
+  // 札の表示中は 1コマ・じっこう が押せない（空の命令列では実行が始まらない）。実行・1コマを始めたら札は残らない。
+  await page.click('[data-action="clear-all"]');
+  await check('札の表示中は 1コマ・じっこう が押せない', () => page.evaluate(() => ['step', 'run'].map((a) => document.querySelector(`[data-action="${a}"]`).disabled)), [true, true]);
+  await page.click('[data-command="left"]');
+  await page.click('[data-action="step"]');
+  await check('1コマを押した後は札が残らない', async () => (await page.$$('[data-action="undo-clear"]')).length, 0);
+  await page.goto('/index.html');
+  await enterPlay(page, 'cmd-01-susumu');
+  await page.click('[data-command="left"]');
+  await page.click('[data-action="clear-all"]');
+  await page.click('[data-command="left"]');
+  await page.click('[data-action="run"]');
+  await check('じっこうを押した後は札が残らない', async () => (await page.$$('[data-action="undo-clear"]')).length, 0);
+  await page.goto('/index.html');
+  await enterPlay(page, 'cmd-01-susumu');
+
   // 3端末で、ぜんぶけす・札と 1コマ・じっこう の最短距離が16px以上（札の表示中も）。
   for (const [w, h] of SIZES) {
     await page.setViewportSize({ width: w, height: h });
