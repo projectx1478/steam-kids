@@ -36,3 +36,8 @@ export const BGM_SCENE_BY_SCREEN = {
 export function sceneFor(screen) {
   return BGM_SCENE_BY_SCREEN[screen];
 }
+
+// クリック音（js/sfx.js initClickSfx）を鳴らさないボタン（Issue #550）。専用音・大演出音を別に持つものだけ。
+export const CLICK_SFX_EXEMPT = [
+  { selector: '[data-action="retry"]', reason: 'もういちど：黒幕の遷移のあと start 合図音（ui-retry showStartCue）が鳴る' },
+];
