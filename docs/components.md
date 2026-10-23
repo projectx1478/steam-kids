@@ -39,6 +39,19 @@
 - 盤面エディタ（`tools/editor/`）は盤面を `drawBoard`（`js/ui-board.js`）経由で描き、`renderGrid(`・`computeCellSize(` を直呼びしない。
 - 盤面エディタのパレットは `GIMMICKS` の `key`・`label` から生成され、登録表に足せば自動で出る。
 
+## クリック音（共通処理と無音の例外）
+
+- 共通処理：ボタンのクリック音（`tap`）は `js/sfx.js` の `initClickSfx()`（`app.js` で1回初期化）が document の click 委譲で鳴らす。対象は `button`・`[role=button]`。個別のボタンで `playSfx('tap')` を直書きしない（Issue #550）。disabled・ミュート中は鳴らさない。
+- 二重鳴りの抑止：pointerdown（capture）から click までの間に別の音が鳴っていれば、委譲は鳴らさない（命令ボタンは pointerup で `stack` 等を鳴らすため）。
+- ガードで受け付けない押下（実行中・上限到達・シーソーの端など）：`skipClickSfx()` を呼んで無音にする。次の pointerdown で解除される。
+- ドラッグ：click を伴わないので委譲は鳴らない。ドラッグ経由の操作だけ `snap` を個別に鳴らす。
+
+無音の例外（専用音・大演出音のあるボタンのみ）。正本は `js/config.js` の `CLICK_SFX_EXEMPT`（セレクタ＋理由）。足すときはこの表も更新する。
+
+| セレクタ | 理由 |
+| --- | --- |
+| `[data-action="retry"]` | もういちど：黒幕の遷移のあと start 合図音（`ui-retry` の `showStartCue`）が鳴る |
+
 ## 禁止パターンの検査
 
 `test/forbidden-patterns.test.mjs`（`npm run test:unit` に含まれる）。項目は登録表 `test/forbidden-registry.mjs`、件数の基準は `test/forbidden-baseline.json`。ファイル単位の正規表現で、部品の置き場（上の表）を除いた `js/`（`js/vendor/` は対象外）と `tailwind.src.css`（星サイズのみ）を調べる。
