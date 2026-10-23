@@ -67,7 +67,7 @@ export default async function run({ page, check }) {
 
   // --- 受け付けない押下：上限到達（maxCommands=2、チップ2個の状態でもう1つ）は鳴らさない ---
   await clearLog(page);
-  await page.click('[data-command="right"]');
+  await page.click('[data-command="right"]', { force: true });
   await check('上限到達: 押しても何も鳴らない', () => log(page), []);
 
   // --- じっこう：1回押して増分1（run のみ）。実行中の命令ボタンは鳴らさない。もういちど（retry）は tap なし ---
@@ -75,7 +75,7 @@ export default async function run({ page, check }) {
   await page.click('[data-action="run"]');
   await check('じっこう: 1回押しの増分は run の1件（tap が足されない）', async () => (await log(page)).filter((n) => n === 'run' || n === 'tap'), ['run']);
   const tapsAfterRun = await tapCount(page);
-  await page.click('[data-command="right"]');
+  await page.click('[data-command="right"]', { force: true });
   await check('実行中: 命令ボタンを押しても tap は増えない', () => tapCount(page), tapsAfterRun);
 
   await page.waitForSelector('[data-action="retry"]', { timeout: 8000 });
