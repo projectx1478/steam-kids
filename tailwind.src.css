@@ -461,6 +461,39 @@ dialog.result-row {
 #app[data-op-compact='true'] > #stage {
   padding: 0.25rem;
 }
+/* intro の本文（Issue #551）。高さ479px以下は横並び：左に問い文と命令列、右に盤面。「もういちど みる」は問い文の右。
+   demo-widget は display: contents にして、中身をこの grid の項目として並べる（DOM は変えない）。 */
+.intro-body {
+  display: contents;
+}
+@media (max-height: 479px) {
+  .intro-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas: 'q replay board' 'queue queue board';
+    align-items: center;
+    column-gap: 0.75rem;
+    margin: 0.25rem 0 0;
+  }
+  .intro-body > .intro-question {
+    grid-area: q;
+    text-align: left;
+    padding: 0;
+  }
+  .intro-body > .demo-widget {
+    display: contents;
+  }
+  .intro-body > .demo-widget > .command-queue {
+    grid-area: queue;
+    justify-content: flex-start;
+  }
+  .intro-body > .demo-widget > [data-action='demo-replay'] {
+    grid-area: replay;
+  }
+  .intro-body > .demo-widget > .relative {
+    grid-area: board;
+  }
+}
 /* 下端バー（Issue #551）：intro・まとめの主ボタンを、スクロールしなくても画面内に置く。#stage の直下の最後の子にし、
    sticky で下端に張り付く。#stage の余白（p-2＝8px／sm:p-4＝16px）は負マージンで相殺して端まで広げる。
    内容が短い画面は margin-top:auto で下へ寄る。高さは72px、ボタンは64px以上・間隔16px以上。play 画面には出さない（#485）。 */

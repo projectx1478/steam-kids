@@ -632,15 +632,20 @@ function renderStagePicker(root) {
 
 function renderIntro(root, step) {
   stagePicked = false;
+  // intro-body：高さ479px以下の画面だけ、左に問い文、右にデモの横並びになる（Issue #551。CSSは tailwind.src.css）。
+  // それ以外の高さでは display: contents で、従来どおり問い文→デモの縦積み。
+  const body = document.createElement('div');
+  body.className = 'intro-body';
   const p = document.createElement('p');
-  p.className = 'text-2xl text-center py-2';
+  p.className = 'intro-question text-2xl text-center py-2';
   renderInto(p, step.text, S.readingLevel, S.furigana);
-  root.appendChild(p);
+  body.appendChild(p);
+  root.appendChild(body);
   // ロボットが正解の道をたどってゴールへ到達する完成イメージ（本番とは別のstart/goal。
   // Issue #97）。demoが無い教材型は対象外。
   // 既習のレッスン（isIntroKnown）は1回だけ再生して止める（Issue #269）。
   if (step.demo) {
-    renderGoalDemo(root, step.demo, { once: isIntroKnown(S.units, S.lesson.lessonId, isLessonCleared) });
+    renderGoalDemo(body, step.demo, { once: isIntroKnown(S.units, S.lesson.lessonId, isLessonCleared) });
   }
   renderStagePicker(root);
   // 主ボタンと副ボタンは下端バー（.sk-bottom-bar。Issue #551）に置き、スクロールせずに押せるようにする。
