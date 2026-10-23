@@ -5,6 +5,7 @@
 // 不正解: showHint（「おしい！」＋否定語を使わないヒント文。data-hintを持ちdata-resultは付けない）。
 import { play as playSfx } from './sfx.js';
 import { setScene } from './bgm.js';
+import { sceneFor } from './config.js';
 import { vibrate } from './ui-commands.js';
 import { showToast } from './ui-toast.js';
 import { shapeSvg } from './ui-grid.js';
@@ -43,7 +44,7 @@ export function clearResultBubble(bird) {
 export function showSuccess(slotEl, { view, restore, label = 'やったね！', confetti = true, bird } = {}) {
   playSfx('fanfare');
   // クリア曲はファンファーレに重ねる（音量はこちらを小さく。Issue #378 段2）。
-  setScene('clear');
+  setScene(sceneFor('clear'));
   vibrate();
   if (confetti) view?.confetti?.({ count: STAGE_CONFETTI_COUNT, duration: STAGE_CONFETTI_MS });
   view?.celebrateDance?.();

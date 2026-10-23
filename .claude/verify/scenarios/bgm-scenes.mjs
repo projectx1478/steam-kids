@@ -133,6 +133,17 @@ export default async function run({ page, check }) {
   await p.waitForSelector('[data-action="next-stage"]', { timeout: 8000 });
   await check('クリア: clear_logic.ogg が鳴る', () => hasLog(p, 'play', 'clear'), true);
 
+  // 完了条件3（Issue #541）: クリア→「もういちど」→1秒以内に操作画面の曲（play）へ戻る。
+  const clearIdx = await p.evaluate(() => window.__bgmLog.length);
+  await p.click('[data-action="replay"]');
+  await p.waitForFunction(
+    (from) => window.__bgmLog.slice(from).some(([e, d]) => e === 'play' && d === 'play'),
+    clearIdx,
+    { timeout: 1000 }
+  );
+  await check('もういちど: 1秒以内に play_logic.ogg へ戻る', () =>
+    p.evaluate((from) => window.__bgmLog.slice(from).some(([e, d]) => e === 'play' && d === 'play'), clearIdx), true);
+
   // ミュートで停止し、解除で再開する（steamkids.sound と連動する1スイッチ）。
   await p.evaluate(async () => {
     const sfx = await import('/js/sfx.js');
@@ -181,6 +192,21 @@ export default async function run({ page, check }) {
 
   // 検証中の pageerror・console.error が無いこと（曲なしシナリオを除く）。
   await check('SW環境で pageerror・console.error が無い', async () => errors, []);
+
+  // 完了条件4（Issue #541 段2）: クリア時に __bgmLog の再生記録が ['play','play'] → ['play','clear'] の順になる。
+  // ぶれの切り分けのため同条件で3回計測する（enterPlay は goto で __bgmLog を空から取り直す）。
+  for (let n = 1; n <= 3; n += 1) {
+    await enterPlay(p, 'cmd-01-susumu');
+    for (const c of ['up', 'up', 'left', 'left']) {
+      await p.click(`[data-command="${c}"]`);
+    }
+    await p.click('[data-action="run"]');
+    await p.waitForSelector('[data-action="next-stage"]', { timeout: 8000 });
+    await p.waitForFunction(() => window.__bgmLog.some(([e, d]) => e === 'play' && d === 'clear'), null, { timeout: 5000 });
+    await check(`クリア時に再生記録が play → clear の順（${n}回目）`, () =>
+      p.evaluate(() => window.__bgmLog.filter(([e, d]) => e === 'play' && (d === 'play' || d === 'clear')).map(([, d]) => d)),
+      ['play', 'clear']);
+  }
 
   await ctx.close();
 

@@ -15,3 +15,24 @@ export const BGM_TRACKS = {
   play: { url: 'audio/play_logic.ogg', volume: 0.15 },
   clear: { url: 'audio/clear_logic.ogg', volume: 0.12 },
 };
+
+// 画面→BGM場面の対応表（Issue #541）。setScene の直書きをここへ集約する。
+// タイトル〜大項目＝title／単元マップ・導入・チュートリアル＝map／操作＝play／クリア演出・まとめ＝clear。
+export const BGM_SCENE_BY_SCREEN = {
+  title: 'title',
+  slotSelect: 'title',
+  story: 'title',
+  trackSelect: 'title',
+  unitMap: 'map',
+  intro: 'map',
+  tutorial: 'map',
+  predict: 'play',
+  play: 'play',
+  seedPick: 'play',
+  trial: 'play',
+  clear: 'clear',
+  summary: 'clear',
+};
+export function sceneFor(screen) {
+  return BGM_SCENE_BY_SCREEN[screen];
+}
