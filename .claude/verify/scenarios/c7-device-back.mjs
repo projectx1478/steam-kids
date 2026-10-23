@@ -19,10 +19,22 @@ export default async function run({ page, check }) {
   await page.waitForSelector('[data-action="next-stage"]', { timeout: 8000 });
   await page.click('[data-action="next-stage"]');
   await check('p2へ進む', async () => (await stepId()) !== p1);
+  const p2 = await stepId();
+  // play中の端末の戻るは確認が出る（Issue #542）。「プレイを つづける」で留まる。
   await page.goBack();
+  await page.waitForSelector('[data-action="leave-ok"]');
+  await check('play中の端末の戻るで確認が出る', async () => (await page.$$('.leave-confirm')).length, 1);
+  await page.click('[data-action="leave-cancel"]');
+  await check('つづけるでp2に残る', stepId, p2);
+  // もう一度戻って「もどる」を押すとp1へ戻る（レッスンの外へは出ない）。
+  await page.goBack();
+  await page.waitForSelector('[data-action="leave-ok"]');
+  await page.click('[data-action="leave-ok"]');
   await check('端末の戻るでp1へ戻る', stepId, p1);
   await check('レッスンの外へ出ていない', async () => page.url().includes('lesson=cmd-01-susumu'));
   await page.goBack();
+  await page.waitForSelector('[data-action="leave-ok"]');
+  await page.click('[data-action="leave-ok"]');
   await check('もう一度戻るとintroへ戻る', step, 'intro');
   await page.goForward();
   await check('端末の進むでp1へ戻る', stepId, p1);
