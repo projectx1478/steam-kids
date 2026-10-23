@@ -171,7 +171,7 @@ export function refreshHeader() {
 function goBack() {
   if (headerEls().back.disabled || S.stepIndex === 0) return;
   if (hasPlayInProgress()) {
-    confirmLeave(() => goToStep(S.stepIndex - 1));
+    confirmLeave(() => goToStep(S.stepIndex - 1), BACK_TEXT);
     return;
   }
   goToStep(S.stepIndex - 1);
@@ -209,11 +209,15 @@ export function initSteps() {
     if (hasPlayInProgress()) {
       // playでは端末の戻るでも確認する。履歴を現在位置へ戻してから問う（Issue #542）。
       history.pushState({ stepIndex: S.stepIndex }, '');
+      // 確認の表示中は位置を戻すだけ（連打で確認や遷移が二重にならない）。
+      if (leaveConfirmOpen()) return;
+      const backward = target < S.stepIndex;
       // 「もどる」では積み直した分を1つ戻し、履歴の現在位置も表示と揃える（popstateはtarget===S.stepIndexで無視される）。
+      // 進む方向（target > 現在）では history.back() を呼ばない。
       confirmLeave(() => {
         enterStep(target);
-        history.back();
-      });
+        if (backward) history.back();
+      }, BACK_TEXT);
       return;
     }
     enterStep(target);
@@ -264,11 +268,15 @@ function hasPlayInProgress() {
 }
 
 // confirmLeave(onLeave): レッスンせんたくがめんへ離れる確認。共通部品 ui-dialog.js を使う（Issue #542）。
-function confirmLeave(onLeave) {
+// text: 文言（既定＝レッスンせんたくがめんへ。goBack・端末の戻るはBACK_TEXT＝まえの がめんへ）。
+const BACK_TEXT = { question: 'まえの がめんに もどる？', keepLabel: 'プレイを つづける', leaveLabel: 'もどる' };
+const HOME_TEXT = { question: 'レッスンせんたくがめんに もどる？', keepLabel: 'プレイを つづける', leaveLabel: 'もどる' };
+function leaveConfirmOpen() {
+  return !!document.querySelector('[data-action="leave-ok"]');
+}
+function confirmLeave(onLeave, text = HOME_TEXT) {
   confirmDialog({
-    question: 'レッスンせんたくがめんに もどる？',
-    keepLabel: 'プレイを つづける',
-    leaveLabel: 'もどる',
+    ...text,
     onLeave,
     keepAction: 'leave-cancel',
     leaveAction: 'leave-ok',

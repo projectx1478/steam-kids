@@ -102,9 +102,11 @@ export default async function run({ page, check }) {
   await check('dev: 1レッスン遊んでもeventsが増えない', async () => eventCount(page), 0);
   await check('dev: tutorialDoneも書かれない', async () =>
     page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('steamkids.tutorialDone.')).length), 0);
+  const stepKind = await page.evaluate(() => document.querySelector('#stage')?.dataset.step);
   await page.click('[data-action="menu"]');
   await page.click('#menu-home');
   // play中は離れる確認が出る（Issue #542）。tutorialなら出ない。
+  await check('play中だけ離れる確認が出る', async () => !!(await page.$('[data-action="leave-ok"]')), stepKind === 'play');
   if (await page.$('[data-action="leave-ok"]')) await page.click('[data-action="leave-ok"]');
   await page.waitForSelector('[data-screen="picker"]');
   await check('dev: 「えらぶ がめんへ」後もdevが続く', async () => page.url().includes('dev=1'));
