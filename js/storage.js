@@ -158,6 +158,14 @@ export function resetSlot(slot) {
   } catch {
     // 無視
   }
+  try {
+    const draftPrefix = keyFor('draft.', slot);
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith(draftPrefix))
+      .forEach((k) => localStorage.removeItem(k));
+  } catch {
+    // 無視
+  }
   const profile = newProfile();
   writeJSON(keyFor('profile', slot), profile);
   const slots = loadSlots();
@@ -180,6 +188,37 @@ export function writeResume(lessonId, stepId, ts = Date.now()) {
 
 export function clearResume(lessonId) {
   removeKey(keyFor(`resume.${lessonId}`, getActiveSlot()));
+}
+
+// 命令列の下書き（Issue #556）。値は {stepId, commands, ts}。レッスンごと最新1件、端末内のみ。
+// 壊れた値・型違い・長さ超過・30日超・未来の ts は null（呼び出し側は空で開始する）。
+const DRAFT_MAX_LEN = 100;
+const DRAFT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
+function isDraftCommand(c) {
+  if (!c || typeof c !== 'object' || Array.isArray(c)) return false;
+  if (c.pause === true) return true;
+  if (Array.isArray(c.box)) return c.box.length <= DRAFT_MAX_LEN && typeof c.times === 'number';
+  return typeof c.dir === 'string' && typeof c.times === 'number';
+}
+
+export function readDraft(lessonId) {
+  const v = readJSON(keyFor(`draft.${lessonId}`, getActiveSlot()), null);
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  if (typeof v.stepId !== 'string' || typeof v.ts !== 'number') return null;
+  const age = Date.now() - v.ts;
+  if (!(age >= 0 && age <= DRAFT_MAX_AGE_MS)) return null;
+  if (!Array.isArray(v.commands) || v.commands.length > DRAFT_MAX_LEN) return null;
+  if (!v.commands.every(isDraftCommand)) return null;
+  return { stepId: v.stepId, commands: v.commands, ts: v.ts };
+}
+
+export function writeDraft(lessonId, stepId, commands, ts = Date.now()) {
+  writeJSON(keyFor(`draft.${lessonId}`, getActiveSlot()), { stepId, commands, ts });
+}
+
+export function clearDraft(lessonId) {
+  removeKey(keyFor(`draft.${lessonId}`, getActiveSlot()));
 }
 
 // 最後に手がかりを見せたレッスン（Issue #282）。値は lessonId の文字列1項目。壊れた値・型違いは null。
