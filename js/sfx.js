@@ -350,6 +350,12 @@ export function play(name, opts = {}) {
 // - 実行中・上限到達など、押下を受け付けない分岐は skipClickSfx() を呼んで無音を保つ（#550-7A）。
 let downLogLength = null;
 let clickSkipped = false;
+let downBtn = null;
+let downDisabled = false;
+
+function isBtnDisabled(btn) {
+  return btn.disabled === true || btn.getAttribute('aria-disabled') === 'true';
+}
 
 // skipClickSfx(): 今の押下に対するクリック音を鳴らさない。次の pointerdown で解除される。
 export function skipClickSfx() {
@@ -359,20 +365,29 @@ export function skipClickSfx() {
 export function initClickSfx() {
   document.addEventListener(
     'pointerdown',
-    () => {
+    (e) => {
       downLogLength = window.__sfxLog.length;
       clickSkipped = false;
+      const b = e.target instanceof Element ? e.target.closest('button,[role=button]') : null;
+      downBtn = b;
+      downDisabled = b ? isBtnDisabled(b) : false;
     },
     true
   );
   document.addEventListener('click', (e) => {
     const skipped = clickSkipped;
     const baseline = downLogLength;
+    const wasBtn = downBtn;
+    const wasDisabled = downDisabled;
     downLogLength = null;
+    downBtn = null;
     clickSkipped = false;
     if (skipped || muted) return;
     const btn = e.target instanceof Element ? e.target.closest('button,[role=button]') : null;
-    if (!btn || btn.disabled || btn.getAttribute('aria-disabled') === 'true') return;
+    if (!btn) return;
+    // pointerdown 時点の状態で判定する（受け付けた押下が click 前に disabled になっても鳴らす）。
+    const disabled = btn === wasBtn ? wasDisabled : isBtnDisabled(btn);
+    if (disabled) return;
     if (CLICK_SFX_EXEMPT.some(({ selector }) => btn.matches(selector))) return;
     if (baseline !== null && window.__sfxLog.length !== baseline) return;
     play('tap');

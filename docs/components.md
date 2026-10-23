@@ -41,7 +41,7 @@
 
 ## クリック音（共通処理と無音の例外）
 
-- 共通処理：ボタンのクリック音（`tap`）は `js/sfx.js` の `initClickSfx()`（`app.js` で1回初期化）が document の click 委譲で鳴らす。対象は `button`・`[role=button]`。個別のボタンで `playSfx('tap')` を直書きしない（Issue #550）。disabled・ミュート中は鳴らさない。
+- 共通処理：ボタンのクリック音（`tap`）は `js/sfx.js` の `initClickSfx()`（`app.js` で1回初期化）が document の click 委譲で鳴らす。対象は `button`・`[role=button]`。個別のボタンで `playSfx('tap')` を直書きしない（Issue #550）。disabled・ミュート中は鳴らさない。disabled は click 時点でなく pointerdown 時点の状態で判定する（上限到達の最後の1押下は click 前にパレットが disabled になっても鳴らす）。pointerdown を伴わない click（キーボード等）は click 時点の状態で判定。
 - 二重鳴りの抑止：pointerdown（capture）から click までの間に別の音が鳴っていれば、委譲は鳴らさない（命令ボタンは pointerup で `stack` 等を鳴らすため）。
 - ガードで受け付けない押下（実行中・上限到達・シーソーの端など）：`skipClickSfx()` を呼んで無音にする。次の pointerdown で解除される。
 - ドラッグ：click を伴わないので委譲は鳴らない。ドラッグ経由の操作だけ `snap` を個別に鳴らす。
