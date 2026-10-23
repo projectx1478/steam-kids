@@ -68,7 +68,9 @@ export default async function run({ page, check }) {
   await page.click('[data-action="clear-all"]');
   await page.click('[data-command="left"]');
   await check('命令を足すと札が消える', async () => (await page.$$('[data-action="undo-clear"]')).length, 0);
-  await check('足した命令だけが残る', () => queue(page), ['left']);
+  // チップの表示は日本語ラベル（ui-commands.js の COMMAND_LABELS）。パレットのボタン表示を正として比べる。
+  const leftLabel = await page.$eval('[data-command="left"]', (b) => b.textContent.trim());
+  await check('足した命令だけが残る', () => queue(page), [leftLabel]);
 
   // 札の表示中は 1コマ・じっこう が押せない（空の命令列では実行が始まらない）。実行・1コマを始めたら札は残らない。
   await page.click('[data-action="clear-all"]');

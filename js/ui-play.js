@@ -215,14 +215,14 @@ export function renderPlay(root, step) {
   // 360px幅で4ボタン（けす・ぜんぶ・1コマ・じっこう）を1行に収めるため短縮する（Issue #111）。
   removeLastBtn.textContent = '１つけす';
   removeLastBtn.className =
-    'min-w-[64px] min-h-[64px] px-2 rounded-lg bg-slate-200 text-xs whitespace-nowrap break-keep transition-transform duration-100 active:scale-95 disabled:opacity-40';
+    'min-w-[64px] min-h-[64px] px-1 rounded-lg bg-slate-200 text-xs whitespace-nowrap break-keep transition-transform duration-100 active:scale-95 disabled:opacity-40';
 
   const clearBtn = document.createElement('button');
   clearBtn.type = 'button';
   clearBtn.dataset.action = 'clear-all';
   clearBtn.textContent = 'ぜんぶけす';
   clearBtn.className =
-    'min-w-[64px] min-h-[64px] px-2 rounded-lg bg-slate-200 text-xs whitespace-nowrap break-keep transition-transform duration-100 active:scale-95 disabled:opacity-40';
+    'min-w-[64px] min-h-[64px] px-1 rounded-lg bg-slate-200 text-xs whitespace-nowrap break-keep transition-transform duration-100 active:scale-95 disabled:opacity-40';
 
   // 「ぜんぶけす」の取り消し札（Issue #549）。ぜんぶけす の枠に入れ替わり、減り棒が5秒で縮む。
   // 実行・1コマ・追加・個別削除など命令列が動いたら updateControls が札を破棄する（取り消し不可）。
@@ -276,7 +276,7 @@ export function renderPlay(root, step) {
   runBtn.type = 'button';
   runBtn.dataset.action = 'run';
   runBtn.textContent = '▶ じっこう';
-  runBtn.className = 'btn-tactile px-1 bg-emerald-500 text-white text-base font-bold whitespace-nowrap break-keep disabled:opacity-40';
+  runBtn.className = 'btn-tactile px-1 bg-emerald-500 text-white text-sm font-bold whitespace-nowrap break-keep disabled:opacity-40';
 
   // 実行が失敗したらrunBtn自体を橙色の「もういちど」に変える（目線を動かさずに押せる。Issue #91）。
   // 他のボタンをロックする間、押せるのはこれだけなのでパルス枠で目立たせる（Issue #106）。
