@@ -23,6 +23,7 @@ import { withDev } from './dev-mode.js';
 import { isTrial } from './trial-lesson.js';
 import { readResume, writeResume, clearResume } from './storage.js';
 import { setScene } from './bgm.js';
+import { sceneFor } from './config.js';
 import { confirmDialog } from './ui-dialog.js';
 
 const STEP_DELAY_MS = 600;
@@ -378,8 +379,8 @@ function renderStep() {
   setActiveHandHint(null);
   activeAnimation?.cancel();
   activeAnimation = null;
-  setScene('play');
   const step = currentStep();
+  setScene(sceneFor(step.kind));
   // generator付きplay：確定したたねから盤面を作ってステップへ差し込む（同じたね→同じ盤面。Issue #69）。
   // 前のたねの盤のギミックが残らないよう、代入の前に ice・keys・doors を消す。混ぜるギミックはクリア済みの
   // 種類だけ（units 未読込・失敗時は空＝壁のみ。Issue #266）。
