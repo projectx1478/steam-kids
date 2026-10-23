@@ -56,16 +56,16 @@ export default async function run({ page, check }) {
   // 最初から満杯でdisabled。チップの取り消しで最初の操作を行う。
   await page.click('[data-remove-index="2"]');
 
-  // --- もどる・えらぶ がめんへは確認ダイアログを挟まず即座に遷移する。誤タップの保険は
-  // 確認ダイアログではなく命令列の下書き保持で行う（c6-tactile-ui.mjsで検証。Issue #95） ---
-  await check('確認ダイアログは存在しない', async () => (await page.$$('.confirm-dialog')).length, 0);
-  await page.click('[data-action="menu"]');
-  await page.click('#menu-back');
-  // ← もどるはtutorial(fix)を飛ばしてintroへ戻る（Issue #236）。
-  await check('確認無しでintroへ戻る', async () => page.getAttribute('#stage', 'data-step'), 'intro');
+  // --- playから離れるときは確認が出る（Issue #542）。⚙の「まえ」は廃止され、端末の戻るで1ステップ戻る ---
+  await check('確認ダイアログは出ていない', async () => (await page.$$('.leave-confirm')).length, 0);
+  await page.goBack();
+  await check('playで端末の戻るを押すと確認が出る', async () => (await page.$$('.leave-confirm')).length, 1);
+  await page.click('[data-action="leave-ok"]');
+  // 戻るはtutorial(fix)を飛ばしてintroへ戻る（Issue #236）。
+  await check('確認の「もどる」でintroへ戻る', async () => page.getAttribute('#stage', 'data-step'), 'intro');
 
   await page.click('#home-btn');
-  await check('えらぶ がめんへ も確認無しで即座に遷移する', async () => page.url().endsWith('/index.html?view=map'));
+  await check('introでは えらぶ がめんへ が確認無しで即座に遷移する', async () => page.url().endsWith('/index.html?view=map'));
 
   // --- 2. playの失敗ヒント（壁）・その場でもういちど・ひとつ けす ---
   // 壁を持つのはp2（4x4, start(0,3), goal(3,0), walls[(2,2)]）なので、p1をクリアしてp2へ進む。

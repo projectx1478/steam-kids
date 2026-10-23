@@ -23,6 +23,7 @@ import { withDev } from './dev-mode.js';
 import { isTrial } from './trial-lesson.js';
 import { readResume, writeResume, clearResume } from './storage.js';
 import { setScene } from './bgm.js';
+import { confirmDialog } from './ui-dialog.js';
 
 const STEP_DELAY_MS = 600;
 const STEP_TRANSITION_MS = 220;
@@ -93,7 +94,6 @@ function headerEls() {
     menuChip: document.getElementById('menu-stage-chip'),
     menuDots: document.getElementById('menu-stage-dots'),
     menuNav: document.getElementById('menu-nav'),
-    menuBack: document.getElementById('menu-back'),
     menuHome: document.getElementById('menu-home'),
   };
 }
@@ -117,7 +117,7 @@ function stepChipLabel(step) {
 // ヘッダー（#stageの外）：タイトル・区分チップ・もどる/えらぶ がめんへボタン。
 // renderStepのたびに更新する（Issue #91）。
 function renderHeader() {
-  const { wrap, back, home, title, chip, menuStage, menuTitle, menuChip, menuDots, menuNav, menuBack } = headerEls();
+  const { wrap, back, home, title, chip, menuStage, menuTitle, menuChip, menuDots, menuNav } = headerEls();
   wrap.style.display = 'flex';
   // home-btnは#lesson-headerの外（ヘッダー右側）にあるため、ここで表示を切り替える
   // （←ともどるを分けて誤タップを防ぐ配置。Issue #95）。
@@ -134,7 +134,6 @@ function renderHeader() {
   menuChip.textContent = chip.textContent;
   if (!compact) menuDots.innerHTML = '';
   menuNav.style.display = compact ? 'flex' : 'none';
-  menuBack.style.display = S.stepIndex === 0 ? 'none' : '';
   if (isTrial()) renderTrialBand(back, home);
 }
 
@@ -154,10 +153,9 @@ function renderTrialBand(back, home) {
 // 実行アニメーション中はもどる・えらぶ がめんへを操作させない（playAnimationの開始・終了、
 // および1コマ実行の開始時にui-play.jsから呼ぶ。Issue #111）。
 export function setBackDisabled(disabled) {
-  const { back, home, menuBack, menuHome } = headerEls();
+  const { back, home, menuHome } = headerEls();
   back.disabled = disabled;
   home.disabled = disabled;
-  menuBack.disabled = disabled;
   menuHome.disabled = disabled;
 }
 
@@ -172,6 +170,10 @@ export function refreshHeader() {
 // ← まえの がめんへ（ヘッダ・中央パネル共通。Issue #467）。
 function goBack() {
   if (headerEls().back.disabled || S.stepIndex === 0) return;
+  if (hasPlayInProgress()) {
+    confirmLeave(() => goToStep(S.stepIndex - 1), BACK_TEXT);
+    return;
+  }
   goToStep(S.stepIndex - 1);
 }
 
@@ -182,17 +184,15 @@ function goHome() {
     location.href = withDev('./index.html?view=map');
     return;
   }
-  // playの途中（命令列を組みかけ）で離れると下書きを失うため、ここだけ確認を挟む。
-  // 子どもが読まなくても分かるよう「つづける」を大きく目立たせる（Issue #240）。
+  // play中は常に確認を挟む。子どもが読まなくても分かるよう「つづける」を大きく目立たせる（Issue #240・#542）。
   confirmLeave(() => (location.href = withDev('./index.html?view=map')));
 }
 
 export function initSteps() {
-  // もどる・えらぶ がめんへは確認ダイアログを挟まず即座に遷移する。誤タップの保険は
-  // 確認ダイアログではなく、playの命令列の下書き保持（S.drafts）で行う（Issue #95）。
+  // playでは もどる・えらぶ がめんへ の前に確認ダイアログ（confirmDialog）を挟む（Issue #542）。
+  // play以外のステップは即座に遷移する。下書き保持（S.drafts）も併用する（Issue #95）。
   headerEls().back.addEventListener('click', goBack);
   headerEls().home.addEventListener('click', goHome);
-  headerEls().menuBack.addEventListener('click', goBack);
   headerEls().menuHome.addEventListener('click', goHome);
 
   // 端末の戻る（Android戻る・ブラウザ戻る）も「← もどる」と同じく1ステップ戻す。
@@ -204,6 +204,20 @@ export function initSteps() {
     if (headerEls().back.disabled) {
       // 実行アニメーション中は動かさない。履歴だけ現在位置へ戻す。
       history.pushState({ stepIndex: S.stepIndex }, '');
+      return;
+    }
+    if (hasPlayInProgress()) {
+      // playでは端末の戻るでも確認する。履歴を現在位置へ戻してから問う（Issue #542）。
+      history.pushState({ stepIndex: S.stepIndex }, '');
+      // 確認の表示中は位置を戻すだけ（連打で確認や遷移が二重にならない）。
+      if (leaveConfirmOpen()) return;
+      const backward = target < S.stepIndex;
+      // 「もどる」では積み直した分を1つ戻し、履歴の現在位置も表示と揃える（popstateはtarget===S.stepIndexで無視される）。
+      // 進む方向（target > 現在）では history.back() を呼ばない。
+      confirmLeave(() => {
+        enterStep(target);
+        if (backward) history.back();
+      }, BACK_TEXT);
       return;
     }
     enterStep(target);
@@ -248,43 +262,25 @@ export function goToStep(nextIndex, opts = {}) {
   enterStep(resolvedIndex, opts);
 }
 
-// playの途中か：現在のステップがplayで、命令列の下書きが初期状態（空 or initialCommands）から
-// 変わっている。クリア時は下書きが消えるため、クリア後は途中ではない（Issue #240）。
+// playの途中か：現在のステップがplayなら常にtrue（下書きの有無に関わらず確認を挟む。Issue #542）。
 function hasPlayInProgress() {
-  const step = currentStep();
-  if (step.kind !== 'play') return false;
-  const draft = S.drafts[step.stepId];
-  if (!draft) return false;
-  const initial = (step.initialCommands ?? []).map((dir) => ({ dir, times: 1 }));
-  return JSON.stringify(draft) !== JSON.stringify(initial);
+  return currentStep().kind === 'play';
 }
 
-// confirmLeave(onLeave): 「やめる？」の確認。つづける（既定・大）／やめる（小）。
-function confirmLeave(onLeave) {
-  const overlay = document.createElement('div');
-  overlay.className = 'leave-confirm';
-  overlay.setAttribute('role', 'dialog');
-  overlay.style.cssText =
-    'position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.4)';
-  const card = document.createElement('div');
-  card.className = 'bg-white rounded-2xl shadow p-6 text-center';
-  card.style.cssText = 'max-width:90vw';
-  const msg = document.createElement('p');
-  msg.className = 'text-xl mb-4';
-  msg.textContent = 'ここで やめる？';
-  const keep = createPrimaryButton('つづける', () => overlay.remove(), 'leave-cancel');
-  const leave = document.createElement('button');
-  leave.type = 'button';
-  leave.dataset.action = 'leave-ok';
-  leave.className = 'btn-tactile block mx-auto mt-3 min-w-[64px] min-h-[64px] px-6 bg-slate-200 text-slate-700 text-base';
-  leave.textContent = 'やめる';
-  leave.addEventListener('click', () => {
-    overlay.remove();
-    onLeave();
+// confirmLeave(onLeave): レッスンせんたくがめんへ離れる確認。共通部品 ui-dialog.js を使う（Issue #542）。
+// text: 文言（既定＝レッスンせんたくがめんへ。goBack・端末の戻るはBACK_TEXT＝まえの がめんへ）。
+const BACK_TEXT = { question: 'まえの がめんに もどる？', keepLabel: 'プレイを つづける', leaveLabel: 'もどる' };
+const HOME_TEXT = { question: 'レッスンせんたくがめんに もどる？', keepLabel: 'プレイを つづける', leaveLabel: 'もどる' };
+function leaveConfirmOpen() {
+  return !!document.querySelector('[data-action="leave-ok"]');
+}
+function confirmLeave(onLeave, text = HOME_TEXT) {
+  confirmDialog({
+    ...text,
+    onLeave,
+    keepAction: 'leave-cancel',
+    leaveAction: 'leave-ok',
   });
-  card.append(msg, keep, leave);
-  overlay.appendChild(card);
-  document.body.appendChild(overlay);
 }
 
 // 区分ごとの短い記号（文字を読ませない方針のため、既存のじっこう「▶」等と同じ記法。Issue #104）。

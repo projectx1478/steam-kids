@@ -88,9 +88,11 @@ export default async function run({ page, check }) {
   await enterPlay(page, 'cmd-01-susumu');
   await clearByStepping(page);
   await page.waitForSelector('[data-result-dialog]', { timeout: 4000 });
-  // ダイアログ表示中も ⚙ だけは inert から外れる（Issue #467）。⚙ → まえ を実クリックする。
+  // ダイアログ表示中も ⚙ だけは inert から外れる（Issue #467）。⚙ → レッスンせんたくがめん → 確認の「もどる」を実クリックする（Issue #542）。
   await page.click('[data-action="menu"]');
-  await page.click('#menu-back');
+  await page.click('#menu-home');
+  await page.click('[data-action="leave-ok"]');
+  await page.waitForSelector('[data-screen="picker"]');
   await check('もどる(ダイアログ表示中): playから出る', async () => (await page.getAttribute('#stage', 'data-step')) !== 'play');
   await check('もどる(ダイアログ表示中): ダイアログ・inert・relative が残らない', noLeftovers, clean);
 
@@ -99,7 +101,9 @@ export default async function run({ page, check }) {
   await clearByStepping(page);
   await page.waitForSelector('[data-result-gap]');
   await page.click('[data-action="menu"]');
-  await page.click('#menu-back');
+  await page.click('#menu-home');
+  await page.click('[data-action="leave-ok"]');
+  await page.waitForSelector('[data-screen="picker"]');
   await check('もどる(間の最中): ダイアログ・inert・relative が残らない', noLeftovers, clean);
   await page.waitForTimeout(2200);
   await check('もどる(間の最中): 後からダイアログが現れない', noLeftovers, clean);

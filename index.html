@@ -20,7 +20,7 @@
     <div class="flex items-center gap-2 ml-auto">
     <!-- 🏠は#lesson-headerの外（もどると離れた右側）に置く。誤タップで両方押してしまうのを
          防ぐための配置分離（確認ダイアログ全廃の代わり。Issue #95） -->
-    <button id="home-btn" type="button" data-action="home" aria-label="えらぶ がめんへ" style="display:none"
+    <button id="home-btn" type="button" data-action="home" aria-label="レッスンせんたくがめん" style="display:none"
       class="min-w-[64px] min-h-[64px] flex items-center justify-center rounded-lg bg-white shadow text-xl transition-transform duration-100 active:scale-95 disabled:opacity-40">🏠</button>
     <!-- 歯車メニュー（Issue #389）。🏠との間隔24px（ml-4＋gap-2）で誤タップを防ぐ。
          開いている間は #menu-overlay が全面を覆い、盤面・じっこうボタンへのタップを受け止める。 -->
@@ -46,8 +46,7 @@
         <div id="menu-stage-dots" class="w-full"></div>
       </div>
       <div id="menu-nav" style="display:none" class="gap-2">
-        <button id="menu-back" type="button" aria-label="まえの がめんへ" class="flex-1 min-h-[64px] rounded-lg bg-slate-100 text-slate-700 font-bold text-sm disabled:opacity-40">← まえの がめん</button>
-        <button id="menu-home" type="button" aria-label="えらぶ がめんへ" class="flex-1 min-h-[64px] rounded-lg bg-slate-100 text-slate-700 font-bold text-sm disabled:opacity-40">🏠 えらぶ がめん</button>
+        <button id="menu-home" type="button" aria-label="レッスンせんたくがめん" class="flex-1 min-h-[64px] rounded-lg bg-slate-100 text-slate-700 font-bold text-sm disabled:opacity-40">🏠 レッスンせんたくがめん</button>
       </div>
       <!-- 拡大の入口（Issue #467）。24px未満の盤だけ ui-menu.js が出す。押すとパネルを閉じて #zoom-bar を開く。 -->
       <div id="menu-zoom" hidden>
@@ -79,17 +78,6 @@
       <button id="zoom-out" type="button" aria-label="ちいさく" class="flex-1 min-w-[64px] min-h-[64px] rounded-lg bg-sky-100 text-slate-700 font-bold text-xs flex flex-col items-center justify-center gap-0.5 disabled:opacity-40"><svg viewBox="0 0 24 24" class="w-6 h-6 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="10" r="6" /><path d="M15 15l6 6" /><path d="M7 10h6" /></svg><span>ちいさく</span></button>
       <button id="zoom-all" type="button" aria-label="ぜんぶみる" class="flex-1 min-w-[64px] min-h-[64px] rounded-lg bg-sky-100 text-slate-700 font-bold text-xs flex flex-col items-center justify-center gap-0.5 disabled:opacity-40"><svg viewBox="0 0 24 24" class="w-6 h-6 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="10" r="6" /><path d="M15 15l6 6" /><rect x="7.5" y="7.5" width="5" height="5" rx="1" /></svg><span>ぜんぶみる</span></button>
       <button id="zoom-back" type="button" aria-label="もどる" class="flex-1 min-w-[64px] min-h-[64px] rounded-lg bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center">もどる</button>
-    </div>
-  </div>
-  <div id="guardian-confirm" hidden class="fixed inset-0 z-[60]">
-    <div class="w-full h-full flex items-center justify-center bg-slate-900/25">
-      <div class="w-[300px] max-w-[90vw] bg-white rounded-2xl shadow-xl p-4 flex flex-col gap-4">
-        <p class="text-lg font-bold text-slate-700 text-center">おとなの かたへ</p>
-        <div class="flex gap-3 justify-center">
-          <button id="guardian-go" type="button" class="min-h-[64px] min-w-[112px] rounded-lg bg-sky-500 text-white font-bold text-lg">すすむ</button>
-          <button id="guardian-cancel" type="button" class="min-h-[64px] min-w-[112px] rounded-lg bg-slate-200 text-slate-700 font-bold text-lg">やめる</button>
-        </div>
-      </div>
     </div>
   </div>
   <main id="stage" class="bg-white rounded-2xl shadow p-2 sm:p-4 flex-1 min-h-0 flex flex-col overflow-y-auto"></main>
