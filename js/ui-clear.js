@@ -8,6 +8,8 @@ import { isTrial } from './trial-lesson.js';
 import { prefersReducedMotion } from './ui-grid.js';
 import { createPrimaryButton, markLessonCleared, saveResumePoint, isStagePicked } from './ui-step.js';
 import { showSuccess } from './ui-reaction.js';
+import { setScene } from './bgm.js';
+import { sceneFor } from './config.js';
 import { create as createConfetti } from './vendor/confetti.js';
 
 const CONFETTI_COUNT = 40;
@@ -207,7 +209,11 @@ export function showClearSequence({
   }
   showSuccess(null, { bird, view, restore, confetti: false, ...(label ? { label } : {}) });
   const primaryBtn = createPrimaryButton(primary.label, primary.action, primary.id);
-  const replayBtn = createPrimaryButton('もういちど', replay, 'replay');
+  const replayBtn = createPrimaryButton('もういちど', () => {
+    // クリア曲から操作画面の曲へ戻す（Issue #541。replay は renderStep を通らない）。
+    setScene(sceneFor('play'));
+    return replay();
+  }, 'replay');
   const dots = showResultGap({ gapEl });
   unlock = lockScreen(lockEl, keepEl);
   timer = setTimeout(() => {

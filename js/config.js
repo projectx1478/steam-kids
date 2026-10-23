@@ -3,7 +3,7 @@ export const SYNC_ENDPOINT = 'https://steam-kids-sync.projectx1478.workers.dev';
 
 // service-worker.jsのCACHE_NAMEと同値にする（docs/caching.md）。SWからはimportできず
 // 二重管理になるため、一致は .claude/verify/scenarios/app-version.mjs で機械チェックする。
-export const APP_VERSION = 'steam-kids-cache-v82';
+export const APP_VERSION = 'steam-kids-cache-v83';
 
 // BGM（Issue #378 段2）。音源は ogg のみ。ファイルは公開リポジトリに置かず、Pages デプロイ時に
 // 非公開リポジトリ steam-kids-state から audio/ へ配置する（取得できない環境では曲なしで動作）。
@@ -15,3 +15,24 @@ export const BGM_TRACKS = {
   play: { url: 'audio/play_logic.ogg', volume: 0.15 },
   clear: { url: 'audio/clear_logic.ogg', volume: 0.12 },
 };
+
+// 画面→BGM場面の対応表（Issue #541）。setScene の直書きをここへ集約する。
+// タイトル〜大項目＝title／単元マップ・導入・チュートリアル＝map／操作＝play／クリア演出・まとめ＝clear。
+export const BGM_SCENE_BY_SCREEN = {
+  title: 'title',
+  slotSelect: 'title',
+  story: 'title',
+  trackSelect: 'title',
+  unitMap: 'map',
+  intro: 'map',
+  tutorial: 'map',
+  predict: 'play',
+  play: 'play',
+  seedPick: 'play',
+  trial: 'play',
+  clear: 'clear',
+  summary: 'clear',
+};
+export function sceneFor(screen) {
+  return BGM_SCENE_BY_SCREEN[screen];
+}
