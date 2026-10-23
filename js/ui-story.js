@@ -34,7 +34,7 @@ export function renderStory(stage, name, onDone) {
     const skip = document.createElement('button');
     skip.type = 'button';
     skip.dataset.action = 'story-skip';
-    skip.className = 'absolute top-2 right-2 min-h-[48px] px-4 rounded-lg bg-white/80 text-slate-600 text-sm';
+    skip.className = 'absolute top-2 right-2 min-h-[64px] min-w-[64px] px-4 rounded-lg bg-white/80 text-slate-600 text-sm';
     skip.textContent = 'スキップ';
     skip.addEventListener('click', finish);
     wrap.appendChild(skip);
