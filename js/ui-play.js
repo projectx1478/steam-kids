@@ -10,6 +10,7 @@ import { createZoom } from './ui-zoom.js';
 import { openMenu } from './ui-menu.js';
 import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, vibrate, countChips, planRun, clearUnlocked, isLockedIndex, stepsBefore, isPause, setPauseLeft } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
+import { UNDO_CLEAR_MS, snapshotUnlocked, restoreUnlocked } from './undo-clear.js';
 import { createOpScreen } from './ui-screen.js';
 import { createIdleNudge } from './ui-guide.js';
 import { showHandHint } from './ui-hand.js';
@@ -102,8 +103,8 @@ export function renderPlay(root, step) {
   // 実行結果もここへ数秒だけトースト表示する（Issue #97）。
   const screen = createOpScreen({ root, question: step.text ?? defaultText, stepKey: `${S.lesson.lessonId}:${step.stepId}` });
   const { frame: opScreen, questionEl: statusBar, boardArea, panel: controls, actions: actionsEl, bird } = screen;
-  // 360px縦で4ボタンの文字を溢れさせないため、この行だけ間隔を詰める（Issue #385）。
-  actionsEl.classList.replace('gap-2', 'gap-1');
+  // 下段の順・間隔は sk-screen-actions--play（tailwind.src.css）：ぜんぶけす・１つけす｜32px｜1コマ・じっこう（Issue #549）。
+  actionsEl.classList.add('sk-screen-actions--play');
   // 顔アイコンのタップのヒント（Issue #468 段2）。「とめる」のあるステージは「とめる」、失敗後は汎用ヒント。paint盤は汎用ヒントを出さない（#468-14d）。
   const facts = boardFacts(step);
   screen.setHintProvider(() => nextTapHint({ maxPauses, fails: spec.paint ? 0 : FAIL_COUNTS.get(S.lesson.lessonId) ?? 0, facts }));
@@ -214,14 +215,54 @@ export function renderPlay(root, step) {
   // 360px幅で4ボタン（けす・ぜんぶ・1コマ・じっこう）を1行に収めるため短縮する（Issue #111）。
   removeLastBtn.textContent = '１つけす';
   removeLastBtn.className =
-    'min-w-[64px] min-h-[64px] px-2 rounded-lg bg-slate-200 text-xs whitespace-nowrap break-keep transition-transform duration-100 active:scale-95 disabled:opacity-40';
+    'min-w-[64px] min-h-[64px] px-1 rounded-lg bg-slate-200 text-xs whitespace-nowrap break-keep transition-transform duration-100 active:scale-95 disabled:opacity-40';
 
   const clearBtn = document.createElement('button');
   clearBtn.type = 'button';
   clearBtn.dataset.action = 'clear-all';
   clearBtn.textContent = 'ぜんぶけす';
   clearBtn.className =
-    'min-w-[64px] min-h-[64px] px-2 rounded-lg bg-slate-200 text-xs whitespace-nowrap break-keep transition-transform duration-100 active:scale-95 disabled:opacity-40';
+    'min-w-[64px] min-h-[64px] px-1 rounded-lg bg-slate-200 text-xs whitespace-nowrap break-keep transition-transform duration-100 active:scale-95 disabled:opacity-40';
+
+  // 「ぜんぶけす」の取り消し札（Issue #549）。ぜんぶけす の枠に入れ替わり、減り棒が5秒で縮む。
+  // 実行・1コマ・追加・個別削除など命令列が動いたら updateControls が札を破棄する（取り消し不可）。
+  const undoBtn = document.createElement('button');
+  undoBtn.type = 'button';
+  undoBtn.dataset.action = 'undo-clear';
+  undoBtn.className =
+    'relative overflow-hidden min-w-[64px] min-h-[64px] px-1 rounded-lg bg-amber-300 text-xs font-bold whitespace-normal transition-transform duration-100 active:scale-95';
+  const undoLabel = document.createElement('span');
+  undoLabel.textContent = '↶ もとに もどす';
+  const undoBar = document.createElement('span');
+  undoBar.dataset.undoBar = '';
+  undoBar.className = 'absolute left-0 bottom-0 h-1.5 bg-amber-600';
+  undoBar.style.width = '100%';
+  undoBtn.append(undoLabel, undoBar);
+  let undoSnap = null;
+  let undoTimer = null;
+  function dropUndo() {
+    if (undoTimer) clearTimeout(undoTimer);
+    undoTimer = null;
+    undoSnap = null;
+    if (undoBtn.parentNode) undoBtn.replaceWith(clearBtn);
+  }
+  function showUndo(snap) {
+    undoSnap = snap;
+    undoBar.style.transition = 'none';
+    undoBar.style.width = '100%';
+    clearBtn.replaceWith(undoBtn);
+    // reduced-motion は減り棒を静止（満タンのまま）。5秒たてば札ごと消える。
+    if (!prefersReducedMotion()) {
+      void undoBar.offsetWidth;
+      undoBar.style.transition = `width ${UNDO_CLEAR_MS}ms linear`;
+      undoBar.style.width = '0%';
+    }
+    undoTimer = setTimeout(() => {
+      undoTimer = null;
+      dropUndo();
+      updateControls();
+    }, UNDO_CLEAR_MS);
+  }
 
   // stepBtn: 1コマずつ実行（タップごとにstepper.advance()を1回呼ぶ。Issue #111）。
   const stepBtn = document.createElement('button');
@@ -235,7 +276,7 @@ export function renderPlay(root, step) {
   runBtn.type = 'button';
   runBtn.dataset.action = 'run';
   runBtn.textContent = '▶ じっこう';
-  runBtn.className = 'btn-tactile px-1 bg-emerald-500 text-white text-base font-bold whitespace-nowrap break-keep disabled:opacity-40';
+  runBtn.className = 'btn-tactile px-1 bg-emerald-500 text-white text-sm font-bold whitespace-nowrap break-keep disabled:opacity-40';
 
   // 実行が失敗したらrunBtn自体を橙色の「もういちど」に変える（目線を動かさずに押せる。Issue #91）。
   // 他のボタンをロックする間、押せるのはこれだけなのでパルス枠で目立たせる（Issue #106）。
@@ -260,11 +301,12 @@ export function renderPlay(root, step) {
   // クリア時はつぎへ・もういちど（レッスン再挑戦）を通常アクション行に差し替えて表示する
   // （盤面上に重ねない。Issue #97）。
   function showNormalActions() {
+    dropUndo();
     clearSequence?.dispose();
     clearSequence = null;
     actionsEl.innerHTML = '';
-    actionsEl.appendChild(removeLastBtn);
     actionsEl.appendChild(clearBtn);
+    actionsEl.appendChild(removeLastBtn);
     actionsEl.appendChild(stepBtn);
     actionsEl.appendChild(runBtn);
   }
@@ -318,6 +360,7 @@ export function renderPlay(root, step) {
   // 「もういちど」（失敗後のretry・クリア後のreplay）は正解・不正解に関わらず必ずこれを呼ぶ
   // （前回の命令列を残さない。Issue #104）。参照(S.drafts)は保ったまま中身だけ入れ替える。
   function resetToFresh() {
+    dropUndo();
     local.commands.length = 0;
     freshCommands.forEach((c) => local.commands.push({ ...c }));
     local.boxOpen = -1;
@@ -375,6 +418,8 @@ export function renderPlay(root, step) {
   }
 
   function updateControls() {
+    // 取り消し札は、命令列が消した直後の状態から動いた（追加・実行・1コマなど）時点で破棄する。
+    if (undoSnap && (local.commands.length !== local.lockedCount || local.running || local.stepping || local.locked)) dropUndo();
     const atMax = countChips(local.commands) >= step.maxCommands;
     paletteEl.querySelectorAll('button:not([data-action="menu"])').forEach((b) => {
       b.disabled = atMax || local.running || local.stepping || local.locked;
@@ -560,9 +605,23 @@ export function renderPlay(root, step) {
     logEvent('undo', { all: true, commandCount: local.commands.length - local.lockedCount });
     // 参照を維持したまま空にする（S.drafts[step.stepId]との共有を切らないため。Issue #95）。
     // 止まった間は後ろだけ消す（前の部分は変更不可。#395 段2）。
+    const snap = snapshotUnlocked(local.commands, local.lockedCount);
     clearUnlocked(local.commands, local.lockedCount);
     local.boxOpen = -1;
     playSfx('reset');
+    drawQueue();
+    showUndo(snap);
+    updateControls();
+    local.nudge?.poke();
+  });
+
+  undoBtn.addEventListener('click', () => {
+    if (!undoSnap || local.running || local.stepping || local.locked) return;
+    vibrate();
+    // 同じ配列へ戻す（S.drafts[step.stepId]との共有参照を保つ）。
+    restoreUnlocked(local.commands, undoSnap, local.lockedCount);
+    dropUndo();
+    playSfx('tap');
     drawQueue();
     updateControls();
     local.nudge?.poke();

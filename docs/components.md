@@ -26,6 +26,7 @@
 - 呼び方：`createOpScreen({ root, question })` → `{ frame, questionEl, boardArea, panel, actions, renderQuestion(text), announceQuestion, bird }`。問い文は小鳥の吹き出し（`js/ui-bird.js`）で出し、`questionEl` は鍵トレイ・残数・塗りの見本だけの補助行（中身が無ければ非表示）。各要素に `data-sk-screen`（`frame`・`question`・`board`・`panel`・`actions`）、クラスは `sk-screen-*`。E2E は属性セレクタで探す。
 - 変えてよい（画面ごと）：盤面の中身、パネルの中身、ボタンの数と文言。変えてはいけない：盤面が flex-1 で残り高さに縮むこと、吹き出しは顔・吹き出し自体のタップで消え、下の盤面マスへは素通ししないこと、ボタン高さ48px以上、横向きの `1fr＋320px` 2列、クリア演出の `controls`・`lockEl` に渡す要素とその位置・寸法、シーソーのボタン配置。
 - ボタン行の修飾：`actions.classList.add('sk-screen-actions--one-row')` で横向きでも1行（◀・▶ 各1/4幅、残りが主ボタン）。使用はシーソーのみ。
+- ボタン行の修飾：`sk-screen-actions--play`（play 全ギミック・tutorial）＝ぜんぶけす・１つけす｜32px｜1コマ・じっこうの順、間隔8px。高さ480px以上の横向き（1024×600）は2×2（行間16px）。
 - 状態：移行完了（tutorial・seedpick は例外）。置き換え済みは `js/ui-play.js`・`js/ui-seesaw.js`・`js/ui-predict.js`。`js/ui-seedpick.js` の `status-bar`（別用途の問い文）と `js/ui-tutorial.js` の `board-area`（結果の星を盤面に重ねる別骨格）は `allow-component:screen` で逃がしている（allow 2）。
 
 ## 盤面の描画
