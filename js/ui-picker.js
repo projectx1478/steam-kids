@@ -298,8 +298,12 @@ export async function renderUnitMap(stage, units, onPick, onBack) {
   }
 
   // タイトルへ戻るボタン（Issue #257）。dev=1 時は出さない。
+  // もどる・タイトルへ は下端バーの左（.sk-bottom-bar。Issue #551）。dev=1 のリンクだけ従来の置き方。
   const bottomContainer = document.createElement('div');
-  bottomContainer.className = 'flex flex-col items-center gap-3 mt-6 pb-4';
+  bottomContainer.className = IS_DEV
+    ? 'flex flex-col items-center gap-3 mt-6 pb-4'
+    : 'sk-bottom-bar sk-bottom-bar--start';
+  if (!IS_DEV) bottomContainer.dataset.role = 'bottom-bar';
   stage.appendChild(bottomContainer);
 
   if (IS_DEV) {
@@ -313,7 +317,7 @@ export async function renderUnitMap(stage, units, onPick, onBack) {
     const backBtn = document.createElement('button');
     backBtn.type = 'button';
     backBtn.dataset.action = 'map-back';
-    backBtn.className = 'min-h-[64px] px-8 py-3 rounded-lg bg-white text-slate-500 shadow text-base font-bold transition-transform duration-100 active:scale-95 disabled:opacity-40';
+    backBtn.className = 'sk-bar-sub disabled:opacity-40';
     backBtn.textContent = 'もどる';
     backBtn.addEventListener('click', () => {
       if (backBtn.disabled) return;
@@ -328,7 +332,7 @@ export async function renderUnitMap(stage, units, onPick, onBack) {
     // 通常時は「タイトルへ」ボタンを置く
     const titleBtn = document.createElement('button');
     titleBtn.type = 'button';
-    titleBtn.className = 'min-h-[64px] px-8 py-3 rounded-lg bg-white text-slate-500 shadow text-base font-bold transition-transform duration-100 active:scale-95 disabled:opacity-40';
+    titleBtn.className = 'sk-bar-sub disabled:opacity-40';
     titleBtn.textContent = 'タイトルへ';
     titleBtn.addEventListener('click', () => {
       if (titleBtn.disabled) return;

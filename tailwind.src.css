@@ -945,3 +945,30 @@ dialog.result-row {
   .track-card .track-name { flex: none; }
   .track-card .track-robot { width: 80px; height: 80px; }
 }
+/* 左寄せのバー（もどる 用。Issue #551）。 */
+.sk-bottom-bar--start {
+  justify-content: flex-start;
+}
+/* タイトル（Issue #551）：高さ479px以下は はじめから・つづきから を横並びにし、ロボットを縮める。それ以外は従来の縦積み。 */
+.title-actions {
+  display: contents;
+}
+@media (max-height: 479px) {
+  .title-wrap {
+    gap: 0.5rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+  .title-wrap .title-robot {
+    width: 5rem;
+    height: 5rem;
+  }
+  .title-actions {
+    display: flex;
+    gap: 1.5rem;
+  }
+  .title-actions > button {
+    min-width: 168px;
+    min-height: 64px;
+  }
+}
