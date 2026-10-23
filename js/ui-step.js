@@ -633,37 +633,46 @@ function renderStagePicker(root) {
 
 function renderIntro(root, step) {
   stagePicked = false;
+  // intro-body：高さ479px以下の画面だけ、左に問い文、右にデモの横並びになる（Issue #551。CSSは tailwind.src.css）。
+  // それ以外の高さでは display: contents で、従来どおり問い文→デモの縦積み。
+  const body = document.createElement('div');
+  body.className = 'intro-body';
   const p = document.createElement('p');
-  p.className = 'text-2xl text-center py-8';
+  p.className = 'intro-question text-2xl text-center py-2';
   renderInto(p, step.text, S.readingLevel, S.furigana);
-  root.appendChild(p);
+  body.appendChild(p);
+  root.appendChild(body);
   // ロボットが正解の道をたどってゴールへ到達する完成イメージ（本番とは別のstart/goal。
   // Issue #97）。demoが無い教材型は対象外。
   // 既習のレッスン（isIntroKnown）は1回だけ再生して止める（Issue #269）。
   if (step.demo) {
-    renderGoalDemo(root, step.demo, { once: isIntroKnown(S.units, S.lesson.lessonId, isLessonCleared) });
+    renderGoalDemo(body, step.demo, { once: isIntroKnown(S.units, S.lesson.lessonId, isLessonCleared) });
   }
+  renderStagePicker(root);
+  // 主ボタンと副ボタンは下端バー（.sk-bottom-bar。Issue #551）に置き、スクロールせずに押せるようにする。
+  // 並びは左から「はじめから」（再開時のみ）・「そうさほうほう」・主ボタン。
+  const bar = document.createElement('div');
+  bar.className = 'sk-bottom-bar';
+  bar.dataset.role = 'bottom-bar';
   // 途中再開（Issue #242）：保存があり、そのstepIdがレッスンにあり、未クリアのときだけ
   // 主ボタンを「つづきから」にし、「はじめから」（保存は触らない）を控えめに添える。
-  renderStagePicker(root);
   const resumeIndex = findResumeIndex();
+  let primaryBtn;
   if (resumeIndex !== -1) {
-    const resumeBtn = createPrimaryButton('つづきから', () => goToStep(resumeIndex, { resumed: true }), 'resume');
-    resumeBtn.classList.add('min-h-[64px]');
-    root.appendChild(resumeBtn);
     const restartBtn = document.createElement('button');
     restartBtn.type = 'button';
     restartBtn.dataset.action = 'start';
     restartBtn.textContent = 'はじめから';
-    restartBtn.className =
-      'block mx-auto mt-6 min-w-[64px] min-h-[64px] px-6 rounded-lg bg-white shadow text-base text-slate-600';
+    restartBtn.className = 'sk-bar-sub';
     restartBtn.addEventListener('click', () => {
       vibrate();
       goToStep(S.stepIndex + 1);
     });
-    root.appendChild(restartBtn);
+    bar.appendChild(restartBtn);
+    primaryBtn = createPrimaryButton('つづきから', () => goToStep(resumeIndex, { resumed: true }), 'resume');
+    primaryBtn.classList.add('min-h-[64px]');
   } else {
-    root.appendChild(createPrimaryButton('はじめる', () => goToStep(S.stepIndex + 1), 'start'));
+    primaryBtn = createPrimaryButton('はじめる', () => goToStep(S.stepIndex + 1), 'start');
   }
 
   // tutorialがあるレッスンは「そうさほうほう」でだけtutorialへ入れる。未見の間は光らせて誘導する
@@ -677,14 +686,16 @@ function renderIntro(root, step) {
     howBtn.dataset.action = 'how-to';
     howBtn.textContent = 'そうさほうほう';
     howBtn.className = unseen
-      ? 'block mx-auto mt-2 min-w-[64px] min-h-[64px] px-6 rounded-lg bg-amber-100 shadow text-base font-bold text-amber-900 ring-4 ring-amber-400 ring-offset-2 motion-safe:animate-pulse'
-      : 'block mx-auto mt-2 min-w-[64px] min-h-[64px] px-4 rounded-lg bg-white shadow text-sm text-slate-600';
+      ? 'sk-bar-sub bg-amber-100 font-bold text-amber-900 ring-4 ring-amber-400 motion-safe:animate-pulse'
+      : 'sk-bar-sub';
     if (unseen) howBtn.dataset.highlight = 'true';
     howBtn.addEventListener('click', () => {
       vibrate();
       S.forceTutorial = true;
       goToStep(tutorialIndex);
     });
-    root.appendChild(howBtn);
+    bar.appendChild(howBtn);
   }
+  bar.appendChild(primaryBtn);
+  root.appendChild(bar);
 }

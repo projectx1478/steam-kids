@@ -66,12 +66,24 @@ export default async function run({ page, check }) {
     return r.height >= 64;
   }, true);
   await check('360px: 横スクロールなし', () => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true);
-  await check('縦積み：つづきから→はじめから', () =>
+  // 下端バー（#551）：はじめから（左）・つづきから（右）の横並び
+  const resumeRects = () =>
     page.evaluate(() => {
-      const a = document.querySelector('[data-action="resume"]').getBoundingClientRect();
-      const b = document.querySelector('[data-action="start"]').getBoundingClientRect();
-      return b.top >= a.bottom + 20;
-    }), true);
+      const r = (s) => document.querySelector(s).getBoundingClientRect().toJSON();
+      return { resume: r('[data-action="resume"]'), start: r('[data-action="start"]') };
+    });
+  await check('横並び：はじめから（左）→つづきから（右）が同じ行', async () => {
+    const { resume, start } = await resumeRects();
+    return Math.abs(resume.top + resume.height / 2 - (start.top + start.height / 2)) < 8 && start.left < resume.left;
+  }, true);
+  await check('横並び：両方の高さが64px以上', async () => {
+    const { resume, start } = await resumeRects();
+    return resume.height >= 64 && start.height >= 64;
+  }, true);
+  await check('横並び：はじめから と つづきから の間隔が16px以上', async () => {
+    const { resume, start } = await resumeRects();
+    return resume.left - start.right >= 16;
+  }, true);
   await page.click('[data-action="resume"]');
   await page.waitForSelector('#stage[data-step="play"]');
   await check('「つづきから」でp2から始まる', () => readStepId(page), 'p2');

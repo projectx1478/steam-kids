@@ -12,6 +12,7 @@
 | 盤面の描画（マスの大きさ計算・`renderGrid` 呼び出し・盤面エリアの大きさが変わったときの描き直し） | `js/ui-board.js` | 本表（下の「盤面の描画」） | `renderGrid(`・`computeCellSize(` の直呼び（`js/ui-board.js`・`js/ui-grid.js` 以外） | board 0（excluded の `js/ui-demo.js` に 1） |
 | やり直しの流れ（失敗のゆれ・「もういちど」ボタン切替・開始時の「スタート！」） | `js/ui-retry.js` | `js/ui-retry.js` 先頭のコメント | 検査なし（登録表に足さない。Issue #344） | — |
 | 小鳥の吹き出しでのヒント（失敗後のヒント・顔アイコンのタップ・失敗2回目の自動1回・「とめる」のヒント） | `js/ui-bird.js`・`js/bird-phrases.js`・`js/ui-reaction.js`（`showHint`） | `docs/hint-bubble.md` | なし（#468-19B） | なし（#468-19B） |
+| 下端バー（intro・まとめ・スロット選択・単元マップ・大項目の主ボタン・副ボタンを画面の下端に固定し、スクロールせずに押せる。`#stage` 直下の最後の子。高さ72px・ボタン64px以上・間隔16px以上。左寄せは `.sk-bottom-bar--start`。play 画面には出さない） | `tailwind.src.css`（`.sk-bottom-bar`）。使う側は `js/ui-step.js`（intro）・`js/ui-summary.js`・`js/ui-slots.js`・`js/ui-picker.js`・`js/ui-tracks.js` | 本表 | なし（#551） | 検査なし（Issue #551。E2E `b1-primary-in-view` で見る） |
 
 基準件数の正本は `test/forbidden-baseline.json`。`showsuccess 0`：`js/ui-predict.js`・`js/ui-tutorial.js` も `showClearToast` に移行済み（状態：移行完了）。`confetti 2` は `js/ui-reaction.js` の `showSuccess` 本体と `js/ui-seesaw.js` のアダプタ。
 

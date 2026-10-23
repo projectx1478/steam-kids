@@ -13,7 +13,7 @@ export function renderTitle(stage, { canContinue, onNew, onContinue, hint = fals
 
   const wrap = document.createElement('div');
   wrap.className =
-    'flex flex-col items-center justify-center gap-6 flex-1 wood-panel rounded-2xl py-8';
+    'title-wrap flex flex-col items-center justify-center gap-6 flex-1 wood-panel rounded-2xl py-8';
 
   const heading = document.createElement('h1');
   heading.className = 'text-4xl font-bold text-sky-700 tracking-wide text-child-title';
@@ -21,7 +21,7 @@ export function renderTitle(stage, { canContinue, onNew, onContinue, hint = fals
   wrap.appendChild(heading);
 
   const robot = document.createElement('div');
-  robot.className = `w-32 h-32 ${prefersReducedMotion() ? '' : 'float-slow'}`;
+  robot.className = `title-robot w-32 h-32 ${prefersReducedMotion() ? '' : 'float-slow'}`;
   robot.innerHTML = shapeSvg('player');
   if (hint) {
     // 押せない飾りの吹き出し（Issue #282）。ロボットの右に絶対配置し、高さを増やさない。
@@ -40,6 +40,7 @@ export function renderTitle(stage, { canContinue, onNew, onContinue, hint = fals
   }
 
   const buttons = [];
+  let actions;
   const addButton = (action, label, className, onClick) => {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -61,10 +62,13 @@ export function renderTitle(stage, { canContinue, onNew, onContinue, hint = fals
       setTimeout(onClick, FADE_MS);
     });
     buttons.push(btn);
-    wrap.appendChild(btn);
+    actions.appendChild(btn);
     return btn;
   };
 
+  actions = document.createElement('div');
+  actions.className = 'title-actions';
+  wrap.appendChild(actions);
   addButton('title-new', 'はじめから', 'bg-orange-500 text-white', onNew);
   const continueBtn = addButton('title-continue', 'つづきから', 'bg-sky-500 text-white', onContinue);
   if (!canContinue) continueBtn.disabled = true;

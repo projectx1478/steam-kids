@@ -17,6 +17,11 @@ import { playAnimation, setActiveAnimation } from './ui-step.js';
 import { play as playSfx } from './sfx.js';
 
 const DEMO_CELL = 40;
+// 高さ479px以下の画面（844×390など）は下端バー（Issue #551）の分だけ縦が足りないため、マスを小さくする。
+const DEMO_CELL_LOW = 28;
+function demoCell() {
+  return window.matchMedia?.("(max-height: 479px)").matches ? DEMO_CELL_LOW : DEMO_CELL;
+}
 const FIX_PAUSE_MS = 900;
 // READY_MS: 初回自動再生のみに置く「よーい…」の間（Issue #107）。「▶ もういちど みる」は対象外。
 const READY_MS = 1000;
@@ -74,7 +79,7 @@ export function renderGoalDemo(container, demo, opts = {}) {
   let view = null;
   function draw(playerPos) {
     boardWrap.innerHTML = '';
-    const { el, view: v } = renderGrid({ ...spec, playerPos, labels: [], cellSize: DEMO_CELL });
+    const { el, view: v } = renderGrid({ ...spec, playerPos, labels: [], cellSize: demoCell() });
     boardWrap.appendChild(el);
     view = v;
     if (remainingEl) remainingEl.textContent = String(spec.items.length);

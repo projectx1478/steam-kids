@@ -91,13 +91,17 @@ export function renderSlotSelect(stage, { mode, units, onNew, onContinue, onBack
   }
   wrap.appendChild(row);
 
-  const back = el('button', 'btn-tactile bg-slate-200 text-slate-700 text-base px-6 py-2', 'もどる');
+  stage.appendChild(wrap);
+
+  // もどる は下端バーの左（Issue #551）。
+  const bar = el('div', 'sk-bottom-bar sk-bottom-bar--start');
+  bar.dataset.role = 'bottom-bar';
+  const back = el('button', 'sk-bar-sub', 'もどる');
   back.type = 'button';
   back.dataset.action = 'slot-back';
   back.addEventListener('click', onBack);
-  wrap.appendChild(back);
-
-  stage.appendChild(wrap);
+  bar.appendChild(back);
+  stage.appendChild(bar);
 }
 
 // onSubmit(name): 整形済みの名前（空ならnull）。

@@ -69,11 +69,13 @@ export async function renderTrackSelect(stage, tracks, { lessonStatus = {}, onPi
   stage.appendChild(cards);
 
   if (onBack) {
+    // もどる は下端バーの左（Issue #551）。
     const wrap = document.createElement('div');
-    wrap.className = 'flex flex-col items-center gap-3 mt-6 pb-4';
+    wrap.className = 'sk-bottom-bar sk-bottom-bar--start';
+    wrap.dataset.role = 'bottom-bar';
     const back = document.createElement('button');
     back.type = 'button';
-    back.className = 'track-back';
+    back.className = 'track-back sk-bar-sub';
     back.dataset.action = 'tracks-back';
     back.textContent = 'もどる';
     back.addEventListener('click', () => {

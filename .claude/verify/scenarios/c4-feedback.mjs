@@ -229,16 +229,23 @@ export default async function run({ page, check }) {
   );
   await check('単元スタンプがlessonIds数(3)だけ表示される', async () => (await page.$$('.unit-progress [data-stamp]')).length, 3);
   await check('つぎの レッスンへボタンが出る', async () => (await page.$$('[data-action="next-lesson"]')).length, 1);
-  const boxSize = async (sel) => {
-    const b = await (await page.$(sel)).boundingBox();
-    return [Math.round(b.width), Math.round(b.height)];
-  };
-  await check('「つぎへ」と「おわる」が同じ大きさで並ぶ（Issue #263）', async () => (await boxSize('[data-action="next-lesson"]')), await boxSize('[data-action="finish"]'));
-  await check('「つぎへ」の横に「おわる」がある', async () => {
-    const a = await (await page.$('[data-action="next-lesson"]')).boundingBox();
-    const b = await (await page.$('[data-action="finish"]')).boundingBox();
-    return Math.abs(a.y - b.y) < 1 && b.x > a.x;
+  // 下端バー（#551）：おわる＝左の副ボタン、つぎへ＝右の主ボタン。大きさ一致は求めず配置を検査する
+  const barRects = async () => ({
+    next: await (await page.$('[data-action="next-lesson"]')).boundingBox(),
+    fin: await (await page.$('[data-action="finish"]')).boundingBox(),
   });
+  await check('「おわる」と「つぎへ」が同じ行に並び、おわるが左（#263/#551）', async () => {
+    const { next, fin } = await barRects();
+    return Math.abs(next.y + next.height / 2 - (fin.y + fin.height / 2)) < 8 && fin.x < next.x;
+  }, true);
+  await check('「おわる」「つぎへ」とも高さ64px以上', async () => {
+    const { next, fin } = await barRects();
+    return next.height >= 64 && fin.height >= 64;
+  }, true);
+  await check('「おわる」と「つぎへ」の間隔が16px以上', async () => {
+    const { next, fin } = await barRects();
+    return next.x - (fin.x + fin.width) >= 16;
+  }, true);
   await check('summaryは20字以内', () => noLongLine(page));
   await assertNoNegativeWords(page, check, 'summary');
 
