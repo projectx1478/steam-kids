@@ -364,7 +364,7 @@ export function renderTutorial(root, step) {
       }
       if (local.boxOpen >= 0) {
         local.commands[local.boxOpen].box.push(dir);
-        if (via === 'drag') playSfx('snap');
+        playSfx(via === 'drag' ? 'snap' : 'tap');
         local.guideIndex += 1;
         drawQueue();
         queueEl.scrollLeft = queueEl.scrollWidth;
@@ -381,7 +381,7 @@ export function renderTutorial(root, step) {
         playSfx('stack', { count: last.times });
       } else {
         local.commands.push({ dir, times: 1 });
-        if (via === 'drag') playSfx('snap');
+        playSfx(via === 'drag' ? 'snap' : 'tap');
       }
       local.guideIndex += 1;
       drawQueue();

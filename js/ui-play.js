@@ -472,7 +472,7 @@ export function renderPlay(root, step) {
           return;
         }
         local.commands[local.boxOpen].box.push(dir);
-        if (via === 'drag') playSfx('snap');
+        playSfx(via === 'drag' ? 'snap' : 'tap');
         drawQueue();
         queueEl.scrollLeft = queueEl.scrollWidth;
         queueEl.scrollTop = queueEl.scrollHeight;
@@ -490,7 +490,7 @@ export function renderPlay(root, step) {
           return;
         }
         local.commands.push({ dir, times: 1 });
-        if (via === 'drag') playSfx('snap');
+        playSfx(via === 'drag' ? 'snap' : 'tap');
       }
       if (isFix) local.fixOpened = true;
       drawQueue();

@@ -352,6 +352,7 @@ let downLogLength = null;
 let clickSkipped = false;
 let downBtn = null;
 let downDisabled = false;
+let downExempt = false;
 
 function isBtnDisabled(btn) {
   return btn.disabled === true || btn.getAttribute('aria-disabled') === 'true';
@@ -371,6 +372,7 @@ export function initClickSfx() {
       const b = e.target instanceof Element ? e.target.closest('button,[role=button]') : null;
       downBtn = b;
       downDisabled = b ? isBtnDisabled(b) : false;
+      downExempt = b ? CLICK_SFX_EXEMPT.some(({ selector }) => b.matches(selector)) : false;
     },
     true
   );
@@ -379,6 +381,7 @@ export function initClickSfx() {
     const baseline = downLogLength;
     const wasBtn = downBtn;
     const wasDisabled = downDisabled;
+    const wasExempt = downExempt;
     downLogLength = null;
     downBtn = null;
     clickSkipped = false;
@@ -388,7 +391,8 @@ export function initClickSfx() {
     // pointerdown 時点の状態で判定する（受け付けた押下が click 前に disabled になっても鳴らす）。
     const disabled = btn === wasBtn ? wasDisabled : isBtnDisabled(btn);
     if (disabled) return;
-    if (CLICK_SFX_EXEMPT.some(({ selector }) => btn.matches(selector))) return;
+    // 例外も pointerdown 時点で判定する（click 処理で data-action が retry→run に変わるため）。
+    if ((btn === wasBtn && wasExempt) || CLICK_SFX_EXEMPT.some(({ selector }) => btn.matches(selector))) return;
     if (baseline !== null && window.__sfxLog.length !== baseline) return;
     play('tap');
   });
