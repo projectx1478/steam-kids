@@ -357,6 +357,7 @@ export function renderTutorial(root, step) {
     onMenu: openMenu,
     dropTarget: () => queueEl.getBoundingClientRect(),
     onDragOver: (active) => toggleGhostSlot(queueEl, active),
+    // チュートリアルは案内順に末尾へ積む（dropGapを渡さないので index は来ない。差し込みは play のみ。#545）。
     onAdd: (dir, { via } = {}) => {
       if (local.running || dir !== guideTarget()) {
         skipClickSfx();

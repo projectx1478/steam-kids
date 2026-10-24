@@ -94,6 +94,13 @@
   .ghost-slot {
     @apply border-2 border-dashed border-amber-500/70 bg-amber-100/40 rounded-lg motion-safe:animate-pulse;
   }
+  /* 差し込み先の太い縦線（#545）。.command-queue 直下に絶対配置（位置は JS が left/top/height を入れる）。 */
+  .command-queue {
+    position: relative;
+  }
+  .ghost-slot.ghost-line {
+    @apply absolute z-10 w-1.5 p-0 border-0 rounded-full bg-amber-500 pointer-events-none;
+  }
 }
 
 /* 指ガイド・ドロップ演出。prefers-reduced-motion時はアニメーションさせず静止表示にする（Issue #95）。 */

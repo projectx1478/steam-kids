@@ -8,7 +8,7 @@ import { shapeSvg, prefersReducedMotion } from './ui-grid.js';
 import { fitCellSize, drawBoard as drawBoardUi, observeBoard } from './ui-board.js';
 import { createZoom } from './ui-zoom.js';
 import { openMenu } from './ui-menu.js';
-import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, vibrate, countChips, planRun, clearUnlocked, isLockedIndex, stepsBefore, isPause, setPauseLeft } from './ui-commands.js';
+import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, computeGapIndex, vibrate, countChips, planRun, clearUnlocked, isLockedIndex, stepsBefore, isPause, setPauseLeft } from './ui-commands.js';
 import { play as playSfx, skipClickSfx } from './sfx.js';
 import { UNDO_CLEAR_MS, snapshotUnlocked, restoreUnlocked } from './undo-clear.js';
 import { createOpScreen } from './ui-screen.js';
@@ -483,8 +483,10 @@ export function renderPlay(root, step) {
       local.nudge?.poke();
     },
     dropTarget: () => queueEl.getBoundingClientRect(),
-    onDragOver: (active) => toggleGhostSlot(queueEl, active),
-    onAdd: (dir, { via } = {}) => {
+    // 箱が開いているときは箱末尾（=列の末尾の隙間）、止まった前部の手前には入れない（目印もそこへ寄せる）。
+    dropGap: (x, y) => (local.boxOpen >= 0 ? local.commands.length : Math.max(computeGapIndex(queueEl, x, y), local.lockedCount)),
+    onDragOver: (active, gap) => toggleGhostSlot(queueEl, active, gap),
+    onAdd: (dir, { via, index } = {}) => {
       if (local.running || local.stepping || local.locked) {
         skipClickSfx();
         return;
@@ -500,6 +502,33 @@ export function renderPlay(root, step) {
         drawQueue();
         queueEl.scrollLeft = queueEl.scrollWidth;
         queueEl.scrollTop = queueEl.scrollHeight;
+        updateControls();
+        local.nudge?.poke();
+        return;
+      }
+      // 差し込み（ドラッグで末尾以外の隙間へ。Issue #545）。止まった前部(lockedCount)より前には入れない。
+      if (via === 'drag' && typeof index === 'number' && index < local.commands.length) {
+        const at = Math.max(index, local.lockedCount);
+        const prev = local.commands[at - 1];
+        const next = local.commands[at];
+        if (step.groupRepeats && at - 1 >= local.lockedCount && prev && prev.dir === dir) {
+          prev.times += 1;
+          playSfx('stack', { count: prev.times });
+        } else if (step.groupRepeats && next && next.dir === dir) {
+          next.times += 1;
+          playSfx('stack', { count: next.times });
+        } else {
+          if (countChips(local.commands) >= step.maxCommands) {
+            skipClickSfx();
+            return;
+          }
+          local.commands.splice(at, 0, { dir, times: 1 });
+          playSfx('snap');
+        }
+        saveDraft();
+        if (isFix) local.fixOpened = true;
+        drawQueue();
+        queueEl.querySelector(`.command-chip[data-index="${at}"]`)?.classList.add('spring-in');
         updateControls();
         local.nudge?.poke();
         return;
