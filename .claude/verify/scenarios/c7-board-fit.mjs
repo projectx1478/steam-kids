@@ -88,7 +88,7 @@ export default async function run({ page, check }) {
 }
 
 // 問い文の行を撤去して盤面を広げた寸法（Issue #497 段B）。のこり表示・塗りの見本・鍵トレイの補助行が無い cmd-01 の play で、
-// 盤面エリアが 縦(360x640)=344x300・横(844x390)=500x374 以上であること（1px の丸め誤差は許容）。
+// 盤面エリアが 縦(360x640)=344x260・横(844x390)=500x300 以上（吹き出し欄 64px を盤面の上に足した縮み後の値。Issue #544 の承認済み）であること（1px の丸め誤差は許容）。
 async function checkBoardAreaSize(page, check) {
   const areaSize = () =>
     page.evaluate(() => {
@@ -96,8 +96,8 @@ async function checkBoardAreaSize(page, check) {
       return { w: Math.round(r.width), h: Math.round(r.height) };
     });
   for (const [vp, minW, minH] of [
-    [{ width: 360, height: 640 }, 343, 299],
-    [{ width: 844, height: 390 }, 499, 373],
+    [{ width: 360, height: 640 }, 343, 259],
+    [{ width: 844, height: 390 }, 499, 299],
   ]) {
     await page.setViewportSize(vp);
     await page.goto('/index.html?lesson=cmd-01-susumu');

@@ -23,13 +23,19 @@ export function createOpScreen({ root, question, stepKey }) {
   questionEl.dataset.skScreen = 'question';
   frame.appendChild(questionEl);
 
+  // 小鳥の欄（高さ64px固定。盤面の上・盤面と同じ列。Issue #544）。顔と吹き出しをここに並べる。
+  const birdLane = document.createElement('div');
+  birdLane.className = 'sk-screen-bird shrink-0';
+  birdLane.dataset.skScreen = 'bird-lane';
+  frame.appendChild(birdLane);
+
   const boardArea = document.createElement('div');
   boardArea.className = 'sk-screen-board relative flex-1 min-h-0 flex items-center justify-center overflow-hidden';
   boardArea.dataset.skScreen = 'board';
   frame.appendChild(boardArea);
 
-  // 小鳥の顔アイコン＋吹き出しの器（Issue #468）。盤面の角に重ねる（枠の寸法は変えない）。
-  const bird = createBird(boardArea);
+  // 小鳥の顔アイコン＋吹き出しの器（Issue #468）。盤面の上の欄に置く（Issue #544）。
+  const bird = createBird(birdLane, boardArea);
 
   const panel = document.createElement('div');
   panel.className = 'sk-screen-panel flex flex-col gap-2 shrink-0';

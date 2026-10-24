@@ -32,10 +32,11 @@ export function shakeBoard(boardArea) {
   }
 }
 
-// showStartCue(boardArea): ステージ開始時に「スタート！」を盤面中央へ1秒だけ表示する（Issue #497）。
+// showStartCue(boardArea): ステージ開始時に「スタート！」を盤面中央へ2秒だけ表示する（Issue #497。1秒→2秒は #544-3A）。
+// 盤面の内側に重ねて出す（吹き出し欄の外。docs/ui-rules.md の「start-cue は盤面内表示の例外」）。
 // タップは素通し。表示中は boardArea に data-start-cue を立て、消えたら外して 'sk-start-cue-end' を投げる
 // （吹き出し js/ui-bird.js がこれを見て、消えるまで表示を待つ）。再開（うごかす・ためしなおす）では呼ばない。
-export const START_CUE_MS = 1000;
+export const START_CUE_MS = 2000;
 export function showStartCue(boardArea) {
   boardArea.querySelector(':scope > .sk-start-cue')?.remove();
   playSfx('start');
