@@ -578,33 +578,39 @@ dialog.result-row {
   display: none;
 }
 
-/* 小鳥の顔アイコン（js/ui-bird.js・Issue #468）：盤面(relative)の右上の角に重ねる。見た目40px、押せる範囲は透明パディングで64px。
-   64x64 の枠は盤面内に収める（overflow-hidden で切られない）。顔は右上に寄せ、角の内側6pxに来る。盤面の flex 寸法には影響しない（absolute）。 */
+/* 小鳥の欄（js/ui-screen.js・Issue #544）：盤面の上の高さ64px固定。左に吹き出し、右に顔。盤面とは重ならない。 */
+.sk-screen-bird {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 64px;
+  min-height: 64px;
+  min-width: 0;
+}
+/* 小鳥の顔アイコン（js/ui-bird.js・Issue #468）：見た目40px、押せる範囲は透明パディングで64px。 */
 .sk-bird-icon {
-  position: absolute;
-  top: 0;
-  right: 0;
-  z-index: 5;
+  flex: none;
   box-sizing: border-box;
   width: 64px;
   height: 64px;
-  padding: 6px 6px 18px 18px;
+  padding: 12px 6px 12px 18px;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: flex-end;
   background: transparent;
   border: 0;
   cursor: pointer;
 }
+/* 吹き出し：1行表示。長い文は中の .sk-bird-track を横スライドで見せる。しっぽは右（顔）へ向ける。 */
 .sk-bird-bubble {
-  /* 顔の直下に右端を顔へそろえて出す（Issue #497 段B）。縦位置は js/ui-bird.js が置き物のマスを避けて決める（既定は顔の下52px）。 */
-  position: absolute;
-  top: 52px;
-  right: 6px;
-  z-index: 4;
+  position: relative;
   box-sizing: border-box;
-  width: max-content;
-  max-width: calc(100% - 12px);
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: calc(100% - 64px);
+  max-height: 100%;
+  margin-right: 8px;
   padding: 0.4rem 0.75rem;
   border-radius: 14px;
   border: 2px solid #1e293b;
@@ -614,19 +620,44 @@ dialog.result-row {
   font-weight: 700;
   text-align: center;
   cursor: pointer;
+  touch-action: pan-y;
+  user-select: none;
 }
-/* しっぽ：顔（右上）へ向ける */
+.sk-bird-track {
+  overflow: hidden;
+  white-space: nowrap;
+  max-height: 100%;
+}
 .sk-bird-bubble::before {
   content: '';
   position: absolute;
-  top: -9px;
-  right: 14px;
+  top: calc(50% - 6px);
+  right: -8px;
   width: 12px;
   height: 12px;
   background: #fff;
-  border-left: 2px solid #1e293b;
+  border-right: 2px solid #1e293b;
   border-top: 2px solid #1e293b;
   transform: rotate(45deg);
+}
+/* 続きがある側（右端）を白くぼかし、小さな「▶」を重ねる。末尾に着くと data-more が外れて消える。 */
+.sk-bird-bubble[data-more='true']::after {
+  content: '▶';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  bottom: 2px;
+  width: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 8px;
+  box-sizing: border-box;
+  border-radius: 0 12px 12px 0;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0), #fff 65%);
+  color: #475569;
+  font-size: 0.7rem;
+  pointer-events: none;
 }
 .sk-bird-bubble[hidden] {
   display: none;
@@ -707,7 +738,7 @@ dialog.result-row {
   .sk-screen-frame.sk-screen-frame {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 320px;
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: auto 64px minmax(0, 1fr);
     column-gap: 0.5rem;
     row-gap: 0.5rem;
   }
@@ -715,23 +746,30 @@ dialog.result-row {
     grid-column: 1;
     grid-row: 1;
   }
-  .sk-screen-frame > .sk-screen-board {
+  .sk-screen-frame > .sk-screen-bird {
     grid-column: 1;
     grid-row: 2;
   }
+  .sk-screen-frame > .sk-screen-board {
+    grid-column: 1;
+    grid-row: 3;
+  }
   .sk-screen-frame > .sk-screen-panel {
     grid-column: 2;
-    grid-row: 1 / span 2;
+    grid-row: 1 / span 3;
   }
-  /* 補助行が空：盤面を1行目へ（問い文は吹き出し。Issue #497 段B） */
+  /* 補助行が空：欄を1行目、盤面を2行目へ（問い文は吹き出し。Issue #497 段B・#544） */
   .sk-screen-frame.sk-screen-frame:has(> .sk-screen-question:empty) {
-    grid-template-rows: minmax(0, 1fr);
+    grid-template-rows: 64px minmax(0, 1fr);
+  }
+  .sk-screen-frame:has(> .sk-screen-question:empty) > .sk-screen-bird {
+    grid-row: 1;
   }
   .sk-screen-frame:has(> .sk-screen-question:empty) > .sk-screen-board {
-    grid-row: 1;
+    grid-row: 2;
   }
   .sk-screen-frame:has(> .sk-screen-question:empty) > .sk-screen-panel {
-    grid-row: 1;
+    grid-row: 1 / span 2;
   }
 
   .tutorial-screen.tutorial-screen {
@@ -846,30 +884,36 @@ dialog.result-row {
 }
 @media (orientation: landscape) {
   .sk-screen-frame.sk-screen-frame.sk-screen-frame--predict {
-    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-rows: auto 64px auto minmax(0, 1fr);
+  }
+  .sk-screen-frame--predict > .sk-screen-bird {
+    grid-row: 2;
   }
   .sk-screen-frame--predict > .predict-command-row {
     grid-column: 1;
-    grid-row: 2;
+    grid-row: 3;
   }
   .sk-screen-frame--predict > .predict-command-row ~ .sk-screen-board {
     grid-column: 1;
-    grid-row: 3;
+    grid-row: 4;
   }
   .sk-screen-frame--predict > .predict-command-row ~ .sk-screen-panel {
-    grid-row: 1 / span 3;
+    grid-row: 1 / span 4;
   }
   .sk-screen-frame.sk-screen-frame.sk-screen-frame--predict:has(> .sk-screen-question:empty) {
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: 64px auto minmax(0, 1fr);
   }
-  .sk-screen-frame--predict:has(> .sk-screen-question:empty) > .predict-command-row {
+  .sk-screen-frame--predict:has(> .sk-screen-question:empty) > .sk-screen-bird {
     grid-row: 1;
   }
-  .sk-screen-frame--predict:has(> .sk-screen-question:empty) > .predict-command-row ~ .sk-screen-board {
+  .sk-screen-frame--predict:has(> .sk-screen-question:empty) > .predict-command-row {
     grid-row: 2;
   }
+  .sk-screen-frame--predict:has(> .sk-screen-question:empty) > .predict-command-row ~ .sk-screen-board {
+    grid-row: 3;
+  }
   .sk-screen-frame--predict:has(> .sk-screen-question:empty) > .predict-command-row ~ .sk-screen-panel {
-    grid-row: 1 / span 2;
+    grid-row: 1 / span 3;
   }
   .sk-screen-panel > .sk-screen-actions.sk-screen-actions--predict {
     display: flex;
@@ -885,29 +929,35 @@ dialog.result-row {
 /* 鍵トレイ行（carry盤。Issue #391）：問い文の直下に別行。横向きの左右分割では問い文・トレイ・盤面を左列に積む。 */
 @media (orientation: landscape) {
   .sk-screen-frame.sk-screen-frame.sk-screen-frame--keys {
-    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-rows: auto auto 64px minmax(0, 1fr);
   }
   .sk-screen-frame--keys > .sk-key-tray-row {
     grid-column: 1;
     grid-row: 2;
   }
-  .sk-screen-frame--keys > .sk-key-tray-row ~ .sk-screen-board {
+  .sk-screen-frame--keys > .sk-key-tray-row ~ .sk-screen-bird {
     grid-row: 3;
   }
+  .sk-screen-frame--keys > .sk-key-tray-row ~ .sk-screen-board {
+    grid-row: 4;
+  }
   .sk-screen-frame--keys > .sk-key-tray-row ~ .sk-screen-panel {
-    grid-row: 1 / span 3;
+    grid-row: 1 / span 4;
   }
   .sk-screen-frame.sk-screen-frame.sk-screen-frame--keys:has(> .sk-screen-question:empty) {
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: auto 64px minmax(0, 1fr);
   }
   .sk-screen-frame--keys:has(> .sk-screen-question:empty) > .sk-key-tray-row {
     grid-row: 1;
   }
-  .sk-screen-frame--keys:has(> .sk-screen-question:empty) > .sk-key-tray-row ~ .sk-screen-board {
+  .sk-screen-frame--keys:has(> .sk-screen-question:empty) > .sk-key-tray-row ~ .sk-screen-bird {
     grid-row: 2;
   }
+  .sk-screen-frame--keys:has(> .sk-screen-question:empty) > .sk-key-tray-row ~ .sk-screen-board {
+    grid-row: 3;
+  }
   .sk-screen-frame--keys:has(> .sk-screen-question:empty) > .sk-key-tray-row ~ .sk-screen-panel {
-    grid-row: 1 / span 2;
+    grid-row: 1 / span 3;
   }
 }
 

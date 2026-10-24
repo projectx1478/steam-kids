@@ -56,13 +56,14 @@ async function checkFitsAndNonOverlap(page, check, label, viewport) {
     await check(`${label}: 盤面と操作ボタンが重ならない`, () => !overlaps(boardBox, b));
   }
 
-  // 問い文の吹き出し（Issue #497 段B）は盤面エリアの内側に収まり、操作ボタンに掛からない
+  // 問い文の吹き出し（Issue #544）は盤面の上の欄の内側に収まり、盤面・操作ボタンに掛からない
   const bubble = page.locator('[data-sk-bird="bubble"]:not([hidden])');
   if ((await bubble.count()) > 0) {
     const bb = await bubble.first().boundingBox();
-    const areaBox = await page.locator('[data-sk-screen="board"]').boundingBox();
-    await check(`${label}: 吹き出しが盤面エリアの内側`, () =>
-      bb.x >= areaBox.x - 1 && bb.y >= areaBox.y - 1 && bb.x + bb.width <= areaBox.x + areaBox.width + 1 && bb.y + bb.height <= areaBox.y + areaBox.height + 1);
+    const laneBox = await page.locator('[data-sk-screen="bird-lane"]').boundingBox();
+    await check(`${label}: 吹き出しが吹き出し欄の内側`, () =>
+      bb.x >= laneBox.x - 1 && bb.y >= laneBox.y - 1 && bb.x + bb.width <= laneBox.x + laneBox.width + 1 && bb.y + bb.height <= laneBox.y + laneBox.height + 1);
+    await check(`${label}: 吹き出しと盤面が重ならない`, () => !overlaps(bb, boardBox));
     for (const b of controlBoxes) {
       await check(`${label}: 吹き出しと操作ボタンが重ならない`, () => !overlaps(bb, b));
     }

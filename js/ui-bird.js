@@ -1,5 +1,6 @@
 // 小鳥（かんむりルリ）の顔アイコンと吹き出しの器（Issue #468 段1）。
 // 中身（文言・表示条件）は段2・3。ここは置き場と出し入れだけ。位置・寸法は tailwind.src.css の sk-bird-*。
+// 顔と吹き出しは盤面の上の固定の欄（laneEl。高さ64px。Issue #544 段1）に並べる。吹き出しは1行表示で、収まらない文は横にスライドして見せる。
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 function createFaceSvg() {
@@ -16,9 +17,13 @@ function createFaceSvg() {
   return svg;
 }
 
-// createBird(boardArea): 盤面の角に顔アイコン（見た目40px・押せる範囲64px）と空の吹き出しを足す。
+const SLIDE_PX = 8; // 指（pointer）がこれ以上動いたらスライド（吹き出しは消えない）。未満はタップ。
+let nudged = false; // 続きのある吹き出しが初めて出たとき1回だけ「流れて戻る」合図（セッション内1回）
+
+// createBird(laneEl, boardArea): 欄に顔アイコン（見た目40px・押せる範囲64px）と空の吹き出しを足す。
+// boardArea は「スタート！」表示（data-start-cue）の監視だけに使う。
 // 戻り値の iconEl はタップで反応を付ける側（段2）が onclick を足す。showBubble/hideBubble は出し入れのみ。
-export function createBird(boardArea) {
+export function createBird(laneEl, boardArea) {
   const iconEl = document.createElement('button');
   iconEl.type = 'button';
   iconEl.className = 'sk-bird-icon';
@@ -30,62 +35,58 @@ export function createBird(boardArea) {
   bubbleEl.className = 'sk-bird-bubble';
   bubbleEl.dataset.skBird = 'bubble';
   bubbleEl.hidden = true;
+  // 文が入る横スライドの枠（1行表示。はみ出しは隠してスライドで見せる）
+  const trackEl = document.createElement('div');
+  trackEl.className = 'sk-bird-track';
+  bubbleEl.appendChild(trackEl);
 
-  boardArea.appendChild(bubbleEl);
-  boardArea.appendChild(iconEl);
+  laneEl.appendChild(bubbleEl);
+  laneEl.appendChild(iconEl);
 
   // 「スタート！」表示中（boardArea の data-start-cue）に来た text は保留し、消えた時点で最後の1件だけ出す（後勝ち）。
   let pending = null;
   let attrKeys = [];
+  let nudgeId = 0;
   function hideBubble() {
     pending = null;
+    nudgeId += 1;
     bubbleEl.hidden = true;
-    bubbleEl.textContent = '';
-    bubbleEl.style.top = '';
-    bubbleEl.style.maxWidth = '';
+    trackEl.textContent = '';
+    trackEl.scrollLeft = 0;
+    delete bubbleEl.dataset.more;
     attrKeys.forEach((k) => delete bubbleEl.dataset[k]);
     attrKeys = [];
   }
 
-  // 盤面の「置き物」の矩形（boardArea 基準）。旗・かべ・ロボット・どんぐり・ギミックのマス等。何も無い素のマスは含めない。
-  function occupiedRects(a) {
-    const els = [];
-    boardArea.querySelectorAll('.grid-cell').forEach((c) => {
-      if (c.children.length > 0 || Object.keys(c.dataset).length > 2) els.push(c);
-    });
-    boardArea.querySelectorAll('.grid-player, .grid-item').forEach((e) => els.push(e));
-    return els.map((e) => {
-      const r = e.getBoundingClientRect();
-      return { l: r.left - a.left, r: r.right - a.left, t: r.top - a.top, b: r.bottom - a.top };
-    });
+  const overflow = () => trackEl.scrollWidth - trackEl.clientWidth;
+  // 続く側（右端）に白いぼかしと「▶」を出す。末尾に着くと消える（CSS の [data-more]）。
+  function updateMore() {
+    if (!bubbleEl.hidden && overflow() > 1 && trackEl.scrollLeft + trackEl.clientWidth < trackEl.scrollWidth - 1) {
+      bubbleEl.dataset.more = 'true';
+    } else {
+      delete bubbleEl.dataset.more;
+    }
+  }
+  trackEl.addEventListener('scroll', updateMore);
+
+  // 初回の合図：文が約0.6秒少し流れて戻る。動きを減らす設定では出さない。
+  function nudge() {
+    const dist = Math.min(overflow(), 40);
+    if (dist <= 0 || typeof requestAnimationFrame !== 'function') return;
+    if (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const id = ++nudgeId;
+    const start = performance.now();
+    const DUR = 600;
+    const step = (now) => {
+      if (id !== nudgeId || bubbleEl.hidden) return;
+      const t = Math.min(1, (now - start) / DUR);
+      trackEl.scrollLeft = dist * Math.sin(Math.PI * t);
+      if (t < 1) requestAnimationFrame(step);
+      else trackEl.scrollLeft = 0;
+    };
+    requestAnimationFrame(step);
   }
 
-  // 吹き出しの位置（#497 段B）：顔の直下1行に右端を顔へそろえる。その行に置き物のマスがあれば1行ずつ下げ（最大2行）、
-  // それでも空かなければ幅を縮める。盤面の寸法・入力には影響しない（absolute）。
-  function placeBubble() {
-    bubbleEl.style.top = '';
-    bubbleEl.style.maxWidth = '';
-    const a = boardArea.getBoundingClientRect();
-    const ic = iconEl.getBoundingClientRect();
-    const base = ic.top - a.top + 52;
-    const cell = boardArea.querySelector('.grid-cell');
-    const pitch = cell ? cell.getBoundingClientRect().height + 4 : 44;
-    const rects = occupiedRects(a);
-    const right = a.width - 6;
-    const w = bubbleEl.offsetWidth;
-    const h = bubbleEl.offsetHeight;
-    const hits = (top, left) => rects.filter((o) => o.r > left && o.l < right && o.b > top && o.t < top + h);
-    for (let k = 0; k <= 2; k += 1) {
-      const top = base + pitch * k;
-      if (hits(top, right - w).length === 0) {
-        bubbleEl.style.top = `${top}px`;
-        return;
-      }
-    }
-    bubbleEl.style.top = `${base}px`;
-    const limit = Math.max(0, ...hits(base, right - w).filter((o) => o.r < right).map((o) => o.r));
-    if (limit > 0) bubbleEl.style.maxWidth = `${Math.max(96, right - limit - 4)}px`;
-  }
   // content は文字列（textContent で入れる）または DOM ノード（結果・ヒントの中身。Issue #497）。
   // attrs は吹き出しの data 属性（例 { result: 'clear' }）。すでに出ていれば置き換える（後勝ち）。
   function showBubble(content, attrs = {}) {
@@ -94,25 +95,61 @@ export function createBird(boardArea) {
       return;
     }
     hideBubble();
-    if (typeof content === 'string') bubbleEl.textContent = content;
-    else bubbleEl.appendChild(content);
+    if (typeof content === 'string') trackEl.textContent = content;
+    else trackEl.appendChild(content);
     Object.entries(attrs).forEach(([k, v]) => {
       bubbleEl.dataset[k] = v;
     });
     attrKeys = Object.keys(attrs);
     bubbleEl.hidden = false;
-    placeBubble();
+    updateMore();
+    if (!nudged && bubbleEl.dataset.more === 'true') {
+      nudged = true;
+      nudge();
+    }
   }
   if (typeof ResizeObserver === 'function') {
-    new ResizeObserver(() => {
-      if (!bubbleEl.hidden) placeBubble();
-    }).observe(boardArea);
+    new ResizeObserver(() => updateMore()).observe(laneEl);
   }
   boardArea.addEventListener('sk-start-cue-end', () => {
     if (pending !== null) showBubble(pending.content, pending.attrs);
   });
-  // 吹き出し自体のタップで消える（自動では消さない。#468 悠 10-18）。
-  bubbleEl.addEventListener('click', hideBubble);
+
+  // 横スライド：pointer が SLIDE_PX 以上動いたらスライド（click を無視＝消えない）。未満はタップ。
+  let down = null;
+  let slid = false;
+  bubbleEl.addEventListener('pointerdown', (e) => {
+    down = { x: e.clientX, left: trackEl.scrollLeft, id: e.pointerId };
+    slid = false;
+    nudgeId += 1; // 合図の動きは指が触れたら止める
+  });
+  bubbleEl.addEventListener('pointermove', (e) => {
+    if (!down || e.pointerId !== down.id) return;
+    const dx = e.clientX - down.x;
+    if (!slid && Math.abs(dx) < SLIDE_PX) return;
+    if (!slid) {
+      slid = true;
+      try {
+        bubbleEl.setPointerCapture(e.pointerId);
+      } catch {
+        // キャプチャできなくてもスライド自体は動く
+      }
+    }
+    trackEl.scrollLeft = down.left - dx;
+  });
+  const endPointer = () => {
+    down = null;
+  };
+  bubbleEl.addEventListener('pointerup', endPointer);
+  bubbleEl.addEventListener('pointercancel', endPointer);
+  // 吹き出し自体のタップで消える（自動では消さない。#468 悠 10-18）。スライドの後の click は無視する。
+  bubbleEl.addEventListener('click', () => {
+    if (slid) {
+      slid = false;
+      return;
+    }
+    hideBubble();
+  });
 
   return { iconEl, bubbleEl, showBubble, hideBubble, isBubbleShown: () => !bubbleEl.hidden };
 }
