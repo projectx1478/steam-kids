@@ -64,9 +64,21 @@ export async function clearStage(page, commands) {
 }
 
 // 失敗後の「もういちど」を押し、画面暗転（[data-transition="retry"]。Issue #136）が明けるまで待つ。
-export async function clickRetry(page) {
+// 命令列は残る（#545）。列が残ることを見るシナリオ（c4-feedback・c8-fail-lock・c13-*・cmd03-naosu-flow）だけ使う。
+export async function clickRetryKeep(page) {
   await page.click('[data-action="retry"]');
   await page.waitForFunction(() => !document.querySelector('[data-transition="retry"]'), null, { timeout: 4000 });
+}
+
+// 上に加えて、列が空でなく「ぜんぶけす」が有効なら押して列を空にする（失敗後も列が残る #545 以前と同じ空の列から始めるため）。
+// 押した後は列（.command-chip）が0個になるまで待つ。じっこう の有効化（約0.5秒の無効後）は待たず、後続の page.click の自動待ちに任せる。
+export async function clickRetry(page) {
+  await clickRetryKeep(page);
+  const clear = page.locator('[data-action="clear-all"]');
+  if ((await clear.count()) > 0 && (await clear.isEnabled())) {
+    await clear.click();
+    await page.waitForFunction(() => !document.querySelector('.command-chip'), null, { timeout: 4000 });
+  }
 }
 
 // レッスンJSON（solutionを持つplayステージ）を、ページが実際に読むのと同じ経路（fetch。

@@ -38,6 +38,16 @@ export default async function run({ page, check }) {
   await page.click('[data-command="up"]');
   await check('うえを入れ直すと2個', async () => page.$$eval('.command-chip [data-inner]', (e) => e.length), 2);
 
+  // 箱が開いている間のドラッグは、列のどこで離しても箱の末尾へ入る（差し込みは箱の外へ割り込まない。#545）
+  await page.click('[data-action="remove-last"]');
+  const upBtn = await page.locator('[data-command="up"]').boundingBox();
+  const chip0 = await page.locator('.command-chip').first().boundingBox();
+  await page.mouse.move(upBtn.x + upBtn.width / 2, upBtn.y + upBtn.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(chip0.x + 4, chip0.y + chip0.height / 2, { steps: 12 });
+  await page.mouse.up();
+  await check('箱が開いている間のドラッグは箱の末尾へ入る(チップは1個・箱の中2個)', async () => [await chips(page), await page.$$eval('.command-chip [data-inner]', (e) => e.length)], [1, 2]);
+
   await check('360x640で横スクロールが出ない', async () => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true);
   await check('全ボタンが48px以上', async () => {
     for (const el of await page.$$('button')) {

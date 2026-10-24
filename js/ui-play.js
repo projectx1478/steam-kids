@@ -8,7 +8,7 @@ import { shapeSvg, prefersReducedMotion } from './ui-grid.js';
 import { fitCellSize, drawBoard as drawBoardUi, observeBoard } from './ui-board.js';
 import { createZoom } from './ui-zoom.js';
 import { openMenu } from './ui-menu.js';
-import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, vibrate, countChips, planRun, clearUnlocked, isLockedIndex, stepsBefore, isPause, setPauseLeft } from './ui-commands.js';
+import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, computeGapIndex, vibrate, countChips, planRun, clearUnlocked, isLockedIndex, stepsBefore, isPause, setPauseLeft } from './ui-commands.js';
 import { play as playSfx, skipClickSfx } from './sfx.js';
 import { UNDO_CLEAR_MS, snapshotUnlocked, restoreUnlocked } from './undo-clear.js';
 import { createOpScreen } from './ui-screen.js';
@@ -47,6 +47,7 @@ const FAR_GOAL_MESSAGE = 'ほかの みちも ためして みよう';
 const NEAR_GOAL_DISTANCE = 2;
 // 壁衝突の失敗後、「ためしなおす」をパルスで強調するまでの待ち（Issue #214）。
 const RETRY_PULSE_DELAY_MS = 1200;
+const RUN_COOLDOWN_MS = 500;
 
 export function renderPlay(root, step) {
   const spec = boardSpec(step);
@@ -102,6 +103,9 @@ export function renderPlay(root, step) {
     runStates: {},
     view: null,
     resultShown: false,
+    // 失敗後に強調する命令の添字（info.cmdIndex。-1＝なし）と、ためしなおす直後のじっこう無効（#545）。
+    failMark: -1,
+    runCooldown: false,
     // 不正解でtrueにし、「ためしなおす」以外の操作ボタン・命令チップの取り消しを封じる
     // （思考フローが他ボタンで乱れないようにする。Issue #106）。「ためしなおす」押下でのみ解除。
     locked: false,
@@ -372,13 +376,15 @@ export function renderPlay(root, step) {
   // saveDraft(): 命令列を変える全ての入口から呼ぶ、下書き保存の唯一の入口（Issue #556）。
   // 実行中は命令列が変わらないので、再読込しても実行前の列が残る。空の箱は保存しない。
   function saveDraft() {
+    local.failMark = -1; // 列が動いたら、失敗の強調（添字）は外す（#545）
     if (isTrial()) return;
     writeDraft(S.lesson.lessonId, step.stepId, local.commands.filter((c) => !(c.box && c.box.length === 0)));
   }
 
   // resetToFresh(): 命令列をfreshCommands（なおす系は初期の「ずれた」列、それ以外は空）へ戻す。
-  // 「ためしなおす」（失敗後のretry・クリア後のreplay）は正解・不正解に関わらず必ずこれを呼ぶ
-  // （前回の命令列を残さない。Issue #104）。参照(S.drafts)は保ったまま中身だけ入れ替える。
+  // クリア後のreplay・ステージ切替・離れるで呼ぶ。失敗後の「ためしなおす」は命令列を残すので
+  // これを呼ばず releaseFailLock を使う（#545。以前は失敗後も必ずこれを呼んでいた。Issue #104）。
+  // 参照(S.drafts)は保ったまま中身だけ入れ替える。
   function resetToFresh() {
     dropUndo();
     local.commands.length = 0;
@@ -392,6 +398,36 @@ export function renderPlay(root, step) {
     local.locked = false;
     // 塗りの失敗は結果トーストを出さず resultShown だけ立てる。旧 showRestartCue が戻していた分を、ここで確実に戻す（#497）。
     local.resultShown = false;
+  }
+
+  // releaseFailLock(): 失敗後の「ためしなおす」。命令列と失敗の強調（failMark）は残し、
+  // resetToFresh と同じ残存状態だけ初期化して編集可へ戻す（#545-9A）。
+  function releaseFailLock() {
+    dropUndo();
+    local.boxOpen = -1;
+    local.lockedCount = 0;
+    local.runStates = {};
+    local.fixOpened = false;
+    local.locked = false;
+    local.resultShown = false;
+  }
+
+  // 失敗後の強調（#545）：最初に外れた命令（info.cmdIndex）の枠。再描画しても付け直す。
+  function applyFailMark() {
+    if (local.failMark < 0) return;
+    queueEl.querySelector(`[data-index="${local.failMark}"]`)?.classList.add('ring-4', 'ring-amber-400', 'sk-cmd-fail');
+  }
+
+  // ためしなおす・replay の直後は約0.5秒じっこうを受け付けない（連打の取りこぼし防止。reduced-motion でも同じ。#545-8A）。
+  let runCooldownTimer = null;
+  function startRunCooldown() {
+    local.runCooldown = true;
+    clearTimeout(runCooldownTimer);
+    runCooldownTimer = setTimeout(() => {
+      runCooldownTimer = null;
+      local.runCooldown = false;
+      updateControls();
+    }, RUN_COOLDOWN_MS);
   }
 
   // drawQueueFollowActive(): 実行中の再描画。再描画で戻るスクロール位置を復元し、今動いているチップを
@@ -437,6 +473,7 @@ export function renderPlay(root, step) {
         local.nudge?.poke();
       },
     });
+    applyFailMark();
   }
 
   function updateControls() {
@@ -453,7 +490,7 @@ export function renderPlay(root, step) {
     setPauseLeft(paletteEl, Math.max(0, pausesLeft));
     const isRetry = runBtn.dataset.action === 'retry';
     const hasEmptyBox = local.commands.some((c) => c.box && c.box.length === 0);
-    runBtn.disabled = local.running || (!isRetry && (local.commands.length === 0 || hasEmptyBox));
+    runBtn.disabled = local.running || local.runCooldown || (!isRetry && (local.commands.length === 0 || hasEmptyBox));
     if (boxBtn) boxBtn.disabled = atMax || local.boxOpen >= 0 || local.running || local.stepping || local.locked;
     drawBoxBar();
     clearBtn.disabled = local.commands.length <= local.lockedCount || local.running || local.stepping || local.locked;
@@ -483,8 +520,10 @@ export function renderPlay(root, step) {
       local.nudge?.poke();
     },
     dropTarget: () => queueEl.getBoundingClientRect(),
-    onDragOver: (active) => toggleGhostSlot(queueEl, active),
-    onAdd: (dir, { via } = {}) => {
+    // 箱が開いているときは箱末尾（=列の末尾の隙間）、止まった前部の手前には入れない（目印もそこへ寄せる）。
+    dropGap: (x, y) => (local.boxOpen >= 0 ? local.commands.length : Math.max(computeGapIndex(queueEl, x, y), local.lockedCount)),
+    onDragOver: (active, gap) => toggleGhostSlot(queueEl, active, gap),
+    onAdd: (dir, { via, index } = {}) => {
       if (local.running || local.stepping || local.locked) {
         skipClickSfx();
         return;
@@ -500,6 +539,33 @@ export function renderPlay(root, step) {
         drawQueue();
         queueEl.scrollLeft = queueEl.scrollWidth;
         queueEl.scrollTop = queueEl.scrollHeight;
+        updateControls();
+        local.nudge?.poke();
+        return;
+      }
+      // 差し込み（ドラッグで末尾以外の隙間へ。Issue #545）。止まった前部(lockedCount)より前には入れない。
+      if (via === 'drag' && typeof index === 'number' && index < local.commands.length) {
+        const at = Math.max(index, local.lockedCount);
+        const prev = local.commands[at - 1];
+        const next = local.commands[at];
+        if (step.groupRepeats && at - 1 >= local.lockedCount && prev && prev.dir === dir) {
+          prev.times += 1;
+          playSfx('stack', { count: prev.times });
+        } else if (step.groupRepeats && next && next.dir === dir) {
+          next.times += 1;
+          playSfx('stack', { count: next.times });
+        } else {
+          if (countChips(local.commands) >= step.maxCommands) {
+            skipClickSfx();
+            return;
+          }
+          local.commands.splice(at, 0, { dir, times: 1 });
+          playSfx('snap');
+        }
+        saveDraft();
+        if (isFix) local.fixOpened = true;
+        drawQueue();
+        queueEl.querySelector(`.command-chip[data-index="${at}"]`)?.classList.add('spring-in');
         updateControls();
         local.nudge?.poke();
         return;
@@ -680,6 +746,7 @@ export function renderPlay(root, step) {
     showNormalActions();
     clearResultBubble(bird);
     resetToFresh();
+    startRunCooldown();
     drawQueue();
     drawBoard(spec.start);
     local.view.popIn();
@@ -779,7 +846,8 @@ export function renderPlay(root, step) {
       const fails = (FAIL_COUNTS.get(failKey) ?? 0) + 1;
       FAIL_COUNTS.set(failKey, fails);
       if (info.reason === 'wall' || info.reason === 'periodic') {
-        queueEl.querySelector(`[data-index="${info.cmdIndex}"]`)?.classList.add('ring-4', 'ring-amber-400');
+        local.failMark = info.cmdIndex;
+        applyFailMark();
         local.view.markCell(info.cell, 'wall');
         // 壁衝突は横に倒れる演出で気づかせ、1.2秒後に「ためしなおす」をパルスで強調する（Issue #214）。
         local.view.fallOver();
@@ -817,12 +885,14 @@ export function renderPlay(root, step) {
         () => {
           clearResultBubble(bird);
           setRunButtonMode('run');
-          resetToFresh();
+          releaseFailLock();
+          local.runCooldown = true;
           drawQueue();
           drawBoard(spec.start);
           updateControls();
         },
         () => {
+          startRunCooldown();
           local.view.popIn();
           local.nudge?.poke();
         }
@@ -867,6 +937,7 @@ export function renderPlay(root, step) {
       local.runStates = {};
     }
     local.pendingPause = plan.nextPause;
+    local.failMark = -1; // 実行を始めたら失敗の強調は消える（#545）
     local.stepper = createStepper(local.commands, spec, local.view, {
       startIndex: plan.startIndex,
       stopIndex: plan.stopIndex,

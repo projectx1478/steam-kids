@@ -74,13 +74,16 @@ const DRAG_THRESHOLD_PX = 8;
 // elの見た目を複製したクローンをposition:fixedで指に追従させる。getDropTarget()が返す
 // DOMRect内で離すとonDrop、外なら何もしない（クローンが消えるだけ）。onDragOver(inside)は
 // ドラッグ中、対象領域に入った/出た瞬間にのみ呼ぶ（ゴースト枠の出し入れ用）。
-function attachTapOrDrag(el, { onTap, getDropTarget, onDragOver, onDrop }) {
+// getGap(x, y)（省略可）が数値を返すと、onDragOver(inside, gap)・onDrop(gap) にその隙間indexを渡す
+// （差し込み先。Issue #545）。隙間indexは「commands[gap]の手前」を指す。
+function attachTapOrDrag(el, { onTap, getDropTarget, onDragOver, onDrop, getGap }) {
   el.addEventListener('pointerdown', (downEvent) => {
     if (el.disabled) return;
     const startX = downEvent.clientX;
     const startY = downEvent.clientY;
     let dragging = false;
     let inside = false;
+    let gap = null;
     let clone = null;
 
     function pointInRect(x, y, rect) {
@@ -110,9 +113,11 @@ function attachTapOrDrag(el, { onTap, getDropTarget, onDragOver, onDrop }) {
       if (!dragging) return;
       moveClone(moveEvent.clientX, moveEvent.clientY);
       const nowInside = pointInRect(moveEvent.clientX, moveEvent.clientY, getDropTarget?.());
-      if (nowInside !== inside) {
+      const nowGap = nowInside && getGap ? getGap(moveEvent.clientX, moveEvent.clientY) : null;
+      if (nowInside !== inside || nowGap !== gap) {
         inside = nowInside;
-        onDragOver?.(inside);
+        gap = nowGap;
+        onDragOver?.(inside, gap);
       }
     }
 
@@ -130,7 +135,7 @@ function attachTapOrDrag(el, { onTap, getDropTarget, onDragOver, onDrop }) {
       }
       clone.remove();
       onDragOver?.(false);
-      if (inside) onDrop();
+      if (inside) onDrop(gap);
     }
 
     function onCancel() {
@@ -146,10 +151,51 @@ function attachTapOrDrag(el, { onTap, getDropTarget, onDragOver, onDrop }) {
   });
 }
 
-// toggleGhostSlot(listEl, active): ドラッグ中の配置先を示す。トレイの「次の枠」
+// computeGapIndex(listEl, x, y): 指の位置に最も近い隙間のindex（commands[index]の手前。0..件数）を返す。
+// 各チップ（[data-index]の直下要素）の中心と比べる。折り返して複数行のときは、まず縦位置が最も近い行、
+// その行の中で横位置を見る（行→列の順）。チップが無ければ0（Issue #545）。
+export function computeGapIndex(listEl, x, y) {
+  const items = [...listEl.querySelectorAll(':scope > [data-index]')].map((el) => {
+    const r = el.getBoundingClientRect();
+    return { index: Number(el.dataset.index), cx: (r.left + r.right) / 2, cy: (r.top + r.bottom) / 2 };
+  });
+  if (items.length === 0) return 0;
+  const rowY = items.reduce((best, it) => (Math.abs(it.cy - y) < Math.abs(best - y) ? it.cy : best), items[0].cy);
+  const row = items.filter((it) => Math.abs(it.cy - rowY) < 8);
+  const next = row.find((it) => x < it.cx);
+  return next ? next.index : row[row.length - 1].index + 1;
+}
+
+// toggleGhostSlot(listEl, active, gap): ドラッグ中の配置先を示す。gapが数値のときは、その隙間に
+// 太い縦線（.ghost-slot.ghost-line。.command-queue直下のli・1本）を出す（差し込み。Issue #545）。
+// gapが無いとき: トレイの「次の枠」
 // （[data-tray-slot]。Issue #110）が既にあればそれを光らせ、無い画面（tutorial等）では
 // 従来どおり末尾に仮の枠を出し入れする。
-export function toggleGhostSlot(listEl, active) {
+export function toggleGhostSlot(listEl, active, gap = null) {
+  if (typeof gap === 'number') {
+    let line = listEl.querySelector(':scope > .ghost-line');
+    if (!active) {
+      line?.remove();
+      return;
+    }
+    if (!line) {
+      line = document.createElement('li');
+      line.className = 'ghost-slot ghost-line';
+      line.setAttribute('aria-hidden', 'true');
+      listEl.appendChild(line);
+    }
+    const q = listEl.getBoundingClientRect();
+    const chips = [...listEl.querySelectorAll(':scope > [data-index]')];
+    const at = chips.find((el) => Number(el.dataset.index) === gap);
+    const ref = at || chips[chips.length - 1];
+    const r = ref?.getBoundingClientRect();
+    const x = r ? (at ? r.left - 5 : r.right + 5) : 4;
+    line.style.left = `${x - q.left + listEl.scrollLeft}px`;
+    line.style.top = `${(r ? r.top : q.top) - q.top + listEl.scrollTop}px`;
+    line.style.height = `${r ? r.height : 64}px`;
+    return;
+  }
+  listEl.querySelector(':scope > .ghost-line')?.remove();
   const traySlot = listEl.querySelector(':scope > [data-tray-slot]');
   if (traySlot) {
     traySlot.classList.toggle('ghost-slot', active);
@@ -185,12 +231,12 @@ export function arrowSvg(dir) {
 }
 
 // renderCommandPalette(container, { onAdd, dropTarget, onDragOver })
-// onAdd(dir, { via }): viaは'tap'|'drag'。dropTarget(): ドロップ判定に使うDOMRectを返す関数
+// onAdd(dir, { via, index }): viaは'tap'|'drag'。indexはdropGapがあるときのドラッグの差し込み先の隙間index（#545）。dropGap(x, y)は隙間indexを返す関数。dropTarget(): ドロップ判定に使うDOMRectを返す関数
 // （省略時はドラッグしても追加されない＝タップのみの画面になる）。onDragOver(inside):
 // ドラッグ中、dropTarget領域への出入りで呼ぶ（ゴースト枠の出し入れ用）。
 // maxPauses>0なら上段左に「とめる」（タップでonPause()。✋・とめる・×N を1ボタンに統合）を出す（#395 段3・#467 段B）。
 // onMenu(button) があれば上段右に⚙（せってい）を出す。
-export function renderCommandPalette(container, { onAdd, dropTarget, onDragOver, maxPauses = 0, onPause, onMenu }) {
+export function renderCommandPalette(container, { onAdd, dropTarget, onDragOver, dropGap, maxPauses = 0, onPause, onMenu }) {
   container.innerHTML = '';
   // 2行×3列（上段 [とめる/空き][うえ][せってい]・下段 [ひだり][した][みぎ]）。DOM順は up 先頭のまま、
   // 配置は tailwind.src.css の .palette-row の grid-area で並べ替える（Issue #395）。
@@ -207,10 +253,11 @@ export function renderCommandPalette(container, { onAdd, dropTarget, onDragOver,
         onAdd(dir, { via: 'tap' });
       },
       getDropTarget: dropTarget,
+      getGap: dropGap,
       onDragOver,
-      onDrop: () => {
+      onDrop: (gap) => {
         vibrate();
-        onAdd(dir, { via: 'drag' });
+        onAdd(dir, typeof gap === 'number' ? { via: 'drag', index: gap } : { via: 'drag' });
       },
     });
     container.appendChild(btn);

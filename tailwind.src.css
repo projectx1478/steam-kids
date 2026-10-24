@@ -94,6 +94,13 @@
   .ghost-slot {
     @apply border-2 border-dashed border-amber-500/70 bg-amber-100/40 rounded-lg motion-safe:animate-pulse;
   }
+  /* 差し込み先の太い縦線（#545）。.command-queue 直下に絶対配置（位置は JS が left/top/height を入れる）。 */
+  .command-queue {
+    position: relative;
+  }
+  .ghost-slot.ghost-line {
+    @apply absolute z-10 w-1.5 p-0 border-0 rounded-full bg-amber-500 pointer-events-none;
+  }
 }
 
 /* 指ガイド・ドロップ演出。prefers-reduced-motion時はアニメーションさせず静止表示にする（Issue #95）。 */
@@ -239,6 +246,12 @@
   }
   button.retry-pulse {
     animation: retry-pulse 0.6s ease-in-out 2;
+  }
+
+  /* 失敗後に最初に外れた命令の1個だけの強調（Issue #545）。ring-4 ring-amber-400 は残し、枠をさらに太くする。 */
+  .command-chip.sk-cmd-fail {
+    outline: 4px solid #d97706;
+    outline-offset: 2px;
   }
 
   /* 単元マップの「次に遊ぶレッスン」を無限パルスで強調する（Issue #216）。 */

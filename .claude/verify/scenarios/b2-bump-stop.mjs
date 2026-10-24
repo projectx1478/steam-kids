@@ -86,6 +86,8 @@ export default async function run({ page, check }) {
   await check('盤面がstartに戻る', () => robotCell(page), '0,0');
   await check('足あとが消える', () => footprints(page), 0);
   await check('再開時はスタート！が出ない（出るのはステージ開始時のみ。#497）', async () => (await page.$$('.sk-start-cue')).length, 0);
+  // 失敗後の ためしなおす は列を残す（#545）。空の列から始める前提を保つため ぜんぶけす で空にする。
+  await page.click('[data-action="clear-all"]');
   await check('命令列が空に戻る', async () => (await page.$$('.command-chip')).length, 0);
 
   // --- 1コマ（reduced-motion）: 1タップ目(left)が盤外で終わる。retryは暗転せず即時に作り直す ---

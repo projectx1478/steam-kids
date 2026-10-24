@@ -1,7 +1,7 @@
 export const name =
   'C4 実機フィードバック一括対応: ヘッダー(もどる・えらぶ がめんへ)・反応統一・ヒント・ためしなおす・まとめ(Issue #91/#93/#104)';
 
-import { enterPlay, clearStage, clickRetry, routeLesson } from '../helpers.mjs';
+import { enterPlay, clearStage, clickRetry, clickRetryKeep, routeLesson } from '../helpers.mjs';
 
 async function noLongLine(page) {
   const text = await page.locator('body').innerText();
@@ -101,13 +101,14 @@ export default async function run({ page, check }) {
   await page.click('[data-remove-index="0"]', { force: true });
   await check('ロック中のチップ×は無反応', async () => (await page.$$('.command-chip')).length, 1);
 
-  await clickRetry(page);
+  await clickRetryKeep(page);
   await check('ためしなおすで[data-action="run"]に戻る', async () => (await page.$$('[data-action="run"]')).length, 1);
   await check('ためしなおすでヒント表示が消える', async () => (await page.$$('[data-hint]')).length, 0);
-  await check('ためしなおすでチップが0個に戻る', async () => (await page.$$('.command-chip')).length, 0);
+  await check('ためしなおすで列が残る（チップ1個のまま）', async () => (await page.$$('.command-chip')).length, 1);
   await check('ためしなおすでロックが解除される（命令パレットが押せる）', () => page.$eval('[data-command="up"]', (b) => b.disabled), false);
 
   // --- 未到達ヒント ---
+  await page.click('[data-action="remove-last"]'); // 残った left（失敗原因）を消してから積む（#545）
   await page.click('[data-command="up"]'); // start(0,3)->(0,2)。壁にもゴールにも届かない。
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="retry"]', { timeout: 4000 });
@@ -119,9 +120,9 @@ export default async function run({ page, check }) {
   await check('未到達ヒントパネル', async () => (await page.$$('[data-hint="goal"]')).length, 1);
   await assertNoNegativeWords(page, check, 'play未到達ヒント');
 
-  // --- ためしなおす（失敗後のretry）は正解・不正解に関わらず命令列をリセットする（Issue #104） ---
-  await clickRetry(page);
-  await check('retryで命令列は0個に戻る（前回の命令を残さない）', async () => (await page.$$('.command-chip')).length, 0);
+  // --- ためしなおす（失敗後のretry）は命令列を残す（#545。以前はリセットしていた Issue #104） ---
+  await clickRetryKeep(page);
+  await check('retryで命令列が残る（未到達で失敗した後の[up]の1個）', async () => (await page.$$('.command-chip')).length, 1);
 
   // --- item未回収ヒント（donguri-01-hirou）。items(1,3)/(2,3)を持つp2で検証する ---
   const pg = { allowedCommands: ['up', 'down', 'left', 'right'], walls: [] };
@@ -200,8 +201,8 @@ export default async function run({ page, check }) {
   await check('なおすp1は初期状態で3個のチップ', async () => (await page.$$('.command-chip')).length, 3);
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="retry"]', { timeout: 8000 });
-  // 不正解直後は編集がロックされるため、ためしなおすを押してから直す（Issue #106）。
-  await clickRetry(page);
+  // 不正解直後は編集がロックされるため、ためしなおすを押してから直す（Issue #106）。列は残る（#545）。
+  await clickRetryKeep(page);
   await page.click('[data-remove-index="1"]');
   await check('編集後は2個', async () => (await page.$$('.command-chip')).length, 2);
   await page.click('[data-action="run"]');

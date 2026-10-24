@@ -77,6 +77,8 @@ export default async function run({ page, check }) {
   await page.waitForTimeout(800);
   await check('ためしなおす後、姿勢が初期値に戻る', () => bodyTransform(page), '');
   await check('ためしなおす後、ロボットがstartに戻る', async () => (await playerTransform(page)) === startTransform, true);
+  // 失敗後の ためしなおす は列を残す（#545）。次の入り直しで下書きが復元されないよう ぜんぶけす で空にする。
+  await page.click('[data-action="clear-all"]');
 
   // --- reduced-motion: 倒れもパルスも出ない ---
   await page.emulateMedia({ reducedMotion: 'reduce' });

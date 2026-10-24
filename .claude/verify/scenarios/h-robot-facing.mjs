@@ -2,7 +2,7 @@
 // 表示中の向き＝<g data-facing>のうちdisplayがnoneでないもの。
 
 export const name = 'ロボットの向き: 進行方向・衝突方向を向き、クリア時は正面(Issue #146)';
-import { routeLesson, enterPlay } from '../helpers.mjs';
+import { routeLesson, enterPlay, clickRetry } from '../helpers.mjs';
 
 const LESSON = {
   lessonId: 'robot-facing-smoke',
@@ -41,7 +41,7 @@ export default async function run({ page, check }) {
     await page.click(`[data-command="${cmd}"]`);
     await page.click('[data-action="step"]');
     await check(`${cmd}へ進むと${dir}を向く`, () => facing(page), dir);
-    await page.click('[data-action="retry"]').catch(() => {});
+    await clickRetry(page).catch(() => {}); // 列も空にして、入り直しで下書きが復元されないようにする（#545）
     await enterPlay(page, 'robot-facing-smoke');
   }
 
@@ -52,6 +52,12 @@ export default async function run({ page, check }) {
 
   // --- クリア: 最後の手が up（背中向き）でも、クリア時は正面へ向き直す ---
   await enterPlay(page, 'robot-facing-smoke');
+  // 直前の left が下書きとして復元されるので、列を空にしてから積む（#556）。
+  const clearAll = page.locator('[data-action="clear-all"]');
+  if ((await clearAll.count()) > 0 && (await clearAll.isEnabled())) {
+    await clearAll.click();
+    await page.waitForFunction(() => !document.querySelector('.command-chip'), null, { timeout: 4000 });
+  }
   for (const c of ['right', 'right', 'up']) await page.click(`[data-command="${c}"]`);
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-result="clear"]', { timeout: 8000 });
