@@ -30,6 +30,7 @@ import { showClearSequence, recordClear } from './ui-clear.js';
 import { isTrial, closeTrialTab } from './trial-lesson.js';
 import { paintMiniBoard } from './gimmicks/paint.js';
 import { renderKeyTray, resetKeyTray } from './gimmicks/keys.js';
+import { readDraft, writeDraft, clearDraft } from './storage.js';
 import { setRetryButton, createRetryChoice, shakeBoard, showStartCue } from './ui-retry.js';
 
 // diagnose()の原因ごとの文言（20字以内・否定語なし。Issue #91）。
@@ -61,7 +62,19 @@ export function renderPlay(root, step) {
   // ←で戻って再びこのplayへ進んだ時、命令列の下書き（S.drafts）があれば復元する
   // （確認ダイアログ全廃の代わりの誤タップ対策。以後の追加・削除はこの配列を直接
   // 書き換えるため、参照を共有するだけで自動的に保存される。Issue #95）。
-  const commands = S.drafts[step.stepId] ?? freshCommands.map((c) => ({ ...c }));
+  // メモリに無ければ端末内の保存（再読込・入り直し。Issue #556）から、stepId が一致するときだけ復元する。
+  // 壊れた保存は readDraft が null を返すので、黙って空で始まる（文言は出さない）。
+  const saved = S.drafts[step.stepId] ? null : readDraft(S.lesson.lessonId);
+  // 復元する dir（箱の中身も）は、このステップの allowedCommands に入っているものだけ。外れたら破棄して空で始める。
+  const allowedDirs = Array.isArray(step.allowedCommands) ? step.allowedCommands : null;
+  const inAllowed = (d) => typeof d === 'string' && (!allowedDirs || allowedDirs.includes(d));
+  const dirOk = (c) => c.pause === true || (Array.isArray(c.box) ? c.box.every(inAllowed) : inAllowed(c.dir));
+  let restored = saved && saved.stepId === step.stepId && !isTrial() ? saved.commands : null;
+  if (restored && !restored.every(dirOk)) {
+    clearDraft(S.lesson.lessonId);
+    restored = null;
+  }
+  const commands = S.drafts[step.stepId] ?? restored ?? freshCommands.map((c) => ({ ...c }));
   S.drafts[step.stepId] = commands;
 
   // このステージがレッスン中の何番目のplayか（複数ステージ構成向け。Issue #104）。
@@ -356,6 +369,13 @@ export function renderPlay(root, step) {
     resetKeyTray(keyTrayEl);
   }
 
+  // saveDraft(): 命令列を変える全ての入口から呼ぶ、下書き保存の唯一の入口（Issue #556）。
+  // 実行中は命令列が変わらないので、再読込しても実行前の列が残る。空の箱は保存しない。
+  function saveDraft() {
+    if (isTrial()) return;
+    writeDraft(S.lesson.lessonId, step.stepId, local.commands.filter((c) => !(c.box && c.box.length === 0)));
+  }
+
   // resetToFresh(): 命令列をfreshCommands（なおす系は初期の「ずれた」列、それ以外は空）へ戻す。
   // 「もういちど」（失敗後のretry・クリア後のreplay）は正解・不正解に関わらず必ずこれを呼ぶ
   // （前回の命令列を残さない。Issue #104）。参照(S.drafts)は保ったまま中身だけ入れ替える。
@@ -367,6 +387,7 @@ export function renderPlay(root, step) {
     local.lockedCount = 0;
     local.runStates = {};
     S.drafts[step.stepId] = local.commands;
+    saveDraft();
     local.fixOpened = false;
     local.locked = false;
     // 塗りの失敗は結果トーストを出さず resultShown だけ立てる。旧 showRestartCue が戻していた分を、ここで確実に戻す（#497）。
@@ -408,6 +429,7 @@ export function renderPlay(root, step) {
         local.commands.splice(i, 1);
         if (i === local.boxOpen) local.boxOpen = -1;
         else if (i < local.boxOpen) local.boxOpen -= 1;
+        saveDraft();
         logEvent('undo', { index: i });
         playSfx('remove');
         drawQueue();
@@ -452,6 +474,7 @@ export function renderPlay(root, step) {
         return;
       }
       local.commands.push({ pause: true });
+      saveDraft();
       if (isFix) local.fixOpened = true;
       drawQueue();
       queueEl.scrollLeft = queueEl.scrollWidth;
@@ -472,6 +495,7 @@ export function renderPlay(root, step) {
           return;
         }
         local.commands[local.boxOpen].box.push(dir);
+        saveDraft();
         playSfx(via === 'drag' ? 'snap' : 'tap');
         drawQueue();
         queueEl.scrollLeft = queueEl.scrollWidth;
@@ -492,6 +516,7 @@ export function renderPlay(root, step) {
         local.commands.push({ dir, times: 1 });
         playSfx(via === 'drag' ? 'snap' : 'tap');
       }
+      saveDraft();
       if (isFix) local.fixOpened = true;
       drawQueue();
       // 命令列は横スクロールのため、積みすぎると最新のチップが右にはみ出して見えなくなる。
@@ -511,6 +536,7 @@ export function renderPlay(root, step) {
     // 空の箱は残さない。
     if (local.commands[local.boxOpen].box.length === 0) local.commands.splice(local.boxOpen, 1);
     local.boxOpen = -1;
+    saveDraft();
   }
   let boxBtn = null;
   let boxActionsShown = false;
@@ -529,6 +555,7 @@ export function renderPlay(root, step) {
     vibrate();
     const box = local.commands[local.boxOpen];
     box.times = box.times >= 4 ? 2 : box.times + 1;
+    saveDraft();
     drawQueue();
     updateControls();
   });
@@ -576,6 +603,7 @@ export function renderPlay(root, step) {
       vibrate();
       local.commands.push({ box: [], times: 2 });
       local.boxOpen = local.commands.length - 1;
+      saveDraft();
       drawQueue();
       queueEl.scrollLeft = queueEl.scrollWidth;
       queueEl.scrollTop = queueEl.scrollHeight;
@@ -596,6 +624,7 @@ export function renderPlay(root, step) {
       if (local.boxOpen === i && last.box.length > 0) last.box.pop();
       else local.commands.splice(i, 1);
       if (local.boxOpen === i && !local.commands[i]) local.boxOpen = -1;
+      saveDraft();
       logEvent('undo', { index: i });
       playSfx('remove');
       drawQueue();
@@ -606,6 +635,7 @@ export function renderPlay(root, step) {
     // まとめられたチップ（times>1）は1回分だけ減らす。1の時だけチップごと消す（Issue #97）。
     if (last.times > 1) last.times -= 1;
     else local.commands.splice(i, 1);
+    saveDraft();
     logEvent('undo', { index: i });
     playSfx('remove');
     drawQueue();
@@ -623,6 +653,7 @@ export function renderPlay(root, step) {
     const snap = snapshotUnlocked(local.commands, local.lockedCount);
     clearUnlocked(local.commands, local.lockedCount);
     local.boxOpen = -1;
+    saveDraft();
     playSfx('reset');
     drawQueue();
     showUndo(snap);
@@ -638,6 +669,7 @@ export function renderPlay(root, step) {
     vibrate();
     // 同じ配列へ戻す（S.drafts[step.stepId]との共有参照を保つ）。
     restoreUnlocked(local.commands, undoSnap, local.lockedCount);
+    saveDraft();
     dropUndo();
     drawQueue();
     updateControls();
@@ -706,6 +738,7 @@ export function renderPlay(root, step) {
     // 壁にぶつかった手が1つでもあれば、結果としてゴールに着いても正解にしない（Issue #104）。
     if (isRunCleared(result)) {
       delete S.drafts[step.stepId];
+      clearDraft(S.lesson.lessonId);
       FAIL_COUNTS.delete(S.lesson.lessonId);
       local.resultShown = true;
       // 途中ステージのクリアはstage_clearのみを記録し、レッスン全体のクリア（clear）や
