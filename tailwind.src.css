@@ -248,6 +248,12 @@
     animation: retry-pulse 0.6s ease-in-out 2;
   }
 
+  /* 失敗後に最初に外れた命令の1個だけの強調（Issue #545）。ring-4 ring-amber-400 は残し、枠をさらに太くする。 */
+  .command-chip.sk-cmd-fail {
+    outline: 4px solid #d97706;
+    outline-offset: 2px;
+  }
+
   /* 単元マップの「次に遊ぶレッスン」を無限パルスで強調する（Issue #216）。 */
   @keyframes next-pulse {
     0%,

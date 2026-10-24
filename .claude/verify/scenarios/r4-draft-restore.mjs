@@ -69,14 +69,20 @@ export default async function run({ page, check }) {
   await check('実行中の再読込でも実行前の3個が復元される', () => chips(page), 3);
   await check('実行中の再読込後も保存は3個', () => draftLen(page), 3);
 
-  // --- 失敗→ためしなおす：失敗後も保存は残り、ためしなおすで初期列(空)の保存へ戻る ---
+  // --- 失敗→ためしなおす：失敗後も保存は残り、ためしなおすでも列は残る（#545） ---
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="retry"]', { timeout: 15000 });
   await check('失敗しても実行前の3個が保存されている', () => draftLen(page), 3);
   await page.click('[data-action="retry"]');
-  await check('ためしなおすで初期列(空)が保存される', () => draftLen(page), 0);
-  await check('ためしなおすで列が空になる', () => chips(page), 0);
-  await place3(page);
+  await check('ためしなおすでも列の保存は3個のまま', () => draftLen(page), 3);
+  await check('ためしなおすで列が残る', () => chips(page), 3);
+
+  // --- 失敗中（ロック中）に再読込：ロックは解け、列は下書きから復元される（#545） ---
+  await page.click('[data-action="run"]');
+  await page.waitForSelector('[data-action="retry"]', { timeout: 15000 });
+  await openLesson(page);
+  await check('失敗中の再読込で列が3個復元される', () => chips(page), 3);
+  await check('失敗中の再読込でロックが解ける（命令パレットが押せる）', () => page.$eval('[data-command="up"]', (b) => b.disabled), false);
 
   // --- ぜんぶけす→再読込→空 ---
   await page.click('[data-action="clear-all"]');
