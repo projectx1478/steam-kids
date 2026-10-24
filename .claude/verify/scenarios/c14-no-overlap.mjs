@@ -93,7 +93,9 @@ export default async function run({ page, check }) {
       await check(`${label} 失敗: 吹き出しが欄の中に1つだけ`, () => fail.bubble && fail.inLane && fail.visibleBubbles === 1, true);
       await check(`${label} 失敗: 吹き出しが盤面と交差しない`, () => fail.hitBoard, false);
       await check(`${label} 失敗: 吹き出しが命令列・ボタンと交差しない`, () => fail.hitControls, 0);
-      await check(`${label} 失敗: おしい！とヒントは別の場所に出ない（data-hint は1つ）`, async () => (await page.$$('[data-hint]')).length, 1);
+      await check(`${label} 失敗: おしい！とヒントは別の場所に出ない（ヒントの文の板 .hint-panel は1つ）`, async () => (await page.$$('.hint-panel[data-hint]')).length, 1);
+      // 盤面の印（grid-marker・どんぐり等）も data-hint を持つため、数えるのは文の板に限る。その板は吹き出しの中にある。
+      await check(`${label} 失敗: ヒントの文の板は吹き出しの中だけ`, async () => (await page.$$(`${BUBBLE} .hint-panel[data-hint]`)).length, 1);
       await page.goto('/index.html');
     }
   }

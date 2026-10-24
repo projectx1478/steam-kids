@@ -56,6 +56,12 @@
     background-color: #f3e2c4;
     background-image: repeating-linear-gradient(0deg, rgba(150, 100, 50, 0.08) 0 1px, transparent 1px 8px);
     box-shadow: inset 0 3px 6px rgba(90, 50, 15, 0.25), 0 0 0 2px #a8743f;
+    /* 横スクロールバーを出さない（Issue #544）。出ると列が約15px高くなり、盤面の余りが吹き出し欄ぶん少ない縦長画面で
+       操作エリア全体が溢れ、縦スクロールバーが幅を削って最新チップが右に隠れた。スクロールは指・ホイール・自動の右寄せで足りる。 */
+    scrollbar-width: none;
+  }
+  .command-tray::-webkit-scrollbar {
+    display: none;
   }
 
   /* トレイの「次に置く」空きスロット。番号か←矢印を薄く表示する（Issue #110）。 */
