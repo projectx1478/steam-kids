@@ -52,6 +52,12 @@ export default async function run({ page, check }) {
 
   // --- クリア: 最後の手が up（背中向き）でも、クリア時は正面へ向き直す ---
   await enterPlay(page, 'robot-facing-smoke');
+  // 直前の left が下書きとして復元されるので、列を空にしてから積む（#556）。
+  const clearAll = page.locator('[data-action="clear-all"]');
+  if ((await clearAll.count()) > 0 && (await clearAll.isEnabled())) {
+    await clearAll.click();
+    await page.waitForFunction(() => !document.querySelector('.command-chip'), null, { timeout: 4000 });
+  }
   for (const c of ['right', 'right', 'up']) await page.click(`[data-command="${c}"]`);
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-result="clear"]', { timeout: 8000 });

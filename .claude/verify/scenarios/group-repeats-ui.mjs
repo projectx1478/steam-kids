@@ -31,8 +31,14 @@ export default async function run({ page, check }) {
       onRemove: () => {},
     });
     const rects = [...list.querySelectorAll(':scope > [data-index]')].map((el) => el.getBoundingClientRect());
-    const midY = (rects[0].top + rects[0].bottom) / 2;
-    const gaps = [rects[0].left + 1, rects[1].left + 1, rects[2].left + 1, rects[2].right - 1].map((x) => computeGapIndex(list, x, midY));
+    // 折り返して複数行になっても、各チップと同じ行の縦位置で測る。
+    const midY = (r) => (r.top + r.bottom) / 2;
+    const gaps = [
+      computeGapIndex(list, rects[0].left + 1, midY(rects[0])),
+      computeGapIndex(list, rects[1].left + 1, midY(rects[1])),
+      computeGapIndex(list, rects[2].left + 1, midY(rects[2])),
+      computeGapIndex(list, rects[2].right - 1, midY(rects[2])),
+    ];
     list.remove();
     return { texts, gaps };
   });
