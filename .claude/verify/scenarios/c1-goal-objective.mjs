@@ -154,7 +154,7 @@ export default async function run({ page, check }) {
     'どんぐりを ぜんぶ とって ゴール'
   );
 
-  // donguri-01: のこり表示の初期値・回収での減少・もういちどでのリセット
+  // donguri-01: のこり表示の初期値・回収での減少・ためしなおすでのリセット
   await enterPlay(page, 'donguri-01-hirou');
   await check('のこり初期値が2', async () => page.locator('[data-remaining]').innerText(), '2');
   await check('donguri-01のもくひょう行を含めて横スクロールが発生しない', async () => noScrollX(page));
@@ -165,5 +165,5 @@ export default async function run({ page, check }) {
   await check('1個回収でのこりが1', async () => page.locator('[data-remaining]').innerText(), '1');
 
   await clickRetry(page);
-  await check('もういちどでのこりが2に戻る', async () => page.locator('[data-remaining]').innerText(), '2');
+  await check('ためしなおすでのこりが2に戻る', async () => page.locator('[data-remaining]').innerText(), '2');
 }

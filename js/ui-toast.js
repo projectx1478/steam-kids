@@ -6,7 +6,7 @@ import { prefersReducedMotion } from './ui-grid.js';
 
 // el -> { gen, restore }。restoreは直近のshowToast呼び出しが渡したもので、明示的な
 // clearToast(el)からも同じrestoreを呼べるように覚えておく（呼び出し側が毎回渡す必要をなくし、
-// 「もういちど」等の即時クリアがdataset等の後始末を取りこぼすのを防ぐ）。
+// 「ためしなおす」等の即時クリアがdataset等の後始末を取りこぼすのを防ぐ）。
 const STATE = new WeakMap();
 const FADE_MS = 200;
 
@@ -47,7 +47,7 @@ export function showToast(el, { render, durationMs = 3000, restore }) {
 }
 
 // clearToast(el): 保留中のタイマーを無効化し、直近のshowToast()が渡したrestore(el)を即座に呼ぶ
-// （もういちど・編集などユーザーが先に操作した時に使う。呼び出し側でrestoreを覚えておく必要はない）。
+// （ためしなおす・編集などユーザーが先に操作した時に使う。呼び出し側でrestoreを覚えておく必要はない）。
 // まだ一度もshowToast()が呼ばれていないelでは何もしない。
 export function clearToast(el) {
   const restore = STATE.get(el)?.restore;

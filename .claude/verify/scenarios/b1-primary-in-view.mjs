@@ -1,6 +1,6 @@
 // B1 主ボタンが初期表示の画面内にある(Issue #551)。
 // intro・まとめ・タイトル・スロット選択・単元マップ・大項目の主ボタン（はじめる／つぎへ／もどる／おわる）と
-// 副ボタン（そうさほうほう・はじめから・もういちど みる）を、スクロールせずに押せることを 3 端末で見る。
+// 副ボタン（そうさほうほう・はじめから・おてほんを みる）を、スクロールせずに押せることを 3 端末で見る。
 // 境界ボックスが画面内・高さ64px以上、下端バー内の副ボタン間は16px以上、.leave-confirm をバーが覆わない。
 
 export const name = 'B1 主ボタンが初期表示の画面内・64px以上・間隔16px以上・確認をバーが覆わない(Issue #551)';
@@ -65,13 +65,13 @@ export default async function run({ page, check }) {
     await page.waitForSelector('[data-lesson-id]');
     await check(`${tag} 単元マップ: もどるが画面内・64px以上`, () => inViewTall('[data-action="map-back"]', w, h));
 
-    // --- intro（初回）：はじめる・そうさほうほう・もういちど みる ---
+    // --- intro（初回）：はじめる・そうさほうほう・おてほんを みる ---
     await page.goto(`/index.html?lesson=${LESSON}`);
     await page.waitForSelector('[data-action="start"]');
     await page.waitForSelector('[data-action="demo-replay"]');
     await check(`${tag} intro: はじめるが画面内・64px以上`, () => inViewTall('[data-action="start"]', w, h));
     await check(`${tag} intro: そうさほうほうが画面内・64px以上`, () => inViewTall('[data-action="how-to"]', w, h));
-    await check(`${tag} intro: もういちど みるが画面内・64px以上`, () => inViewTall('[data-action="demo-replay"]', w, h));
+    await check(`${tag} intro: おてほんを みるが画面内・64px以上`, () => inViewTall('[data-action="demo-replay"]', w, h));
     await check(`${tag} intro: バー内のボタン間隔が16px以上`, barGapsOk);
 
     // intro の上で確認ダイアログ（ほごしゃの がめん）を開き、バーが覆わない

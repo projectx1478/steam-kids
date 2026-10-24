@@ -43,5 +43,5 @@ export default async function run({ page, check }) {
   await check('ヒントは periodic の文言', () => page.$eval('[data-hint="periodic"] p.text-sm', (el) => el.textContent), 'ドアが しまって いたよ');
 
   await clickRetry(page);
-  await check('もういちどでヒントが消え、手番0に戻る', async () => [(await page.$$('[data-hint]')).length, await turnOf(page)].join(), '0,true/0');
+  await check('ためしなおすでヒントが消え、手番0に戻る', async () => [(await page.$$('[data-hint]')).length, await turnOf(page)].join(), '0,true/0');
 }

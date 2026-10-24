@@ -1,4 +1,4 @@
-export const name = 'C8 不正解時の操作ロック: 盤面のゆれ・tryAgain音・もういちど以外の無効化(Issue #106)';
+export const name = 'C8 不正解時の操作ロック: 盤面のゆれ・tryAgain音・ためしなおす以外の無効化(Issue #106)';
 import { enterPlay, clearStage, clickRetry } from '../helpers.mjs';
 
 export default async function run({ page, check }) {
@@ -19,13 +19,13 @@ export default async function run({ page, check }) {
   await check('不正解: tryAgain音が鳴る', () => page.evaluate(() => window.__sfxLog.includes('tryAgain')));
   await check('不正解: ゆれは自動で消える(罰則感を残さない)', async () => (await page.$$('[data-sk-screen="board"].wobble-soft')).length, 0);
 
-  // --- ロック中: もういちど以外はすべて押せない ---
+  // --- ロック中: ためしなおす以外はすべて押せない ---
   await check('ロック中: 命令パレットが全てdisabled', async () => (await page.$$('[data-command]:not([disabled])')).length, 0);
   await check('ロック中: ひとつ けすがdisabled', () => page.$eval('[data-action="remove-last"]', (b) => b.disabled), true);
   await check('ロック中: ぜんぶ けすがdisabled', () => page.$eval('[data-action="clear-all"]', (b) => b.disabled), true);
-  await check('ロック中: もういちどだけは押せる', () => page.$eval('[data-action="retry"]', (b) => b.disabled), false);
+  await check('ロック中: ためしなおすだけは押せる', () => page.$eval('[data-action="retry"]', (b) => b.disabled), false);
   await check(
-    'ロック中: もういちどが強調枠で目立つ',
+    'ロック中: ためしなおすが強調枠で目立つ',
     () => page.$eval('[data-action="retry"]', (b) => b.classList.contains('ring-amber-300')),
     true
   );
@@ -35,14 +35,14 @@ export default async function run({ page, check }) {
   await page.click('[data-remove-index="0"]', { force: true });
   await check('ロック中: チップ×は無反応', async () => (await page.$$('.command-chip')).length, chipsBefore);
 
-  // --- もういちどでロック解除 ---
+  // --- ためしなおすでロック解除 ---
   await clickRetry(page);
-  await check('もういちど後: パレットが押せる', () => page.$eval('[data-command="up"]', (b) => b.disabled), false);
+  await check('ためしなおす後: パレットが押せる', () => page.$eval('[data-command="up"]', (b) => b.disabled), false);
   await check(
-    'もういちど後: 強調枠が消える',
+    'ためしなおす後: 強調枠が消える',
     () => page.$eval('[data-action="run"]', (b) => b.classList.contains('ring-amber-300')),
     false
   );
   await page.click('[data-command="up"]');
-  await check('もういちど後: 命令を追加できる', async () => (await page.$$('.command-chip')).length, 1);
+  await check('ためしなおす後: 命令を追加できる', async () => (await page.$$('.command-chip')).length, 1);
 }

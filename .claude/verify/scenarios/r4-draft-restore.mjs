@@ -69,13 +69,13 @@ export default async function run({ page, check }) {
   await check('実行中の再読込でも実行前の3個が復元される', () => chips(page), 3);
   await check('実行中の再読込後も保存は3個', () => draftLen(page), 3);
 
-  // --- 失敗→もういちど：失敗後も保存は残り、もういちどで初期列(空)の保存へ戻る ---
+  // --- 失敗→ためしなおす：失敗後も保存は残り、ためしなおすで初期列(空)の保存へ戻る ---
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="retry"]', { timeout: 15000 });
   await check('失敗しても実行前の3個が保存されている', () => draftLen(page), 3);
   await page.click('[data-action="retry"]');
-  await check('もういちどで初期列(空)が保存される', () => draftLen(page), 0);
-  await check('もういちどで列が空になる', () => chips(page), 0);
+  await check('ためしなおすで初期列(空)が保存される', () => draftLen(page), 0);
+  await check('ためしなおすで列が空になる', () => chips(page), 0);
   await place3(page);
 
   // --- ぜんぶけす→再読込→空 ---

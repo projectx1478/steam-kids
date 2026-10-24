@@ -52,11 +52,11 @@ export default async function run({ page, check }) {
   await check('start音はページ読み込みから1000ms以上後', () => Date.now() - t0 >= 1000);
   await check('start音の後はよーい…バッジが消える', async () => !(await page.isVisible('[data-demo-ready]')));
 
-  // 「▶ もういちど みる」は待たずに即再生する
+  // 「▶ おてほんを みる」は待たずに即再生する
   await page.waitForSelector('[data-action="demo-replay"]');
   const t1 = Date.now();
   await page.evaluate(() => (window.__sfxLog.length = 0));
   await page.click('[data-action="demo-replay"]');
-  await check('もういちど みるは即座にrun音が鳴る', () => page.evaluate(() => window.__sfxLog.includes('run')));
-  await check('もういちど みるは1000ms未満で再生される', () => Date.now() - t1 < 1000);
+  await check('おてほんを みるは即座にrun音が鳴る', () => page.evaluate(() => window.__sfxLog.includes('run')));
+  await check('おてほんを みるは1000ms未満で再生される', () => Date.now() - t1 < 1000);
 }

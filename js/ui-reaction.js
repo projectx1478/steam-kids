@@ -28,7 +28,7 @@ function startSettle(bird, restore) {
   }, SETTLE_MS);
 }
 
-// clearResultBubble(bird): 吹き出しを閉じ、保留中の restore を即座に呼ぶ（もういちど・うごかす等、次の操作で呼ぶ。clearToast の吹き出し版）。
+// clearResultBubble(bird): 吹き出しを閉じ、保留中の restore を即座に呼ぶ（ためしなおす・うごかす等、次の操作で呼ぶ。clearToast の吹き出し版）。
 export function clearResultBubble(bird) {
   const restore = SETTLE.get(bird)?.restore;
   SETTLE.set(bird, { gen: (SETTLE.get(bird)?.gen ?? 0) + 1, restore: undefined });

@@ -93,7 +93,7 @@ function emptyKeySlot(slot) {
   slot.innerHTML = '';
 }
 
-// トレイを（演出無しで）全部空き枠へ戻す。drawBoard・もういちどで使う。
+// トレイを（演出無しで）全部空き枠へ戻す。drawBoard・ためしなおすで使う。
 export function resetKeyTray(tray) {
   tray?.querySelectorAll('.key-slot').forEach(emptyKeySlot);
 }

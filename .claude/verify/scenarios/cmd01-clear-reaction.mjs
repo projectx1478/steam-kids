@@ -12,7 +12,7 @@ export default async function run({ page, check }) {
   await check('到達時にclear-reaction演出が表示される', async () => (await page.$('.clear-reaction')) !== null);
   await check('resultElにdata-result="clear"が付く', async () => page.getAttribute('#stage [data-result]', 'data-result'), 'clear');
 
-  // 未達成時: 演出は出ず「もういちど」のみ
+  // 未達成時: 演出は出ず「ためしなおす」のみ
   await enterPlay(page, 'cmd-01-susumu');
   await page.click('[data-command="up"]');
   await page.click('[data-action="run"]');

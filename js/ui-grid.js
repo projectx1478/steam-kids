@@ -233,7 +233,7 @@ window.__gridAnimLog = window.__gridAnimLog || [];
 //   view.setMood('normal'|'happy'|'puzzled'): ロボットの口の形を切り替える（Issue #110）
 //   view.celebrateDance(): クリア時にロボットが弾み跳ね、星が舞う（reduced-motion時は何もしない。Issue #110）
 //   view.dim(on): 盤面のマスだけを暗くする（失敗リザルト状態の表示。Issue #110）
-//   view.popIn(): もういちど直後、ロボットがポンと現れる演出（reduced-motion時は何もしない。Issue #110）
+//   view.popIn(): ためしなおす直後、ロボットがポンと現れる演出（reduced-motion時は何もしない。Issue #110）
 export function renderGrid(opts) {
   const { grid, walls, goal, playerPos, cellSize = DEFAULT_CELL, labels = [], gap = GAP_PX, pad = PAD_PX } = opts;
   const CELL = cellSize;
@@ -631,7 +631,7 @@ export function renderGrid(opts) {
       dimLayer.style.opacity = on ? '1' : '0';
       dimLayer.dataset.active = String(Boolean(on));
     },
-    // popIn(): 「もういちど」で盤面を作り直した直後、ロボットがポンと現れる演出
+    // popIn(): 「ためしなおす」で盤面を作り直した直後、ロボットがポンと現れる演出
     // （再スタート状態を視覚で伝える。reduced-motion時は何もしない。Issue #110）。
     popIn() {
       if (prefersReducedMotion()) return;

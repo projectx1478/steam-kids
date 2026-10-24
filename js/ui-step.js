@@ -347,7 +347,15 @@ function buildStepDots() {
         : 'bg-slate-200 text-slate-500';
     node.className = `step-dot relative inline-flex items-center justify-center rounded-full font-bold shrink-0 ${sizeClass} ${stateClass}`;
     if (isCurrent) node.dataset.current = 'true';
-    node.textContent = isDone ? '✓' : stepGlyph(step, stageIdx);
+    // 番号は常に表示し、完了は右上の緑バッジ✓で示す（Issue #554）。
+    node.textContent = stepGlyph(step, stageIdx);
+    if (isDone) {
+      const badge = document.createElement('span');
+      badge.className = 'step-dot-badge absolute -top-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 text-white text-xs leading-5 text-center ring-2 ring-white';
+      badge.textContent = '✓';
+      badge.setAttribute('aria-hidden', 'true');
+      node.appendChild(badge);
+    }
     if (clickable) {
       node.addEventListener('click', () => {
         vibrate();

@@ -1,4 +1,4 @@
-// switches：対象壁のDOM切替・wallSink音・未踏の失敗・もういちどで壁が戻る(Issue #63)。実レッスンに依存しない。
+// switches：対象壁のDOM切替・wallSink音・未踏の失敗・ためしなおすで壁が戻る(Issue #63)。実レッスンに依存しない。
 import { routeLesson, enterPlay, clickRetry } from '../helpers.mjs';
 
 export const name = 'switches: data-switch-wall on→off・wallSink音・未踏の衝突失敗・retryで復帰(Issue #63)';
@@ -50,7 +50,7 @@ export default async function run({ page, check }) {
 
   // 成功：2つのスイッチを踏んでゴール
   await clickRetry(page);
-  await check('もういちどで切替壁・スイッチが初期状態に戻る', async () => [(await walls(page)).join(), (await pressed(page)).join()].join('/'), 'on,on/false,false');
+  await check('ためしなおすで切替壁・スイッチが初期状態に戻る', async () => [(await walls(page)).join(), (await pressed(page)).join()].join('/'), 'on,on/false,false');
   await page.evaluate(() => (window.__sfxLog.length = 0));
   for (const c of ['up', 'down', 'down', 'up', 'right', 'right', 'right']) await page.click(`[data-command="${c}"]`);
   await page.click('[data-action="run"]');

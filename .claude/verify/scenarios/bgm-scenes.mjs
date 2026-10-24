@@ -133,7 +133,7 @@ export default async function run({ page, check }) {
   await p.waitForSelector('[data-action="next-stage"]', { timeout: 8000 });
   await check('クリア: clear_logic.ogg が鳴る', () => hasLog(p, 'play', 'clear'), true);
 
-  // 完了条件3（Issue #541）: クリア→「もういちど」→1秒以内に操作画面の曲（play）へ戻る。
+  // 完了条件3（Issue #541）: クリア→「ためしなおす」→1秒以内に操作画面の曲（play）へ戻る。
   const clearIdx = await p.evaluate(() => window.__bgmLog.length);
   await p.click('[data-action="replay"]');
   await p.waitForFunction(
@@ -141,7 +141,7 @@ export default async function run({ page, check }) {
     clearIdx,
     { timeout: 1000 }
   );
-  await check('もういちど: 1秒以内に play_logic.ogg へ戻る', () =>
+  await check('ためしなおす: 1秒以内に play_logic.ogg へ戻る', () =>
     p.evaluate((from) => window.__bgmLog.slice(from).some(([e, d]) => e === 'play' && d === 'play'), clearIdx), true);
 
   // ミュートで停止し、解除で再開する（steamkids.sound と連動する1スイッチ）。

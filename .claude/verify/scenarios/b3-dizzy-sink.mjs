@@ -44,7 +44,7 @@ export default async function run({ page, check }) {
   await check('星は回転アニメーション中', () => page.$eval('.grid-dizzy', (e) => e.getAnimations().length > 0), true);
   await page.waitForTimeout(1500);
   await check('約1.2秒後に星が消える', () => dizzy(page), 0);
-  await check('もういちどは演出中でなくても押せる', () => page.$eval('[data-action="retry"]', (b) => b.disabled), false);
+  await check('ためしなおすは演出中でなくても押せる', () => page.$eval('[data-action="retry"]', (b) => b.disabled), false);
 
   // reduced-motion：静止表示
   await page.emulateMedia({ reducedMotion: 'reduce' });

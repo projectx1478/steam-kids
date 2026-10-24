@@ -1,7 +1,7 @@
 // T2 introデモの自動ループ(Issue #241)。初回含め3回で止まり、reduced-motion時は1回のみ。
-// 「▶ もういちど みる」は単発再生でループを再開しない。ステップ離脱後にタイマーが残らない。
+// 「▶ おてほんを みる」は単発再生でループを再開しない。ステップ離脱後にタイマーが残らない。
 
-export const name = 'T2 introデモのループ再生: 3回で停止・reduced-motionは1回・もういちど みるは単発(Issue #241)';
+export const name = 'T2 introデモのループ再生: 3回で停止・reduced-motionは1回・おてほんを みるは単発(Issue #241)';
 
 const runCount = (page) => page.evaluate(() => window.__sfxLog.filter((s) => s === 'run').length);
 
@@ -21,17 +21,17 @@ export default async function run({ page, check }) {
   await page.clock.runFor(30000);
   await check('さらに待っても増えない', () => runCount(page), 3);
 
-  // --- もういちど みるは単発（ループ再開しない） ---
+  // --- おてほんを みるは単発（ループ再開しない） ---
   await page.click('[data-action="demo-replay"]');
   await page.clock.runFor(30000);
-  await check('もういちど みるは1回だけ増える', () => runCount(page), 4);
+  await check('おてほんを みるは1回だけ増える', () => runCount(page), 4);
 
   // --- reduced-motion: ループしない ---
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/index.html?lesson=cmd-01-susumu');
   await page.clock.runFor(60000);
   await check('reduced-motionはrun音1回のみ', () => runCount(page), 1);
-  await check('reduced-motionでももういちど みるがある', async () => (await page.$$('[data-action="demo-replay"]')).length, 1);
+  await check('reduced-motionでもおてほんを みるがある', async () => (await page.$$('[data-action="demo-replay"]')).length, 1);
 
   // --- ループ待ち中にステップ離脱するとタイマーが残らない ---
   await page.emulateMedia({ reducedMotion: 'no-preference' });

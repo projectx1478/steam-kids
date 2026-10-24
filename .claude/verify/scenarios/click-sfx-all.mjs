@@ -70,7 +70,7 @@ export default async function run({ page, check }) {
   await page.click('[data-command="right"]', { force: true });
   await check('上限到達: 押しても何も鳴らない', () => log(page), []);
 
-  // --- じっこう：1回押して増分1（run のみ）。実行中の命令ボタンは鳴らさない。もういちど（retry）は tap なし ---
+  // --- じっこう：1回押して増分1（run のみ）。実行中の命令ボタンは鳴らさない。ためしなおす（retry）は tap なし ---
   await clearLog(page);
   await page.click('[data-action="run"]');
   await check('じっこう: 1回押しの増分は run の1件（tap が足されない）', async () => (await log(page)).filter((n) => n === 'run' || n === 'tap'), ['run']);
@@ -81,7 +81,7 @@ export default async function run({ page, check }) {
   await page.waitForSelector('[data-action="retry"]', { timeout: 8000 });
   const tapsBeforeRetry = await tapCount(page);
   await clickRetry(page);
-  await check('例外一覧: もういちど(retry)は tap が追加されない', () => tapCount(page), tapsBeforeRetry);
+  await check('例外一覧: ためしなおす(retry)は tap が追加されない', () => tapCount(page), tapsBeforeRetry);
 
   // --- シーソーの端：◀（左端）／▶（右端）は押しても鳴らさない。端でないときは tap が1件 ---
   await enterPlay(page, 'teko-01-tsuriai');

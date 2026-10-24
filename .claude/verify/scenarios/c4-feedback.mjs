@@ -1,5 +1,5 @@
 export const name =
-  'C4 実機フィードバック一括対応: ヘッダー(もどる・えらぶ がめんへ)・反応統一・ヒント・もういちど・まとめ(Issue #91/#93/#104)';
+  'C4 実機フィードバック一括対応: ヘッダー(もどる・えらぶ がめんへ)・反応統一・ヒント・ためしなおす・まとめ(Issue #91/#93/#104)';
 
 import { enterPlay, clearStage, clickRetry, routeLesson } from '../helpers.mjs';
 
@@ -39,7 +39,7 @@ export default async function run({ page, check }) {
   await check('introの区分チップ「はじめに」', async () => page.textContent('#step-kind-chip'), 'はじめに');
   await check('introにゴールデモが表示される', async () => (await page.$$('.demo-widget[data-demo="goal"]')).length, 1);
   await check(
-    'reduced-motion時でもデモに「もういちど みる」がある（1回だけ自動再生し、再生はボタンで行う。Issue #104）',
+    'reduced-motion時でもデモに「おてほんを みる」がある（1回だけ自動再生し、再生はボタンで行う。Issue #104）',
     async () => (await page.$$('.demo-widget [data-action="demo-replay"]')).length,
     1
   );
@@ -67,7 +67,7 @@ export default async function run({ page, check }) {
   await page.click('#home-btn');
   await check('introでは えらぶ がめんへ が確認無しで即座に遷移する', async () => page.url().endsWith('/index.html?view=map'));
 
-  // --- 2. playの失敗ヒント（壁）・その場でもういちど・ひとつ けす ---
+  // --- 2. playの失敗ヒント（壁）・その場でためしなおす・ひとつ けす ---
   // 壁を持つのはp2（4x4, start(0,3), goal(3,0), walls[(2,2)]）なので、p1をクリアしてp2へ進む。
   await enterPlay(page, 'cmd-01-susumu');
   await check('play(p1)に入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
@@ -88,8 +88,8 @@ export default async function run({ page, check }) {
   await assertNoNegativeWords(page, check, 'play壁ヒント');
   await check('壁ヒントではdata-resultが付かない', async () => (await page.$$('#stage [data-result]')).length, 0);
 
-  // --- 不正解後は「もういちど」以外の操作をロックする（Issue #106）。編集ではなく
-  //     もういちどのみで復帰させる ---
+  // --- 不正解後は「ためしなおす」以外の操作をロックする（Issue #106）。編集ではなく
+  //     ためしなおすのみで復帰させる ---
   await check('不正解後: ひとつ けすがdisabled', () => page.$eval('[data-action="remove-last"]', (b) => b.disabled), true);
   await check('不正解後: ぜんぶ けすがdisabled', () => page.$eval('[data-action="clear-all"]', (b) => b.disabled), true);
   await check('不正解後: 命令パレットが全てdisabled', async () => (await page.$$('[data-command]:not([disabled])')).length, 0);
@@ -102,10 +102,10 @@ export default async function run({ page, check }) {
   await check('ロック中のチップ×は無反応', async () => (await page.$$('.command-chip')).length, 1);
 
   await clickRetry(page);
-  await check('もういちどで[data-action="run"]に戻る', async () => (await page.$$('[data-action="run"]')).length, 1);
-  await check('もういちどでヒント表示が消える', async () => (await page.$$('[data-hint]')).length, 0);
-  await check('もういちどでチップが0個に戻る', async () => (await page.$$('.command-chip')).length, 0);
-  await check('もういちどでロックが解除される（命令パレットが押せる）', () => page.$eval('[data-command="up"]', (b) => b.disabled), false);
+  await check('ためしなおすで[data-action="run"]に戻る', async () => (await page.$$('[data-action="run"]')).length, 1);
+  await check('ためしなおすでヒント表示が消える', async () => (await page.$$('[data-hint]')).length, 0);
+  await check('ためしなおすでチップが0個に戻る', async () => (await page.$$('.command-chip')).length, 0);
+  await check('ためしなおすでロックが解除される（命令パレットが押せる）', () => page.$eval('[data-command="up"]', (b) => b.disabled), false);
 
   // --- 未到達ヒント ---
   await page.click('[data-command="up"]'); // start(0,3)->(0,2)。壁にもゴールにも届かない。
@@ -119,7 +119,7 @@ export default async function run({ page, check }) {
   await check('未到達ヒントパネル', async () => (await page.$$('[data-hint="goal"]')).length, 1);
   await assertNoNegativeWords(page, check, 'play未到達ヒント');
 
-  // --- もういちど（失敗後のretry）は正解・不正解に関わらず命令列をリセットする（Issue #104） ---
+  // --- ためしなおす（失敗後のretry）は正解・不正解に関わらず命令列をリセットする（Issue #104） ---
   await clickRetry(page);
   await check('retryで命令列は0個に戻る（前回の命令を残さない）', async () => (await page.$$('.command-chip')).length, 0);
 
@@ -173,7 +173,7 @@ export default async function run({ page, check }) {
   await page.setViewportSize({ width: 1280, height: 800 });
 
   // --- 4. ステージクリア演出（Issue #104: 拡大・fanfare・ジャンプ・紙ふぶき60粒）と、
-  // クリア後「もういちど」で命令列がリセットされること ---
+  // クリア後「ためしなおす」で命令列がリセットされること ---
   await enterPlay(page, 'cmd-01-susumu');
   for (const c of ['up', 'up', 'left', 'left']) await page.click(`[data-command="${c}"]`);
   await page.click('[data-action="run"]');
@@ -186,19 +186,19 @@ export default async function run({ page, check }) {
     page.evaluate(() => window.__sfxLog.includes('fanfare'))
   );
   await check('途中ステージのクリアは「つぎの ステージ」が出る', async () => (await page.$$('[data-action="next-stage"]')).length, 1);
-  await check('途中ステージのクリアでも「もういちど」が出る', async () => (await page.$$('[data-action="replay"]')).length, 1);
+  await check('途中ステージのクリアでも「ためしなおす」が出る', async () => (await page.$$('[data-action="replay"]')).length, 1);
   await page.click('[data-action="replay"]');
-  await check('もういちどで結果表示が消える', async () => (await page.$$('#stage [data-result]')).length, 0);
-  await check('もういちどで命令列は0個にリセットされる（Issue #104）', async () => (await page.$$('.command-chip')).length, 0);
+  await check('ためしなおすで結果表示が消える', async () => (await page.$$('#stage [data-result]')).length, 0);
+  await check('ためしなおすで命令列は0個にリセットされる（Issue #104）', async () => (await page.$$('.command-chip')).length, 0);
   await clearStage(page, ['up', 'up', 'left', 'left']);
   await check('つぎの ステージでp2に入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
 
-  // --- なおす系（cmd-03）は「もういちど」で初期の「ずれた」列に戻る ---
+  // --- なおす系（cmd-03）は「ためしなおす」で初期の「ずれた」列に戻る ---
   await enterPlay(page, 'cmd-03-naosu');
   await check('なおすp1は初期状態で3個のチップ', async () => (await page.$$('.command-chip')).length, 3);
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="retry"]', { timeout: 8000 });
-  // 不正解直後は編集がロックされるため、もういちどを押してから直す（Issue #106）。
+  // 不正解直後は編集がロックされるため、ためしなおすを押してから直す（Issue #106）。
   await clickRetry(page);
   await page.click('[data-remove-index="1"]');
   await check('編集後は2個', async () => (await page.$$('.command-chip')).length, 2);
@@ -206,7 +206,7 @@ export default async function run({ page, check }) {
   await page.waitForSelector('[data-action="next-stage"]', { timeout: 8000 });
   await page.click('[data-action="replay"]');
   await check(
-    'なおす系のもういちどは初期の「ずれた」列(3個)に戻る（空にすると直す題材が消えるため。Issue #104）',
+    'なおす系のためしなおすは初期の「ずれた」列(3個)に戻る（空にすると直す題材が消えるため。Issue #104）',
     async () => (await page.$$('.command-chip')).length,
     3
   );

@@ -1,9 +1,9 @@
 // ステージ開始時の「スタート！」（盤面中央・A案）：開始時に1回出て約1秒で消える・タップ素通し・
-// 失敗→もういちど／クリア→もういちどの再開では出ない（play・seesaw 各。Issue #497 段A）。
+// 失敗→ためしなおす／クリア→ためしなおすの再開では出ない（play・seesaw 各。Issue #497 段A）。
 // 段B：問い文の吹き出しは「スタート！」が消えてから出る（順序 スタート！→吹き出し）。顔・吹き出しのタップで消え／再表示。
 // 凍結fixtureに依存しないよう play は routeLesson のインライン最小盤面、seesaw は teko-01-tsuriai。
 
-export const name = 'C12 スタート！: ステージ開始時に1回・約1秒で消える・再開（もういちど）では出ない(play・seesaw。Issue #497)';
+export const name = 'C12 スタート！: ステージ開始時に1回・約1秒で消える・再開（ためしなおす）では出ない(play・seesaw。Issue #497)';
 import { routeLesson, enterPlay, clickRetry } from '../helpers.mjs';
 
 const LESSON = {
@@ -59,15 +59,15 @@ export default async function run({ page, check }) {
   await page.click('[data-sk-bird="icon"]');
   await check('play: 顔のタップで問い文が再表示される', () => bubbleShown(page), true);
 
-  // 失敗（right 1回ではゴールに着かない）→ もういちど
+  // 失敗（right 1回ではゴールに着かない）→ ためしなおす
   await page.click('[data-command="right"]');
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="retry"]', { timeout: 8000 });
   await clickRetry(page);
   await page.waitForTimeout(300);
-  await check('play: 失敗→もういちどでは出ない', () => cueCount(page), 0);
+  await check('play: 失敗→ためしなおすでは出ない', () => cueCount(page), 0);
 
-  // クリア → もういちど（replay）
+  // クリア → ためしなおす（replay）
   await page.click('[data-command="right"]');
   await page.click('[data-command="right"]');
   await page.click('[data-action="run"]');
@@ -75,7 +75,7 @@ export default async function run({ page, check }) {
   await page.click('[data-action="replay"]');
   await page.waitForSelector('[data-action="run"]');
   await page.waitForTimeout(300);
-  await check('play: クリア→もういちどでは出ない', () => cueCount(page), 0);
+  await check('play: クリア→ためしなおすでは出ない', () => cueCount(page), 0);
 
   // --- seesaw（次のステージでも開始時に出る） ---
   await enterPlay(page, 'teko-01-tsuriai');
@@ -86,7 +86,7 @@ export default async function run({ page, check }) {
   await page.click('[data-action="retry"]');
   await page.waitForSelector('[data-action="run"]');
   await page.waitForTimeout(300);
-  await check('seesaw: 失敗→もういちどでは出ない', () => cueCount(page), 0);
+  await check('seesaw: 失敗→ためしなおすでは出ない', () => cueCount(page), 0);
 
   await page.click('[data-action="pos-right"]');
   await page.click('[data-action="run"]');
@@ -94,7 +94,7 @@ export default async function run({ page, check }) {
   await page.click('[data-action="replay"]');
   await page.waitForSelector('[data-action="run"]');
   await page.waitForTimeout(300);
-  await check('seesaw: クリア→もういちどでは出ない', () => cueCount(page), 0);
+  await check('seesaw: クリア→ためしなおすでは出ない', () => cueCount(page), 0);
 
   // 次のステージでも開始時に出る
   await page.click('[data-action="pos-right"]');

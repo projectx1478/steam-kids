@@ -52,7 +52,7 @@ export default async function run({ page, check }) {
   await page.click('[data-action="step"]');
   await page.waitForSelector('[data-action="retry"]', { timeout: 4000 });
   await check('1コマ実行の失敗でtryAgain音が鳴る', () => page.evaluate(() => window.__sfxLog.includes('tryAgain')));
-  await check('1コマ実行の失敗: もういちどだけ押せる', () => page.$eval('[data-action="retry"]', (b) => b.disabled), false);
+  await check('1コマ実行の失敗: ためしなおすだけ押せる', () => page.$eval('[data-action="retry"]', (b) => b.disabled), false);
   await check('1コマ実行の失敗: パレットが全てdisabled', async () => (await page.$$('[data-command]:not([disabled])')).length, 0);
   await check('1コマ実行の失敗: 1コマ自体もdisabled', () => page.$eval('[data-action="step"]', (b) => b.disabled), true);
 }

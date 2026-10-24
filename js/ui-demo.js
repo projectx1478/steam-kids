@@ -1,7 +1,7 @@
 // 「はじめに」画面のデモ：ロボットが正解の道をたどってゴールへ到達する完成イメージを見せる
 // （Issue #97）。本番のplayとは別のstart/goal（レッスンJSONのintro.demo）を使い、答えの
 // ネタバレを避ける。自動再生は初回含め3回まで（Issue #241。reduced-motion時は1回）。
-// 以降は「▶ もういちど みる」で繰り返せる（#104では以前誤って2回再生していた）。reduced-motion時も
+// 以降は「▶ おてほんを みる」で繰り返せる（#104では以前誤って2回再生していた）。reduced-motion時も
 // playAnimation（1手600msのコマ送り）をそのまま使う。moveToが自らtransitionを外して瞬間移動する
 // ため、静止画に差し替える必要はない（旧仕様はここでゴール静止画へ分岐しており、PCなど
 // reduced-motion環境でデモが動かない不具合の原因だった）。
@@ -9,7 +9,7 @@
 //   showCommands: 命令チップ列を盤面の上に表示し、実行中のチップを光らせる
 //   fixFrom: 先にこの誤った命令列を実行して失敗させ、一呼吸おいてから正しいcommandsへ
 //            差し替えて再実行する（「なおす」のデモ）
-// 初回自動再生の前だけ1秒の「よーい…」を挟む（Issue #107）。「▶ もういちど みる」は待たない。
+// 初回自動再生の前だけ1秒の「よーい…」を挟む（Issue #107）。「▶ おてほんを みる」は待たない。
 import { boardSpec } from './engine-grid.js';
 import { renderGrid, prefersReducedMotion } from './ui-grid.js';
 import { renderCommandQueue } from './ui-commands.js';
@@ -23,10 +23,10 @@ function demoCell() {
   return window.matchMedia?.("(max-height: 479px)").matches ? DEMO_CELL_LOW : DEMO_CELL;
 }
 const FIX_PAUSE_MS = 900;
-// READY_MS: 初回自動再生のみに置く「よーい…」の間（Issue #107）。「▶ もういちど みる」は対象外。
+// READY_MS: 初回自動再生のみに置く「よーい…」の間（Issue #107）。「▶ おてほんを みる」は対象外。
 const READY_MS = 1000;
 // 自動ループ（Issue #241）：1周の終わりからLOOP_GAP_MS空け、初回含めLOOP_MAX回で止まる。
-// reduced-motion時はループしない。「▶ もういちど みる」は単発再生でループを再開しない。
+// reduced-motion時はループしない。「▶ おてほんを みる」は単発再生でループを再開しない。
 const LOOP_GAP_MS = 3000;
 const LOOP_MAX = 3;
 
@@ -151,7 +151,7 @@ export function renderGoalDemo(container, demo, opts = {}) {
   }
 
   // playFirst(): 初回自動再生専用。1秒の「よーい…」の後にstart音を鳴らしてplayNowへ入る
-  // （Issue #107）。「▶ もういちど みる」はplayNowを直接呼び、待機を挟まない。
+  // （Issue #107）。「▶ おてほんを みる」はplayNowを直接呼び、待機を挟まない。
   function playFirst() {
     draw(demo.start);
     readyBadge.style.display = '';
@@ -190,7 +190,7 @@ export function renderGoalDemo(container, demo, opts = {}) {
   replayBtn.dataset.action = 'demo-replay';
   replayBtn.className =
     'min-w-[64px] min-h-[64px] px-3 rounded-lg bg-slate-100 text-xs transition-transform duration-100 active:scale-95';
-  replayBtn.textContent = '▶ もういちど みる';
+  replayBtn.textContent = '▶ おてほんを みる';
   replayBtn.addEventListener('click', () => {
     subAnim?.cancel();
     if (pendingTimer) {

@@ -116,7 +116,7 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 `intro.demo`（任意・`{ grid, start, goal, walls, items?, commands, showCommands?, fixFrom? }`。
 `play`と同じ形状の自前の盤面）を指定すると、「はじめに」画面でロボットがその経路をたどって
 ゴールへ到達する完成イメージをアニメーションで見せる（`js/ui-demo.js`の`renderGoalDemo`）。
-自動再生は1回だけ（「もういちど みる」で再生し直せる）。`start`/`goal`の組は**本番の`play`の
+自動再生は1回だけ（「おてほんを みる」で再生し直せる）。`start`/`goal`の組は**本番の`play`の
 どのステージとも同一にしない**（答えのネタバレになるため。`validate-lessons.mjs`が機械チェックする）。
 `commands`は壁にぶつからずゴール到達・全item回収する内容にする（同じくチェック対象）。
 `commands`の各要素は方向文字列、`{dir, times}`（まとめ表示。`cmd-02-mijikaku`で使用）、または`{box, times}`（くりかえしの箱。`cmd-04-kurikaeshi`で使用）。

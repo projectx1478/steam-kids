@@ -42,7 +42,7 @@ export default async function run({ page, check }) {
 
   await page.click('[data-action="retry"]');
   await page.waitForSelector('[data-action="run"]');
-  await check('もういちどでstartへ戻り足あとは残る', async () => [await pos(page), (await page.$$('[data-footprint]')).length].join(), '1,1');
+  await check('ためしなおすでstartへ戻り足あとは残る', async () => [await pos(page), (await page.$$('[data-footprint]')).length].join(), '1,1');
 
   // p1：解2でクリア
   await page.click('[data-action="pos-right"]');
