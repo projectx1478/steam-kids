@@ -72,6 +72,21 @@ export default async function run({ page, check }) {
   await check('ロボットは衝突マスのまま', () => robotCell(page), '0,0');
   await check('ためしなおすだけ押せる', () => page.$eval('[data-action="retry"]', (b) => b.disabled), false);
   await check('パレットはロック', async () => (await page.$$('[data-command]:not([disabled])')).length, 0);
+  // 失敗の吹き出し（おしい！＋ヒント）は吹き出し欄の中に1つだけ出て、盤面・命令列と交差しない（Issue #544 段2）
+  await page.waitForSelector('[data-sk-bird="bubble"] [data-hint]', { timeout: 4000 });
+  await check('失敗の吹き出しが欄の中にあり盤面・列と交差しない', () =>
+    page.evaluate(() => {
+      const r = (el) => el.getBoundingClientRect();
+      const b = r(document.querySelector('[data-sk-bird="bubble"]'));
+      const lane = r(document.querySelector('[data-sk-screen="bird-lane"]'));
+      const inLane = b.left >= lane.left - 1 && b.right <= lane.right + 1 && b.top >= lane.top - 1 && b.bottom <= lane.bottom + 1;
+      const hit = (el) => {
+        const x = r(el);
+        return x.width > 0 && x.left < b.right && x.right > b.left && x.top < b.bottom && x.bottom > b.top;
+      };
+      const others = [...document.querySelectorAll('[data-sk-screen="board"], .grid-board, .command-queue, [data-sk-screen="panel"]')];
+      return inLane && !others.some(hit) && document.querySelectorAll('[data-sk-bird="bubble"]:not([hidden])').length === 1;
+    }), true);
 
   // --- ためしなおす: 暗転が出てから消え、盤面がstartへ戻る（「スタート！」は出さない） ---
   await page.click('[data-action="retry"]');

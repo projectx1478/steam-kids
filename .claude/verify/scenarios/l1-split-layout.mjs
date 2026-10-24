@@ -50,6 +50,17 @@ const birdGap = () =>
         return Math.round(min);
       })();
 
+// 吹き出しが吹き出し欄の中にあり、盤面と交差しない（Issue #544 段2）
+const bubbleInLane = () => {
+  const r = (el) => el.getBoundingClientRect();
+  const b = r(document.querySelector('[data-sk-bird="bubble"]'));
+  const lane = r(document.querySelector('[data-sk-screen="bird-lane"]'));
+  const board = r(document.querySelector('[data-sk-screen="board"]'));
+  const inLane = b.left >= lane.left - 1 && b.right <= lane.right + 1 && b.top >= lane.top - 1 && b.bottom <= lane.bottom + 1;
+  const hit = b.left < board.right && b.right > board.left && b.top < board.bottom && b.bottom > board.top;
+  return inLane && !hit;
+};
+
 async function geometry(page) {
   return page.evaluate(() => {
     const vis = (sel) => [...document.querySelectorAll(sel)].find((e) => e.offsetParent !== null);
@@ -111,6 +122,10 @@ export default async function run({ page, check }) {
     await check(`${label} play: #appが768pxを超える`, () => g.appW > 768);
     await check(`${label} play: 全ボタン64px以上`, () => g.smallButtons, 0);
     await check(`${label} play: 顔の押せる範囲と操作ボタンは16px以上離れる`, async () => (await page.evaluate(birdGap)) >= 16);
+    await check(`${label} play: 吹き出しが欄の中にあり盤面と交差しない`, async () => {
+      await page.waitForSelector('[data-sk-bird="bubble"]:not([hidden])', { timeout: 5000 });
+      return page.evaluate(bubbleInLane);
+    });
     await check(`${label} play: 盤面が盤面エリア内`, () =>
       g.board.left >= g.area.left - 1 && g.board.right <= g.area.right + 1 && g.board.top >= g.area.top - 1 && g.board.bottom <= g.area.bottom + 1);
     if (vp.width === 1280) await check(`${label} play: セルが64pxを超える`, () => g.cellW > 64);

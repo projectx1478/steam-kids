@@ -86,7 +86,10 @@ export function showHint(slotEl, { kind, message, restore, bird, extra }) {
   const buildPanel = () => {
     const panel = document.createElement('div');
     panel.dataset.hint = kind;
-    panel.className = 'hint-panel flex flex-col items-center';
+    // 小鳥の欄（高さ64px・1行表示。Issue #544）では おしい！＋ヒント文を横一列にし、収まらない分は吹き出しの横スライドで見せる。
+    panel.className = bird
+      ? 'hint-panel flex flex-row items-center gap-2 whitespace-nowrap'
+      : 'hint-panel flex flex-col items-center';
     const headingRow = document.createElement('div');
     headingRow.className = 'flex items-center gap-1';
     const icon = document.createElement('div');

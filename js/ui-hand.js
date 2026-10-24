@@ -23,15 +23,25 @@ export function showHandHint({ from, to, mode = 'tap' }) {
   hand.className = 'hand-hint fixed z-40 pointer-events-none';
   hand.dataset.mode = mode;
   hand.innerHTML = fingerSvg();
-  hand.style.left = `${rect.left + rect.width / 2 - 14}px`;
-  hand.style.top = `${rect.top + rect.height / 2 - 14}px`;
+  // 指はボタンの外側に置き、ボタンの絵・文字を隠さない（Issue #544）。既定は下辺の外（指先が上のボタンを指す）。
+  // 下に画面の余白が無いときは右下の外。指アイコンは28px四方。
+  const HAND = 28;
+  let hx = rect.left + rect.width / 2 - HAND / 2;
+  let hy = rect.bottom + 2;
+  if (hy + HAND > window.innerHeight) {
+    hx = rect.right + 2;
+    hy = Math.min(rect.bottom - HAND / 2, window.innerHeight - HAND);
+  }
+  hand.style.left = `${hx}px`;
+  hand.style.top = `${hy}px`;
+  hand.dataset.place = hy >= rect.bottom ? 'below' : 'right';
 
   let slot = null;
   if (mode === 'drag' && to && to.isConnected) {
     const toRect = to.getBoundingClientRect();
     if (!prefersReducedMotion()) {
-      const dx = toRect.left + 32 - (rect.left + rect.width / 2);
-      const dy = toRect.top + toRect.height / 2 - (rect.top + rect.height / 2);
+      const dx = toRect.left + 32 - (hx + HAND / 2);
+      const dy = toRect.top + toRect.height / 2 - (hy + HAND / 2);
       hand.style.setProperty('--hand-dx', `${dx}px`);
       hand.style.setProperty('--hand-dy', `${dy}px`);
     }

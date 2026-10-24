@@ -1,9 +1,9 @@
-// ステージ開始時の「スタート！」（盤面中央・A案）：開始時に1回出て約1秒で消える・タップ素通し・
+// ステージ開始時の「スタート！」（盤面中央・A案）：開始時に1回出て約2秒で消える・タップ素通し・
 // 失敗→ためしなおす／クリア→ためしなおすの再開では出ない（play・seesaw 各。Issue #497 段A）。
 // 段B：問い文の吹き出しは「スタート！」が消えてから出る（順序 スタート！→吹き出し）。顔・吹き出しのタップで消え／再表示。
 // 凍結fixtureに依存しないよう play は routeLesson のインライン最小盤面、seesaw は teko-01-tsuriai。
 
-export const name = 'C12 スタート！: ステージ開始時に1回・約1秒で消える・再開（ためしなおす）では出ない(play・seesaw。Issue #497)';
+export const name = 'C12 スタート！: ステージ開始時に1回・約2秒で消える・再開（ためしなおす）では出ない(play・seesaw。Issue #497)';
 import { routeLesson, enterPlay, clickRetry } from '../helpers.mjs';
 
 const LESSON = {
@@ -34,15 +34,17 @@ const cueCount = (page) => page.$$eval('.sk-start-cue', (els) => els.length);
 const bubbleShown = (page) => page.$eval('[data-sk-bird="bubble"]', (b) => !b.hidden && b.dataset.question === 'true');
 const cueFlag = (page) => page.$eval('[data-sk-screen="board"]', (b) => b.hasAttribute('data-start-cue'));
 
-// 開始時の確認（1回出る→タップ素通し→約1秒後に消える）。enterPlay の直後に呼ぶ。
+// 開始時の確認（1回出る→タップ素通し→約2秒後に消える。Issue #544-3A）。enterPlay の直後に呼ぶ。
 async function checkStartThenGone(page, check, label) {
   await check(`${label}: 開始時に「スタート！」が1回出る`, () => cueCount(page), 1);
   await check(`${label}: 表示中は盤面に data-start-cue が立つ`, () => cueFlag(page), true);
   await check(`${label}: 「スタート！」の間は問い文の吹き出しは出ない`, () => bubbleShown(page), false);
   await check(`${label}: タップは素通し（pointer-events:none）`, () =>
     page.$eval('.sk-start-cue', (el) => getComputedStyle(el).pointerEvents), 'none');
-  await page.waitForFunction(() => !document.querySelector('.sk-start-cue'), null, { timeout: 3000 });
-  await check(`${label}: 約1秒後に消える`, () => cueCount(page), 0);
+  await page.waitForTimeout(1200);
+  await check(`${label}: 1.2秒後もまだ出ている（1秒では消えない）`, () => cueCount(page), 1);
+  await page.waitForFunction(() => !document.querySelector('.sk-start-cue'), null, { timeout: 5000 });
+  await check(`${label}: 約2秒後に消える`, () => cueCount(page), 0);
   await check(`${label}: 消えたら data-start-cue も外れる`, () => cueFlag(page), false);
   await check(`${label}: 「スタート！」が消えたあと問い文の吹き出しが出る`, () => bubbleShown(page), true);
 }
