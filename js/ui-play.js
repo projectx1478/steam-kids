@@ -1074,6 +1074,12 @@ export function renderPlay(root, step) {
   showNormalActions();
   drawBoard(spec.start);
   drawQueue();
+  // 下書きから復元した列が横にはみ出すとき、最新（右端）のチップが隠れないよう右端へ寄せる（Issue #102 と同じ意図）。
+  // 初期列（なおす系のずれた列など）は先頭から見せるため、初期列より長いときだけ。
+  if (local.commands.length > (step.initialCommands?.length ?? 0)) {
+    queueEl.scrollLeft = queueEl.scrollWidth;
+    queueEl.scrollTop = queueEl.scrollHeight;
+  }
   updateControls();
   showStartCue(boardArea); // ステージ開始時に1回（再開では出さない。#497）
   screen.announceQuestion(); // 問い文の吹き出し。「スタート！」が消えてから出る（#497 段B）
