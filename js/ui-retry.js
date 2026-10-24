@@ -3,13 +3,13 @@
 import { prefersReducedMotion } from './ui-grid.js';
 import { play as playSfx } from './sfx.js';
 
-// setRetryButton(btn, mode, { runLabel, emphasis }): 実行ボタンを「もういちど」(mode='retry') と
+// setRetryButton(btn, mode, { runLabel, emphasis }): 実行ボタンを「ためしなおす」(mode='retry') と
 // 通常 (それ以外) で切り替える。data-action は 'retry' / 'run'、色は amber / emerald。
 // 強調の強さは画面ごとの引数 emphasis（追加するクラスの配列。retry のときだけ付き、戻すと外れる）。
 export function setRetryButton(btn, mode, { runLabel, emphasis = [] }) {
   if (mode === 'retry') {
     btn.dataset.action = 'retry';
-    btn.textContent = '↺ もういちど';
+    btn.textContent = '↺ ためしなおす';
     btn.classList.remove('bg-emerald-500');
     btn.classList.add('bg-amber-500', ...emphasis);
   } else {
@@ -34,7 +34,7 @@ export function shakeBoard(boardArea) {
 
 // showStartCue(boardArea): ステージ開始時に「スタート！」を盤面中央へ1秒だけ表示する（Issue #497）。
 // タップは素通し。表示中は boardArea に data-start-cue を立て、消えたら外して 'sk-start-cue-end' を投げる
-// （吹き出し js/ui-bird.js がこれを見て、消えるまで表示を待つ）。再開（うごかす・もういちど）では呼ばない。
+// （吹き出し js/ui-bird.js がこれを見て、消えるまで表示を待つ）。再開（うごかす・ためしなおす）では呼ばない。
 export const START_CUE_MS = 1000;
 export function showStartCue(boardArea) {
   boardArea.querySelector(':scope > .sk-start-cue')?.remove();

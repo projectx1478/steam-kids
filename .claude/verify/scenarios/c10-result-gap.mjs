@@ -1,4 +1,4 @@
-// クリア直後の「間」：1コマの連打が次のステージ・もういちどに当たらないこと、間のあとに結果ボタンが
+// クリア直後の「間」：1コマの連打が次のステージ・ためしなおすに当たらないこと、間のあとに結果ボタンが
 // 1コマボタンと別の位置に出ること、間の最中の「← もどる」でタイマーが片付くこと（Issue #336）。
 
 export const name = 'C10 クリア後の間: 1コマ連打が結果ボタンに当たらない・もどるで片付く(Issue #336)';
@@ -35,7 +35,7 @@ export default async function run({ page, check }) {
 
   await page.waitForSelector('[data-action="next-stage"]', { timeout: 4000 });
   await check('間のあと: つぎの ステージが出る', async () => (await page.$$('[data-action="next-stage"]')).length, 1);
-  await check('間のあと: もういちどが出る', async () => (await page.$$('[data-action="replay"]')).length, 1);
+  await check('間のあと: ためしなおすが出る', async () => (await page.$$('[data-action="replay"]')).length, 1);
   await check('間のあと: 「…」は消える', async () => (await page.$$('[data-result-gap]')).length, 0);
   const nextBox = await (await page.$('[data-action="next-stage"]')).boundingBox();
   const replayBox = await (await page.$('[data-action="replay"]')).boundingBox();
@@ -64,8 +64,8 @@ export default async function run({ page, check }) {
     true
   );
   await check('つぎの ステージの高さは64px', async () => Math.round(nextBox.height), 64);
-  await check('もういちどの高さは64px・幅160px', async () => [Math.round(replayBox.height), Math.round(replayBox.width)], [64, 160]);
-  await check('連打しても結果ボタンのもういちどは起動していない', stepId, p1);
+  await check('ためしなおすの高さは64px・幅160px', async () => [Math.round(replayBox.height), Math.round(replayBox.width)], [64, 160]);
+  await check('連打しても結果ボタンのためしなおすは起動していない', stepId, p1);
 
   // --- 間の最中の「← もどる」：タイマーが片付き、結果ボタンが後から現れない ---
   await page.click('[data-action="replay"]');
@@ -118,5 +118,5 @@ export default async function run({ page, check }) {
     inside(await (await page.$('[data-result-dialog]')).boundingBox(), await panelBox())
   );
   await check('横向き: つぎの ステージの高さは64px以上', async () => (await (await page.$('[data-action="next-stage"]')).boundingBox()).height >= 64);
-  await check('横向き: もういちどの高さは64px以上', async () => (await (await page.$('[data-action="replay"]')).boundingBox()).height >= 64);
+  await check('横向き: ためしなおすの高さは64px以上', async () => (await (await page.$('[data-action="replay"]')).boundingBox()).height >= 64);
 }

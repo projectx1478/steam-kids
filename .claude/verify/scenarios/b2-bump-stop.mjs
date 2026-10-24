@@ -1,7 +1,7 @@
-// 壁・盤外にぶつかった手で実行を止める、と失敗→もういちどの画面暗転（Issue #136）。
+// 壁・盤外にぶつかった手で実行を止める、と失敗→ためしなおすの画面暗転（Issue #136）。
 // 凍結fixtureに依存しないようrouteLessonのインライン最小盤面で書く。
 
-export const name = '衝突した手で実行が止まり、もういちどで画面暗転を挟んでからスタートに戻る(Issue #136)';
+export const name = '衝突した手で実行が止まり、ためしなおすで画面暗転を挟んでからスタートに戻る(Issue #136)';
 import { routeLesson, enterPlay } from '../helpers.mjs';
 
 const LESSON = {
@@ -70,10 +70,10 @@ export default async function run({ page, check }) {
   await page.waitForTimeout(1500);
   await check('衝突より後の手の足あとが増えない（4個）', () => footprints(page), 4);
   await check('ロボットは衝突マスのまま', () => robotCell(page), '0,0');
-  await check('もういちどだけ押せる', () => page.$eval('[data-action="retry"]', (b) => b.disabled), false);
+  await check('ためしなおすだけ押せる', () => page.$eval('[data-action="retry"]', (b) => b.disabled), false);
   await check('パレットはロック', async () => (await page.$$('[data-command]:not([disabled])')).length, 0);
 
-  // --- もういちど: 暗転が出てから消え、盤面がstartへ戻る（「スタート！」は出さない） ---
+  // --- ためしなおす: 暗転が出てから消え、盤面がstartへ戻る（「スタート！」は出さない） ---
   await page.click('[data-action="retry"]');
   await check('暗転の黒幕が出る', async () => (await page.waitForSelector('[data-transition="retry"]', { timeout: 1000 })) !== null, true);
   await check(
@@ -98,5 +98,5 @@ export default async function run({ page, check }) {
   await check('足あとは増えない', () => footprints(page), 0);
   await page.click('[data-action="retry"]');
   await check('reduced-motionでは暗転しない', async () => (await page.$$('[data-transition="retry"]')).length, 0);
-  await check('もういちど後にじっこうへ戻る', async () => (await page.$$('[data-action="run"]')).length, 1);
+  await check('ためしなおす後にじっこうへ戻る', async () => (await page.$$('[data-action="run"]')).length, 1);
 }

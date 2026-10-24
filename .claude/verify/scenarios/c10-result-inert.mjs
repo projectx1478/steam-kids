@@ -59,11 +59,11 @@ export default async function run({ page, check }) {
   await page.keyboard.press('Escape');
   await check('Esc を押してもダイアログが残る', async () => (await page.$$('[data-result-dialog]')).length, 1);
 
-  // --- play: もういちど → 外れる ---
+  // --- play: ためしなおす → 外れる ---
   await page.click('[data-action="replay"]');
   await page.waitForSelector('[data-action="step"]');
-  await check('もういちど: ダイアログ・inert・relative が残らない', noLeftovers, clean);
-  await check('もういちど: 操作ボタンが押せる', async () => {
+  await check('ためしなおす: ダイアログ・inert・relative が残らない', noLeftovers, clean);
+  await check('ためしなおす: 操作ボタンが押せる', async () => {
     const n = await queueCount();
     await page.click('[data-command="up"]');
     return (await queueCount()) === n + 1;
@@ -131,7 +131,7 @@ export default async function run({ page, check }) {
   await check('シーソー Esc を押してもダイアログが残る', async () => (await page.$$('[data-result-dialog]')).length, 1);
   await page.click('[data-action="replay"]');
   await page.waitForSelector('[data-action="run"]');
-  await check('シーソー もういちど: ダイアログ・inert・relative が残らない', noLeftovers, clean);
+  await check('シーソー ためしなおす: ダイアログ・inert・relative が残らない', noLeftovers, clean);
   await page.click('[data-action="pos-right"]');
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="next-stage"]', { timeout: 10000 });

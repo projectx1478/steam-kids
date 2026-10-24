@@ -45,7 +45,7 @@ const FAIL_COUNTS = new Map();
 const AUTO_HINT_AT = 2;
 const FAR_GOAL_MESSAGE = 'ほかの みちも ためして みよう';
 const NEAR_GOAL_DISTANCE = 2;
-// 壁衝突の失敗後、「もういちど」をパルスで強調するまでの待ち（Issue #214）。
+// 壁衝突の失敗後、「ためしなおす」をパルスで強調するまでの待ち（Issue #214）。
 const RETRY_PULSE_DELAY_MS = 1200;
 
 export function renderPlay(root, step) {
@@ -56,7 +56,7 @@ export function renderPlay(root, step) {
   const maxPauses = Number.isInteger(step.maxPauses) && step.maxPauses > 0 ? step.maxPauses : 0;
 
   // initialCommandsがあれば「ずれた」命令列を最初から積んでおく（なおす系レッスン用）。
-  // もういちど（失敗時のretry・クリア後のreplay双方）でこの内容へ戻す（Issue #104）ため、
+  // ためしなおす（失敗時のretry・クリア後のreplay双方）でこの内容へ戻す（Issue #104）ため、
   // 以後書き換えるcommandsとは別の配列として持つ。
   const freshCommands = (step.initialCommands ?? []).map((dir) => ({ dir, times: 1 }));
   // ←で戻って再びこのplayへ進んだ時、命令列の下書き（S.drafts）があれば復元する
@@ -102,8 +102,8 @@ export function renderPlay(root, step) {
     runStates: {},
     view: null,
     resultShown: false,
-    // 不正解でtrueにし、「もういちど」以外の操作ボタン・命令チップの取り消しを封じる
-    // （思考フローが他ボタンで乱れないようにする。Issue #106）。「もういちど」押下でのみ解除。
+    // 不正解でtrueにし、「ためしなおす」以外の操作ボタン・命令チップの取り消しを封じる
+    // （思考フローが他ボタンで乱れないようにする。Issue #106）。「ためしなおす」押下でのみ解除。
     locked: false,
     nudge: null,
     remaining: spec.items.length,
@@ -291,10 +291,10 @@ export function renderPlay(root, step) {
   runBtn.textContent = '▶ じっこう';
   runBtn.className = 'btn-tactile px-1 bg-emerald-500 text-white text-sm font-bold whitespace-nowrap break-keep disabled:opacity-40';
 
-  // 実行が失敗したらrunBtn自体を橙色の「もういちど」に変える（目線を動かさずに押せる。Issue #91）。
+  // 実行が失敗したらrunBtn自体を橙色の「ためしなおす」に変える（目線を動かさずに押せる。Issue #91）。
   // 他のボタンをロックする間、押せるのはこれだけなのでパルス枠で目立たせる（Issue #106）。
   const RETRY_EMPHASIS_CLASSES = ['ring-4', 'ring-amber-300', 'ring-offset-2', 'motion-safe:animate-pulse'];
-  // 壁衝突で付ける「もういちど」のパルス強調（retry-pulse。scale 1→1.08→1を2回。tailwind.src.css
+  // 壁衝突で付ける「ためしなおす」のパルス強調（retry-pulse。scale 1→1.08→1を2回。tailwind.src.css
   // 側はreduced-motionでは定義されない。Issue #214）。retry押下・モード遷移で未発火のタイマーは
   // 止めてクラスも外す。
   let retryPulseTimer = null;
@@ -311,7 +311,7 @@ export function renderPlay(root, step) {
     setRetryButton(runBtn, mode, { runLabel: '▶ じっこう', emphasis: RETRY_EMPHASIS_CLASSES });
   }
 
-  // クリア時はつぎへ・もういちど（レッスン再挑戦）を通常アクション行に差し替えて表示する
+  // クリア時はつぎへ・ためしなおす（レッスン再挑戦）を通常アクション行に差し替えて表示する
   // （盤面上に重ねない。Issue #97）。
   function showNormalActions() {
     dropUndo();
@@ -338,7 +338,7 @@ export function renderPlay(root, step) {
   // 気づかせる（Issue #106・#158）。
   // reduced-motion時はゆらさず、盤面に0.5秒だけ枠を光らせて静止のまま気づけるようにする。
   // あわせて盤面のマスだけを暗くし（view.dim）、失敗リザルト状態を再スタート状態と
-  // 見た目で区別する（もういちどのdrawBoard()が新しいview（dimは初期値=暗くなし）を
+  // 見た目で区別する（ためしなおすのdrawBoard()が新しいview（dimは初期値=暗くなし）を
   // 作り直すため、明示的なdim(false)呼び出しは不要。Issue #110）。
   function triggerFailFeedback(reason) {
     playSfx(reason === 'items' ? 'itemsLeft' : 'tryAgain');
@@ -348,7 +348,7 @@ export function renderPlay(root, step) {
 
   // やりかた帯・無操作促しの対象を決める段階（Issue #89）。0=強調なし（実行中・結果表示中）、
   // 1=けす/おす、3=じっこう。なおす系は編集済みか否かのみで1↔3を決める（②は経由しない）。
-  // ロック中（不正解でもういちど待ち）は常に3（じっこうボタン＝もういちど）を対象にする（Issue #106）。
+  // ロック中（不正解でためしなおす待ち）は常に3（じっこうボタン＝ためしなおす）を対象にする（Issue #106）。
   function currentPhase() {
     if (local.running || local.stepping || local.resultShown) return 0;
     if (local.locked) return 3;
@@ -357,7 +357,7 @@ export function renderPlay(root, step) {
   }
 
   // 静的な盤面の再構築。アニメーション中には呼ばない（プレイヤー駒はview経由で差分更新する）。
-  // 実行開始・もういちど双方でここを通るため、のこり表示の初期値リセットも兼ねる。
+  // 実行開始・ためしなおす双方でここを通るため、のこり表示の初期値リセットも兼ねる。
   function drawBoard(playerPos) {
     local.fit = fitCellSize({ spec, boardArea });
     local.cellSize = local.fit.cellSize;
@@ -377,7 +377,7 @@ export function renderPlay(root, step) {
   }
 
   // resetToFresh(): 命令列をfreshCommands（なおす系は初期の「ずれた」列、それ以外は空）へ戻す。
-  // 「もういちど」（失敗後のretry・クリア後のreplay）は正解・不正解に関わらず必ずこれを呼ぶ
+  // 「ためしなおす」（失敗後のretry・クリア後のreplay）は正解・不正解に関わらず必ずこれを呼ぶ
   // （前回の命令列を残さない。Issue #104）。参照(S.drafts)は保ったまま中身だけ入れ替える。
   function resetToFresh() {
     dropUndo();
@@ -687,7 +687,7 @@ export function renderPlay(root, step) {
     local.nudge?.poke();
   }
 
-  // playRetryTransition(onDark, onDone): 失敗後のもういちどで全画面の黒幕を挟む（Issue #136）。
+  // playRetryTransition(onDark, onDone): 失敗後のためしなおすで全画面の黒幕を挟む（Issue #136）。
   // 暗い間にonDark（盤面の作り直し）を行い、明けてからonDone（スタート！）を呼ぶ。暗転中は
   // 黒幕がタップを遮る。ステップ離脱時はsetActiveAnimation経由のcancelで黒幕ごと消す。
   function playRetryTransition(onDark, onDone) {
@@ -724,7 +724,7 @@ export function renderPlay(root, step) {
   }
 
   // finishRun(result): じっこう（自動実行）・1コマ実行のどちらが最後の手まで進めても同じ判定を通す
-  // （Issue #111）。simulateの結果から成否を判定し、盤面・トースト・つぎへ/もういちどボタンを描く。
+  // （Issue #111）。simulateの結果から成否を判定し、盤面・トースト・つぎへ/ためしなおすボタンを描く。
   function finishRun(result) {
     local.running = false;
     local.stepping = false;
@@ -768,7 +768,7 @@ export function renderPlay(root, step) {
         setActiveAnimation,
       });
     } else {
-      // 「とめる」のあるステージは「もういちど」の代わりに2ボタン（とちゅうから／さいしょから。#395 段4）。
+      // 「とめる」のあるステージは「ためしなおす」の代わりに2ボタン（とちゅうから／さいしょから。#395 段4）。
       if (maxPauses > 0) showRetryChoice();
       else setRunButtonMode('retry');
       local.locked = true;
@@ -781,7 +781,7 @@ export function renderPlay(root, step) {
       if (info.reason === 'wall' || info.reason === 'periodic') {
         queueEl.querySelector(`[data-index="${info.cmdIndex}"]`)?.classList.add('ring-4', 'ring-amber-400');
         local.view.markCell(info.cell, 'wall');
-        // 壁衝突は横に倒れる演出で気づかせ、1.2秒後に「もういちど」をパルスで強調する（Issue #214）。
+        // 壁衝突は横に倒れる演出で気づかせ、1.2秒後に「ためしなおす」をパルスで強調する（Issue #214）。
         local.view.fallOver();
         retryPulseTimer = setTimeout(pulseRetryButton, RETRY_PULSE_DELAY_MS);
       } else if (info.reason === 'paint') {

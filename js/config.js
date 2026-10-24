@@ -3,7 +3,7 @@ export const SYNC_ENDPOINT = 'https://steam-kids-sync.projectx1478.workers.dev';
 
 // service-worker.jsのCACHE_NAMEと同値にする（docs/caching.md）。SWからはimportできず
 // 二重管理になるため、一致は .claude/verify/scenarios/app-version.mjs で機械チェックする。
-export const APP_VERSION = 'steam-kids-cache-v85';
+export const APP_VERSION = 'steam-kids-cache-v86';
 
 // BGM（Issue #378 段2）。音源は ogg のみ。ファイルは公開リポジトリに置かず、Pages デプロイ時に
 // 非公開リポジトリ steam-kids-state から audio/ へ配置する（取得できない環境では曲なしで動作）。
@@ -39,5 +39,5 @@ export function sceneFor(screen) {
 
 // クリック音（js/sfx.js initClickSfx）を鳴らさないボタン（Issue #550）。専用音・大演出音を別に持つものだけ。
 export const CLICK_SFX_EXEMPT = [
-  { selector: '[data-action="retry"]', reason: 'もういちど：黒幕の遷移のあと start 合図音（ui-retry showStartCue）が鳴る' },
+  { selector: '[data-action="retry"]', reason: 'ためしなおす：黒幕の遷移のあと start 合図音（ui-retry showStartCue）が鳴る' },
 ];

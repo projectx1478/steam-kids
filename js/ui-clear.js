@@ -1,5 +1,5 @@
 // クリア演出の共通部品（Issue #342）。星のトースト（showSuccess）→ 間（操作行を空き枠にして「…」）
-// → 結果ダイアログ（つぎへ＋もういちど）の流れを1か所に集める。間・ボタン64px・背面inert・
+// → 結果ダイアログ（つぎへ＋ためしなおす）の流れを1か所に集める。間・ボタン64px・背面inert・
 // ダイアログの見た目は画面ごとに変えない（Issue #336・#340）。
 import { S } from './state.js';
 import { logEvent } from './events.js';
@@ -209,7 +209,7 @@ export function showClearSequence({
   }
   showSuccess(null, { bird, view, restore, confetti: false, ...(label ? { label } : {}) });
   const primaryBtn = createPrimaryButton(primary.label, primary.action, primary.id);
-  const replayBtn = createPrimaryButton('もういちど', () => {
+  const replayBtn = createPrimaryButton('ためしなおす', () => {
     // クリア曲から操作画面の曲へ戻す（Issue #541。replay は renderStep を通らない）。
     setScene(sceneFor('play'));
     return replay();

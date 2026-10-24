@@ -225,7 +225,7 @@
     animation: wobble-soft 0.5s ease-in-out;
   }
 
-  /* 壁衝突の失敗時、「もういちど」を2回パルス(scale 1→1.08→1)で強調する（Issue #214）。
+  /* 壁衝突の失敗時、「ためしなおす」を2回パルス(scale 1→1.08→1)で強調する（Issue #214）。
      強調は既存の motion-safe:animate-pulse(opacity点滅)に上書きさせるため、要素指定で
      詳細度を上げている（Tailwind側のvariant規則がcustom CSSより後に生成されるため）。 */
   @keyframes retry-pulse {
@@ -461,7 +461,7 @@ dialog.result-row {
 #app[data-op-compact='true'] > #stage {
   padding: 0.25rem;
 }
-/* intro の本文（Issue #551）。高さ479px以下は横並び：左に問い文と命令列、右に盤面。「もういちど みる」は問い文の右。
+/* intro の本文（Issue #551）。高さ479px以下は横並び：左に問い文と命令列、右に盤面。「▶ おてほんを みる」は問い文の右。
    demo-widget は display: contents にして、中身をこの grid の項目として並べる（DOM は変えない）。 */
 .intro-body {
   display: contents;

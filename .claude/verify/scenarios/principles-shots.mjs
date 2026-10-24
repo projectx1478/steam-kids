@@ -20,7 +20,7 @@ async function shotStart(page, shot, label, lessonId) {
   await shot(label);
 }
 
-// tutorialのあるgrid-runtime：はじめる→tutorial冒頭→スキップ→p1で誤答→もういちど→正解でクリア
+// tutorialのあるgrid-runtime：はじめる→tutorial冒頭→スキップ→p1で誤答→ためしなおす→正解でクリア
 async function shotGridLesson(page, check, shot, n, tag, lessonId, wrongCommand) {
   await shotStart(page, shot, `${n}-${tag}-start`, lessonId);
   await page.click('[data-action="how-to"]');

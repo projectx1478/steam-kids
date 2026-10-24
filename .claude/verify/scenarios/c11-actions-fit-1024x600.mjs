@@ -1,8 +1,8 @@
 // 低背の横向き 1024×600 で、play 画面の操作ボタン行（2×2）が #stage に収まり縦スクロールが出ないこと（Issue #370）。
 // 操作ボタン行は高さ480〜700pxの横向きで2×2（行間16pxで144px。Issue #549）。入りきらず状態ごとにスクロール量が変わるのを防ぐため、
 // 次の4状態すべてで #stage の scrollHeight <= clientHeight を見る（ボタン行は4状態とも同じ高さで、
-// 最も高いのは4つ目のボタンが「↺ もういちど」になる失敗後）。
-//   ①命令トレイ空 ②命令を積んだ状態 ③クリア後の「間」（[data-result-gap]） ④失敗後（もういちど）
+// 最も高いのは4つ目のボタンが「↺ ためしなおす」になる失敗後）。
+//   ①命令トレイ空 ②命令を積んだ状態 ③クリア後の「間」（[data-result-gap]） ④失敗後（ためしなおす）
 
 export const name = 'C11 1024×600: 操作ボタン行が#stageに収まる4状態(Issue #370)';
 import { enterPlay } from '../helpers.mjs';
@@ -46,11 +46,11 @@ export default async function run({ page, check }) {
   await check('③クリア後の間: #stage に収まる', fits, true);
   await page.waitForSelector('[data-action="next-stage"]', { timeout: 4000 });
 
-  // 失敗後（間違った手で実行 → 4つ目が「もういちど」）
+  // 失敗後（間違った手で実行 → 4つ目が「ためしなおす」）
   await enterPlay(page, 'cmd-01-susumu');
   for (const dir of ['down', 'down']) await page.click(`[data-command="${dir}"]`);
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="retry"]', { timeout: 8000 });
-  await check('④失敗後(もういちど): #stage に収まる', fits, true);
-  await check('④失敗後(もういちど): 操作ボタン行は144px', actionsHeight, 144);
+  await check('④失敗後(ためしなおす): #stage に収まる', fits, true);
+  await check('④失敗後(ためしなおす): 操作ボタン行は144px', actionsHeight, 144);
 }

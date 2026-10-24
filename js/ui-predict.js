@@ -54,7 +54,7 @@ export function renderPredict(root, step) {
   boardArea.appendChild(boardWrap);
   const zoom = createZoom({ boardArea, boardWrap });
 
-  // 静的な盤面の再構築。選択前・もういちどの時のみ呼ぶ（結果表示中は足あとを残すため呼ばない）。
+  // 静的な盤面の再構築。選択前・もういちど よそうの時のみ呼ぶ（結果表示中は足あとを残すため呼ばない）。
   function drawStatic(playerPos, labels) {
     local.fit = fitCellSize({ spec, boardArea, noSplit: true });
     local.cellSize = local.fit.cellSize;
@@ -107,12 +107,12 @@ export function renderPredict(root, step) {
           showClearToast(null, { bird, view: local.view });
           actionsEl.innerHTML = '';
           actionsEl.appendChild(createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'));
-          actionsEl.appendChild(createPrimaryButton('もういちど', showQuestion, 'retry-predict'));
+          actionsEl.appendChild(createPrimaryButton('もういちど よそう', showQuestion, 'retry-predict'));
         } else {
           showHint(null, { bird, kind: 'predict', message: RETRY_HINT_MESSAGE });
           actionsEl.innerHTML = '';
           actionsEl.appendChild(createPrimaryButton('つぎへ', () => goToStep(S.stepIndex + 1), 'next'));
-          actionsEl.appendChild(createPrimaryButton('もういちど', showQuestion, 'retry-predict'));
+          actionsEl.appendChild(createPrimaryButton('もういちど よそう', showQuestion, 'retry-predict'));
         }
       },
     });

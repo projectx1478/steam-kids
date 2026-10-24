@@ -111,7 +111,7 @@ export default async function run({ page, check }) {
   await check('鍵なしで赤い扉に当たると、赤の空き枠だけゆれる', () => page.evaluate(() => [...new Set(window.__slotShake)].join()), 'red');
   await check('当たっても扉は閉じたまま', () => doorsOpen(page), 'false,false');
   await clickRetry(page);
-  await check('もういちどでトレイは空き枠に戻る', () => filled(page), '');
+  await check('ためしなおすでトレイは空き枠に戻る', () => filled(page), '');
 
   // --- reduced-motion：ゆらさない ---
   await page.emulateMedia({ reducedMotion: 'reduce' });

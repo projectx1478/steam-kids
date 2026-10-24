@@ -48,7 +48,7 @@ export default async function run({ page, check }) {
 
   // 成功：スイッチを避けてゴール
   await clickRetry(page);
-  await check('もういちどで対象が床(off)・スイッチ未押下に戻る', async () => [(await walls(page)).join(), (await pressed(page)).join()].join('/'), 'off/false');
+  await check('ためしなおすで対象が床(off)・スイッチ未押下に戻る', async () => [(await walls(page)).join(), (await pressed(page)).join()].join('/'), 'off/false');
   for (const c of ['right', 'up', 'right', 'right', 'right', 'down']) await page.click(`[data-command="${c}"]`);
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="next"]', { timeout: 15000 });

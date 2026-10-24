@@ -64,7 +64,7 @@ export default async function run({ page, check }) {
   await check('group：踏まずに進むと連動壁は有効のまま', async () => (await wallStates(page)).join(), 'on,on');
 
   await clickRetry(page);
-  await check('group：もういちどで連動壁・スイッチが初期状態に戻る', async () => [(await wallStates(page)).join(), (await pressed(page)).join()].join('/'), 'on,on/false');
+  await check('group：ためしなおすで連動壁・スイッチが初期状態に戻る', async () => [(await wallStates(page)).join(), (await pressed(page)).join()].join('/'), 'on,on/false');
   await tap(page, ['down', 'down', 'right', 'right', 'up', 'up', 'right', 'right', 'right']);
   await page.click('[data-action="run"]');
   await page.waitForSelector(NEXT, { timeout: 15000 });

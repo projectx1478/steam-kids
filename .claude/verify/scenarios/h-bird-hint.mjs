@@ -100,7 +100,7 @@ export default async function run({ page, check }) {
   await clickRetry(page);
 
   // 失敗後は顔のタップで汎用ヒント（問い文の次）
-  await check('fail後: もういちどの直後は吹き出しなし', () => bubbleShown(page), false);
+  await check('fail後: ためしなおすの直後は吹き出しなし', () => bubbleShown(page), false);
   await page.click('[data-sk-bird="icon"]');
   await check('fail後: 顔のタップで失敗後の汎用ヒントが出る', async () => (await tapHintShown(page)) && FAIL_HINTS.includes(await bubbleText(page)), true);
 }
