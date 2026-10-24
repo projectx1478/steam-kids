@@ -194,6 +194,8 @@ export default async function run({ page, check }) {
   await check('つぎの ステージでp2に入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
 
   // --- なおす系（cmd-03）は「ためしなおす」で初期の「ずれた」列に戻る ---
+  // 先行の操作（冒頭でチップを1個取り消した列）が端末内の下書き（Issue #556）に残り、入り直しで復元されるため消す。
+  await page.evaluate(() => localStorage.removeItem('steamkids.draft.cmd-03-naosu'));
   await enterPlay(page, 'cmd-03-naosu');
   await check('なおすp1は初期状態で3個のチップ', async () => (await page.$$('.command-chip')).length, 3);
   await page.click('[data-action="run"]');
