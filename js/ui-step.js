@@ -134,7 +134,8 @@ function renderHeader() {
   menuTitle.textContent = title.textContent;
   menuChip.textContent = chip.textContent;
   if (!compact) menuDots.innerHTML = '';
-  menuNav.style.display = compact ? 'flex' : 'none';
+  // 離れる(#menu-home)は まとめ 以外のレッスン内の全画面で出す（まとめの出口は本文とバーにあり、メニューは とじる のみ。Issue #574）。
+  menuNav.style.display = currentStep().kind === 'summary' ? 'none' : 'flex';
   // クレジット・ほごしゃの かた はレッスン外（title・map）のみ（Issue #552）。
   // レッスンを離れるとページを読み直すので、戻す処理は要らない。
   for (const id of ['menu-credit-open', 'menu-guardian']) {

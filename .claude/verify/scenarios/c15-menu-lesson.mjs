@@ -63,6 +63,7 @@ export default async function run({ page, check }) {
   await page.goto(`/index.html?lesson=${LESSON}`);
   await page.waitForSelector('[data-action="start"]');
   await outside('intro');
+  await check('intro: 離れる が出る', () => visible('#menu-home'), true);
   await closeMenu();
 
   await enterTutorial(page);
@@ -83,9 +84,19 @@ export default async function run({ page, check }) {
   await clearLesson(page, LESSON);
   await page.waitForFunction(() => document.querySelector('#stage')?.dataset.step === 'summary');
   await outside('まとめ');
+  await check('まとめ: 離れる は出ない（とじる のみ）', () => visible('#menu-home'), false);
+  await check('まとめ: とじる が出る', () => visible('#menu-close'), true);
   await closeMenu();
 
   await enterPlay(page, TEKO);
   await outside('teko play');
+  await check('teko play: 離れる が出る', () => visible('#menu-home'), true);
+  await closeMenu();
+
+  // seedPick（たね選び）。ヘッダの⚙から開く（Issue #574 段A）。
+  await page.goto('/index.html?lesson=cmd-06-practice');
+  await page.waitForSelector('.seed-keypad');
+  await outside('seedPick');
+  await check('seedPick: 離れる が出る', () => visible('#menu-home'), true);
   await closeMenu();
 }
