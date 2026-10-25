@@ -29,7 +29,9 @@ model: opus
 - **G2 合格盤・不合格盤**：`tools/lib/validate/`（入口 `tools/validate-lessons.mjs`）の検査を新設・変更する設計で、検査ごとに `boards/` に合格する盤と不合格になる盤があり、その validate の実行結果（どちらになったか）が渡されている。結果が設計の予想と一致する。検査を変えない設計は「対象外」と根拠。
 - **G3 見本**：画面（色・形・記号・文言・盤面の見た目）を変える Issue で、360px 幅の見本が `mock/` にあり、approved.md に承認の記録がある。画面を変えない Issue は「対象外」と根拠。
 - **G4 検証の時間**：段ごとに generate（生成テスト）を含むかが書かれ、予想秒数があり、`verify:fast` の枠（`tools/verify-fast.mjs` の `TOTAL_MS`）に収まる。
-- **G5 触るファイルと波及更新**：段ごとの触るファイル・関数名に加え、波及して更新が要るもの（テストの期待値、`APP_VERSION`・`CACHE_NAME`・`APP_SHELL` などの版数）が一覧になっている。
+- **G5 触るファイルと波及更新**：段ごとの触るファイル・関数名に加え、波及して更新が要るもの（テストの期待値、`APP_VERSION`・`CACHE_NAME`・`APP_SHELL` などの版数）が一覧になっている。加えて次の2つ。
+  - 要素・ボタン・引数を外したり移したりする設計では、そのセレクタ・id・引数名を js/・test/・.claude/verify/scenarios/ で grep した結果が approved.md に貼られている。状態の旗として使っている参照（disabled・inert の keepEl など）も含め、一覧外の該当が0件である。
+  - 状態遷移表で「現行どおり」や既存の挙動として書いた行が、関数:行と既存 E2E の期待で裏付けられている。
 - **G6 作業場所**：その Issue 専用の worktree が `git worktree list` にあり、main 作業ツリーに未コミットの変更が無い（`review/` 以下と `docs/*-review.md` の未追跡は除く）。
 - **G7 基準件数の増加**：設計が `test/forbidden-baseline.json` の `patterns`・`allow` の数字を上げる、または `excluded` にファイルを足す場合は**重大**（不合格）。ただし、悠さんの承認が approved.md に記録されていれば合格。基準を下げる・変えない設計は合格。
 

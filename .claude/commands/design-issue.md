@@ -23,8 +23,9 @@ argument-hint: <Issue番号を空白区切りで1つ以上> [--roles learner,scr
 ### 0. 事前確認
 1. `git check-ignore review/design/` が該当を返すこと。返さなければ、`.gitignore` に `review/design/` が無いので、止まって報告する。
 2. 各Issueについて `gh issue view <N> --json number,title,body,labels,comments` で本文を取得し、`review/design/<G>/issue.md` に、Issueごとの節に分けて保存する。
-3. 依存先が未完了でも、**設計の段階では止めない**。依存と実装順は、`summary.md` と `approved.md` に書く（実装するときに `/implement-issue` が確認する）。ただし、依存先が存在しない・番号が違うと思われるときは、止まって報告する。
-4. `review/design/<G>/round1/` と `round2/` を作る。既存の `review/principles/` と `review/lesson-ideas/` には書かない。
+3. 前提の測り直し：Issue 本文の計測・「現状」が、Issue を書いた後にマージされた PR（`git --no-pager log --since=<Issue 作成日> origin/main`）で古くなっていないかを確かめる。古ければ、現行コードで測り直してから設計する。
+4. 依存先が未完了でも、**設計の段階では止めない**。依存と実装順は、`summary.md` と `approved.md` に書く（実装するときに `/implement-issue` が確認する）。ただし、依存先が存在しない・番号が違うと思われるときは、止まって報告する。
+5. `review/design/<G>/round1/` と `round2/` を作る。既存の `review/principles/` と `review/lesson-ideas/` には書かない。
 
 ### 1. 役の決定
 - `--roles` があれば、それを使う。
