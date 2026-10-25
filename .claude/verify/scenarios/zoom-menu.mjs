@@ -52,8 +52,9 @@ export default async function run({ page, check }) {
   const outsideBefore = await outsideTouchActions(page);
   await openMenu(page);
   await check('メニューに「がめん」が出る（拡大できる盤）', () => page.isVisible('#menu-zoom-open'), true);
-  await check('メニューの「がめん」と保護者リンクは64px以上', () =>
-    page.$$eval('#menu-zoom-open, #menu-guardian', (bs) => bs.every((b) => b.getBoundingClientRect().height >= 64)), true);
+  await check('メニューの「がめん」は64px以上', () =>
+    page.$$eval('#menu-zoom-open', (bs) => bs.every((b) => b.getBoundingClientRect().height >= 64)), true);
+  await check('レッスン内のメニューに保護者リンクは出ない（Issue #552）', () => page.isVisible('#menu-guardian'), false);
   await check('メニューの拡大は「がめん」1つだけ（おおきく等は並べない）', () =>
     page.$$eval('#gear-menu #zoom-in, #gear-menu #zoom-out, #gear-menu #zoom-all', (bs) => bs.length), 0);
   await page.click('#menu-zoom-open');

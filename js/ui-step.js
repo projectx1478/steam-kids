@@ -135,6 +135,12 @@ function renderHeader() {
   menuChip.textContent = chip.textContent;
   if (!compact) menuDots.innerHTML = '';
   menuNav.style.display = compact ? 'flex' : 'none';
+  // クレジット・ほごしゃの かた はレッスン外（title・map）のみ（Issue #552）。
+  // レッスンを離れるとページを読み直すので、戻す処理は要らない。
+  for (const id of ['menu-credit-open', 'menu-guardian']) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  }
   if (isTrial()) renderTrialBand(back, home);
 }
 
