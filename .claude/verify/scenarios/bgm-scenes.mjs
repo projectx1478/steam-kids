@@ -76,7 +76,7 @@ export default async function run({ page, check }) {
   await check('SWブロック環境では音源URLへのリクエストが無い', async () => blockedAudioReqs.length, 0);
   await check('SW未対応環境では曲なし（skipログ）で動作する', () => hasLog(page, 'skip', 'no-sw'), true);
 
-  // 設定メニューのクレジット（子ども画面。⚙は4場面すべてから開ける）。
+  // 設定メニューのクレジット（子ども画面。⚙は4場面すべてから開ける。クレジットはレッスン外の画面のみ、ここは title で開く）。
   await page.click('#gear-btn');
   await check('⚙メニューに「クレジット」項目がある', () => page.isVisible('#menu-credit-open'), true);
   await check('⚙を開いた直後は「BGM: MusMus」が見えない', () => page.isVisible('#menu-credit-view'), false);

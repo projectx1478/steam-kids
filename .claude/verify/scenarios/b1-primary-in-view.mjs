@@ -74,7 +74,14 @@ export default async function run({ page, check }) {
     await check(`${tag} intro: おてほんを みるが画面内・64px以上`, () => inViewTall('[data-action="demo-replay"]', w, h));
     await check(`${tag} intro: バー内のボタン間隔が16px以上`, barGapsOk);
 
-    // intro の上で確認ダイアログ（ほごしゃの がめん）を開き、バーが覆わない
+    // intro の⚙メニューにほごしゃの かた は出ない（レッスン内。Issue #552）
+    await page.click('#gear-btn');
+    await check(`${tag} intro: ⚙メニューにほごしゃの かたが無い`, () => page.isVisible('#menu-guardian'), false);
+    await page.click('#menu-close');
+
+    // 確認ダイアログ（ほごしゃの がめん）は map（下端バーがある）の⚙から開き、バーが覆わない
+    await page.goto('/index.html?view=map');
+    await page.waitForSelector('[data-lesson-id]');
     await page.click('#gear-btn');
     await page.click('#menu-guardian');
     await page.waitForSelector('.leave-confirm');

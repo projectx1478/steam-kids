@@ -79,10 +79,7 @@ export default async function run({ page, check }) {
     await page.click('[data-action="menu"]');
     await page.waitForSelector('#gear-menu:not([hidden])');
     await scan(tag, '⚙メニュー');
-    await page.click('#menu-guardian');
-    await page.waitForSelector('.leave-confirm');
-    await scan(tag, '確認ダイアログ');
-    await page.click('#guardian-cancel');
+    await page.click('#menu-close');
 
     // --- まとめ・単元マップ ---
     await clearLesson(page, LESSON);
@@ -91,6 +88,13 @@ export default async function run({ page, check }) {
     await page.goto('/index.html?view=map');
     await page.waitForSelector('[data-lesson-id]');
     await scan(tag, '単元マップ');
+    // 確認ダイアログは、レッスン外（map）の⚙から開く（レッスン内のメニューにほごしゃは出ない。Issue #552）
+    await page.click('#gear-btn');
+    await page.waitForSelector('#gear-menu:not([hidden])');
+    await page.click('#menu-guardian');
+    await page.waitForSelector('.leave-confirm');
+    await scan(tag, '確認ダイアログ');
+    await page.click('#guardian-cancel');
   }
 
   // --- 保護者ダッシュボード：下部のボタンへスクロールで届く ---
