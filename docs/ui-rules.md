@@ -68,6 +68,24 @@ UI規則（受け入れ条件。すべて判定可能な数値条件とする）
   進め、最後の1手まで進めるとじっこうと同じ判定（clear／stage_clear／失敗時のロック）になる
   （Issue #111）
 
+## ヘッダ・⚙メニュー構成表（Issue #574）
+
+画面ごとの、ヘッダの要素・⚙の位置・⚙メニューの行。セレクタはバッククォートで書く（`tools/ui-gear-table.mjs` が読み、E2E `ui-gear-table` が実画面の可視ボタンの id・`data-action` と DOM 順を突き合わせる）。画面の行は実物と合わせて更新する。「ヘッダ要素」は画面に見えているものだけ（「なし」＝ヘッダを隠す）。メニュー行の `#menu-zoom-open`（がめん）は盤が小さいときだけ出るので表に書かない。tutorial の⚙は現行のパレット上段右のまま（#574 案X）。
+
+| 画面 | ヘッダ要素 | ⚙位置 | メニュー行 | アイコン・ひらがな |
+|---|---|---|---|---|
+| title | `#gear-btn` | `#gear-btn` | `#menu-credit-open` `#menu-guardian` `#menu-close` | クレジット／ほごしゃの かた／とじる |
+| map | `#gear-btn` | `#gear-btn` | `#menu-credit-open` `#menu-guardian` `#menu-close` | クレジット／ほごしゃの かた／とじる |
+| intro | `#home-btn` `#gear-btn` | `#gear-btn` | `#menu-home` `#menu-close` | 🏠 レッスンせんたくがめん／とじる |
+| predict | `#back-btn` `#home-btn` `#gear-btn` | `#gear-btn` | `#menu-home` `#menu-close` | 同上 |
+| seedPick | `#home-btn` `#gear-btn` | `#gear-btn` | `#menu-home` `#menu-close` | 同上 |
+| play | なし | `[data-action="menu"]` | `#menu-home` `#menu-close` | 同上＋いまの ばしょ |
+| teko | `#back-btn` `#home-btn` `#gear-btn` | `#gear-btn` | `#menu-home` `#menu-close` | 同上 |
+| tutorial | なし | `[data-action="menu"]` | `#menu-home` `#menu-close` | 同上＋いまの ばしょ |
+| summary | `#back-btn` `#home-btn` `#gear-btn` | `#gear-btn` | `#menu-close` | とじる（離れるは出さない） |
+
+⚙の名前は全画面「せってい」。離れるは確認あり＝play・teko、なし＝そのほか。🏠 の除去と play の⚙の欄への移動は #574 の段B・段Cで行い、そのとき表も更新する。
+
 ## 学習体験の判定表（DO / DON'T。Issue #154）
 
 PROJECT.md「学習体験の固定仕様」の3原則を実装で判断するときの基準。

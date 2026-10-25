@@ -125,7 +125,7 @@ P0〜P5のロードマップは `docs/roadmap.md`。**P0を実機で試すまで
 
 ## 7. 関連ドキュメント（docs/）
 
-- `docs/ui-rules.md` — 子ども画面のUI変更時に読む
+- `docs/ui-rules.md` — 子ども画面のUI変更時に読む（ヘッダ・⚙メニューの画面別構成表を含む）
 - `docs/gimmicks.md` — ギミック追加・変更時に読む
 - `docs/learning-spec.md` — 教材実装・レッスン追加時に読む
 - `docs/lesson-schema.md` — 教材・イベント追加時に読む
