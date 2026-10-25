@@ -118,8 +118,8 @@ export function renderPlay(root, step) {
 
   // 画面の枠は共通部品（js/ui-screen.js。Issue #343）。問い文スロット（statusBar＝questionEl）には
   // 実行結果もここへ数秒だけトースト表示する（Issue #97）。
-  const screen = createOpScreen({ root, question: step.text ?? defaultText, stepKey: `${S.lesson.lessonId}:${step.stepId}` });
-  const { frame: opScreen, questionEl: statusBar, boardArea, panel: controls, actions: actionsEl, bird } = screen;
+  const screen = createOpScreen({ root, question: step.text ?? defaultText, stepKey: `${S.lesson.lessonId}:${step.stepId}`, gear: (btn) => { vibrate(); openMenu(btn); } });
+  const { frame: opScreen, questionEl: statusBar, boardArea, panel: controls, actions: actionsEl, bird, gearBtn } = screen;
   // 下段の順・間隔は sk-screen-actions--play（tailwind.src.css）：ぜんぶけす・１つけす｜32px｜1コマ・じっこう（Issue #549）。
   actionsEl.classList.add('sk-screen-actions--play');
   // 顔アイコンのタップのヒント（Issue #468 段2）。「とめる」のあるステージは「とめる」、失敗後は汎用ヒント。paint盤は汎用ヒントを出さない（#468-14d）。
@@ -504,7 +504,6 @@ export function renderPlay(root, step) {
 
   renderCommandPalette(paletteEl, {
     maxPauses,
-    onMenu: openMenu,
     onPause: () => {
       if (local.running || local.stepping || local.locked || local.boxOpen >= 0 || local.commands.filter(isPause).length >= maxPauses) {
         skipClickSfx();
@@ -818,7 +817,7 @@ export function renderPlay(root, step) {
         bird,
         controls,
         lockEl: opScreen,
-        keepEl: paletteEl.querySelector('[data-action="menu"]'),
+        keepEl: gearBtn,
         host: root,
         gapEl: actionsEl,
         view: local.view,

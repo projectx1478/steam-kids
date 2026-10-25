@@ -9,7 +9,7 @@ import { enterTutorial, enterPlay, clearLesson } from '../helpers.mjs';
 const LESSON = 'cmd-01-susumu';
 const TEKO = 'teko-01-tsuriai';
 
-// 開く⚙は、play・れんしゅうではパレットの [data-action="menu"]、ほかはヘッダーの #gear-btn。見えているほうを押す。
+// 開く⚙は、play・れんしゅうでは吹き出し欄右端の [data-action="menu"]、ほかはヘッダーの #gear-btn。見えているほうを押す。
 async function openMenu(page) {
   const gear = page.locator('#gear-btn');
   if (await gear.isVisible()) await gear.click();

@@ -602,6 +602,27 @@ dialog.result-row {
   border: 0;
   cursor: pointer;
 }
+/* 欄右端の⚙（js/ui-screen.js の gear。Issue #574 段C）：64×64、顔との間16px。吹き出しは約192pxを下回らない（内幅344のとき）。 */
+.sk-bird-gear {
+  flex: none;
+  box-sizing: border-box;
+  width: 64px;
+  height: 64px;
+  min-width: 64px;
+  min-height: 64px;
+  margin-left: 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: #fff;
+  color: #475569;
+}
+.sk-screen-bird[data-gear='true'] .sk-bird-bubble {
+  max-width: calc(100% - 152px);
+}
 /* 吹き出し：1行表示。長い文は中の .sk-bird-track を横スライドで見せる。しっぽは右（顔）へ向ける。 */
 .sk-bird-bubble {
   position: relative;

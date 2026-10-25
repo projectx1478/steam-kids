@@ -11,7 +11,8 @@ import { createBird } from './ui-bird.js';
 // stepKey は「同じステージの再挑戦では問い文を自動表示しない」ための識別子（レッスンID＋ステージID。#497-5B）。
 const AUTO_SHOWN = new Set();
 
-export function createOpScreen({ root, question, stepKey }) {
+// gear（省略可）: 渡したときだけ欄の右端に⚙（せってい。data-action="menu"）を置き、押すと gear(ボタン) を呼ぶ（Issue #574 段C）。
+export function createOpScreen({ root, question, stepKey, gear }) {
   const frame = document.createElement('div');
   frame.className = 'sk-screen-frame flex flex-col flex-1 min-h-0 gap-2';
   frame.dataset.skScreen = 'frame';
@@ -36,6 +37,23 @@ export function createOpScreen({ root, question, stepKey }) {
 
   // 小鳥の顔アイコン＋吹き出しの器（Issue #468）。盤面の上の欄に置く（Issue #544）。
   const bird = createBird(birdLane, boardArea);
+
+  // 欄右端の⚙（顔の右、間16px。実行中・ロック中も押せる＝呼び元の一括無効化の対象外）。
+  let gearBtn = null;
+  if (gear) {
+    gearBtn = document.createElement('button');
+    gearBtn.type = 'button';
+    gearBtn.className = 'sk-bird-gear btn-tactile';
+    gearBtn.dataset.action = 'menu';
+    gearBtn.setAttribute('aria-label', 'せってい');
+    gearBtn.setAttribute('aria-haspopup', 'true');
+    gearBtn.setAttribute('aria-expanded', 'false');
+    gearBtn.innerHTML =
+      '<svg viewBox="0 0 24 24" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.6 1H21a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.6 1z" /></svg><span class="text-xs whitespace-nowrap">せってい</span>';
+    gearBtn.addEventListener('click', () => gear(gearBtn));
+    birdLane.dataset.gear = 'true';
+    birdLane.appendChild(gearBtn);
+  }
 
   const panel = document.createElement('div');
   panel.className = 'sk-screen-panel flex flex-col gap-2 shrink-0';
@@ -96,5 +114,5 @@ export function createOpScreen({ root, question, stepKey }) {
     }
   });
 
-  return { frame, questionEl, boardArea, panel, actions, renderQuestion, announceQuestion, bird, setHintProvider };
+  return { frame, questionEl, boardArea, panel, actions, renderQuestion, announceQuestion, bird, setHintProvider, gearBtn };
 }

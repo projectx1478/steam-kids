@@ -28,7 +28,7 @@ const LESSON = {
 };
 
 const area = (page) => page.$eval('[data-sk-screen="board"]', (a) => ({ zoom: a.dataset.zoom, ta: a.style.touchAction }));
-// 歯車はパレットの ⚙（[data-action="menu"]）。拡大は ⚙ → メニューの「がめん」→ ズームバー（Issue #467）。
+// 歯車は吹き出し欄右端の ⚙（[data-action="menu"]）。拡大は ⚙ → メニューの「がめん」→ ズームバー（Issue #467）。
 const openMenu = (page) => page.click('[data-action="menu"]');
 // 盤面エリア以外（パレット・命令列・ページ）の touch-action の計算値。拡大の前後で変わらないことを見る。
 const outsideTouchActions = (page) =>
