@@ -76,15 +76,15 @@ UI規則（受け入れ条件。すべて判定可能な数値条件とする）
 |---|---|---|---|---|
 | title | `#gear-btn` | `#gear-btn` | `#menu-credit-open` `#menu-guardian` `#menu-close` | クレジット／ほごしゃの かた／とじる |
 | map | `#gear-btn` | `#gear-btn` | `#menu-credit-open` `#menu-guardian` `#menu-close` | クレジット／ほごしゃの かた／とじる |
-| intro | `#home-btn` `#gear-btn` | `#gear-btn` | `#menu-home` `#menu-close` | 🏠 レッスンせんたくがめん／とじる |
-| predict | `#back-btn` `#home-btn` `#gear-btn` | `#gear-btn` | `#menu-home` `#menu-close` | 同上 |
-| seedPick | `#home-btn` `#gear-btn` | `#gear-btn` | `#menu-home` `#menu-close` | 同上 |
+| intro | `#gear-btn` | `#gear-btn` | `#menu-home` `#menu-close` | 🏠 レッスンせんたくがめん／とじる |
+| predict | `#back-btn` `#gear-btn` | `#gear-btn` | `#menu-home` `#menu-close` | 同上 |
+| seedPick | `#gear-btn` | `#gear-btn` | `#menu-home` `#menu-close` | 同上 |
 | play | なし | `[data-action="menu"]` | `#menu-home` `#menu-close` | 同上＋いまの ばしょ |
-| teko | `#back-btn` `#home-btn` `#gear-btn` | `#gear-btn` | `#menu-home` `#menu-close` | 同上 |
+| teko | `#back-btn` `#gear-btn` | `#gear-btn` | `#menu-home` `#menu-close` | 同上 |
 | tutorial | なし | `[data-action="menu"]` | `#menu-home` `#menu-close` | 同上＋いまの ばしょ |
-| summary | `#back-btn` `#home-btn` `#gear-btn` | `#gear-btn` | `#menu-close` | とじる（離れるは出さない） |
+| summary | `#back-btn` `#gear-btn` | `#gear-btn` | `#menu-close` | とじる（離れるは出さない） |
 
-⚙の名前は全画面「せってい」。離れるは確認あり＝play・teko、なし＝そのほか。🏠 の除去と play の⚙の欄への移動は #574 の段B・段Cで行い、そのとき表も更新する。
+⚙の名前は全画面「せってい」。離れるは確認あり＝play・teko、なし＝そのほか。ヘッダの 🏠（旧 `#home-btn`）は #574 段Bで除去済み（離れるは⚙メニューの `#menu-home`）。play の⚙の欄への移動は段Cで行い、そのとき表も更新する。
 
 ## 学習体験の判定表（DO / DON'T。Issue #154）
 

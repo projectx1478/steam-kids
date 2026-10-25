@@ -86,7 +86,6 @@ function headerEls() {
   return {
     wrap: document.getElementById('lesson-header'),
     back: document.getElementById('back-btn'),
-    home: document.getElementById('home-btn'),
     title: document.getElementById('lesson-title'),
     chip: document.getElementById('step-kind-chip'),
     // 中央パネル（#gear-menu。Issue #467）内の同等の要素。
@@ -118,11 +117,8 @@ function stepChipLabel(step) {
 // ヘッダー（#stageの外）：タイトル・区分チップ・もどる/えらぶ がめんへボタン。
 // renderStepのたびに更新する（Issue #91）。
 function renderHeader() {
-  const { wrap, back, home, title, chip, menuStage, menuTitle, menuChip, menuDots, menuNav } = headerEls();
+  const { wrap, back, title, chip, menuStage, menuTitle, menuChip, menuDots, menuNav } = headerEls();
   wrap.style.display = 'flex';
-  // home-btnは#lesson-headerの外（ヘッダー右側）にあるため、ここで表示を切り替える
-  // （←ともどるを分けて誤タップを防ぐ配置。Issue #95）。
-  home.style.display = '';
   title.textContent = S.unit ? `${S.unit.title} ・ ${S.lesson.title}` : S.lesson.title;
   chip.textContent = stepChipLabel(currentStep());
   // Tailwindの`flex`ユーティリティ(back.classListが持つ)はUA既定の[hidden]より強いため、
@@ -142,13 +138,12 @@ function renderHeader() {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   }
-  if (isTrial()) renderTrialBand(back, home);
+  if (isTrial()) renderTrialBand(back);
 }
 
 // ためしあそび（Issue #403）：もどる・えらぶ を隠し、画面上部に帯を常時出す（開発者の取り違え防止）。
-function renderTrialBand(back, home) {
+function renderTrialBand(back) {
   back.style.display = 'none';
-  home.style.display = 'none';
   headerEls().menuNav.style.display = 'none';
   if (document.getElementById('trial-band')) return;
   const band = document.createElement('div');
@@ -161,9 +156,8 @@ function renderTrialBand(back, home) {
 // 実行アニメーション中はもどる・えらぶ がめんへを操作させない（playAnimationの開始・終了、
 // および1コマ実行の開始時にui-play.jsから呼ぶ。Issue #111）。
 export function setBackDisabled(disabled) {
-  const { back, home, menuHome } = headerEls();
+  const { back, menuHome } = headerEls();
   back.disabled = disabled;
-  home.disabled = disabled;
   menuHome.disabled = disabled;
 }
 
@@ -187,7 +181,7 @@ function goBack() {
 
 // 🏠 えらぶ がめんへ（ヘッダ・中央パネル共通）。
 function goHome() {
-  if (headerEls().home.disabled) return;
+  if (headerEls().menuHome.disabled) return;
   if (!hasPlayInProgress()) {
     location.href = withDev('./index.html?view=map');
     return;
@@ -200,7 +194,6 @@ export function initSteps() {
   // playでは もどる・えらぶ がめんへ の前に確認ダイアログ（confirmDialog）を挟む（Issue #542）。
   // play以外のステップは即座に遷移する。下書き保持（S.drafts）も併用する（Issue #95）。
   headerEls().back.addEventListener('click', goBack);
-  headerEls().home.addEventListener('click', goHome);
   headerEls().menuHome.addEventListener('click', goHome);
 
   // 端末の戻る（Android戻る・ブラウザ戻る）も「← もどる」と同じく1ステップ戻す。

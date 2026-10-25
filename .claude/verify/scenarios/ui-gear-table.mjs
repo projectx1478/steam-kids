@@ -2,7 +2,7 @@
 // docs/ui-rules.md の「ヘッダ・⚙メニュー構成表」を tools/ui-gear-table.mjs で読み、各画面で
 // 「見えているヘッダ要素の id（DOM順）」「⚙の位置（表のセレクタが見える）」「⚙メニューの行の id（DOM順）」が表と同じことを確かめる。
 // 期待値は isEqual（正規表現は使えない）。期待値なしの check は真偽。
-// 段B・C で 🏠 の除去・play の⚙の移動をしたら、docs の表を直す（このシナリオは表に従う）。
+// 🏠 は段Bで除去済み。段C で play の⚙の移動をしたら、docs の表を直す（このシナリオは表に従う）。
 
 export const name = 'ヘッダ・⚙メニュー構成: docs/ui-rules.md の表と実画面が同じ(Issue #574)';
 import { readFileSync } from 'node:fs';
@@ -20,7 +20,7 @@ const TABLE = Object.fromEntries(parseGearTable(readFileSync(DOCS, 'utf8')).map(
 // 見えているヘッダ要素の id（DOM順）。ヘッダごと隠れる画面（play・tutorial）は []。
 const visibleHeader = (page) =>
   page.evaluate(() =>
-    [...document.querySelectorAll('#back-btn, #home-btn, #gear-btn')].filter((b) => b.checkVisibility()).map((b) => b.id)
+    [...document.querySelectorAll('#back-btn, #gear-btn')].filter((b) => b.checkVisibility()).map((b) => b.id)
   );
 
 // 開いた⚙メニューの行（id が menu- で始まるボタン。DOM順）。#menu-zoom-open は盤が小さいときだけ出るので除く。
