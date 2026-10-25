@@ -114,7 +114,7 @@ function stepChipLabel(step) {
   return `${base} ${idx + 1}/${playSteps.length}`;
 }
 
-// ヘッダー（#stageの外）：タイトル・区分チップ・もどる/えらぶ がめんへボタン。
+// ヘッダー（#stageの外）：タイトル・区分チップ・← まえの がめんへ・⚙。🏠 は #574 段Bで除いた（離れるは⚙メニューの #menu-home）。
 // renderStepのたびに更新する（Issue #91）。
 function renderHeader() {
   const { wrap, back, title, chip, menuStage, menuTitle, menuChip, menuDots, menuNav } = headerEls();
@@ -124,7 +124,7 @@ function renderHeader() {
   // Tailwindの`flex`ユーティリティ(back.classListが持つ)はUA既定の[hidden]より強いため、
   // hidden属性ではなくinline style.displayで確実に隠す。
   back.style.display = S.stepIndex === 0 ? 'none' : '';
-  // 中央パネルの「いまの ばしょ」・まえ・えらぶ（対象画面のみ。ヘッダはまだ残す。ヘッダを隠すのは data-op-compact）。
+  // 中央パネルの「いまの ばしょ」（対象画面のみ。ヘッダはまだ残す。ヘッダを隠すのは data-op-compact）。
   const compact = isCompactStep(currentStep());
   menuStage.hidden = !compact;
   menuTitle.textContent = title.textContent;
@@ -141,7 +141,7 @@ function renderHeader() {
   if (isTrial()) renderTrialBand(back);
 }
 
-// ためしあそび（Issue #403）：もどる・えらぶ を隠し、画面上部に帯を常時出す（開発者の取り違え防止）。
+// ためしあそび（Issue #403）：← と離れる(menuNav) を隠し、画面上部に帯を常時出す（開発者の取り違え防止）。
 function renderTrialBand(back) {
   back.style.display = 'none';
   headerEls().menuNav.style.display = 'none';
@@ -153,7 +153,7 @@ function renderTrialBand(back) {
   document.body.insertBefore(band, document.body.firstChild);
 }
 
-// 実行アニメーション中はもどる・えらぶ がめんへを操作させない（playAnimationの開始・終了、
+// 実行アニメーション中は ← と離れる(#menu-home) を操作させない（playAnimationの開始・終了、
 // および1コマ実行の開始時にui-play.jsから呼ぶ。Issue #111）。
 export function setBackDisabled(disabled) {
   const { back, menuHome } = headerEls();
@@ -179,7 +179,7 @@ function goBack() {
   goToStep(S.stepIndex - 1);
 }
 
-// 🏠 えらぶ がめんへ（ヘッダ・中央パネル共通）。
+// 離れる＝レッスンせんたくがめんへ（⚙メニューの #menu-home。ヘッダの 🏠 は #574 段Bで除いた）。
 function goHome() {
   if (headerEls().menuHome.disabled) return;
   if (!hasPlayInProgress()) {
@@ -191,7 +191,7 @@ function goHome() {
 }
 
 export function initSteps() {
-  // playでは もどる・えらぶ がめんへ の前に確認ダイアログ（confirmDialog）を挟む（Issue #542）。
+  // playでは ← もどる・離れる(#menu-home) の前に確認ダイアログ（confirmDialog）を挟む（Issue #542）。
   // play以外のステップは即座に遷移する。下書き保持（S.drafts）も併用する（Issue #95）。
   headerEls().back.addEventListener('click', goBack);
   headerEls().menuHome.addEventListener('click', goHome);

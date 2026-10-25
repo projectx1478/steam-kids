@@ -3,7 +3,7 @@ export const SYNC_ENDPOINT = 'https://steam-kids-sync.projectx1478.workers.dev';
 
 // service-worker.jsのCACHE_NAMEと同値にする（docs/caching.md）。SWからはimportできず
 // 二重管理になるため、一致は .claude/verify/scenarios/app-version.mjs で機械チェックする。
-export const APP_VERSION = 'steam-kids-cache-v92';
+export const APP_VERSION = 'steam-kids-cache-v93';
 
 // BGM（Issue #378 段2）。音源は ogg のみ。ファイルは公開リポジトリに置かず、Pages デプロイ時に
 // 非公開リポジトリ steam-kids-state から audio/ へ配置する（取得できない環境では曲なしで動作）。

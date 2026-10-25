@@ -38,7 +38,7 @@ export default async function run({ page, check }) {
   await enterPlay(page, LESSON);
 
   await check('「とめる」ボタンがある', () => chipCount(page, '.palette-row > [data-action="pause"]'), 1);
-  await check('上段右に ⚙（せってい）がある', () => chipCount(page, '.palette-row > [data-action="menu"]'), 1);
+  await check('吹き出し欄の右端に ⚙（せってい）がある', () => chipCount(page, '[data-sk-screen="bird-lane"] > [data-action="menu"]'), 1);
   await check('残り回数の表示は2（とめるボタンに統合）', () => page.getAttribute('[data-action="pause"][data-pause-count]', 'data-pause-left'), '2');
   await check('パレットの全ボタンが64px以上で360pxの幅に収まる', () =>
     page.evaluate(() =>

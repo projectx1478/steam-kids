@@ -12,8 +12,8 @@ const SAMPLE = `# x
 
 | 画面 | ヘッダ要素 | ⚙位置 | メニュー行 | アイコン・ひらがな |
 |---|---|---|---|---|
-| intro | \`#back-btn\` \`#gear-btn\` | \`#gear-btn\` | \`#menu-home\` \`#menu-close\` | 🏠 レッスンせんたくがめん |
-| play | なし | \`[data-action="menu"]\` | \`#menu-home\` \`#menu-close\` | せってい |
+| intro | \`#gear-btn\` | \`#gear-btn\` | \`#menu-home\` \`#menu-close\` | 🏠 レッスンせんたくがめん |
+| play | なし | \`[data-sk-screen="bird-lane"] [data-action="menu"]\` | \`#menu-home\` \`#menu-close\` | せってい |
 
 ## 次の見出し
 
@@ -24,8 +24,8 @@ const SAMPLE = `# x
 
 test('表の各行を 画面 / ヘッダ要素 / ⚙位置 / メニュー行 に分ける', () => {
   assert.deepEqual(parseGearTable(SAMPLE), [
-    { screen: 'intro', header: ['#back-btn', '#gear-btn'], gear: '#gear-btn', menu: ['#menu-home', '#menu-close'] },
-    { screen: 'play', header: [], gear: '[data-action="menu"]', menu: ['#menu-home', '#menu-close'] },
+    { screen: 'intro', header: ['#gear-btn'], gear: '#gear-btn', menu: ['#menu-home', '#menu-close'] },
+    { screen: 'play', header: [], gear: '[data-sk-screen="bird-lane"] [data-action="menu"]', menu: ['#menu-home', '#menu-close'] },
   ]);
 });
 
