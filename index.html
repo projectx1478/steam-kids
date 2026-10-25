@@ -18,11 +18,7 @@
       </div>
     </div>
     <div class="flex items-center gap-2 ml-auto">
-    <!-- 🏠は#lesson-headerの外（もどると離れた右側）に置く。誤タップで両方押してしまうのを
-         防ぐための配置分離（確認ダイアログ全廃の代わり。Issue #95） -->
-    <button id="home-btn" type="button" data-action="home" aria-label="レッスンせんたくがめん" style="display:none"
-      class="min-w-[64px] min-h-[64px] flex items-center justify-center rounded-lg bg-white shadow text-xl transition-transform duration-100 active:scale-95 disabled:opacity-40">🏠</button>
-    <!-- 歯車メニュー（Issue #389）。🏠との間隔24px（ml-4＋gap-2）で誤タップを防ぐ。
+    <!-- 歯車メニュー（Issue #389）。離れる(🏠)は⚙メニューの #menu-home に一本化（Issue #574）。
          開いている間は #menu-overlay が全面を覆い、盤面・じっこうボタンへのタップを受け止める。 -->
     <div class="relative z-50 ml-4">
       <button id="gear-btn" type="button" aria-label="せってい" aria-haspopup="true" aria-expanded="false"

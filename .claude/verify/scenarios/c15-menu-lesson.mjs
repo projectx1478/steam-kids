@@ -26,8 +26,17 @@ const smallButtons = (page) =>
   );
 
 export default async function run({ page, check }) {
-  await page.unroute(`**/lessons/${LESSON}.json`);
   await page.setViewportSize({ width: 360, height: 640 });
+
+  // predict は凍結fixtureの cmd-01（intro → predict）でしか見られないので、実JSONに替える前に見る（ui-gear-table と同じ）。
+  await page.goto(`/index.html?lesson=${LESSON}`);
+  await page.click('[data-action="start"]');
+  await page.waitForFunction(() => document.querySelector('#stage')?.dataset.step === 'predict');
+  await openMenu(page);
+  await check('predict: 離れる が出る', () => page.isVisible('#menu-home'), true);
+  await page.click('#menu-close');
+
+  await page.unroute(`**/lessons/${LESSON}.json`);
 
   const closeMenu = () => page.click('#menu-close');
   const visible = (sel) => page.isVisible(sel);

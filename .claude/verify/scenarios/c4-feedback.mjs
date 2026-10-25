@@ -34,7 +34,9 @@ export default async function run({ page, check }) {
   // --- 1. ヘッダー（タイトル・区分チップ・もどる・えらぶ がめんへ）・introのデモ ---
   await page.goto('/index.html?lesson=cmd-03-naosu');
   await check('introではもどるが非表示', async () => page.isHidden('#back-btn'));
-  await check('introでも えらぶ がめんへ は表示される', async () => page.isVisible('#home-btn'));
+  await page.click('#gear-btn');
+  await check('introでも ⚙メニューに えらぶ がめんへ（離れる）が表示される（Issue #574）', async () => page.isVisible('#menu-home'));
+  await page.click('#menu-close');
   await check('ヘッダーに単元名・レッスン名が表示される', async () => page.textContent('#lesson-title'), 'めいれいでうごかす ・ なおす');
   await check('introの区分チップ「はじめに」', async () => page.textContent('#step-kind-chip'), 'はじめに');
   await check('introにゴールデモが表示される', async () => (await page.$$('.demo-widget[data-demo="goal"]')).length, 1);
@@ -64,7 +66,9 @@ export default async function run({ page, check }) {
   // 戻るはtutorial(fix)を飛ばしてintroへ戻る（Issue #236）。
   await check('確認の「もどる」でintroへ戻る', async () => page.getAttribute('#stage', 'data-step'), 'intro');
 
-  await page.click('#home-btn');
+  await page.click('#gear-btn');
+  await page.click('#menu-home');
+  await page.waitForSelector('[data-screen="picker"]');
   await check('introでは えらぶ がめんへ が確認無しで即座に遷移する', async () => page.url().endsWith('/index.html?view=map'));
 
   // --- 2. playの失敗ヒント（壁）・その場でためしなおす・ひとつ けす ---
