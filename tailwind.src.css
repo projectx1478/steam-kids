@@ -683,7 +683,8 @@ dialog.result-row {
 .sk-bird-bubble[hidden] {
   display: none;
 }
-/* index.html は hidden と .flex を併記しており、.flex が UA の [hidden] を上書きするため（#540・#543） */
+/* index.html は hidden と .flex を併記しており、.flex が UA の [hidden] を上書きするため（#540・#543・#577） */
+#menu-main[hidden],
 #menu-credit-view[hidden] {
   display: none;
 }
