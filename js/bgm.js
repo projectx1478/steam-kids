@@ -45,6 +45,7 @@ let scene = null; // 現在の場面（'title'|'map'|'play'|'clear'。未設定�
 let started = false; // 最初のジェスチャーがあったか
 let active = null; // 再生中 { name, audio, target }
 let fadeTimer = null;
+let fadingOut = null; // フェードアウト中の前の曲（無ければnull。フェード中断時の取り残し解放用）
 
 let playingName = null; // 'playing'は短いループ曲で巻き戻しのたびに再発火するため、同名は1回だけ記録する
 
@@ -75,10 +76,31 @@ function stopFade() {
   }
 }
 
+// 曲の停止と解放。released で冪等（完了処理と取り残し解放が競合しても害なし）。
+function releaseTrack(t) {
+  if (t.released) return;
+  t.released = true;
+  t.audio.pause();
+  t.audio.removeAttribute('src');
+  t.audio.load();
+}
+
+// フェード完了：interval を止め、フェードアウト中だった前の曲を解放する。
+function finishFade() {
+  stopFade();
+  if (fadingOut) {
+    releaseTrack(fadingOut);
+    fadingOut = null;
+  }
+}
+
 // crossfadeTo(name): 場面の曲へ約0.5秒でクロスフェード。nullならフェードアウトだけ。
 // 前の曲はフェード後に止めて解放する。曲の読み込み失敗は error イベントで無音のまま扱う。
 function crossfadeTo(name) {
+  const stale = fadingOut;
+  fadingOut = null;
   stopFade();
+  if (stale) releaseTrack(stale);
   if (!swOk) return;
   const prev = active;
   if (name && prev?.name === name) return;
@@ -86,23 +108,20 @@ function crossfadeTo(name) {
   if (!next) {
     active = null;
     if (!prev) return;
+    fadingOut = prev;
     const from = prev.audio.volume;
     let t = 0;
     fadeTimer = setInterval(() => {
       t += FADE_STEP_MS;
       const p = Math.min(t / BGM_FADE_MS, 1);
       prev.audio.volume = Math.max(0, from * (1 - p));
-      if (p >= 1) {
-        stopFade();
-        prev.audio.pause();
-        prev.audio.removeAttribute('src');
-        prev.audio.load();
-      }
+      if (p >= 1) finishFade();
     }, FADE_STEP_MS);
     return;
   }
   active = next;
   next.audio.play().catch(() => {});
+  fadingOut = prev;
   const from = prev ? prev.audio.volume : 0;
   let t = 0;
   fadeTimer = setInterval(() => {
@@ -110,14 +129,7 @@ function crossfadeTo(name) {
     const p = Math.min(t / BGM_FADE_MS, 1);
     if (prev) prev.audio.volume = Math.max(0, from * (1 - p));
     next.audio.volume = next.target * p;
-    if (p >= 1) {
-      stopFade();
-      if (prev) {
-        prev.audio.pause();
-        prev.audio.removeAttribute('src');
-        prev.audio.load();
-      }
-    }
+    if (p >= 1) finishFade();
   }, FADE_STEP_MS);
 }
 
@@ -146,6 +158,10 @@ export function setScene(name) {
 function pauseActive(reason) {
   log('pause', reason);
   stopFade();
+  if (fadingOut) {
+    releaseTrack(fadingOut);
+    fadingOut = null;
+  }
   active?.audio.pause();
 }
 
