@@ -59,7 +59,14 @@ export default async function run({ page, check }) {
   await page.click('#menu-credit-open');
   await check('title: クレジット側の ほごしゃの かた・とじる が見える', () =>
     page.evaluate(() => ['menu-credit-guardian', 'menu-credit-close'].every((id) => document.getElementById(id).checkVisibility())), true);
+  const shown = (id) => page.evaluate((i) => document.getElementById(i).checkVisibility(), id);
+  await check('title: クレジット側のみ（本体側は見えない）', async () =>
+    [await shown('menu-main'), await shown('menu-credit-view')], [false, true]);
   await page.click('#menu-credit-close');
+  await openMenu(page);
+  await check('title: 開き直すと本体側のみ（クレジット側は見えない）', async () =>
+    [await shown('menu-main'), await shown('menu-credit-view')], [true, false]);
+  await page.click('#menu-close');
 
   await page.goto('/index.html?view=map');
   await page.waitForSelector('[data-lesson-id]');
