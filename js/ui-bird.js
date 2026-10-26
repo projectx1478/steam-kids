@@ -50,9 +50,9 @@ export function createBird(laneEl, boardArea) {
   function hideBubble() {
     pending = null;
     nudgeId += 1;
+    trackEl.scrollLeft = 0; // hidden にした後では無視されるので、先に戻す（#560）
     bubbleEl.hidden = true;
     trackEl.textContent = '';
-    trackEl.scrollLeft = 0;
     delete bubbleEl.dataset.more;
     attrKeys.forEach((k) => delete bubbleEl.dataset[k]);
     attrKeys = [];
