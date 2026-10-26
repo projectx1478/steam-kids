@@ -2,7 +2,7 @@
 // editor-generate-panel と同じく、このシナリオ内でエディタのサーバーを空きポートで起動し、/api/generate は固定応答にする。
 import { startEditorServer } from '../../../tools/editor/serve.mjs';
 
-export const name = '盤面エディタ: たたき台に周期ドア（単独のみ・範囲1〜2・送信本文）(Issue #496)';
+export const name = '盤面エディタ: たたき台に周期ドア（1種まで・範囲1〜2・送信本文）(Issue #496)';
 
 export default async function run({ page, check }) {
   const server = await startEditorServer({ port: 0 });
@@ -27,7 +27,7 @@ export default async function run({ page, check }) {
 
     await page.check('#gen-periodic-on');
     await page.selectOption('#gen-teach', 'periodic');
-    await check('どんぐりと いっしょだと「つくる」は無効', () => disabled('#gen-run'), true);
+    await check('どんぐりと いっしょでも「つくる」は有効（1種まで）', () => disabled('#gen-run'), false);
     await page.uncheck('#gen-items-on');
     await check('周期ドアだけなら「つくる」が有効', () => disabled('#gen-run'), false);
     await page.fill('#gen-periodic-max', '3');

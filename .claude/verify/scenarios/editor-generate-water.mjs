@@ -2,7 +2,7 @@
 // editor-generate-panel と同じく、このシナリオ内でエディタのサーバーを空きポートで起動し、/api/generate は固定応答にする。
 import { startEditorServer } from '../../../tools/editor/serve.mjs';
 
-export const name = '盤面エディタ: たたき台に水（単独のみ・範囲2〜8・送信本文）(Issue #494)';
+export const name = '盤面エディタ: たたき台に水（1種まで・範囲2〜8・送信本文）(Issue #494)';
 
 export default async function run({ page, check }) {
   const server = await startEditorServer({ port: 0 });
@@ -28,7 +28,11 @@ export default async function run({ page, check }) {
     await page.check('#gen-water-on');
     await page.fill('#gen-water-min', '2');
     await page.selectOption('#gen-teach', 'water');
-    await check('どんぐりと いっしょだと「つくる」は無効', () => disabled('#gen-run'), true);
+    await check('どんぐりと いっしょでも「つくる」は有効（1種まで）', () => disabled('#gen-run'), false);
+    await page.check('#gen-periodic-on');
+    await check('水と周期ドアの同時指定は「つくる」が無効', () => disabled('#gen-run'), true);
+    await page.uncheck('#gen-periodic-on');
+    await check('周期ドアを外すと「つくる」が有効に戻る', () => disabled('#gen-run'), false);
     await page.uncheck('#gen-items-on');
     await check('水だけなら「つくる」が有効', () => disabled('#gen-run'), false);
     await page.fill('#gen-water-max', '9');
