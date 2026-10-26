@@ -11,6 +11,13 @@ async function clearByStepping(page) {
   for (let i = 0; i < 10 && (await page.$('[data-action="step"]')); i += 1) await page.click('[data-action="step"]');
 }
 
+// 直前の up が保存した下書きが enterPlay で復元されないよう、下書きのキーを消す（Issue #583）。
+async function clearDrafts(page) {
+  await page.evaluate(() => {
+    for (const k of Object.keys(localStorage)) if (k.includes('draft.')) localStorage.removeItem(k);
+  });
+}
+
 export default async function run({ page, check }) {
   await page.unroute('**/lessons/cmd-01-susumu.json');
   await page.setViewportSize({ width: 360, height: 640 });
@@ -71,6 +78,7 @@ export default async function run({ page, check }) {
 
   // --- play: つぎの ステージ → 外れる ---
   await page.goto('/index.html?lesson=cmd-01-susumu');
+  await clearDrafts(page);
   await enterPlay(page, 'cmd-01-susumu');
   await clearByStepping(page);
   await page.waitForSelector('[data-action="next-stage"]', { timeout: 4000 });
@@ -85,6 +93,7 @@ export default async function run({ page, check }) {
 
   // --- play: ダイアログ表示中の「← もどる」→ 外れる ---
   await page.reload();
+  await clearDrafts(page);
   await enterPlay(page, 'cmd-01-susumu');
   await clearByStepping(page);
   await page.waitForSelector('[data-result-dialog]', { timeout: 4000 });
@@ -97,6 +106,7 @@ export default async function run({ page, check }) {
   await check('もどる(ダイアログ表示中): ダイアログ・inert・relative が残らない', noLeftovers, clean);
 
   // --- play: 間の最中の「← もどる」→ 外れる ---
+  await clearDrafts(page);
   await enterPlay(page, 'cmd-01-susumu');
   await clearByStepping(page);
   await page.waitForSelector('[data-result-gap]');
