@@ -60,6 +60,7 @@ function createTrack(name) {
     if (active?.audio === audio) active = null;
   });
   audio.addEventListener('playing', () => {
+    if (active?.audio !== audio) return; // 今鳴っている曲だけ記録する（フェード中の前の曲の再発火で上書きしない。#584）
     if (playingName === name) return;
     playingName = name;
     log('play', name);
