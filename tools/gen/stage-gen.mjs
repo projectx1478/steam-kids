@@ -435,7 +435,7 @@ export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts 
       if (!placed) continue;
       spec = { ...spec, warps: placed };
     }
-    // water は warps の後ろ（順序：水→色ぬり→周期ドア。単独指定なので他は無い）。範囲未指定なら乱数を引かない。
+    // water は warps の後ろ（順序：水→色ぬり→周期ドア。warps・periodic・water は1種までなので同時には来ない。色ぬりは水とだけ併用）。範囲未指定なら乱数を引かない。
     // 水は状態を増やさないので、見積りは 水なし・水ありの探索 2 回分（マス数 × 4）。waterMode は cushion 固定。
     const waterCount = gim.water ? countOf(rng, gim.water) : 0;
     if (waterCount > 0) {
@@ -452,7 +452,7 @@ export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts 
       if (!placed) continue;
       spec = { ...spec, periodic: placed };
     }
-    // paint は periodic の後ろ（単独なので他は無い）。範囲未指定なら乱数を引かない。目標マス数は 4〜8（検査側）。
+    // paint は periodic の後ろ（水とだけ併用できる。periodic とは同時に来ない）。範囲未指定なら乱数を引かない。目標マス数は 4〜8（検査側）。
     // 塗り集合は目標外で枝刈りされるので、状態数の見積りは マス数 × 目標マス数 × 8。
     const paintLen = gim.paint ? countOf(rng, gim.paint) : 0;
     if (paintLen > 0) {
