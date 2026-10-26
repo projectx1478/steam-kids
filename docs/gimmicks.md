@@ -104,7 +104,7 @@
 - JSONフィールド：`warps`（任意・`{x, y, pair}`の配列・既定`[]`）。`pair`は1か2。同じ`pair`の穴がちょうど2個で1組。組は最大2。`play`・`tutorial`・`intro.demo`で使える
 - 移動規則：穴のマスへ入ると、同じ`pair`のもう一方の穴へ移って止まる（向きは変えない）。同じ手の中では出口から再ワープしない。後の手で出口へ入ると、逆向き（元の入口）へワープする。ワープ自体は手数に数えない（`## 何を1手と数えるか`）。状態を持たず、クリア条件は変えない（`redirect`フックの`end: true`）
 - 描画：穴のセルにうずまきのSVGを重ね`data-warp`（組の番号 1|2）・`data-mark`（`star`＝1組目・`square`＝2組目）を付ける。色は組ごとに紫・橙で、形（★■）でも見分けがつく
-- 数値条件：盤面の大きさは盤面共通の20×20以内。穴は盤内・整数で、壁・start・goal・items・cushion・water・bridge・keys・doors・switches（targetsを含む）・groupWalls・穴同士・ice・periodicと重ならない（同じマスの重なりは検証NG）。ice・paint・periodicとは別のマスなら併用できる（#529。併用盤はエディタ限定でレッスンには出さない）。ぬりの目標が穴に当たる盤は、必須性の判定で穴を目標から除いて再判定する。stageGenでは`warps`は`periodic`・`water`と同時に指定できず（この3つは1種まで）、どんぐり・こおり・かぎ・クッション・スイッチ・`paint`・`groupRepeats`・`repeatBox`とは併用不可（検証NG）
+- 数値条件：盤面の大きさは盤面共通の20×20以内。穴は盤内・整数で、壁・start・goal・items・cushion・water・bridge・keys・doors・switches（targetsを含む）・groupWalls・穴同士・ice・periodicと重ならない（同じマスの重なりは検証NG）。ice・paint・periodicとは別のマスなら併用できる（#529。併用盤はエディタ限定でレッスンには出さない）。ぬりの目標が穴に当たる盤は、必須性の判定で穴を目標から除いて再判定する。stageGenでは`warps`は`periodic`・`water`と同時に指定できず（この3つは1種まで）、どんぐり・こおり・かぎ・クッション・スイッチ・壁`walls`とは併用できる。`paint`・`groupRepeats`・`repeatBox`とは併用不可（検証NG）
 
 ## 何を1手と数えるか
 - 1手＝コマ1つ分の移動。
