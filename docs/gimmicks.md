@@ -56,7 +56,7 @@
 - 移動規則：水は通行不可のマス（`blocks`）。`waterMode`が`"cushion"`なら`soft`になり、当たったら手前で止まり失敗にしない（`## cushion`と同じ。命令1つは無駄）。`"bump"`なら壁と同じ失敗（`blockedAt`・`bumped`）。壁・盤外は従来どおり失敗。BFS（最短手数）は動けない手を採らない
 - 描画：水のセルに波のSVGを重ね`data-water="true"`、橋のセルに板橋のSVGを重ね`data-bridge="true"`・`data-bridge-dir`（`h`横／`v`縦。上下に水があれば横、左右に水があれば縦、それ以外は横）を付ける。隣り合うタイルは各辺2pxずつ広げて枠の色を見せずにつなげる。水で止まると`view.bounce(dir, 'water')`（水しぶき＋困り顔）と効果音`splash`
 - 数値条件：水は盤内・重複不可で、壁・start・goal・items・ice・cushion・keys・doors・switches（targetsを含む）・paint・periodicと重ならない（併用自体は可）。橋は盤内・重複不可で、water・壁・cushion・doors・switches.targetsと重ならず、上下左右に水が1つ以上ある。`waterMode`は`"cushion"`/`"bump"`以外はNG、`water`が空のときの指定もNG
-- stageGen：`water`は単独で指定する。ただし`paint`とだけ併用できる（`## paint`のstageGen参照）。壁`walls`は従来どおり併用可。他のギミック・`groupRepeats`・`repeatBox`とは併用不可。水マス数は2〜8。`waterMode`は入力にせず、`"cushion"`固定で出力する。水は連続した帯＋1マスの隙間（隙間が橋＝最短経路上）。橋は最短確定後、最短経路上で置けるときのみ置く（置けなければ橋なし）。`repeatBox`・`groupRepeats`は生成しない。`teach`には`water`のみ指定できる。
+- stageGen：`water`は`warps`・`periodic`と同時に指定できない（この3つは1種まで）。どんぐり・こおり・かぎ・クッション・スイッチとは併用できる。`paint`とは併用できる（`## paint`のstageGen参照）。壁`walls`は従来どおり併用可。`groupRepeats`・`repeatBox`とは併用不可。水マス数は2〜8。`waterMode`は入力にせず、`"cushion"`固定で出力する。水は連続した帯＋1マスの隙間（隙間が橋＝最短経路上）。橋は最短確定後、最短経路上で置けるときのみ置く（置けなければ橋なし）。`repeatBox`・`groupRepeats`は生成しない。`teach`には`water`のみ指定できる。
 
 ## keys（かぎとドア）
 
@@ -104,7 +104,7 @@
 - JSONフィールド：`warps`（任意・`{x, y, pair}`の配列・既定`[]`）。`pair`は1か2。同じ`pair`の穴がちょうど2個で1組。組は最大2。`play`・`tutorial`・`intro.demo`で使える
 - 移動規則：穴のマスへ入ると、同じ`pair`のもう一方の穴へ移って止まる（向きは変えない）。同じ手の中では出口から再ワープしない。後の手で出口へ入ると、逆向き（元の入口）へワープする。ワープ自体は手数に数えない（`## 何を1手と数えるか`）。状態を持たず、クリア条件は変えない（`redirect`フックの`end: true`）
 - 描画：穴のセルにうずまきのSVGを重ね`data-warp`（組の番号 1|2）・`data-mark`（`star`＝1組目・`square`＝2組目）を付ける。色は組ごとに紫・橙で、形（★■）でも見分けがつく
-- 数値条件：盤面の大きさは盤面共通の20×20以内。穴は盤内・整数で、壁・start・goal・items・cushion・water・bridge・keys・doors・switches（targetsを含む）・groupWalls・穴同士・ice・periodicと重ならない（同じマスの重なりは検証NG）。ice・paint・periodicとは別のマスなら併用できる（#529。併用盤はエディタ限定でレッスンには出さない）。ぬりの目標が穴に当たる盤は、必須性の判定で穴を目標から除いて再判定する。stageGenでは`warps`単独で指定し、`groupRepeats`とも併用不可（検証NG）
+- 数値条件：盤面の大きさは盤面共通の20×20以内。穴は盤内・整数で、壁・start・goal・items・cushion・water・bridge・keys・doors・switches（targetsを含む）・groupWalls・穴同士・ice・periodicと重ならない（同じマスの重なりは検証NG）。ice・paint・periodicとは別のマスなら併用できる（#529。併用盤はエディタ限定でレッスンには出さない）。ぬりの目標が穴に当たる盤は、必須性の判定で穴を目標から除いて再判定する。stageGenでは`warps`は`periodic`・`water`と同時に指定できず（この3つは1種まで）、どんぐり・こおり・かぎ・クッション・スイッチ・壁`walls`とは併用できる。`paint`・`groupRepeats`・`repeatBox`とは併用不可（検証NG）
 
 ## 何を1手と数えるか
 - 1手＝コマ1つ分の移動。
@@ -129,7 +129,7 @@
 - 必須性：ドアを常に開とみなした最短手数より、実際の最短手数が長くなければ不合格。
 - 周期ドアのある盤面でrepeatBoxは使えない（箱の展開が手番の周期をまたぐため。検証NGのまま）。groupRepeatsとは併用できる（#529。併用盤はエディタ限定）。ワープ・氷など他のマスと同じマスには置けない（重なりは検証NG。ワープとの重なりも含む）。
 - 盤面の大きさは盤面共通の20×20以内。
-- stageGen：`periodic`単独で指定する（壁`walls`のみ併用可。他のギミック・`groupRepeats`・`repeatBox`とは併用不可）。ドア数は1〜2、生成する`period`は3・4のみ（2は生成しない）。
+- stageGen：`periodic`は`warps`・`water`と同時に指定できない（この3つは1種まで）。どんぐり・こおり・かぎ・クッション・スイッチ・壁`walls`とは併用できる。`paint`・`groupRepeats`・`repeatBox`とは併用不可。ドア数は1〜2、生成する`period`は3・4のみ（2は生成しない）。
 - 見せ方：ドアの下端に、周期の数だけドットを横一列に並べ、開閉のタイミングを示す。左から手番0。色は周期2＝青・赤、周期3＝青・黄・赤、周期4＝青・青・黄・赤（青＝開、黄・赤＝閉）。青は#0072B2、黄は#F0E442（濃い縁つき）、赤は#D55E00。現在の手番は黒の太縁で示す。色だけに頼らず形でも区別する（青は塗りの丸●、黄は塗りの三角▲、赤は塗りの四角■）。半開きアニメ・音は保留（実機確認後に決める）。
 
 ## エディタ自動判定の見込み（#400 向け・#389 の測定）
