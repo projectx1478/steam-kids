@@ -9,7 +9,7 @@ Issue #$ARGUMENTS を実装する。あなた（メインセッション）は�
 - 1 Issue = 1 PR = 1セッション。
 - `git` は `--no-pager` を付ける。`git add` は**必ずパスを指定する**（`.` は使わない）。PowerShell で動く書き方にする。
 - 触らないもの：`.claude/`（設計に書かれた `.claude/verify/` のシナリオを除く）、`PROJECT.md`、`CLAUDE.md`、`AGENTS.md`、凍結fixture（cmd-01・donguri-01）、`config.mjs`、`review/`。PROJECT.md の文言変更を伴う Issue（#254 など）は、差分を見せるところまでで、悠さんが承認する。
-- E2E はローカルで実行しない（CIのみ）。
+- E2E はローカルで実行しない（CIのみ）。ただし CI・夜間の失敗の原因調査では、該当シナリオ1本（全件は不可）を `E2E_LOCAL=1` で手元実行してよい（AGENTS.md の文言が更新されるまでは AGENTS.md を優先し、悠さんの指示があるときに限る）。
 - マージはしない。マージ判定は悠さんの責務。
 - モデルを黙って切り替えたり、設計を変えたりしない。
 - **ターン数を減らす**：メインは大きいファイル（`style.css`、`js/ui-*.js`、`tools/lib/validate/` など）を自分で読まない。読み込みと調査はサブエージェントに任せる。`style.css` は読まず、差分も `git diff --stat` で見る。サブエージェントへの指示は1回にまとめ、報告は短く求める。

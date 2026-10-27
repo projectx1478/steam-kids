@@ -17,7 +17,7 @@ Issue #$ARGUMENTS を、軽い経路で実装する。サブエージェント�
 - `git` は `--no-pager` を付ける。`git add` は**必ずパスを指定する**（`.` は使わない）。PowerShell で動く書き方にする。CLAUDE.md の規則に従う。
 - 触らないもの：`.claude/`、`CLAUDE.md`、`AGENTS.md`、凍結fixture（cmd-01・donguri-01）、`config.mjs`、`review/`。`PROJECT.md` は、Issue本文が変更を求めているときだけ変える。その場合は仕様確定にあたるので、差分を見せるところまでで、悠さんが承認する。12,000字以内であることを確認して報告する。
 - Issueに書かれていない変更をしない。曖昧なら止まって質問する。
-- E2E はローカルで実行しない（CIのみ）。マージはしない。
+- E2E はローカルで実行しない（CIのみ）。ただし CI・夜間の失敗の原因調査では、該当シナリオ1本（全件は不可）を `E2E_LOCAL=1` で手元実行してよい（AGENTS.md の文言が更新されるまでは AGENTS.md を優先し、悠さんの指示があるときに限る）。マージはしない。
 - **ターン数を減らす**：`style.css`・`js/ui-*.js`・`tools/validate-lessons.mjs` などの大きいファイルは全文を読まず、`Grep` と行範囲の指定で必要な箇所だけ読む。`style.css` は読まず、差分も `git diff --stat` で見る。編集の対象は `tailwind.src.css`。
 
 ## 手順
