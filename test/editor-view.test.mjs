@@ -1,7 +1,7 @@
 // #397 段2: 盤面エディタの cellPx（マス大きさ）の丸め・範囲。実行: npm run test:unit
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { clampCellPx, wheelCellPx, zoomPercent, CELL_PX_MIN, CELL_PX_MAX, CELL_PX_DEFAULT, SAMPLE_SPEC, EMPTY_SPEC, EDITOR_MAX_SIZE, pendingSwitches, switchModeOptions, switchGroupOptions, pendingGroupSwitches, pendingKeys, pendingBridges, pendingPaint } from '../tools/editor/editor-view.js';
+import { clampCellPx, wheelCellPx, zoomPercent, CELL_PX_MIN, CELL_PX_MAX, CELL_PX_DEFAULT, SAMPLE_SPEC, EMPTY_SPEC, EDITOR_MAX_SIZE, pendingSwitches, switchModeOptions, switchGroupOptions, pendingGroupSwitches, pendingKeys, pendingBridges, pendingPaint, selectionHint } from '../tools/editor/editor-view.js';
 import { analyzeSpec } from '../tools/editor/validate-worker.mjs';
 
 test('editor-view: clampCellPx は正の整数で範囲内に収める', () => {
@@ -103,4 +103,22 @@ test('editor-view: pendingPaint は目標に含まれない start・goal だけ'
   assert.deepEqual(pendingPaint({ ...base, paint: [{ x: 1, y: 0 }] }), [{ kind: 'start', x: 0, y: 0 }, { kind: 'goal', x: 3, y: 3 }]);
   assert.deepEqual(pendingPaint({ ...base, paint: [{ x: 0, y: 0 }] }), [{ kind: 'goal', x: 3, y: 3 }]);
   assert.deepEqual(pendingPaint({ ...base, paint: [{ x: 0, y: 0 }, { x: 3, y: 3 }] }), []);
+});
+
+test('editor-view: selectionHint は選択中のスイッチ・かぎ・ドア・周期ドアの案内を返す', () => {
+  const spec = { switches: [{ x: 1, y: 1 }, { x: 2, y: 2, group: 'g1' }], keys: [{ x: 3, y: 3, color: 'red' }], doors: [{ x: 4, y: 4, color: 'red' }], periodic: [{ x: 0, y: 0, period: 2 }] };
+  assert.equal(selectionHint(spec, 'switches', { x: 1, y: 1 }, null), 'スイッチ (1,1) を選択中：空きマスを押すと壁をつなぎます（はずすにはスイッチをもう一度押す）');
+  assert.equal(selectionHint(spec, 'switches', { x: 2, y: 2 }, null), 'スイッチ (2,2) を選択中：空きマスを押すとgroup「g1」の壁をつなぎます（はずすにはスイッチをもう一度押す）');
+  assert.equal(selectionHint(spec, 'keys', null, { kind: 'keys', x: 3, y: 3 }), 'かぎ (3,3) を選択中：空きマスを押すと新しいかぎを置きます（もう一度押すと選択解除）');
+  assert.equal(selectionHint(spec, 'doors', null, { kind: 'doors', x: 4, y: 4 }), 'ドア (4,4) を選択中：空きマスを押すと新しいドアを置きます（もう一度押すと選択解除）');
+  assert.equal(selectionHint(spec, 'periodic', null, { kind: 'periodic', x: 0, y: 0 }), '周期ドア (0,0) を選択中：空きマスを押すと新しい周期ドアを置きます（もう一度押すと選択解除）');
+});
+
+test('editor-view: selectionHint は未選択・別パレット・実在しない選択で空', () => {
+  const spec = { switches: [{ x: 1, y: 1 }], keys: [], doors: [] };
+  assert.equal(selectionHint(spec, 'switches', null, null), '');
+  assert.equal(selectionHint(spec, 'walls', { x: 1, y: 1 }, null), '');
+  assert.equal(selectionHint(spec, 'switches', { x: 9, y: 9 }, null), '');
+  assert.equal(selectionHint(spec, 'keys', null, { kind: 'keys', x: 3, y: 3 }), '');
+  assert.equal(selectionHint(spec, 'doors', null, { kind: 'keys', x: 3, y: 3 }), '');
 });
