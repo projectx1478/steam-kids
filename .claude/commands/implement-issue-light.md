@@ -17,7 +17,7 @@ Issue #$ARGUMENTS を、軽い経路で実装する。サブエージェント�
 - `git` は `--no-pager` を付ける。`git add` は**必ずパスを指定する**（`.` は使わない）。PowerShell で動く書き方にする。CLAUDE.md の規則に従う。
 - 触らないもの：`.claude/`、`CLAUDE.md`、`AGENTS.md`、凍結fixture（cmd-01・donguri-01）、`config.mjs`、`review/`。`PROJECT.md` は、Issue本文が変更を求めているときだけ変える。その場合は仕様確定にあたるので、差分を見せるところまでで、悠さんが承認する。12,000字以内であることを確認して報告する。
 - Issueに書かれていない変更をしない。曖昧なら止まって質問する。
-- E2E はローカルで実行しない（CIのみ）。マージはしない。
+- E2E はローカルで実行しない（CIのみ）。ただし CI・夜間の失敗の原因調査では、該当シナリオ1本（全件は不可）を `E2E_LOCAL=1` で手元実行してよい（AGENTS.md の文言が更新されるまでは AGENTS.md を優先し、悠さんの指示があるときに限る）。マージはしない。
 - **ターン数を減らす**：`style.css`・`js/ui-*.js`・`tools/validate-lessons.mjs` などの大きいファイルは全文を読まず、`Grep` と行範囲の指定で必要な箇所だけ読む。`style.css` は読まず、差分も `git diff --stat` で見る。編集の対象は `tailwind.src.css`。
 
 ## 手順
@@ -57,7 +57,7 @@ Issue本文の作業内容と完了条件に沿って変更する。
 2. コミットする。メッセージは手順0-4で確認した書き方に合わせ、Issue番号を入れる。
 3. `git log -1 --format="%an <%ae>"` を実行する。noreply 形式でなければ push せず、止まって報告する。
 4. `git push -u origin <ブランチ>`。
-5. `gh pr create` で PR を作る。本文：`Closes #<N>`、変更の要点、検証結果（実行したもの、省いたものの理由）、自己点検の結果、悠さんが確認すること。シナリオを足した・変えた場合は、`.github/workflows/e2e-pr.yml` で書式を確認したうえで `E2E: <シナリオ…>` の行を**必ず**入れる。
+5. `gh pr create` で PR を作る。本文：`Closes #<N>`、変更の要点、検証結果（実行したもの、省いたものの理由）、自己点検の結果、悠さんが確認すること。シナリオを足した・変えた場合は、`.github/workflows/e2e-pr.yml` で書式を確認したうえで `E2E: <シナリオ…>` の行を**必ず**入れる（行は `node tools/affected-scenarios.mjs --diff` の出力を基にする。approved.md の一覧と合わせる）。
 6. `gh pr checks <PR番号> --watch` で、完了まで1回の呼び出しで待つ。待ち時間の上限で切れたら、もう1回だけ同じコマンドを実行する。
 
 ### 6. CIが落ちたとき
