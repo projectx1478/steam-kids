@@ -6,6 +6,8 @@
 index.html
 dashboard.html # 保護者・教師向けダッシュボード
 service-worker.js # オフライン対応・更新反映（docs/caching.md）
+manifest.webmanifest # PWAのmanifest（ホーム画面追加用の名前・色・アイコン。Issue #381）
+icons/ # ホーム画面用アイコンPNG（tools/gen-icons.mjsで生成）
 style.css # Tailwind生成物（コミット対象・直接編集禁止）
 tailwind.src.css # Tailwindソース
 tailwind.config.js
@@ -47,7 +49,7 @@ js/
   ui-dashboard.js # dashboard.htmlの描画（summarize結果の描画のみ）
   register-sw.js # SW登録・更新時の自動リロード
 lessons/ # レッスンJSON（P1〜）
-tools/ # レッスンJSON検証ツール
+tools/ # レッスンJSON検証ツール（gen-icons.mjs＝アイコンPNG生成）
 docs/ # 詳細ドキュメント（PROJECT.md 7章の索引を参照）
   components.md # 共通部品の台帳（部品名・置き場・説明・禁止パターン。Issue #347）
 test/ # 単体テスト（node --test）
