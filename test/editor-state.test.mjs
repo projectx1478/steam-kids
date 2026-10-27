@@ -196,6 +196,17 @@ test('editor-state: EDITOR_MAX_SIZE を超える盤面の変更は拒否', () =>
   assert.equal(EDITOR_MAX_SIZE, 20);
 });
 
+test('editor-state: setGrid は同サイズなら履歴に積まない', () => {
+  const s = fresh();
+  const len = s.history.length;
+  const cursor = s.cursor;
+  assert.equal(setGrid(s, 5, 5).ok, true);
+  assert.equal(s.history.length, len);
+  assert.equal(s.cursor, cursor);
+  assert.equal(setGrid(s, 6, 5).ok, true);
+  assert.equal(s.history.length, len + 1);
+});
+
 // ---- #402 段2: レッスンの面の一覧・並べ替え・固定 ----
 import { createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards } from '../tools/editor/editor-state.js';
 

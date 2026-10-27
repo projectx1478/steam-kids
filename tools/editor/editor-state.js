@@ -112,6 +112,7 @@ export function setMaxPauses(state, value) {
 export function setGrid(state, cols, rows) {
   if (!Number.isInteger(cols) || !Number.isInteger(rows) || cols < 1 || rows < 1) return ng('盤面サイズは1以上の整数');
   if (cols > EDITOR_MAX_SIZE || rows > EDITOR_MAX_SIZE) return ng(`盤面サイズの上限は ${EDITOR_MAX_SIZE}×${EDITOR_MAX_SIZE}`);
+  if (state.spec.grid.cols === cols && state.spec.grid.rows === rows) return ok();
   const next = clone(state.spec);
   next.grid = { cols, rows };
   for (let y = 0; y < Math.max(state.spec.grid.rows, rows); y++) {
