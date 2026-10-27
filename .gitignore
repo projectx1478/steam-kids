@@ -61,6 +61,9 @@ review/principles/archive/
 review/ui-audit/
 review/lesson-ideas/round1/
 review/lesson-ideas/round2/
+review/lesson-ideas/*/round0/
+review/lesson-ideas/*/round1/
+review/lesson-ideas/*/round2/
 
 # 自動進行（/run-issues）の Issue 別 worktree
 .worktrees/
