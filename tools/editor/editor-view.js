@@ -221,3 +221,22 @@ export function generateStatusText(status) {
   if (status === 'aborted') return '重すぎて途中で止めた。大きさかギミックを減らす';
   return '';
 }
+
+// ---- 選択中の操作の状態行（#602 段3）----
+// 選択中のスイッチ／かぎ／ドア／周期ドアがあるときの案内文。無ければ ''。
+// selected はパレットのキー、selSwitch／selKey は座標で持つ選択（実在しなければ ''）。
+const KEY_HINT_LABELS = { keys: 'かぎ', doors: 'ドア', periodic: '周期ドア' };
+export function selectionHint(spec, selected, selSwitch, selKey) {
+  if (selected === 'switches' && selSwitch) {
+    const sw = (spec.switches || []).find((c) => c.x === selSwitch.x && c.y === selSwitch.y);
+    if (!sw) return '';
+    const target = typeof sw.group === 'string' ? `group「${sw.group}」の壁` : '壁';
+    return `スイッチ (${sw.x},${sw.y}) を選択中：空きマスを押すと${target}をつなぎます（はずすにはスイッチをもう一度押す）`;
+  }
+  if ((selected === 'keys' || selected === 'doors' || selected === 'periodic') && selKey && selKey.kind === selected) {
+    if (!(spec[selected] || []).some((c) => c.x === selKey.x && c.y === selKey.y)) return '';
+    const label = KEY_HINT_LABELS[selected];
+    return `${label} (${selKey.x},${selKey.y}) を選択中：空きマスを押すと新しい${label}を置きます（もう一度押すと選択解除）`;
+  }
+  return '';
+}

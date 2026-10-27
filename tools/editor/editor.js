@@ -1,6 +1,6 @@
 // 盤面エディタ（開発者用）の画面。盤面は js/ui-board.js の drawBoard 経由で描く。
 import { drawBoard } from '/js/ui-board.js';
-import { EMPTY_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clampCellPx, wheelCellPx, zoomPercent, formatMetrics, pendingSwitches, pendingGroupSwitches, pendingKeys, pendingBridges, pendingPaint, switchModeOptions, switchGroupOptions, GEN_COUNT, GEN_GIMMICKS, checkGenerateForm, buildGenerateBody, generateStatusText } from './editor-view.js';
+import { EMPTY_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clampCellPx, wheelCellPx, zoomPercent, formatMetrics, pendingSwitches, pendingGroupSwitches, pendingKeys, pendingBridges, pendingPaint, selectionHint, switchModeOptions, switchGroupOptions, GEN_COUNT, GEN_GIMMICKS, checkGenerateForm, buildGenerateBody, generateStatusText } from './editor-view.js';
 
 import { GIMMICKS } from '/js/gimmicks/index.js';
 import { markGatePassedToday } from '/js/gate-date.js';
@@ -90,7 +90,7 @@ function render() {
   zoomEl.textContent = `${zoomPercent(state.cellPx)}%`;
   const { cols, rows } = state.spec.grid;
   const sel = buildPalette(GIMMICKS).find((p) => p.key === state.selected);
-  const moving = moveFrom ? `　動かす元: (${moveFrom.x},${moveFrom.y}) → 行き先をクリック` : '';
+  const moving = moveFrom ? `　動かす元: (${moveFrom.x},${moveFrom.y}) → 行き先をクリック` : (selectionHint(state.spec, state.selected, selSwitch, selKey) ? `　${selectionHint(state.spec, state.selected, selSwitch, selKey)}` : '');
   statusEl.textContent = `${cols}×${rows}（上限 ${EDITOR_MAX_SIZE}×${EDITOR_MAX_SIZE}）　マス ${state.cellPx}px　選択中: ${sel ? sel.label : '—'}${moving}${notice ? `　${notice}` : ''}`;
   if (moveFrom) {
     const cell = boardWrap.querySelector(`.grid-cell[data-x="${moveFrom.x}"][data-y="${moveFrom.y}"]`);
