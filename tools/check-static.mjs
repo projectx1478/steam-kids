@@ -49,6 +49,8 @@ if (!shellSrc) {
     'index.html', 'dashboard.html', 'style.css', 'app.js',
     ...walk('js', ['.js']),
     ...walk('fonts', ['.woff2']),
+    'manifest.webmanifest',
+    ...walk('icons', ['.png']),
   ];
   for (const f of served) if (!shellSet.has(f)) fail(`APP_SHELL に未登録（オフラインで欠ける）: ${f}`);
 }

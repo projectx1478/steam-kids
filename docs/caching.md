@@ -53,6 +53,8 @@ BGM音源（`audio/*.ogg`、MusMus）は**`APP_SHELL`に入れない**。`cache.
 キャッシュの内容を変える変更（`APP_SHELL`に含まれるファイルの追加・削除、分岐規則の変更）を
 行うPRでは、両方の値を同時に上げること。
 
+`manifest.webmanifest`と`icons/*.png`（ホーム画面用。`tools/gen-icons.mjs`で生成。Issue #381）は`APP_SHELL`に載せる（`check:static`が登録漏れを検出）。差し替え時も版数を上げる。
+
 `tools/editor/`は`service-worker.js`の`APP_SHELL`に載せず、公開サイトの配信物から除外する（PagesはActions配信。設定変更は人が行う）。
 
 ## フォントサブセットの作り方（Issue #110）
