@@ -5,7 +5,7 @@ import { EMPTY_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clam
 import { GIMMICKS } from '/js/gimmicks/index.js';
 import { markGatePassedToday } from '/js/gate-date.js';
 import { buildPalette, iconSpec } from './palette.js';
-import { createState, setCellPx as setStateCellPx, place, erase, move, toggleTarget, togglePaint, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, setKeyColor, setDoorColor, setKeyMode, setWaterMode, setPeriodicPeriod, PERIODIC_PERIODS, WATER_MODES, SWITCH_COLORS, KEY_COLORS, KEY_MODES, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard, addDraftStep, explainSaveNg } from './editor-state.js';
+import { createState, setCellPx as setStateCellPx, setGrid, place, erase, move, toggleTarget, togglePaint, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, setKeyColor, setDoorColor, setKeyMode, setWaterMode, setPeriodicPeriod, PERIODIC_PERIODS, WATER_MODES, SWITCH_COLORS, KEY_COLORS, KEY_MODES, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard, addDraftStep, explainSaveNg } from './editor-state.js';
 
 const state = createState(EMPTY_SPEC, CELL_PX_DEFAULT);
 state.selected = 'wall';
@@ -76,6 +76,14 @@ const undoEl = document.getElementById('undo');
 const redoEl = document.getElementById('redo');
 const maxPausesEl = document.getElementById('max-pauses');
 const maxPausesOf = (spec) => (Number.isInteger(spec.maxPauses) ? spec.maxPauses : 0);
+const gridWEl = document.getElementById('grid-w');
+const gridHEl = document.getElementById('grid-h');
+
+// 大きさ入力を現在の spec.grid へ合わせる（render のたび。元に戻す・読込にも追従）
+function syncGridInputs() {
+  gridWEl.value = String(state.spec.grid.cols);
+  gridHEl.value = String(state.spec.grid.rows);
+}
 
 function render() {
   drawBoard({ boardWrap, spec: state.spec, cellSize: state.cellPx, playerPos: state.spec.start });
@@ -91,6 +99,7 @@ function render() {
   markSwitches();
   renderSettings();
   maxPausesEl.value = String(maxPausesOf(state.spec));
+  syncGridInputs();
   renderKeyMode();
   renderWaterMode();
   undoEl.disabled = !canUndo(state);
@@ -337,6 +346,13 @@ maxPausesEl.addEventListener('change', () => {
   const raw = maxPausesEl.value.trim();
   apply(setMaxPauses(state, raw === '' ? 0 : Number(raw)));
 });
+
+// 盤の大きさ：空欄・小数・範囲外・はみ出す縮小は setGrid が ng を返す。拒否時は render が入力を現在値へ戻す。
+function applyGrid() {
+  const num = (el) => (el.value.trim() === '' ? NaN : Number(el.value));
+  apply(setGrid(state, num(gridWEl), num(gridHEl)));
+}
+document.getElementById('grid-apply').addEventListener('click', applyGrid);
 
 function doUndo() { apply(undo(state)); }
 function doRedo() { apply(redo(state)); }
