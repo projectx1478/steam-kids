@@ -241,6 +241,7 @@ document.getElementById('stage-settings').append(keyModeEl);
 
 function renderKeyMode() {
   const has = (state.spec.keys || []).length > 0 || (state.spec.doors || []).length > 0;
+  if (!has) { keyModeEl.replaceChildren(); return; }
   const hd = document.createElement('div');
   hd.className = 'sw-hd';
   hd.textContent = 'keyMode（かぎの動き）';
@@ -256,6 +257,7 @@ document.getElementById('stage-settings').append(waterModeEl);
 
 function renderWaterMode() {
   const has = (state.spec.water || []).length > 0;
+  if (!has) { waterModeEl.replaceChildren(); return; }
   const hd = document.createElement('div');
   hd.className = 'sw-hd';
   hd.textContent = 'waterMode（水にぶつかったときの動き）';
