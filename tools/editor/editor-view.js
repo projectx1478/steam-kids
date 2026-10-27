@@ -29,7 +29,7 @@ export function zoomPercent(cellPx) {
 export const ANALYZE_DEBOUNCE_MS = 300; // 編集が止まってから判定を送るまで
 
 // 必須を表示するギミック名（POST /api/analyze の matters のキー）
-export const MATTER_LABELS = { ice: 'こおり', keys: 'かぎ', items: 'どんぐり', periodic: '周期ドア', paint: 'ぬり', switches: 'スイッチ' };
+export const MATTER_LABELS = { ice: 'こおり', keys: 'かぎ', items: 'どんぐり', periodic: '周期ドア', paint: 'ぬり', switches: 'スイッチ', warps: 'ワープ', water: '水', cushion: 'クッション' };
 
 // 判定結果（POST /api/analyze の応答）を表示用の文字列の配列にする。result が null＝判定中。
 // 打ち切り（status:'timeout'）は「未判定」とし、OK に見せない。
