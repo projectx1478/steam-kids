@@ -4,7 +4,7 @@ import { shortestPath, shortestSteps, simulate } from '../../js/engine-grid.js';
 import { GIMMICKS, mattersFor } from '../../js/gimmicks/index.js';
 import { KEY_COLORS } from '../../js/gimmicks/keys.js';
 import { mulberry32 } from '../../js/engine-generate.js';
-import { iceMustMatter, keysMustMatter, warpsMustMatter, periodicMustMatter, paintMustMatter, waterMustMatter } from '../lib/must-matter.mjs';
+import { iceMustMatter, keysMustMatter, warpsMustMatter, periodicMustMatter, paintMustMatter, waterMustMatter, cushionMustMatter } from '../lib/must-matter.mjs';
 import { OPEN_COUNT } from '../../js/gimmicks/periodic.js';
 
 // 生成器の出力が変わるときに上げる。stageGen.ver と gen.ver を揃えて書き直す。
@@ -351,7 +351,7 @@ function teachMatters(teach, board) {
   const play = { ...board, maxCommands: dist };
   if (teach === 'ice') return iceMustMatter(play).matters;
   if (teach === 'keys') return keysMustMatter(play).matters;
-  if (teach === 'cushion') return mattersFor('cushion', board, dist);
+  if (teach === 'cushion') return cushionMustMatter(play, dist).matters;
   if (teach === 'switches') return mattersFor('switches', board, dist);
   if (teach === 'warps') return warpsMustMatter(play).matters;
   if (teach === 'periodic') return periodicMustMatter(play, dist).matters;

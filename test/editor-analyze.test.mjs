@@ -8,7 +8,7 @@ import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { startEditorServer, runAnalyze, checkAnalyzeInput } from '../tools/editor/serve.mjs';
 import { analyzeSpec, switchesMustMatter } from '../tools/editor/validate-worker.mjs';
-import { periodicMustMatter, paintMustMatter, itemsMustMatter, iceMustMatter } from '../tools/lib/must-matter.mjs';
+import { periodicMustMatter, paintMustMatter, itemsMustMatter, iceMustMatter, waterMustMatter, cushionMustMatter } from '../tools/lib/must-matter.mjs';
 import { itemsMustMatter as itemsFromStageGen } from '../tools/gen/stage-gen.mjs';
 import { createState, nextGeneration, shouldApplyResult } from '../tools/editor/editor-state.js';
 import { formatMetrics, ANALYZE_DEBOUNCE_MS } from '../tools/editor/editor-view.js';
@@ -69,6 +69,46 @@ test('analyzeSpec: スイッチ盤は switches の必須を判定する／無い
   assert.equal(typeof sw.matters.switches, 'boolean');
   assert.equal(analyzeSpec(LINE).matters.switches, null);
   assert.deepEqual(switchesMustMatter({ ...LINE }, 2), { matters: null, messages: [] });
+});
+
+// #601: ワープ・水・クッションの必須。必須の盤は review/design/601-602/boards/ の3枚と同じ（help.html §5 の例）。
+const OPEN5 = { grid: { cols: 5, rows: 5 }, start: { x: 0, y: 0 }, goal: { x: 2, y: 0 }, walls: [] };
+const P = (x, y) => ({ x, y });
+const CMDS = ['up', 'down', 'left', 'right'];
+
+test('analyzeSpec: ワープの必須（壁で分けた盤は必須、使わなくても着く盤は飾りで NG）', () => {
+  const must = analyzeSpec({ grid: { cols: 5, rows: 5 }, start: P(0, 0), goal: P(4, 4), walls: [0, 1, 2, 3, 4].map((x) => P(x, 2)),
+    warps: [{ x: 1, y: 0, pair: 1 }, { x: 3, y: 4, pair: 1 }], allowedCommands: CMDS, maxCommands: 2 });
+  assert.equal(must.shortest, 2);
+  assert.equal(must.matters.warps, true);
+  assert.deepEqual(must.messages, []);
+  const deco = analyzeSpec({ ...OPEN5, warps: [{ x: 4, y: 3, pair: 1 }, { x: 4, y: 4, pair: 1 }] });
+  assert.equal(deco.matters.warps, false);
+  assert.ok(deco.messages.some((m) => m.startsWith('ワープの必須性')));
+});
+
+test('analyzeSpec: 水の必須（外すと最短が4手に縮む盤は必須、道に関係ない水は飾りで NG）', () => {
+  const board = { grid: { cols: 5, rows: 5 }, start: P(0, 0), goal: P(0, 4), walls: [], water: [0, 1, 2, 3].map((x) => P(x, 2)), bridge: [P(4, 2)], allowedCommands: CMDS, maxCommands: 12 };
+  const must = analyzeSpec(board);
+  assert.equal(must.shortest, 12);
+  assert.equal(must.matters.water, true);
+  assert.deepEqual(must.messages, []);
+  assert.equal(waterMustMatter({ ...board }, 12).dist, 4);
+  const deco = analyzeSpec({ ...OPEN5, water: [P(4, 4)] });
+  assert.equal(deco.matters.water, false);
+  assert.ok(deco.messages.some((m) => m.startsWith('水の必須性')));
+});
+
+test('analyzeSpec: クッションの必須（外すと最短が変わる盤は必須、無関係な隅は飾りで NG）', () => {
+  const board = { grid: { cols: 5, rows: 5 }, start: P(0, 0), goal: P(3, 2), walls: [], ice: [1, 2, 3].map((x) => P(x, 0)), cushion: [P(4, 0)], allowedCommands: CMDS, maxCommands: 3 };
+  const must = analyzeSpec(board);
+  assert.equal(must.shortest, 3);
+  assert.equal(must.matters.cushion, true);
+  assert.deepEqual(must.messages, []);
+  assert.equal(cushionMustMatter(board, 3).dist, 4);
+  const deco = analyzeSpec({ ...OPEN5, cushion: [P(4, 4)] });
+  assert.equal(deco.matters.cushion, false);
+  assert.ok(deco.messages.some((m) => m.startsWith('クッションの必須性')));
 });
 
 test('analyzeSpec: maxCommands が無ければ最短手数を使う。曲がる回数は一例', () => {

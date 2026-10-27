@@ -4,9 +4,9 @@
 import { parentPort, workerData } from 'node:worker_threads';
 import { shortestSteps, shortestChips, shortestPath, boardSpec } from '../../js/engine-grid.js';
 import { checkBoard, checkSwitchMatters } from '../validate-lessons.mjs';
-import { iceMustMatter, keysMustMatter, periodicMustMatter, paintMustMatter, itemsMustMatter } from '../lib/must-matter.mjs';
+import { iceMustMatter, keysMustMatter, periodicMustMatter, paintMustMatter, itemsMustMatter, warpsMustMatter, waterMustMatter, cushionMustMatter } from '../lib/must-matter.mjs';
 
-export const MATTER_KEYS = ['ice', 'keys', 'items', 'periodic', 'paint', 'switches'];
+export const MATTER_KEYS = ['ice', 'keys', 'items', 'periodic', 'paint', 'switches', 'warps', 'water', 'cushion'];
 const DEFAULT_COMMANDS = ['up', 'down', 'left', 'right'];
 const nonEmpty = (v) => Array.isArray(v) && v.length > 0;
 
@@ -66,6 +66,21 @@ export function analyzeSpec(spec) {
   if (nonEmpty(play.periodic)) {
     matters.periodic = periodic.matters;
     if (!periodic.matters) add('周期ドアの必須性', `周期ドアを常に開とみなした最短(${periodic.dist})より最短(${dist})が長くない`);
+  }
+  const warps = warpsMustMatter(play);
+  if (nonEmpty(play.warps)) {
+    matters.warps = warps.matters;
+    if (!warps.matters) add('ワープの必須性', `ワープを使わずにmaxCommands=${maxCommands}以内でゴールできる（最短${warps.dist}）`);
+  }
+  const water = waterMustMatter(play, dist);
+  if (nonEmpty(play.water)) {
+    matters.water = water.matters;
+    if (!water.matters) add('水の必須性', `水と橋を外した最短(${water.dist})より最短(${dist})が長くない`);
+  }
+  const cushion = cushionMustMatter(play, dist);
+  if (nonEmpty(play.cushion)) {
+    matters.cushion = cushion.matters;
+    if (!cushion.matters) add('クッションの必須性', `クッションを外しても最短${dist}手のまま`);
   }
   const paint = paintMustMatter(play, dist);
   if (nonEmpty(play.paint)) {

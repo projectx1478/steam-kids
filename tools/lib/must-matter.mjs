@@ -58,12 +58,20 @@ export function paintMustMatter(play, dist) {
   return { matters: dist > noPaintDist, dist: noPaintDist };
 }
 
-// 水と橋を外した盤の最短より、実際の最短（dist）が長くなければ水が飾り（生成側 teachMatters のみで使う。js/ の MATTER には載せない）。
+// 水と橋を外した盤の最短より、実際の最短（dist）が長くなければ水が飾り（生成側 teachMatters と盤面エディタの判定欄で使う。js/ の MATTER には載せない）。
 // dist が null / Infinity、または水が無いときは判定しない。
 export function waterMustMatter(play, dist) {
   if (dist === null || dist === Infinity || !(Array.isArray(play.water) && play.water.length > 0)) return { matters: true, dist: null };
-  const noWaterDist = shortestSteps(boardSpec({ ...play, water: [], bridge: [] }));
+  const noWaterDist = shortest(play, boardSpec({ ...play, water: [], bridge: [] }));
   return { matters: dist > noWaterDist, dist: noWaterDist };
+}
+
+// クッションを外した盤の最短が、実際の最短（dist）と変わらなければクッションが飾り（js/gimmicks/index.js の mattersFor('cushion') と同じ式。
+// 氷の手前で止まるので、外すと最短が短くも長くもなりうる。道を長くするだけでも必須）。dist が null / Infinity、またはクッションが無いときは判定しない。
+export function cushionMustMatter(play, dist) {
+  if (dist === null || dist === Infinity || !(Array.isArray(play.cushion) && play.cushion.length > 0)) return { matters: true, dist: null };
+  const noCushionDist = shortest(play, GIMMICKS.find((g) => g.key === 'cushion').strip(boardSpec(play)));
+  return { matters: noCushionDist !== dist, dist: noCushionDist };
 }
 
 // どんぐりの必須性：どんぐりを除いた盤の最短 < 実際の最短 (generateMap の itemsMustMatter と同じ向き)
