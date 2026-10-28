@@ -158,4 +158,13 @@ export default async function run({ page, check }) {
   await page.mouse.move(xr + 3, y);
   await page.mouse.up();
   await check('8px未満のタップで吹き出しが消える', shown, false);
+
+  // キー操作（Issue #380）：矢印でチップを足した後も、吹き出しが盤面・命令列・ボタンと交差しない。
+  await enterPlay(page, lesson.id);
+  await waitQuestion(page);
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowRight');
+  const afterKeys = await page.evaluate(measure, lesson.handTarget);
+  await check('キー: 矢印でチップを足した後も吹き出しが盤面・命令列・ボタンと交差しない', async () =>
+    (await page.$$('.command-chip')).length === 2 && afterKeys.hitBoard !== true && afterKeys.hitControls === 0 && afterKeys.laneBoard === false, true);
 }

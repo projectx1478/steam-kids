@@ -8,6 +8,7 @@ import { shapeSvg, prefersReducedMotion } from './ui-grid.js';
 import { fitCellSize, drawBoard as drawBoardUi, observeBoard } from './ui-board.js';
 import { createZoom } from './ui-zoom.js';
 import { openMenu } from './ui-menu.js';
+import { registerKeys } from './ui-keys.js';
 import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, computeGapIndex, vibrate, countChips, planRun, clearUnlocked, isLockedIndex, stepsBefore, isPause, setPauseLeft } from './ui-commands.js';
 import { play as playSfx, skipClickSfx } from './sfx.js';
 import { UNDO_CLEAR_MS, snapshotUnlocked, restoreUnlocked } from './undo-clear.js';
@@ -502,7 +503,7 @@ export function renderPlay(root, step) {
     queueEl.classList.toggle('pointer-events-none', local.locked);
   }
 
-  renderCommandPalette(paletteEl, {
+  const palette = renderCommandPalette(paletteEl, {
     maxPauses,
     onPause: () => {
       if (local.running || local.stepping || local.locked || local.boxOpen >= 0 || local.commands.filter(isPause).length >= maxPauses) {
@@ -1093,6 +1094,34 @@ export function renderPlay(root, step) {
     },
   });
   setActiveNudge(local.nudge);
+  // キー操作（Issue #380）：矢印＝命令を足す、Enter＝じっこう、Backspace＝ひとつけす。経路はタップと同じ。
+  // registerKeys は1画面分だけ持つ（再登録で前を解除）。画面が外れたら（root から opScreen が消えたら）解除する。
+  const menuOpen = () =>
+    ['gear-menu', 'menu-overlay'].some((id) => document.getElementById(id)?.hidden === false) || !!document.querySelector('[role="dialog"]');
+  const offKeys = registerKeys({
+    add: (dir) => palette.tapDir(dir),
+    run: () => {
+      if (runBtn.isConnected) runBtn.click();
+    },
+    removeLast: () => {
+      if (removeLastBtn.isConnected) removeLastBtn.click();
+    },
+    isBlocked: () => local.running || local.stepping || !!clearSequence || menuOpen(),
+    getButtons: () => ({
+      up: paletteEl.querySelector('[data-command="up"]'),
+      down: paletteEl.querySelector('[data-command="down"]'),
+      left: paletteEl.querySelector('[data-command="left"]'),
+      right: paletteEl.querySelector('[data-command="right"]'),
+      run: runBtn.isConnected ? runBtn : { disabled: true },
+      removeLast: removeLastBtn.isConnected ? removeLastBtn : { disabled: true },
+    }),
+  });
+  const keyLeaveWatcher = new MutationObserver(() => {
+    if (opScreen.isConnected) return;
+    offKeys();
+    keyLeaveWatcher.disconnect();
+  });
+  keyLeaveWatcher.observe(root, { childList: true });
   // 未クリアレッスンの最初のステージ（p1）表示時だけ、指ガイドを1回出す。最初のタップ/
   // ドラッグでフェードアウトして消える（Issue #95・#104でp1限定に変更）。
   if (stageIndex === 0 && !isLessonCleared(S.lesson.lessonId)) {

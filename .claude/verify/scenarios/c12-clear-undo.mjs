@@ -113,4 +113,20 @@ export default async function run({ page, check }) {
   await page.waitForTimeout(1500);
   const w1 = await page.$eval('[data-undo-bar]', (b) => b.getBoundingClientRect().width);
   await check('reduced-motion: 減り棒は静止', () => w0 === w1 && w0 > 0, true);
+
+  // キー操作（Issue #380）：Backspace で1個減り、取り消し札は出ない（札はぜんぶけす専用）。
+  await enterPlay(page, 'cmd-01-susumu');
+  for (const k of ['ArrowUp', 'ArrowRight', 'ArrowDown']) await page.keyboard.press(k);
+  await page.keyboard.press('Backspace');
+  await check('キー: Backspace でチップが1個減り、取り消し札は出ない', async () =>
+    [(await queue(page)).length, (await page.$$('[data-action="undo-clear"]')).length], [2, 0]);
+
+  // キー操作（Issue #380）：上限まで積んだら、それ以上矢印を押してもチップが増えない（命令ボタンが disabled）。
+  await enterPlay(page, 'cmd-01-susumu');
+  const keys = ['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft'];
+  for (let i = 0; i < 14; i += 1) await page.keyboard.press(keys[i % 4]);
+  const atMax = (await queue(page)).length;
+  for (let i = 0; i < 4; i += 1) await page.keyboard.press(keys[i]);
+  await check('キー: 上限まで積むと矢印を押してもチップが増えない（命令ボタンが disabled）', async () =>
+    [(await queue(page)).length === atMax, await page.$eval('[data-command="up"]', (b) => b.disabled)], [true, true]);
 }

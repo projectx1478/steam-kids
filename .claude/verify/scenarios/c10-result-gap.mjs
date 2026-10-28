@@ -37,6 +37,11 @@ export default async function run({ page, check }) {
   await check('間のあと: つぎの ステージが出る', async () => (await page.$$('[data-action="next-stage"]')).length, 1);
   await check('間のあと: ためしなおすが出る', async () => (await page.$$('[data-action="replay"]')).length, 1);
   await check('間のあと: 「…」は消える', async () => (await page.$$('[data-result-gap]')).length, 0);
+  // キー操作（Issue #380）：結果表示中は矢印を押してもチップが増えない（クリア演出中は全キー無視）。
+  const chipsBeforeKey = (await page.$$('.command-chip')).length;
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowRight');
+  await check('キー: 結果表示中に矢印を押してもチップが増えない', async () => (await page.$$('.command-chip')).length, chipsBeforeKey);
   const nextBox = await (await page.$('[data-action="next-stage"]')).boundingBox();
   const replayBox = await (await page.$('[data-action="replay"]')).boundingBox();
   await check('ダイアログがパネル(controls)の境界内に収まる', async () =>
