@@ -32,7 +32,7 @@
     {
       "stepId": "p2",
       "kind": "play",
-      "text": "ふたりで おくよ。つりあう ところに おこう",
+      "text": "ふたりで おくよ",
       "seesaw": {
         "notches": 4,
         "left": [
@@ -116,7 +116,7 @@
     {
       "stepId": "p6",
       "kind": "play",
-      "text": "ふたりで おくよ。つりあう ところに おこう",
+      "text": "ふたりで おくよ",
       "seesaw": {
         "notches": 4,
         "left": [
@@ -135,7 +135,7 @@
     {
       "stepId": "p7",
       "kind": "play",
-      "text": "ふたりで おくよ。つりあう ところに おこう",
+      "text": "ふたりで おくよ",
       "seesaw": {
         "notches": 5,
         "left": [
@@ -177,7 +177,7 @@
     {
       "stepId": "s2",
       "kind": "summary",
-      "text": "どっちも みて おこう。とおいと ちからが つよいよ"
+      "text": "とおいと ちからが つよいよ"
     }
   ]
 }
