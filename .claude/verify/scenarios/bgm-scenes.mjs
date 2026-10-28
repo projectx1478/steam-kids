@@ -183,10 +183,16 @@ export default async function run({ page, check }) {
   await ctx.setOffline(true);
   await p.reload();
   await p.waitForLoadState('load');
+  await p.waitForSelector('#stage[data-step="intro"]', { timeout: 8000 });
   await p.mouse.click(4, 4);
-  // 再読込は直前の操作画面から再開するため、鳴る曲は play 場面の曲になる。
-  await p.waitForFunction(() => window.__bgmLog.some(([e, d]) => e === 'play' && d === 'play'), null, { timeout: 5000 });
-  await check('SWキャッシュのみで再生できる', () => hasLog(p, 'play', 'play'), true);
+  // 再読込はレッスン先頭（intro＝map 場面）から始まるため、鳴る曲は map 場面の曲になる。
+  try {
+    await p.waitForFunction(() => window.__bgmLog.some(([e, d]) => e === 'play' && d === 'map'), null, { timeout: 5000 });
+  } catch (e) {
+    console.log('BGMLOG', 'offline', JSON.stringify(await p.evaluate(() => window.__bgmLog)));
+    throw e;
+  }
+  await check('SWキャッシュのみで再生できる', () => hasLog(p, 'play', 'map'), true);
   await check('再生で外部へ音源リクエストを出さない', async () => audioNotFromSw, []);
   await ctx.setOffline(false);
 
@@ -202,7 +208,14 @@ export default async function run({ page, check }) {
     }
     await p.click('[data-action="run"]');
     await p.waitForSelector('[data-action="next-stage"]', { timeout: 8000 });
-    await p.waitForFunction(() => window.__bgmLog.some(([e, d]) => e === 'play' && d === 'clear'), null, { timeout: 5000 });
+    try {
+      await p.waitForFunction(() => window.__bgmLog.some(([e, d]) => e === 'play' && d === 'clear'), null, { timeout: 5000 });
+    } catch (e) {
+      console.log('BGMLOG', n, JSON.stringify(await p.evaluate(() => window.__bgmLog)));
+      throw e;
+    }
+    // 失敗時の診断：絞り込む前の全体の記録を出す。
+    console.log('BGMLOG', n, JSON.stringify(await p.evaluate(() => window.__bgmLog)));
     await check(`クリア時に再生記録が play → clear の順（${n}回目）`, () =>
       p.evaluate(() => window.__bgmLog.filter(([e, d]) => e === 'play' && (d === 'play' || d === 'clear')).map(([, d]) => d)),
       ['play', 'clear']);
