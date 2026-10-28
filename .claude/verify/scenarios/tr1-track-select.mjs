@@ -49,7 +49,7 @@ export default async function run({ page, check }) {
   // ロボットのレッスンから ホーム→確認→戻ると、ロボットの単元だけで teko は出ない（Issue #616）
   await page.goto('/index.html?lesson=cmd-01-susumu');
   await page.click('[data-action="start"]');
-  await page.click('[data-action="menu"]');
+  await page.click('#gear-btn');
   await page.waitForSelector('#menu-home');
   await page.click('#menu-home');
   const needConfirm = await page.$('[data-action="leave-ok"]');
