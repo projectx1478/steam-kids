@@ -47,8 +47,6 @@ let active = null; // 再生中 { name, audio, target }
 let fadeTimer = null;
 let fadingOut = null; // フェードアウト中の前の曲（無ければnull。フェード中断時の取り残し解放用）
 
-let playingName = null; // 'playing'は短いループ曲で巻き戻しのたびに再発火するため、同名は1回だけ記録する
-
 function createTrack(name) {
   const def = BGM_TRACKS[name];
   if (!def) return null;
@@ -60,13 +58,15 @@ function createTrack(name) {
     log('error', name);
     if (active?.audio === audio) active = null;
   });
+  // 'playing'は短いループ曲で巻き戻しのたびに再発火するため、曲ごとに1回だけ記録する
+  const track = { name, audio, target: def.volume, logged: false };
   audio.addEventListener('playing', () => {
-    if (playingName === name) return;
-    playingName = name;
+    if (track.logged) return;
+    track.logged = true;
     log('play', name);
   });
   log('load', name);
-  return { name, audio, target: def.volume };
+  return track;
 }
 
 function stopFade() {
