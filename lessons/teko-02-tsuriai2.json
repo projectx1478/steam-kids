@@ -1,0 +1,183 @@
+{
+  "lessonId": "teko-02-tsuriai2",
+  "unitId": "teko",
+  "title": "つりあい 2",
+  "type": "predict-slider",
+  "estimatedMinutes": 8,
+  "steps": [
+    {
+      "stepId": "s1",
+      "kind": "intro",
+      "text": "また つりあわせよう"
+    },
+    {
+      "stepId": "p1",
+      "kind": "play",
+      "text": "みぎはしから ◀ で もどそう",
+      "seesaw": {
+        "notches": 4,
+        "left": [
+          {
+            "robots": 1,
+            "pos": 2
+          }
+        ],
+        "mover": {
+          "robots": 1,
+          "start": 4
+        }
+      },
+      "solution": 2
+    },
+    {
+      "stepId": "p2",
+      "kind": "play",
+      "text": "ふたりで おくよ",
+      "seesaw": {
+        "notches": 4,
+        "left": [
+          {
+            "robots": 1,
+            "pos": 4
+          }
+        ],
+        "mover": {
+          "robots": 2,
+          "start": 1
+        }
+      },
+      "solution": 2
+    },
+    {
+      "stepId": "p3",
+      "kind": "play",
+      "text": "どこに おくと つりあう？",
+      "seesaw": {
+        "notches": 4,
+        "left": [
+          {
+            "robots": 1,
+            "pos": 1
+          },
+          {
+            "robots": 1,
+            "pos": 3
+          }
+        ],
+        "mover": {
+          "robots": 1,
+          "start": 1
+        }
+      },
+      "solution": 4
+    },
+    {
+      "stepId": "p4",
+      "kind": "play",
+      "text": "つりあう ところに おこう",
+      "seesaw": {
+        "notches": 5,
+        "left": [
+          {
+            "robots": 1,
+            "pos": 4
+          }
+        ],
+        "mover": {
+          "robots": 1,
+          "start": 5
+        }
+      },
+      "solution": 4
+    },
+    {
+      "stepId": "p5",
+      "kind": "play",
+      "text": "どこに おくと つりあう？",
+      "seesaw": {
+        "notches": 5,
+        "left": [
+          {
+            "robots": 2,
+            "pos": 1
+          },
+          {
+            "robots": 1,
+            "pos": 3
+          }
+        ],
+        "mover": {
+          "robots": 1,
+          "start": 1
+        }
+      },
+      "solution": 5
+    },
+    {
+      "stepId": "p6",
+      "kind": "play",
+      "text": "ふたりで おくよ",
+      "seesaw": {
+        "notches": 4,
+        "left": [
+          {
+            "robots": 2,
+            "pos": 3
+          }
+        ],
+        "mover": {
+          "robots": 2,
+          "start": 1
+        }
+      },
+      "solution": 3
+    },
+    {
+      "stepId": "p7",
+      "kind": "play",
+      "text": "ふたりで おくよ",
+      "seesaw": {
+        "notches": 5,
+        "left": [
+          {
+            "robots": 1,
+            "pos": 2
+          },
+          {
+            "robots": 1,
+            "pos": 4
+          }
+        ],
+        "mover": {
+          "robots": 2,
+          "start": 5
+        }
+      },
+      "solution": 3
+    },
+    {
+      "stepId": "p8",
+      "kind": "play",
+      "text": "つりあう ところに おこう",
+      "seesaw": {
+        "notches": 4,
+        "left": [
+          {
+            "robots": 3,
+            "pos": 4
+          }
+        ],
+        "mover": {
+          "robots": 3,
+          "start": 1
+        }
+      },
+      "solution": 4
+    },
+    {
+      "stepId": "s2",
+      "kind": "summary",
+      "text": "とおいと ちからが つよいよ"
+    }
+  ]
+}

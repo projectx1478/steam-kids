@@ -293,7 +293,7 @@ export function renderSeesaw(root, step) {
 
   // 未クリアレッスンの最初のステージだけ、◀▶の指ガイドを1回出す（最初の操作で消える）。
   if (stageIndex === 0 && !isLessonCleared(S.lesson.lessonId)) {
-    setActiveHandHint(showHandHint({ from: rightBtn, mode: 'tap' }));
+    setActiveHandHint(showHandHint({ from: rightBtn.disabled ? leftBtn : rightBtn, mode: 'tap' }));
     opScreen.addEventListener('pointerdown', () => setActiveHandHint(null), { once: true });
   }
 }

@@ -3,7 +3,7 @@
   "unitId": "teko",
   "title": "シーソーで つりあい",
   "type": "predict-slider",
-  "estimatedMinutes": 5,
+  "estimatedMinutes": 8,
   "steps": [
     { "stepId": "s1", "kind": "intro", "text": "シーソーを つりあわせよう" },
     {
@@ -38,6 +38,50 @@
         "mover": { "robots": 1, "start": 1 }
       },
       "solution": 6
+    },
+    {
+      "stepId": "p4",
+      "kind": "play",
+      "text": "つりあう ところに おこう",
+      "seesaw": {
+        "notches": 6,
+        "left": [{ "robots": 3, "pos": 2 }],
+        "mover": { "robots": 1, "start": 1 }
+      },
+      "solution": 6
+    },
+    {
+      "stepId": "p5",
+      "kind": "play",
+      "text": "つりあう ところに おこう",
+      "seesaw": {
+        "notches": 5,
+        "left": [{ "robots": 3, "pos": 2 }],
+        "mover": { "robots": 2, "start": 1 }
+      },
+      "solution": 3
+    },
+    {
+      "stepId": "p6",
+      "kind": "play",
+      "text": "つりあう ところに おこう",
+      "seesaw": {
+        "notches": 5,
+        "left": [{ "robots": 4, "pos": 2 }],
+        "mover": { "robots": 2, "start": 1 }
+      },
+      "solution": 4
+    },
+    {
+      "stepId": "p7",
+      "kind": "play",
+      "text": "つりあう ところに おこう",
+      "seesaw": {
+        "notches": 5,
+        "left": [{ "robots": 5, "pos": 2 }],
+        "mover": { "robots": 2, "start": 1 }
+      },
+      "solution": 5
     },
     { "stepId": "s2", "kind": "summary", "text": "おもいほど ちかくに おくよ" }
   ]
