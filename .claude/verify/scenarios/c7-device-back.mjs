@@ -51,7 +51,7 @@ export default async function run({ page, check }) {
   await page.click('#menu-home');
   await page.click('[data-action="leave-ok"]');
   await page.waitForSelector('[data-screen="picker"]');
-  await check('やめるでマップへ移る', async () => page.url().endsWith('/index.html?view=map'));
+  await check('やめるでマップへ移る', async () => page.url().includes('view=map'));
 
   // 何も組んでいなくてもplay中は確認が出る（Issue #542）。
   await enterPlay(page, 'cmd-01-susumu');
@@ -60,5 +60,5 @@ export default async function run({ page, check }) {
   await check('命令列が空でもplay中は確認が出る', async () => (await page.$$('.leave-confirm')).length, 1);
   await page.click('[data-action="leave-ok"]');
   await page.waitForSelector('[data-screen="picker"]');
-  await check('命令列が空でも確認の「もどる」で移る', async () => page.url().endsWith('/index.html?view=map'));
+  await check('命令列が空でも確認の「もどる」で移る', async () => page.url().includes('view=map'));
 }

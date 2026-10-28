@@ -180,14 +180,20 @@ function goBack() {
 }
 
 // 離れる＝レッスンせんたくがめんへ（⚙メニューの #menu-home。ヘッダの 🏠 は #574 段Bで除いた）。
+// 単元マップへの戻り先URL。今のレッスンの大項目だけに絞るため from を付ける（Issue #616）。
+export function mapUrl() {
+  const id = S.lesson?.lessonId;
+  return withDev(id ? `./index.html?view=map&from=${encodeURIComponent(id)}` : './index.html?view=map');
+}
+
 function goHome() {
   if (headerEls().menuHome.disabled) return;
   if (!hasPlayInProgress()) {
-    location.href = withDev('./index.html?view=map');
+    location.href = mapUrl();
     return;
   }
   // play中は常に確認を挟む。子どもが読まなくても分かるよう「つづける」を大きく目立たせる（Issue #240・#542）。
-  confirmLeave(() => (location.href = withDev('./index.html?view=map')));
+  confirmLeave(() => (location.href = mapUrl()));
 }
 
 export function initSteps() {

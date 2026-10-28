@@ -74,4 +74,12 @@ export default async function run({ page, check }) {
   await page.click('[data-action="next"]');
   await page.waitForSelector('[data-action="back-to-picker"]');
   await check('summaryへ進める', () => page.getAttribute('#stage', 'data-step'), 'summary');
+
+  // ほかのレッスンへ：teko の大項目の単元だけが出て、ロボットの単元は出ない（Issue #616）
+  await page.click('[data-action="back-to-picker"]');
+  await page.waitForSelector('[data-lesson-id]');
+  await check('ほかのレッスンへで tekoの単元だけが出る', async () => {
+    const ids = await page.$$eval('[data-lesson-id]', (els) => els.map((e) => e.dataset.lessonId));
+    return [ids.includes('teko-01-tsuriai'), ids.includes('cmd-01-susumu')].join();
+  }, 'true,false');
 }
