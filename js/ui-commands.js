@@ -236,8 +236,14 @@ export function arrowSvg(dir) {
 // ドラッグ中、dropTarget領域への出入りで呼ぶ（ゴースト枠の出し入れ用）。
 // maxPauses>0なら上段左に「とめる」（タップでonPause()。✋・とめる・×N を1ボタンに統合）を出す（#395 段3・#467 段B）。
 // onMenu(button) があれば上段右に⚙（せってい）を出す。
+// 返り値 { tapDir(dir) }：キー操作用。タップと同じ振動・onAdd(dir, { via: 'tap' }) を呼ぶ。
 export function renderCommandPalette(container, { onAdd, dropTarget, onDragOver, dropGap, maxPauses = 0, onPause, onMenu }) {
   container.innerHTML = '';
+  // タップと同じ onTap 相当（振動・onAdd。効果音は onAdd 内の tap 1回）。キー操作（js/ui-keys.js）からも呼ぶ（Issue #380）。
+  const tapDir = (dir) => {
+    vibrate();
+    onAdd(dir, { via: 'tap' });
+  };
   // 2行×3列（上段 [とめる/空き][うえ][せってい]・下段 [ひだり][した][みぎ]）。DOM順は up 先頭のまま、
   // 配置は tailwind.src.css の .palette-row の grid-area で並べ替える（Issue #395）。
   DIRECTIONS.forEach((dir) => {
@@ -248,10 +254,7 @@ export function renderCommandPalette(container, { onAdd, dropTarget, onDragOver,
       'command-btn btn-tactile flex flex-col items-center justify-center gap-1 px-3 py-2 bg-sky-500 text-white touch-none disabled:opacity-40';
     btn.innerHTML = `${arrowSvg(dir)}<span class="text-sm whitespace-nowrap">${COMMAND_LABELS[dir]}</span>`;
     attachTapOrDrag(btn, {
-      onTap: () => {
-        vibrate();
-        onAdd(dir, { via: 'tap' });
-      },
+      onTap: () => tapDir(dir),
       getDropTarget: dropTarget,
       getGap: dropGap,
       onDragOver,
@@ -313,6 +316,8 @@ export function renderCommandPalette(container, { onAdd, dropTarget, onDragOver,
     });
     container.appendChild(menuBtn);
   }
+  // キーから onTap 相当を呼ぶ口（click を伴わない。ドラッグ処理には触れない）。
+  return { tapDir };
 }
 
 // 残り回数の表示（「とめる」ボタン内の ×N）を更新する。表示がない（maxPauses=0）画面では何もしない。

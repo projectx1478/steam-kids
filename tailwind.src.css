@@ -248,6 +248,13 @@
     animation: retry-pulse 0.6s ease-in-out 2;
   }
 
+  /* キー操作時のフォーカス枠（Issue #380）。:focus-visible だけなのでタップでは出ない。
+     詳細度は(0,1,0)で、下の .command-chip.sk-cmd-fail(0,2,0)の橙の枠が優先される。 */
+  :focus-visible {
+    outline: 4px solid #0369a1;
+    outline-offset: 2px;
+  }
+
   /* 失敗後に最初に外れた命令の1個だけの強調（Issue #545）。ring-4 ring-amber-400 は残し、枠をさらに太くする。 */
   .command-chip.sk-cmd-fail {
     outline: 4px solid #d97706;

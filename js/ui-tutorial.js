@@ -14,6 +14,7 @@ import { renderInto } from './text-render.js';
 import { showHandHint } from './ui-hand.js';
 import { goToStep, createPrimaryButton, playAnimation, setActiveHandHint } from './ui-step.js';
 import { showClearToast } from './ui-clear.js';
+import { registerKeys } from './ui-keys.js';
 import { IS_DEV } from './dev-mode.js';
 
 const GUIDE_GLOW_CLASSES = ['ring-4', 'ring-amber-400', 'ring-offset-2', 'motion-safe:animate-pulse'];
@@ -353,7 +354,7 @@ export function renderTutorial(root, step) {
     setActiveHandHint(btn ? showHandHint({ from: btn, to: queueEl, mode: 'drag' }) : null);
   }
 
-  renderCommandPalette(paletteEl, {
+  const palette = renderCommandPalette(paletteEl, {
     onMenu: openMenu,
     dropTarget: () => queueEl.getBoundingClientRect(),
     onDragOver: (active) => toggleGhostSlot(queueEl, active),
@@ -540,4 +541,32 @@ export function renderTutorial(root, step) {
   drawBoard();
   drawQueue();
   applyGuide();
+
+  // キー操作（Issue #380）：矢印＝命令を足す、Enter＝じっこう。経路はタップと同じ（onAdd・runBtn の guideTarget 判定を通る）。
+  // ガイド対象でないボタンは applyGuide が disabled にするので、ui-keys の事前判定でも弾かれる。Backspace は無視（tutorial に消すボタンは無い）。
+  // registerKeys は1画面分だけ持つ（再登録で前を解除）。画面が外れたら（root から panel が消えたら）解除する。
+  const menuOpen = () =>
+    ['gear-menu', 'menu-overlay'].some((id) => document.getElementById(id)?.hidden === false) || !!document.querySelector('[role="dialog"]');
+  const offKeys = registerKeys({
+    add: (dir) => palette.tapDir(dir),
+    run: () => {
+      if (runBtn.isConnected) runBtn.click();
+    },
+    removeLast: () => {},
+    isBlocked: () => local.running || menuOpen() || !!panel.querySelector('.tutorial-divider'),
+    getButtons: () => ({
+      up: paletteEl.querySelector('[data-command="up"]'),
+      down: paletteEl.querySelector('[data-command="down"]'),
+      left: paletteEl.querySelector('[data-command="left"]'),
+      right: paletteEl.querySelector('[data-command="right"]'),
+      run: runBtn.isConnected ? runBtn : { disabled: true },
+      removeLast: { disabled: true },
+    }),
+  });
+  const keyLeaveWatcher = new MutationObserver(() => {
+    if (panel.isConnected) return;
+    offKeys();
+    keyLeaveWatcher.disconnect();
+  });
+  keyLeaveWatcher.observe(root, { childList: true });
 }

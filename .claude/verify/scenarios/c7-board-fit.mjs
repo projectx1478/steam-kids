@@ -85,6 +85,19 @@ export default async function run({ page, check }) {
     for (const id of LESSONS) await runLesson(page, check, id, `${vp.width}x${vp.height}@125%`);
   }
   await checkQueueOverflow(page, check);
+  await checkKeyAdd(page, check);
+}
+
+// キー操作（Issue #380）：矢印でチップを足した後も盤面・ロボットが盤面エリア内に収まる。
+async function checkKeyAdd(page, check) {
+  await page.setViewportSize({ width: 360, height: 640 });
+  await enterPlay(page, 'cmd-01-susumu');
+  await page.waitForSelector('[data-sk-screen="frame"] .grid-board');
+  for (const k of ['ArrowUp', 'ArrowRight', 'ArrowDown']) await page.keyboard.press(k);
+  await check('キー: 矢印でチップを3つ足した後も盤面が収まる', async () => {
+    const n = (await page.$$('.command-chip')).length;
+    return n === 3 ? await boardFits(page) : `chips=${n}`;
+  }, 'ok');
 }
 
 // 問い文の行を撤去して盤面を広げた寸法（Issue #497 段B）。のこり表示・塗りの見本・鍵トレイの補助行が無い cmd-01 の play で、
