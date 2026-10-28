@@ -20,3 +20,17 @@ export function tracksOf(index) {
   if (Array.isArray(index?.units)) return [{ trackId: 'all', title: '', units: index.units }];
   return [];
 }
+
+// lessonId が属する大項目の単元配列を返す純関数（Issue #616）。lessonIds と practiceIds のみ引く（devOnlyIds は見ない）。
+// 該当なし・壊れた index は null。例外は投げない。
+export function trackOfLesson(index, lessonId) {
+  if (typeof lessonId !== 'string' || lessonId === '') return null;
+  for (const t of tracksOf(index)) {
+    const hit = t.units.some((u) => (
+      (Array.isArray(u?.lessonIds) && u.lessonIds.includes(lessonId))
+      || (Array.isArray(u?.practiceIds) && u.practiceIds.includes(lessonId))
+    ));
+    if (hit) return t.units;
+  }
+  return null;
+}
