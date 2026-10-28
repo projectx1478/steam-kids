@@ -1,5 +1,5 @@
 {
-  "longTrialIds": ["cmd-01-susumu-long", "teko-01-tsuriai"],
+  "longTrialIds": ["cmd-01-susumu-long", "teko-01-tsuriai", "teko-02-tsuriai2", "teko-03-tsuriai3"],
   "tracks": [
     {
       "trackId": "robot",
@@ -46,7 +46,8 @@
         {
           "unitId": "teko",
           "title": "つりあい",
-          "lessonIds": ["teko-01-tsuriai"]
+          "lessonIds": ["teko-01-tsuriai"],
+          "devOnlyIds": ["teko-02-tsuriai2", "teko-03-tsuriai3"]
         }
       ]
     }

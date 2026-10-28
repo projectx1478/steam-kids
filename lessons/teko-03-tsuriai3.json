@@ -1,0 +1,134 @@
+{
+  "lessonId": "teko-03-tsuriai3",
+  "unitId": "teko",
+  "title": "つりあい 3",
+  "type": "predict-slider",
+  "estimatedMinutes": 8,
+  "steps": [
+    {
+      "stepId": "s1",
+      "kind": "intro",
+      "text": "もっと つりあわせよう"
+    },
+    {
+      "stepId": "p1",
+      "kind": "play",
+      "text": "つりあう ところに おこう",
+      "seesaw": {
+        "notches": 5,
+        "left": [
+          {
+            "robots": 1,
+            "pos": 1
+          },
+          {
+            "robots": 1,
+            "pos": 3
+          }
+        ],
+        "mover": {
+          "robots": 2,
+          "start": 5
+        }
+      },
+      "solution": 2
+    },
+    {
+      "stepId": "p2",
+      "kind": "play",
+      "text": "つりあう ところに おこう",
+      "seesaw": {
+        "notches": 5,
+        "left": [
+          {
+            "robots": 2,
+            "pos": 1
+          },
+          {
+            "robots": 1,
+            "pos": 4
+          }
+        ],
+        "mover": {
+          "robots": 2,
+          "start": 1
+        }
+      },
+      "solution": 3
+    },
+    {
+      "stepId": "p3",
+      "kind": "play",
+      "text": "つりあう ところに おこう",
+      "seesaw": {
+        "notches": 5,
+        "left": [
+          {
+            "robots": 1,
+            "pos": 3
+          },
+          {
+            "robots": 1,
+            "pos": 5
+          }
+        ],
+        "mover": {
+          "robots": 2,
+          "start": 5
+        }
+      },
+      "solution": 4
+    },
+    {
+      "stepId": "p4",
+      "kind": "play",
+      "text": "つりあう ところに おこう",
+      "seesaw": {
+        "notches": 5,
+        "left": [
+          {
+            "robots": 2,
+            "pos": 1
+          },
+          {
+            "robots": 2,
+            "pos": 4
+          }
+        ],
+        "mover": {
+          "robots": 2,
+          "start": 1
+        }
+      },
+      "solution": 5
+    },
+    {
+      "stepId": "p5",
+      "kind": "play",
+      "text": "つりあう ところに おこう",
+      "seesaw": {
+        "notches": 5,
+        "left": [
+          {
+            "robots": 2,
+            "pos": 2
+          },
+          {
+            "robots": 2,
+            "pos": 4
+          }
+        ],
+        "mover": {
+          "robots": 3,
+          "start": 5
+        }
+      },
+      "solution": 4
+    },
+    {
+      "stepId": "s2",
+      "kind": "summary",
+      "text": "どっちも みて おこう。とおいと ちからが つよいよ"
+    }
+  ]
+}
