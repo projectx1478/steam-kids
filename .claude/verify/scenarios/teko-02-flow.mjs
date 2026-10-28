@@ -95,7 +95,7 @@ export default async function run({ page, check }) {
       await boardFits(page, 'p8', check);
     },
   });
-  await check('teko-02：stage_clear8回・clear1回', () => counts(page), '8,1');
+  await check('teko-02：stage_clear7回・clear1回（最終面はclear）', () => counts(page), '7,1');
   await page.click('[data-action="next"]');
   await page.waitForSelector('[data-action="back-to-picker"]');
   await check('teko-02：summaryへ進める', () => page.getAttribute('#stage', 'data-step'), 'summary');
@@ -106,7 +106,7 @@ export default async function run({ page, check }) {
   await check('teko-03 p1：左が2組・右が2体', async () => [await leftGroups(page), await moverRobots(page)].join(), '2,2');
   await boardFits(page, 'teko-03 p1', check);
   await playAll(page, check, 'teko-03', [[5, 2], [1, 3], [5, 4], [1, 5], [5, 4]]);
-  await check('teko-03：stage_clear計13回・clear計2回', () => counts(page), '13,2');
+  await check('teko-03：stage_clear計11回・clear計2回', () => counts(page), '11,2');
   await page.click('[data-action="next"]');
   await page.waitForSelector('[data-action="back-to-picker"]');
   await check('teko-03：summaryへ進める', () => page.getAttribute('#stage', 'data-step'), 'summary');
