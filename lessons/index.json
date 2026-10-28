@@ -1,5 +1,5 @@
 {
-  "longTrialIds": ["cmd-01-susumu-long"],
+  "longTrialIds": ["cmd-01-susumu-long", "teko-01-tsuriai"],
   "tracks": [
     {
       "trackId": "robot",
