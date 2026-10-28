@@ -6,7 +6,9 @@ import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
-const base = JSON.parse(readFileSync('lessons/teko-01-tsuriai.json', 'utf-8'));
+// 基準は teko-01 の p1〜p3 の複製（本物の teko-01 は面が増えても、このテストの入力は変えない）
+const full = JSON.parse(readFileSync('lessons/teko-01-tsuriai.json', 'utf-8'));
+const base = { ...full, estimatedMinutes: 5, steps: full.steps.filter((s) => ['s1', 'p1', 'p2', 'p3', 's2'].includes(s.stepId)) };
 
 function validate(mutate) {
   const lesson = JSON.parse(JSON.stringify(base));

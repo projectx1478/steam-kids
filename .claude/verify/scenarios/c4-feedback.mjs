@@ -69,7 +69,7 @@ export default async function run({ page, check }) {
   await page.click('#gear-btn');
   await page.click('#menu-home');
   await page.waitForSelector('[data-screen="picker"]');
-  await check('introでは えらぶ がめんへ が確認無しで即座に遷移する', async () => page.url().endsWith('/index.html?view=map'));
+  await check('introでは えらぶ がめんへ が確認無しで即座に遷移する', async () => page.url().includes('view=map'));
 
   // --- 2. playの失敗ヒント（壁）・その場でためしなおす・ひとつ けす ---
   // 壁を持つのはp2（4x4, start(0,3), goal(3,0), walls[(2,2)]）なので、p1をクリアしてp2へ進む。

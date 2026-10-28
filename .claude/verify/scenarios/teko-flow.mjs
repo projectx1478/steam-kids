@@ -59,19 +59,45 @@ export default async function run({ page, check }) {
   await page.waitForSelector('[data-action="next-stage"]', { timeout: 10000 });
   await page.click('[data-action="next-stage"]');
 
-  // p3（最終）：解6
+  // p3：解6（最終ではない）
   await page.waitForSelector('[data-action="pos-right"]');
   for (let i = 0; i < 5; i += 1) await page.click('[data-action="pos-right"]');
   await check('p3で位置が6になり▶が押せない', async () => [await pos(page), await page.isDisabled('[data-action="pos-right"]')].join(), '6,true');
   await page.click('[data-action="run"]');
+  await page.waitForSelector('[data-action="next-stage"]', { timeout: 10000 });
+  await page.click('[data-action="next-stage"]');
+
+  // p4〜p6：解は6・3・4（開始は1）。目盛りを選んでためす→クリア
+  for (const [id, sol] of [['p4', 6], ['p5', 3], ['p6', 4]]) {
+    await page.waitForSelector('[data-action="pos-right"]');
+    for (let i = 1; i < sol; i += 1) await page.click('[data-action="pos-right"]');
+    await check(`${id}で位置が${sol}になる`, () => pos(page), String(sol));
+    await page.click('[data-action="run"]');
+    await page.waitForSelector('[data-action="next-stage"]', { timeout: 10000 });
+    await page.click('[data-action="next-stage"]');
+  }
+
+  // p7（最終）：解5（刻み5なので▶が押せなくなる）
+  await page.waitForSelector('[data-action="pos-right"]');
+  for (let i = 0; i < 4; i += 1) await page.click('[data-action="pos-right"]');
+  await check('p7で位置が5になり▶が押せない', async () => [await pos(page), await page.isDisabled('[data-action="pos-right"]')].join(), '5,true');
+  await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="next"]', { timeout: 10000 });
   await check('最終ステージの次はnext（next-stageではない）', async () => (await page.$$('[data-action="next-stage"]')).length, 0);
-  await check('stage_clear2回・clear1回・retry1回が記録される', async () => {
+  await check('stage_clear6回・clear1回・retry1回が記録される', async () => {
     const t = await eventTypes(page);
     return [t.filter((x) => x === 'stage_clear').length, t.filter((x) => x === 'clear').length, t.filter((x) => x === 'retry').length].join();
-  }, '2,1,1');
+  }, '6,1,1');
 
   await page.click('[data-action="next"]');
   await page.waitForSelector('[data-action="back-to-picker"]');
   await check('summaryへ進める', () => page.getAttribute('#stage', 'data-step'), 'summary');
+
+  // ほかのレッスンへ：teko の大項目の単元だけが出て、ロボットの単元は出ない（Issue #616）
+  await page.click('[data-action="back-to-picker"]');
+  await page.waitForSelector('[data-lesson-id]');
+  await check('ほかのレッスンへで tekoの単元だけが出る', async () => {
+    const ids = await page.$$eval('[data-lesson-id]', (els) => els.map((e) => e.dataset.lessonId));
+    return [ids.includes('teko-01-tsuriai'), ids.includes('cmd-01-susumu')].join();
+  }, 'true,false');
 }

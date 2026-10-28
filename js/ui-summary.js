@@ -9,7 +9,7 @@ import { stampSvg, goldStampSvg, flagSvg, medalSvg } from './ui-picker.js';
 import { play as playSfx } from './sfx.js';
 import { prefersReducedMotion, screenConfetti, shapeSvg } from './ui-grid.js';
 import { isUnitEndSeenStored, markUnitEndSeenStored } from './storage.js';
-import { createPrimaryButton, goToStep } from './ui-step.js';
+import { createPrimaryButton, goToStep, mapUrl } from './ui-step.js';
 import { randomNumberCode } from './seed-code.js';
 import { withDev } from './dev-mode.js';
 
@@ -194,6 +194,6 @@ export function renderSummary(root) {
   } else {
     bar.appendChild(endBtn);
   }
-  const toPicker = createPrimaryButton('ほかのレッスンへ', () => (location.href = withDev('./index.html?view=map')), 'back-to-picker');
+  const toPicker = createPrimaryButton('ほかのレッスンへ', () => (location.href = mapUrl()), 'back-to-picker');
   root.append(toPicker, bar);
 }
