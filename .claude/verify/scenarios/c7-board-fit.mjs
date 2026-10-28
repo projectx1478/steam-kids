@@ -91,6 +91,11 @@ export default async function run({ page, check }) {
 // キー操作（Issue #380）：矢印でチップを足した後も盤面・ロボットが盤面エリア内に収まる。
 async function checkKeyAdd(page, check) {
   await page.setViewportSize({ width: 360, height: 640 });
+  // 直前の節が保存した下書き（steamkids.draft.*）が復元されないよう、先に消してから入る。
+  await page.goto('/index.html');
+  await page.evaluate(() => {
+    for (const k of Object.keys(localStorage)) if (k.includes('draft.')) localStorage.removeItem(k);
+  });
   await enterPlay(page, 'cmd-01-susumu');
   await page.waitForSelector('[data-sk-screen="frame"] .grid-board');
   for (const k of ['ArrowUp', 'ArrowRight', 'ArrowDown']) await page.keyboard.press(k);
