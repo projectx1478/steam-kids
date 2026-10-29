@@ -55,6 +55,7 @@ export default async function run({ page, check }) {
   await check('置いた「とめる」チップの文言', () => page.$eval('.pause-chip', (e) => e.textContent.replace(/\s/g, '')), '✋とめる');
   await check('残り回数が1に減る', () => page.getAttribute('[data-action="pause"][data-pause-count]', 'data-pause-left'), '1');
   await check('次の枠の番号は3（「とめる」は数えない）', () => page.getAttribute('[data-tray-slot]', 'data-order'), '3');
+  await check('2つ目以降の空き枠は数字を出さない（空）', () => page.$eval('[data-tray-slot]', (e) => e.textContent.trim()), '');
 
   await page.click('[data-action="run"]');
   // 止まらないときは原因を見えるよう、待ちが切れたら状態を actual に出して落とす。
