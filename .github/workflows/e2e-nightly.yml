@@ -49,6 +49,7 @@ jobs:
         if: failure() && steps.gate.outputs.run == 'true'
         run: |
           : > .verify/rerun.txt
+          cp .verify/verify-all.log .verify/verify-all-full.log
           for NAME in $(grep '^FAILED: ' .verify/nightly-out.txt | sed 's/^FAILED: //' | head -5); do
             P=0; F=0
             for I in 1 2 3; do
@@ -78,11 +79,12 @@ jobs:
           LABEL=e2e-nightly
           gh label create "$LABEL" --color B60205 --description "夜間E2Eの失敗" 2>/dev/null || true
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          [ -f .verify/verify-all-full.log ] && cp .verify/verify-all-full.log .verify/verify-all.log
           TAIL=$( [ -f .verify/verify-all.log ] && tail -n 60 .verify/verify-all.log || echo "(ログなし。セットアップで失敗)" )
           RERUN=$( [ -s .verify/rerun.txt ] && cat .verify/rerun.txt || echo "(再実行なし)" )
           COMMITS=$(git log --since='25 hours ago' --format='%h %s' | head -20)
-          BODY=$(printf '夜間E2Eが失敗しました。\n\n- コミット: %s\n- 実行ログ: %s\n\n直近のコミット:\n```\n%s\n```\n\nログ末尾:\n```\n%s\n```\n' \
-            "${{ github.sha }}" "$RUN_URL" "$COMMITS" "$TAIL")
+          BODY=$(printf '夜間E2Eが失敗しました。\n\n- コミット: %s\n- 実行ログ: %s\n\n単独3回の再実行:\n%s\n\n直近のコミット:\n```\n%s\n```\n\nログ末尾:\n```\n%s\n```\n' \
+            "${{ github.sha }}" "$RUN_URL" "$RERUN" "$COMMITS" "$TAIL")
           EXISTING=$(gh issue list --label "$LABEL" --state open --json number --jq '.[0].number')
           if [ -n "$EXISTING" ]; then
             gh issue comment "$EXISTING" --body "$BODY"
