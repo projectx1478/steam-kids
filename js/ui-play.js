@@ -434,6 +434,18 @@ export function renderPlay(root, step) {
     }, RUN_COOLDOWN_MS);
   }
 
+  // 末尾へ寄せる。列が折り返して1行ぶん(72px)しか見えないとき、末尾の空き枠が次の行へ回ると最新のチップが上へ外れるので、
+  // 最新のチップが列の中に入るところまで戻す（Issue #615。空き枠が同じ行に残るときはそのまま両方見える）。
+  function scrollQueueToEnd() {
+    queueEl.scrollLeft = queueEl.scrollWidth;
+    queueEl.scrollTop = queueEl.scrollHeight;
+    const chips = queueEl.querySelectorAll(':scope > .command-chip');
+    const last = chips[chips.length - 1];
+    if (!last) return;
+    const over = queueEl.getBoundingClientRect().top - last.getBoundingClientRect().top;
+    if (over > 0) queueEl.scrollTop -= over;
+  }
+
   // drawQueueFollowActive(): 実行中の再描画。再描画で戻るスクロール位置を復元し、今動いているチップを
   // 列の中央へ寄せる（Issue #393）。scrollIntoViewは使わず、queueElのscrollLeft/scrollTopだけを動かす。
   function drawQueueFollowActive() {
@@ -516,8 +528,7 @@ export function renderPlay(root, step) {
       saveDraft();
       if (isFix) local.fixOpened = true;
       drawQueue();
-      queueEl.scrollLeft = queueEl.scrollWidth;
-      queueEl.scrollTop = queueEl.scrollHeight;
+      scrollQueueToEnd();
       updateControls();
       local.nudge?.poke();
     },
@@ -535,8 +546,7 @@ export function renderPlay(root, step) {
         saveDraft();
         playSfx(via === 'drag' ? 'snap' : 'tap');
         drawQueue();
-        queueEl.scrollLeft = queueEl.scrollWidth;
-        queueEl.scrollTop = queueEl.scrollHeight;
+        scrollQueueToEnd();
         updateControls();
         local.nudge?.poke();
         return;
@@ -577,8 +587,7 @@ export function renderPlay(root, step) {
       drawQueue();
       // 命令列は横スクロールのため、積みすぎると最新のチップが右にはみ出して見えなくなる。
       // 追加のたびに右端へスクロールし、常に最新チップが見える位置にする（Issue #102）。
-      queueEl.scrollLeft = queueEl.scrollWidth;
-      queueEl.scrollTop = queueEl.scrollHeight;
+      scrollQueueToEnd();
       // lastElementChildは使わない（末尾にトレイの次枠(.tray-slot)が付くため。Issue #110）。
       if (via === 'drag') queueEl.querySelector(`.command-chip[data-index="${local.commands.length - 1}"]`)?.classList.add('spring-in');
       updateControls();
@@ -661,8 +670,7 @@ export function renderPlay(root, step) {
       local.boxOpen = local.commands.length - 1;
       saveDraft();
       drawQueue();
-      queueEl.scrollLeft = queueEl.scrollWidth;
-      queueEl.scrollTop = queueEl.scrollHeight;
+      scrollQueueToEnd();
       updateControls();
       local.nudge?.poke();
     });
@@ -1067,8 +1075,7 @@ export function renderPlay(root, step) {
   // 下書きから復元した列が横にはみ出すとき、最新（右端）のチップが隠れないよう右端へ寄せる（Issue #102 と同じ意図）。
   // 初期列（なおす系のずれた列など）は先頭から見せるため、初期列より長いときだけ。
   if (local.commands.length > (step.initialCommands?.length ?? 0)) {
-    queueEl.scrollLeft = queueEl.scrollWidth;
-    queueEl.scrollTop = queueEl.scrollHeight;
+    scrollQueueToEnd();
   }
   updateControls();
   showStartCue(boardArea); // ステージ開始時に1回（再開では出さない。#497）
