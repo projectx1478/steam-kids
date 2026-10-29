@@ -121,12 +121,12 @@ export default async function run({ page, check }) {
   await check('キー: Backspace でチップが1個減り、取り消し札は出ない', async () =>
     [(await queue(page)).length, (await page.$$('[data-action="undo-clear"]')).length], [2, 0]);
 
-  // キー操作（Issue #380、#615 で上限なしに変更）：14個積んだ後も、矢印を押せばチップが増える（命令ボタンが disabled でない）。
+  // キー操作（Issue #380、#615 で上限なしに変更）：14個以上積んだ後も（前の下書き2個が残るので16個）、矢印を押せばチップが4個増える。
   await enterPlay(page, 'cmd-01-susumu');
   const keys = ['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft'];
   for (let i = 0; i < 14; i += 1) await page.keyboard.press(keys[i % 4]);
-  const before = (await queue(page)).length;
+  const beforeKeys = (await queue(page)).length;
   for (let i = 0; i < 4; i += 1) await page.keyboard.press(keys[i]);
   await check('キー: 14個積んだ後も矢印でチップが増える（命令ボタンが disabled でない）', async () =>
-    [before, (await queue(page)).length, await page.$eval('[data-command="up"]', (b) => b.disabled)], [14, 18, false]);
+    [beforeKeys >= 14, (await queue(page)).length - beforeKeys, await page.$eval('[data-command="up"]', (b) => b.disabled)], [true, 4, false]);
 }
