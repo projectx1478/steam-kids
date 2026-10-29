@@ -204,7 +204,7 @@ export function checkSwitchMatters(rawPlay, dist, add, label) {
       const closed = mode === 'toggle' ? targetsOf(s).filter((t) => t?.initial !== 'open') : targetsOf(s);
       const noStepDist = distOf(boardSpec({ ...play, walls: [...(play.walls || []), ...closed], switches: rest }));
       if (noStepDist <= play.maxCommands) {
-        add('スイッチの必須性', `${label}switches[${i}] を踏まずにmaxCommands=${play.maxCommands}以内でゴールできる（最短${noStepDist}）`);
+        add('スイッチの必須性', `${label}switches[${i}] を踏まずに想定の手数（maxCommands=${play.maxCommands}）の内でゴールできる（最短${noStepDist}）`);
       }
       if (mode === 'toggle' && dist !== Infinity) {
         const asOpen = boardSpec({ ...play, switches: play.switches.map((o, j) => (j === i ? { ...o, mode: 'open', targets: closed.map(({ x, y }) => ({ x, y })) } : o)) });
@@ -224,7 +224,7 @@ export function checkSwitchMatters(rawPlay, dist, add, label) {
     const noStep = boardSpec({ ...play, walls: [...(play.walls || []), ...play.switches.flatMap(closedOf)], switches: [] });
     const noStepDist = play.groupRepeats ? shortestChips(noStep) : shortestSteps(noStep);
     if (noStepDist <= play.maxCommands) {
-      add('スイッチの必須性', `${label}スイッチを踏まずにmaxCommands=${play.maxCommands}以内でゴールできる（最短${noStepDist}）`);
+      add('スイッチの必須性', `${label}スイッチを踏まずに想定の手数（maxCommands=${play.maxCommands}）の内でゴールできる（最短${noStepDist}）`);
     }
     // トグルの意味：closedの壁をmode:"open"、openの壁を常時床にした盤の最短より、toggleの最短が厳密に長いこと（導入盤の免除なし）。
     if (dist !== Infinity) {
@@ -239,7 +239,7 @@ export function checkSwitchMatters(rawPlay, dist, add, label) {
     const noSwitch = boardSpec({ ...play, walls: [...(play.walls || []), ...targets], switches: [] });
     const noSwitchDist = play.groupRepeats ? shortestChips(noSwitch) : shortestSteps(noSwitch);
     if (noSwitchDist <= play.maxCommands) {
-      add('スイッチの必須性', `${label}スイッチを踏まずにmaxCommands=${play.maxCommands}以内でゴールできる（最短${noSwitchDist}）`);
+      add('スイッチの必須性', `${label}スイッチを踏まずに想定の手数（maxCommands=${play.maxCommands}）の内でゴールできる（最短${noSwitchDist}）`);
     }
   }
   // スイッチ→鍵の順序：スイッチが無効（対象は壁のまま）でも鍵に届くなら、順序が強制されていない。
@@ -263,7 +263,7 @@ export function checkSwitchMatters(rawPlay, dist, add, label) {
     });
     const toKeyDist = play.groupRepeats ? shortestChips(toKey) : shortestSteps(toKey);
     if (toKeyDist <= play.maxCommands) {
-      add('スイッチ→かぎの順序', `${label}スイッチを踏まずにmaxCommands=${play.maxCommands}以内でかぎに届く（最短${toKeyDist}）`);
+      add('スイッチ→かぎの順序', `${label}スイッチを踏まずに想定の手数（maxCommands=${play.maxCommands}）の内でかぎに届く（最短${toKeyDist}）`);
     }
   }
 }
