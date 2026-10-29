@@ -7,7 +7,7 @@ import path from 'node:path';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { startEditorServer } from '../tools/editor/serve.mjs';
-import { setDevOnly, moveLesson, moveLessonToUnit } from '../tools/editor/layout-state.js';
+import { setDevOnly, moveLesson, moveLessonToUnit, addUnit, removeUnit, renameUnit, addTrack, removeTrack, renameTrack } from '../tools/editor/layout-state.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -130,4 +130,52 @@ test('レッスン保存側の index 拒否は変わらない', async () => {
   await withServer(s, async (port) => {
     assert.equal((await call(port, 'PUT', '/api/lessons/index', [{}])).status, 400);
   });
+});
+
+test('段2: 単元の追加は空のままだと 400、レッスンを移すと通る。題名変更・空の単元の削除も通る', async () => {
+  const s = setup();
+  await withServer(s, async (port) => {
+    const idx = (await call(port, 'GET', '/api/index')).json;
+    const withUnit = addUnit(idx, 'robot', 'newu', '新しい単元');
+    assert.notEqual(withUnit, idx);
+    assert.equal((await call(port, 'PUT', '/api/index', withUnit)).status, 400);
+    const moved = moveLessonToUnit(withUnit, 'ice-01-suberu', 'newu');
+    const r = await call(port, 'PUT', '/api/index', moved);
+    assert.equal(r.status, 200, JSON.stringify(r.json));
+    assert.deepEqual(unitOf(readIndex(s), 'newu').lessonIds, ['ice-01-suberu']);
+    assert.equal(unitIdOf(s.lessonsDir, 'ice-01-suberu'), 'newu');
+    const renamed = renameUnit(moved, 'newu', 'なおした');
+    assert.equal((await call(port, 'PUT', '/api/index', renamed)).status, 200);
+    assert.equal(unitOf(readIndex(s), 'newu').title, 'なおした');
+    // 空の単元の削除（もう一つ足して、すぐ消す）
+    const tmp = removeUnit(addUnit(renamed, 'robot', 'tmpu', '一時'), 'tmpu');
+    assert.deepEqual(tmp, renamed);
+  });
+});
+
+test('段2: 大項目の追加は単元を足すまで 400。足すと通り、空の大項目の削除・題名変更も通る', async () => {
+  const s = setup();
+  await withServer(s, async (port) => {
+    const idx = (await call(port, 'GET', '/api/index')).json;
+    const t = addTrack(idx, 'newt', '新しい大項目');
+    assert.equal((await call(port, 'PUT', '/api/index', t)).status, 400);
+    const withUnit = moveLessonToUnit(addUnit(t, 'newt', 'newu2', '単元'), 'ice-01-suberu', 'newu2');
+    const r = await call(port, 'PUT', '/api/index', renameTrack(withUnit, 'newt', '大項目だよ'));
+    assert.equal(r.status, 200, JSON.stringify(r.json));
+    assert.equal(readIndex(s).tracks.find((x) => x.trackId === 'newt').title, '大項目だよ');
+    assert.deepEqual(removeTrack(addTrack(idx, 'zz', 'Z'), 'zz'), idx);
+  });
+});
+
+test('段2: 追加・削除の後の index は validateIndex が通る', async () => {
+  const s = setup();
+  const { validateIndex } = await import('../tools/lib/validate/index-check.mjs');
+  await withServer(s, async (port) => {
+    const idx = (await call(port, 'GET', '/api/index')).json;
+    const next = moveLessonToUnit(addUnit(idx, 'robot', 'newu3', '単元3'), 'key-01-kagi', 'newu3');
+    assert.equal((await call(port, 'PUT', '/api/index', next)).status, 200);
+  });
+  const lessonById = new Map();
+  for (const f of fs.readdirSync(s.lessonsDir)) if (f.endsWith('.json') && f !== 'index.json') lessonById.set(f.slice(0, -5), JSON.parse(fs.readFileSync(path.join(s.lessonsDir, f), 'utf8')));
+  assert.deepEqual(validateIndex(readIndex(s), lessonById, new Set(lessonById.keys())), []);
 });

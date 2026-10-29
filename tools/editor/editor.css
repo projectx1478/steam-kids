@@ -108,3 +108,8 @@
 .lay-row .kind { width: 5em; color: #64748b; }
 .lay-row.dev .nm { color: #94a3b8; }
 .lay-row select { height: 24px; font-size: 12px; }
+.lay-track, .lay-unit { display: flex; align-items: center; gap: 6px; }
+.lay-title { flex: 1; height: 24px; font-size: 13px; font-weight: 700; }
+.lay-add { display: flex; align-items: center; gap: 4px; margin: 4px 0 0 8px; font-size: 12px; }
+.lay-add input { height: 24px; font-size: 12px; }
+.lay-add-err, .lay-hint { color: #b91c1c; font-size: 12px; }

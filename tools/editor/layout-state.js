@@ -79,4 +79,89 @@ export function moveLessonToUnit(index, lessonId, toUnitId) {
   return withUnit(removed, dest.ti, dest.ui, (u) => ({ ...u, [p.kind]: [...(u[p.kind] || []), lessonId] }));
 }
 
-export const isLayoutDirty = (saved, current) => JSON.stringify(saved) !== JSON.stringify(current);
+// ---- 段2：単元・大項目の追加／削除／題名（#618） ----
+const ID_RE = /^[a-z][a-z0-9-]*$/;
+const idsOf = (u) => KINDS.flatMap((k) => u[k] || []);
+
+// 追加する ID の検査。問題が無ければ ''、あれば作者向けの文言。
+export function checkNewId(index, kind, id) {
+  const label = kind === 'track' ? '大項目' : '単元';
+  if (typeof id !== 'string' || !ID_RE.test(id)) return `${label}のIDは、英小文字で始まる英小文字・数字・ハイフンだけで書いてください`;
+  const used = kind === 'track' ? index.tracks.map((t) => t.trackId) : index.tracks.flatMap((t) => t.units.map((u) => u.unitId));
+  if (used.includes(id)) return `${label}のID「${id}」はすでにあります`;
+  return '';
+}
+
+const okTitle = (title) => typeof title === 'string' && title.trim() !== '';
+
+function withTrack(index, ti, fn) {
+  return { ...index, tracks: index.tracks.map((t, i) => (i !== ti ? t : fn(t))) };
+}
+
+function trackAt(index, trackId) {
+  return index.tracks.findIndex((t) => t.trackId === trackId);
+}
+
+// 新しい単元は lessonIds が空。レッスンを1つ移すまで保存できない（#618-6A、layoutProblems）。
+export function canAddUnit(index, trackId, unitId, title) {
+  return trackAt(index, trackId) >= 0 && okTitle(title) && checkNewId(index, 'unit', unitId) === '';
+}
+
+export function addUnit(index, trackId, unitId, title) {
+  if (!canAddUnit(index, trackId, unitId, title)) return index;
+  return withTrack(index, trackAt(index, trackId), (t) => ({ ...t, units: [...t.units, { unitId, title: title.trim(), lessonIds: [] }] }));
+}
+
+// レッスンの入った単元は削除できない（掲載漏れを防ぐ）
+export function canRemoveUnit(index, unitId) {
+  const u = index.tracks.flatMap((t) => t.units).find((x) => x.unitId === unitId);
+  return !!u && idsOf(u).length === 0;
+}
+
+export function removeUnit(index, unitId) {
+  if (!canRemoveUnit(index, unitId)) return index;
+  return { ...index, tracks: index.tracks.map((t) => ({ ...t, units: t.units.filter((u) => u.unitId !== unitId) })) };
+}
+
+export function renameUnit(index, unitId, title) {
+  if (!okTitle(title)) return index;
+  return { ...index, tracks: index.tracks.map((t) => ({ ...t, units: t.units.map((u) => (u.unitId === unitId ? { ...u, title } : u)) })) };
+}
+
+// 新しい大項目は units が空。単元を1つ足すまで保存できない（layoutProblems）。
+export function canAddTrack(index, trackId, title) {
+  return okTitle(title) && checkNewId(index, 'track', trackId) === '';
+}
+
+export function addTrack(index, trackId, title) {
+  if (!canAddTrack(index, trackId, title)) return index;
+  return { ...index, tracks: [...index.tracks, { trackId, title: title.trim(), units: [] }] };
+}
+
+// 単元の入った大項目は削除できない
+export function canRemoveTrack(index, trackId) {
+  const t = index.tracks.find((x) => x.trackId === trackId);
+  return !!t && t.units.length === 0 && index.tracks.length > 1;
+}
+
+export function removeTrack(index, trackId) {
+  if (!canRemoveTrack(index, trackId)) return index;
+  return { ...index, tracks: index.tracks.filter((t) => t.trackId !== trackId) };
+}
+
+export function renameTrack(index, trackId, title) {
+  if (!okTitle(title)) return index;
+  return withTrack(index, trackAt(index, trackId), (t) => ({ ...t, title }));
+}
+
+// 保存できない状態の説明（空の単元・空の大項目）。サーバー側の検査と同じ内容を、保存前に画面で見せる。
+export function layoutProblems(index) {
+  const out = [];
+  for (const t of index.tracks) {
+    if (t.units.length === 0) out.push(`大項目「${t.title}」に単元がありません。単元を追加してください`);
+    for (const u of t.units) if (!Array.isArray(u.lessonIds) || u.lessonIds.length === 0) out.push(`単元「${u.title}」に公開レッスンがありません。レッスンを1つ移してください`);
+  }
+  return out;
+}
+
+export const isLayoutDirty =(saved, current) => JSON.stringify(saved) !== JSON.stringify(current);
