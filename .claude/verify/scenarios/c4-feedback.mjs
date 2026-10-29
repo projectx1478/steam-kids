@@ -237,7 +237,7 @@ export default async function run({ page, check }) {
   await check('「3つの ステージを クリア！」が表示される', async () =>
     (await page.locator('.achievement-cards').innerText()).includes('3つの ステージを クリア！')
   );
-  await check('単元スタンプがlessonIds数(3)だけ表示される', async () => (await page.$$('.unit-progress [data-stamp]')).length, 3);
+  await check('単元スタンプがlessonIds数(2。cmd-02 は devOnly)だけ表示される', async () => (await page.$$('.unit-progress [data-stamp]')).length, 2);
   await check('つぎの レッスンへボタンが出る', async () => (await page.$$('[data-action="next-lesson"]')).length, 1);
   // 下端バー（#551）：おわる＝左の副ボタン、つぎへ＝右の主ボタン。大きさ一致は求めず配置を検査する
   const barRects = async () => ({
