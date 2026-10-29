@@ -509,7 +509,7 @@ export function renderCommandQueue(container, { commands, activeIndex, activeInn
     slot.innerHTML =
       nextSlot === 1
         ? '<span class="text-lg text-slate-400">←</span>'
-        : `<span class="text-xs font-bold text-slate-400">${nextSlot}</span>`;
+        : '';
     container.appendChild(slot);
   }
 }
