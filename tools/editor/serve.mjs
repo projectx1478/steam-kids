@@ -269,7 +269,8 @@ async function handleGenerate(req, res, opts) {
   sendJson(res, 200, await runGenerate(body, { ...opts, signal: ac.signal }));
 }
 
-// ---- レッスンの読み書き（#402 段1）。書き込み先は lessons/<id>.json と退避置き場だけ。index.json・新規作成は不可 ----
+// ---- レッスンの読み書き（#402 段1）。書き込み先は lessons/<id>.json と退避置き場だけ。新規作成は不可。
+// index.json は /api/lessons からは書けず、専用の /api/index（#618）だけが書く ----
 export const SAVE_TIMEOUT_MS = 10_000; // 保存検査の打ち切り（ANALYZE_TIMEOUT_MS と同じ仮置き）
 export const BACKUP_KEEP = 10; // レッスンごとの退避の保持数
 const SAVE_WORKER_CODE = `
@@ -278,7 +279,7 @@ const { parentPort, workerData } = require('node:worker_threads');
   try {
     const { validateLesson, validateIndex } = await import(workerData.validateUrl);
     const { id, data, longTrialIds, indexData, lessons, fileIds } = workerData;
-    const errors = validateLesson(id + '.json', data, longTrialIds);
+    const errors = data ? validateLesson(id + '.json', data, longTrialIds) : [];
     if (indexData) errors.push(...validateIndex(indexData, new Map(lessons), new Set(fileIds)));
     parentPort.postMessage({ ok: true, errors });
   } catch (e) {
@@ -358,6 +359,84 @@ export function runSaveValidate(payload, timeoutMs = SAVE_TIMEOUT_MS) {
     worker.once('message', (m) => finish(m && m.ok ? { timeout: false, errors: m.errors } : { timeout: false, errors: [`検査中にエラー: ${m && m.error}`] }));
     worker.once('error', (e) => finish({ timeout: false, errors: [`検査中にエラー: ${e.message}`] }));
   });
+}
+
+// ---- 配置の読み書き（#618）。lessons/index.json 専用。レッスン ID の足し引き・改名は不可。
+// 単元間の移動のときだけ、移った lessons/<id>.json の unitId を書き換える（検査後・退避後のみ） ----
+const idsOfUnit = (u) => ['lessonIds', 'practiceIds', 'devOnlyIds'].flatMap((k) => (Array.isArray(u[k]) ? u[k] : []));
+const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+
+// 現行 index と新しい index の食い違い（作者向けの文言）。空なら OK。
+export function checkIndexChange(current, next) {
+  if (!isObj(next) || !Array.isArray(next.tracks)) return ['index.json の形が不正です（tracks が配列のオブジェクトにしてください）'];
+  const problems = [];
+  const cur = new Map();
+  const nxt = new Map();
+  for (const t of current.tracks || []) for (const u of t.units || []) for (const id of idsOfUnit(u)) cur.set(id, u.unitId);
+  for (const t of next.tracks) {
+    if (!isObj(t) || !Array.isArray(t.units)) return ['index.json の形が不正です（大項目に units がありません）'];
+    for (const u of t.units) {
+      if (!isObj(u)) return ['index.json の形が不正です（単元がオブジェクトではありません）'];
+      for (const id of idsOfUnit(u)) {
+        if (nxt.has(id)) problems.push(`レッスン ${id} が2回出てきます`);
+        nxt.set(id, u.unitId);
+      }
+      if (!Array.isArray(u.lessonIds) || u.lessonIds.length === 0) problems.push(`単元 ${u.unitId} の公開レッスンが空になります。1つ以上残してください`);
+    }
+  }
+  for (const id of nxt.keys()) if (!cur.has(id)) problems.push(`レッスン ${id} は追加できません（配置の保存では足し引きできません）`);
+  for (const id of cur.keys()) if (!nxt.has(id)) problems.push(`レッスン ${id} は削除できません（配置の保存では足し引きできません）`);
+  const nextUnits = new Set(next.tracks.flatMap((t) => t.units.map((u) => u.unitId)));
+  const nextTracks = new Set(next.tracks.map((t) => t.trackId));
+  for (const t of current.tracks || []) {
+    for (const u of t.units || []) if (!nextUnits.has(u.unitId) && idsOfUnit(u).length > 0) problems.push(`レッスンの入った単元 ${u.unitId} は削除できません`);
+    if (!nextTracks.has(t.trackId) && (t.units || []).length > 0) problems.push(`単元の入った大項目 ${t.trackId} は削除できません`);
+  }
+  return problems;
+}
+
+async function handleIndex(req, res, opts) {
+  const dir = lessonsDirOf(opts);
+  const file = path.join(dir, 'index.json');
+  let raw;
+  try { raw = await fs.promises.readFile(file, 'utf8'); } catch { return sendJson(res, 404, { messages: ['index.json がありません'] }); }
+  let current;
+  try { current = JSON.parse(raw); } catch { return sendJson(res, 400, { messages: ['index.json: JSONとして読めません'] }); }
+  if (req.method === 'GET') return sendJson(res, 200, current);
+  if (req.method !== 'PUT') return sendJson(res, 404, { messages: ['Not Found'] });
+
+  const text = await readBody(req);
+  if (text === null) return sendJson(res, 400, { messages: ['body が大きすぎます'] });
+  let body;
+  try { body = JSON.parse(text); } catch { return sendJson(res, 400, { messages: ['JSON として読めません'] }); }
+  const problems = checkIndexChange(current, body);
+  if (problems.length > 0) return sendJson(res, 400, { messages: problems });
+
+  const { files, lessons } = await readAllLessons(dir);
+  // 単元間の移動：レッスン本体の unitId を移動先の単元に合わせる（メモリ上）
+  const moved = new Map();
+  for (const t of body.tracks) for (const u of t.units) for (const id of idsOfUnit(u)) {
+    const l = lessons.get(id);
+    if (l && l.unitId !== u.unitId) { moved.set(id, { ...l, unitId: u.unitId }); lessons.set(id, moved.get(id)); }
+  }
+  const longTrialIds = Array.isArray(body.longTrialIds) ? body.longTrialIds.filter((x) => typeof x === 'string') : [];
+  const result = await runSaveValidate({ id: 'index', data: null, longTrialIds, indexData: body, lessons: [...lessons], fileIds: files.map((f) => f.slice(0, -5)) }, opts.saveTimeoutMs);
+  if (result.timeout) return sendJson(res, 400, { messages: ['検査が時間内に終わらなかったため保存しません（時間切れ）'] });
+  if (result.errors.length > 0) return sendJson(res, 400, { messages: result.errors });
+
+  const backups = backupsDirOf(opts);
+  const crlf = (rawText, out) => (rawText.includes('\r\n') ? out.replace(/\n/g, '\r\n') : out);
+  const lessonWrites = [];
+  for (const [id, data] of moved) {
+    const lf = lessonFileOf(dir, id);
+    const lraw = await fs.promises.readFile(lf, 'utf8');
+    lessonWrites.push({ id, lf, lraw, out: crlf(lraw, `${formatLesson(data)}\n`) });
+  }
+  await backupLesson('index', raw, backups);
+  for (const w of lessonWrites) await backupLesson(w.id, w.lraw, backups);
+  for (const w of lessonWrites) await fs.promises.writeFile(w.lf, w.out, 'utf8');
+  await fs.promises.writeFile(file, crlf(raw, `${formatLesson(body)}\n`), 'utf8');
+  sendJson(res, 200, { ok: true, moved: [...moved.keys()] });
 }
 
 async function handleLessons(req, res, pathname, opts) {
@@ -471,6 +550,10 @@ export function createEditorServer(opts = {}) {
     const pathname = new URL(req.url, 'http://localhost').pathname;
     if (pathname === '/api/lessons' || pathname.startsWith('/api/lessons/')) {
       handleLessons(req, res, pathname, opts).catch(() => sendJson(res, 500, { messages: ['内部エラー'] }));
+      return;
+    }
+    if (pathname === '/api/index') {
+      handleIndex(req, res, opts).catch(() => sendJson(res, 500, { messages: ['内部エラー'] }));
       return;
     }
     if (pathname === '/api/drafts' || pathname.startsWith('/api/drafts/')) {

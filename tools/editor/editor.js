@@ -4,6 +4,7 @@ import { EMPTY_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clam
 
 import { GIMMICKS } from '/js/gimmicks/index.js';
 import { markGatePassedToday } from '/js/gate-date.js';
+import { openLayoutPanel } from './layout-panel.js';
 import { buildPalette, iconSpec } from './palette.js';
 import { createState, setCellPx as setStateCellPx, setGrid, place, erase, move, toggleTarget, togglePaint, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, setKeyColor, setDoorColor, setKeyMode, setWaterMode, setPeriodicPeriod, PERIODIC_PERIODS, WATER_MODES, SWITCH_COLORS, KEY_COLORS, KEY_MODES, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard, addDraftStep, explainSaveNg } from './editor-state.js';
 
@@ -599,6 +600,7 @@ const genProblemsEl = document.getElementById('gen-problems');
 const genCandsEl = document.getElementById('gen-cands');
 const genNum = (id) => { const v = document.getElementById(id).value; return v === '' ? NaN : Number(v); };
 const GEN_CAND_AREA_PX = 200; // 候補1枚の盤面の最大の辺
+const layoutOpenEl = document.getElementById('layout-open');
 let genAbort = null; // 生成中の AbortController
 let genNextSeed = null; // 「もう4枚」で使う次の seed
 
@@ -621,6 +623,7 @@ function refreshGenerateForm() {
   genProblemsEl.replaceChildren(...problems.map((t) => { const d = document.createElement('div'); d.textContent = t; return d; }));
   genRunEl.disabled = problems.length > 0 || genAbort !== null;
   genMoreEl.disabled = problems.length > 0 || genAbort !== null || genNextSeed === null;
+  layoutOpenEl.disabled = genAbort !== null; // 生成中は「配置」を開かない（#618）
 }
 
 function openGeneratePanel() {
@@ -701,6 +704,7 @@ document.getElementById('trial-open').addEventListener('click', () => {
 });
 
 document.getElementById('gen-open').addEventListener('click', openGeneratePanel);
+layoutOpenEl.addEventListener('click', openLayoutPanel);
 document.getElementById('gen-close').addEventListener('click', () => { if (genAbort) genAbort.abort(); genPanelEl.hidden = true; });
 genRunEl.addEventListener('click', () => { genNextSeed = null; generateNow(genNum('gen-seed')); });
 genMoreEl.addEventListener('click', () => generateNow(genNextSeed));

@@ -93,3 +93,23 @@
 .grid-cell.ed-sw-pending::after { content: "!"; position: absolute; right: 2px; top: 2px; width: 18px; height: 18px; border-radius: 50%; background: #f59e0b; color: #451a03; font-weight: 700; font-size: 13px; line-height: 18px; text-align: center; z-index: 5; }
 #stage-settings { padding: 10px 12px; font-size: 13px; }
 #stage-settings input { width: 4em; }
+/* 配置パネル（#618）。たたき台パネルと同じ作り */
+#layout-msg { font-size: 12px; color: #b91c1c; }
+#layout-panel { position: fixed; inset: 48px 0 0 0; z-index: 10; display: flex; align-items: flex-start; justify-content: center; padding-top: 16px; background: rgba(15, 23, 42, 0.45); }
+#layout-panel[hidden] { display: none; }
+.layout-box { width: 760px; max-height: calc(100vh - 80px); overflow-y: auto; background: #fff; border: 1px solid #94a3b8; border-radius: 8px; padding: 12px; box-sizing: border-box; }
+#layout-ng { color: #b91c1c; font-size: 12px; }
+#layout-ng:empty { display: none; }
+#layout-ng.ok { color: #15803d; }
+.lay-track { margin-top: 10px; font-weight: 700; font-size: 14px; border-bottom: 2px solid #cbd5e1; }
+.lay-unit { margin: 6px 0 0 8px; font-size: 13px; font-weight: 700; color: #334155; }
+.lay-row { display: flex; align-items: center; gap: 4px; margin: 2px 0 2px 20px; font-size: 12px; font-weight: 400; }
+.lay-row .nm { flex: 1; }
+.lay-row .kind { width: 5em; color: #64748b; }
+.lay-row.dev .nm { color: #94a3b8; }
+.lay-row select { height: 24px; font-size: 12px; }
+.lay-track, .lay-unit { display: flex; align-items: center; gap: 6px; }
+.lay-title { flex: 1; height: 24px; font-size: 13px; font-weight: 700; }
+.lay-add { display: flex; align-items: center; gap: 4px; margin: 4px 0 0 8px; font-size: 12px; }
+.lay-add input { height: 24px; font-size: 12px; }
+.lay-add-err, .lay-hint { color: #b91c1c; font-size: 12px; }

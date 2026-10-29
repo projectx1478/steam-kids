@@ -15,6 +15,8 @@
   <button type="button" class="btn" id="undo" disabled>元に戻す</button>
   <button type="button" class="btn" id="redo" disabled>やり直し</button>
   <button type="button" class="btn" id="gen-open">たたき台</button>
+  <button type="button" class="btn" id="layout-open">配置</button>
+  <span id="layout-msg"></span>
   <button type="button" class="btn" id="trial-open">ためしあそび</button>
   <label class="grid-ctl">よこ <input type="number" id="grid-w" min="1" max="20" step="1"></label>
   <label class="grid-ctl">たて <input type="number" id="grid-h" min="1" max="20" step="1"></label>
@@ -87,6 +89,14 @@
       <span id="gen-status"></span>
     </div>
     <div id="gen-cands"></div>
+  </div>
+</div>
+<div id="layout-panel" hidden>
+  <div class="layout-box" role="dialog" aria-label="配置">
+    <div class="gen-head"><strong>れっすんを えらぼう の配置</strong>
+      <span><button type="button" class="btn sm" id="layout-save" disabled>保存</button> <button type="button" class="btn sm" id="layout-close">とじる</button></span></div>
+    <div id="layout-ng"></div>
+    <div id="layout-body"></div>
   </div>
 </div>
 <script type="module" src="/editor.js"></script>
