@@ -1,6 +1,6 @@
 // こおり・かぎの必須性の判定。validate-lessons と盤の生成ツールで同じ判定を使う。
 // 戻り値: { matters, dist }
-//   matters: true なら必須（外した盤の最短が maxCommands を超える。または対象のギミックが無い）
+//   matters: true なら必須（外した盤の最短が想定の手数 maxCommands より多い。子どもの画面の上限ではない。または対象のギミックが無い）
 //   dist: 外した盤の最短（対象のギミックが無いときは null）
 import { shortestSteps, shortestChips, boardSpec } from '../../js/engine-grid.js';
 import { GIMMICKS } from '../../js/gimmicks/index.js';
