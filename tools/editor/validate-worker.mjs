@@ -44,19 +44,19 @@ export function analyzeSpec(spec) {
   const maxCommands = typeof board.maxCommands === 'number' ? board.maxCommands : dist;
   const play = { ...board, maxCommands };
   if (dist > maxCommands) {
-    add('ゴール到達可能性', `最短${dist}（maxCommands=${maxCommands}以内で到達できない）`);
+    add('ゴール到達可能性', `最短${dist}（想定の手数 maxCommands=${maxCommands} の内で到達できない）`);
     return { clearable: false, shortest: dist, matters, turns: null, messages };
   }
 
   const ice = iceMustMatter(play);
   if (nonEmpty(play.ice)) {
     matters.ice = ice.matters;
-    if (!ice.matters) add('こおりの必須性', `こおりを踏まずにmaxCommands=${maxCommands}以内でゴールできる（最短${ice.dist}）`);
+    if (!ice.matters) add('こおりの必須性', `こおりを踏まずに想定の手数（maxCommands=${maxCommands}）の内でゴールできる（最短${ice.dist}）`);
   }
   const keys = keysMustMatter(play);
   if (nonEmpty(play.doors)) {
     matters.keys = keys.matters;
-    if (!keys.matters) add('かぎの必須性', `かぎを取らずにmaxCommands=${maxCommands}以内でゴールできる（最短${keys.dist}）`);
+    if (!keys.matters) add('かぎの必須性', `かぎを取らずに想定の手数（maxCommands=${maxCommands}）の内でゴールできる（最短${keys.dist}）`);
   }
   if (play.stageGen?.teach === 'items' && !play.groupRepeats) {
     matters.items = itemsMustMatter(play, dist);
@@ -70,7 +70,7 @@ export function analyzeSpec(spec) {
   const warps = warpsMustMatter(play);
   if (nonEmpty(play.warps)) {
     matters.warps = warps.matters;
-    if (!warps.matters) add('ワープの必須性', `ワープを使わずにmaxCommands=${maxCommands}以内でゴールできる（最短${warps.dist}）`);
+    if (!warps.matters) add('ワープの必須性', `ワープを使わずに想定の手数（maxCommands=${maxCommands}）の内でゴールできる（最短${warps.dist}）`);
   }
   const water = waterMustMatter(play, dist);
   if (nonEmpty(play.water)) {

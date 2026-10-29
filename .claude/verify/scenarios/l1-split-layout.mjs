@@ -135,19 +135,19 @@ export default async function run({ page, check }) {
       await check(`${label} play: パレット4つが2行（上段うえ・下段ひだり/した/みぎ）`, () => ys, 2);
     }
 
-    // 命令を積み続けても盤面の大きさが変わらず、トレイ内でスクロールする
+    // 命令を上限(20)を超えて積み続けても盤面の大きさが変わらず、トレイ内でスクロールする
     const before = g.board.width;
-    for (let i = 0; i < 20; i += 1) {
+    for (let i = 0; i < 25; i += 1) {
       const btn = await page.$('.palette-row [data-command]:not(:disabled)');
       if (!btn) break;
       await btn.click();
     }
     const after = await geometry(page);
-    await check(`${label} play: 上限までチップ積んでも盤面の幅が変わらない`, () => Math.abs(after.board.width - before) < 1);
-    await check(`${label} play: 上限までチップ積んでも縦スクロールが出ない`, () =>
+    await check(`${label} play: 上限(20個)を超えて25個積んでも盤面の幅が変わらない`, () => Math.abs(after.board.width - before) < 1);
+    await check(`${label} play: 上限(20個)を超えて25個積んでも縦スクロールが出ない`, () =>
       page.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 1));
     await check(`${label} play: トレイが操作パネル内に収まる`, () => after.tray.bottom <= after.panel.bottom + 1 && after.tray.top >= after.panel.top - 1);
-    if (vp.height === 600) await check(`${label} play: 上限までチップはトレイ内で縦スクロール`, () => after.trayScrolls);
+    if (vp.height === 600) await check(`${label} play: 上限(20個)を超えて25個積んでもチップはトレイ内で縦スクロール`, () => after.trayScrolls);
   }
 
   // 縦向き：従来の縦積み・セル上限64px

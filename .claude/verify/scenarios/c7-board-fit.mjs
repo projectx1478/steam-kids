@@ -141,7 +141,7 @@ async function checkBoardAreaSize(page, check) {
   }
 }
 
-// 命令をmaxCommandsまで積んだ時、命令列が横スクロールで最新チップを隠さないこと（Issue #102）。
+// 命令をmaxCommands(8)を超えて積んだ時も、命令列が最新チップを隠さないこと（Issue #102、#615 で折り返し・上限なしに追従）。
 async function queueKeepsLatestVisible(page) {
   return page.evaluate(() => {
     const queue = [...document.querySelectorAll('.command-queue')].find((e) => e.offsetParent !== null);
@@ -151,7 +151,8 @@ async function queueKeepsLatestVisible(page) {
     if (!last) return 'no-chip';
     const q = queue.getBoundingClientRect();
     const l = last.getBoundingClientRect();
-    return l.right <= q.right + 1 && l.left >= q.left - 1 ? 'ok' : 'hidden';
+    // #615：列は折り返す（縦スクロール）ので、横に加えて縦も列の内側に収まることを見る。
+    return l.right <= q.right + 1 && l.left >= q.left - 1 && l.bottom <= q.bottom + 1 && l.top >= q.top - 1 ? 'ok' : 'hidden';
   });
 }
 
@@ -163,7 +164,7 @@ async function checkQueueOverflow(page, check) {
   await enterPlay(page, 'donguri-02-mawarimichi');
   // よそう（predict）はIssue #104で全廃。introの「はじめる」から直接play(p1)へ入る。
   await page.waitForSelector('[data-sk-screen="frame"] .grid-board');
-  for (let i = 0; i < 9; i += 1) {
+  for (let i = 0; i < 11; i += 1) {
     const btn = await page.$('[data-command]:not(:disabled)');
     if (!btn) break;
     await btn.click();

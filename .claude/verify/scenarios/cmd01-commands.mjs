@@ -1,4 +1,4 @@
-export const name = 'cmd-01-susumu: 命令の追加・個別削除・ぜんぶけす・8個上限';
+export const name = 'cmd-01-susumu: 命令の追加・個別削除・ぜんぶけす・上限なし';
 import { enterPlay } from '../helpers.mjs';
 
 export default async function run({ page, check }) {
@@ -15,8 +15,10 @@ export default async function run({ page, check }) {
   for (let i = 0; i < 7; i++) {
     await page.click('[data-command="up"]');
   }
-  await check('8個で頭打ちになる', async () => (await page.$$('.command-chip')).length, 8);
-  await check('追加ボタンがdisabledになる', async () => page.getAttribute('[data-command="up"]', 'disabled'), '');
+  await check('8個まで積める', async () => (await page.$$('.command-chip')).length, 8);
+  await page.click('[data-command="up"]');
+  await check('9個目も置ける（上限なし）', async () => (await page.$$('.command-chip')).length, 9);
+  await check('追加ボタンにdisabledが付かない', async () => page.getAttribute('[data-command="up"]', 'disabled'), null);
 
   await page.click('[data-action="clear-all"]');
   await check('ぜんぶけすで0個になる', async () => (await page.$$('.command-chip')).length, 0);

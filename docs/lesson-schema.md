@@ -105,7 +105,8 @@ DOM判定用に箱チップへ`data-round`（0始まりの現在周。実行外�
 を置く。クリア条件は「ゴール到達」から「ゴール到達 **かつ** 全item回収」に変わる（items未指定時
 は従来通りゴール到達のみ）。item同士・item-壁の座標重複は不可（`validate-lessons.mjs`が検証）。`ice`（こおり）も座標範囲・壁/start/goal/items/ice同士の重複不可、`cushion`（クッション）も同様（仕様は`docs/gimmicks.md`）。`switches`（スイッチ。`[{x, y, targets: [{x, y, initial?}], mode?, color?}]`）の`mode`は`"open"`（省略時）｜`"close"`｜`"toggle"`で、`initial`（`"closed"`既定｜`"open"`）は`toggle`の`targets`だけに指定でき、`targets`の要素は`{x, y}`の上位互換（仕様と重ねられない組み合わせは`docs/gimmicks.md`の`## switches`）。`switches[].group`（任意・文字列）と盤面トップの`groupWalls`（任意・`{x, y, group}`の配列・省略時`[]`）の仕様は`docs/gimmicks.md`の`## switches`。`keyMode`（任意・`"remote"`｜`"carry"`、省略時`"carry"`）は`keys`・`doors`のある盤面（play・tutorial・intro.demo）だけに書け、無い盤面や2値以外はvalidateで落ちる（仕様は`docs/gimmicks.md`の`## keys`）。既存のレッスンは見た目を変えないよう`"keyMode": "remote"`を明示する。`water`・`bridge`（`{x, y}`の配列。水・橋。省略時`[]`）と`waterMode`（`"cushion"`既定／`"bump"`）も同様（`docs/gimmicks.md`の`## water`）。`play.paint`（任意・`{x, y}`の配列＝目標の模様。クリアは「ゴール到達かつ最後の塗り＝目標」。全回収との違いは`docs/gimmicks.md`の`## paint`）。
 `maxCommands`はゴール到達と全item回収の両方を満たす最短経路の手数（`groupRepeats`時はチップ数）
-で判定される（Issue #60）。`maxCommands`に上限なし（盤の最短手数以上の整数）。命令の列が長くなっても、
+で判定される（Issue #60）。`maxCommands`は想定の手数（盤の最短手数以上の整数）で、子どもの画面の上限ではない。
+子どもの画面は手数を制限しない。ギミックを使わない遠回りの解は許す。ギミックは想定の最短（`maxCommands`）では必須（検査で確かめる）。命令の列が長くなっても、
 実行中は今のチップが列の中に追従して見える（Issue #393）。
 
 `play.text`（任意・文字列。他stepの`text`と同じくルビ記法・20字制限の検証対象）を指定すると、
@@ -293,17 +294,17 @@ MustMatterは、ギミックモジュールの`strip(spec)`（ギミックを除
 - `groupRepeats` を持つ場合はboolean型であること
 - `repeatBox` を持つ場合はboolean型で、`groupRepeats`と同時に`true`にしないこと。`true`の場合は
   `solution`が必須で、箱は空でなく中が方向のみ（入れ子なし）・`times`が2〜4の整数であること、
-  `solution`のチップ数（箱1＋中の命令数）が`maxCommands`以内であること、箱を使わない最短手数が
-  `maxCommands`を超えること（箱が必須）。ステージ難度の比較は`solution`のチップ数で行う
-- `initialCommands` を持つ場合は語彙が正しく、長さが `maxCommands` 以内であり、そのまま実行
+  `solution`のチップ数（箱1＋中の命令数）が想定の手数`maxCommands`の内であること、箱を使わない最短手数が
+  `maxCommands`より多いこと（想定の手数の内では箱が必須）。ステージ難度の比較は`solution`のチップ数で行う
+- `initialCommands` を持つ場合は語彙が正しく、長さが想定の手数 `maxCommands` の内であり、そのまま実行
   してもゴールに到達しないこと（`items` がある場合は全回収も満たしていないこと）
 - `solution` を持つ場合は形式が正しく、実行するとクリアし（ゴール到達・全item回収・壁や盤外に
-  当たらない）、手数（`groupRepeats`時はチップ数）が `maxCommands` 以内であること
+  当たらない）、手数（`groupRepeats`時はチップ数）が想定の手数 `maxCommands` の内であること
 - `start` `goal` `walls` `optionCells` `items` の座標が盤内であること
 - `start` と `goal` が重ならず、`walls` が `start` `goal` を含まないこと
 - `items` が `walls` と重ならず、`items` 同士も座標重複しないこと
-- ゴールが到達可能であること（`items` がある場合は全回収した上でのゴール到達）を `maxCommands`
-  以内の最短手数でBFS確認する（`groupRepeats: true` の場合は同方向連続を1チップにまとめた
+- ゴールが到達可能であること（`items` がある場合は全回収した上でのゴール到達）を想定の手数
+  `maxCommands`の内の最短手数でBFS確認する（`groupRepeats: true` の場合は同方向連続を1チップにまとめた
   最小チップ数で判定する）
 - 複数の`play`ステージがある場合、後のステージほど最短手数（`groupRepeats`時はチップ数）が
   非減少であること（Issue #104）

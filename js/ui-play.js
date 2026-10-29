@@ -224,7 +224,7 @@ export function renderPlay(root, step) {
   controls.insertBefore(paletteEl, actionsEl);
 
   const queueEl = document.createElement('ul');
-  queueEl.className = 'command-queue command-tray flex flex-nowrap items-center gap-2 overflow-x-auto min-h-[64px] py-1';
+  queueEl.className = 'command-queue command-tray flex flex-wrap items-center gap-2 portrait:max-h-[72px] overflow-y-auto min-h-[64px] py-1';
   controls.insertBefore(queueEl, actionsEl);
 
   const removeLastBtn = document.createElement('button');
@@ -286,15 +286,15 @@ export function renderPlay(root, step) {
   const stepBtn = document.createElement('button');
   stepBtn.type = 'button';
   stepBtn.dataset.action = 'step';
-  stepBtn.textContent = '👣 1コマ';
+  stepBtn.textContent = '👣\n１コマ';
   stepBtn.className =
-    'btn-tactile px-1 bg-sky-500 text-white text-sm font-bold whitespace-nowrap break-keep disabled:opacity-40';
+    'btn-tactile px-1 bg-sky-500 text-white text-sm font-bold whitespace-pre-line leading-tight break-keep disabled:opacity-40';
 
   const runBtn = document.createElement('button');
   runBtn.type = 'button';
   runBtn.dataset.action = 'run';
-  runBtn.textContent = '▶ じっこう';
-  runBtn.className = 'btn-tactile px-1 bg-emerald-500 text-white text-sm font-bold whitespace-nowrap break-keep disabled:opacity-40';
+  runBtn.textContent = '▶\nじっこう';
+  runBtn.className = 'btn-tactile px-1 bg-emerald-500 text-white text-sm font-bold whitespace-pre-line leading-tight break-keep disabled:opacity-40';
 
   // 実行が失敗したらrunBtn自体を橙色の「ためしなおす」に変える（目線を動かさずに押せる。Issue #91）。
   // 他のボタンをロックする間、押せるのはこれだけなのでパルス枠で目立たせる（Issue #106）。
@@ -313,7 +313,10 @@ export function renderPlay(root, step) {
     runBtn.addEventListener('animationend', () => runBtn.classList.remove('retry-pulse'), { once: true });
   }
   function setRunButtonMode(mode) {
-    setRetryButton(runBtn, mode, { runLabel: '▶ じっこう', emphasis: RETRY_EMPHASIS_CLASSES });
+    setRetryButton(runBtn, mode, { runLabel: '▶\nじっこう', emphasis: RETRY_EMPHASIS_CLASSES });
+    // 「ためしなおす」は6字で、text-sm だと 360px 幅の列からはみ出すため、失敗時だけ text-xs にする。
+    runBtn.classList.toggle('text-xs', mode === 'retry');
+    runBtn.classList.toggle('text-sm', mode !== 'retry');
   }
 
   // クリア時はつぎへ・ためしなおす（レッスン再挑戦）を通常アクション行に差し替えて表示する
@@ -431,6 +434,18 @@ export function renderPlay(root, step) {
     }, RUN_COOLDOWN_MS);
   }
 
+  // 末尾へ寄せる。列が折り返して1行ぶん(72px)しか見えないとき、末尾の空き枠が次の行へ回ると最新のチップが上へ外れるので、
+  // 最新のチップが列の中に入るところまで戻す（Issue #615。空き枠が同じ行に残るときはそのまま両方見える）。
+  function scrollQueueToEnd() {
+    queueEl.scrollLeft = queueEl.scrollWidth;
+    queueEl.scrollTop = queueEl.scrollHeight;
+    const chips = queueEl.querySelectorAll(':scope > .command-chip');
+    const last = chips[chips.length - 1];
+    if (!last) return;
+    const over = queueEl.getBoundingClientRect().top - last.getBoundingClientRect().top;
+    if (over > 0) queueEl.scrollTop -= over;
+  }
+
   // drawQueueFollowActive(): 実行中の再描画。再描画で戻るスクロール位置を復元し、今動いているチップを
   // 列の中央へ寄せる（Issue #393）。scrollIntoViewは使わず、queueElのscrollLeft/scrollTopだけを動かす。
   function drawQueueFollowActive() {
@@ -458,8 +473,8 @@ export function renderPlay(root, step) {
       openIndex: local.boxOpen,
       removable: true,
       lockedCount: local.lockedCount,
-      // 上限に達したら次の枠は出さない（Issue #110）。
-      nextSlot: countChips(local.commands) < step.maxCommands ? countChips(local.commands) + 1 : null,
+      // 次の空き枠は常に出す（命令の置ける数に上限は無い。#615）。
+      nextSlot: countChips(local.commands) + 1,
       onRemove: (i) => {
         if (local.running || local.stepping || local.locked || isLockedIndex(i, local.lockedCount)) return;
         if (isFix) local.fixOpened = true;
@@ -480,9 +495,8 @@ export function renderPlay(root, step) {
   function updateControls() {
     // 取り消し札は、命令列が消した直後の状態から動いた（追加・実行・1コマなど）時点で破棄する。
     if (undoSnap && (local.commands.length !== local.lockedCount || local.running || local.stepping || local.locked)) dropUndo();
-    const atMax = countChips(local.commands) >= step.maxCommands;
     paletteEl.querySelectorAll('button:not([data-action="menu"])').forEach((b) => {
-      b.disabled = atMax || local.running || local.stepping || local.locked;
+      b.disabled = local.running || local.stepping || local.locked;
     });
     // 「とめる」：残り回数が0なら無効。maxCommandsには数えないので、上限に達していても置ける（#395 段3）。
     const pausesLeft = maxPauses - local.commands.filter(isPause).length;
@@ -492,7 +506,7 @@ export function renderPlay(root, step) {
     const isRetry = runBtn.dataset.action === 'retry';
     const hasEmptyBox = local.commands.some((c) => c.box && c.box.length === 0);
     runBtn.disabled = local.running || local.runCooldown || (!isRetry && (local.commands.length === 0 || hasEmptyBox));
-    if (boxBtn) boxBtn.disabled = atMax || local.boxOpen >= 0 || local.running || local.stepping || local.locked;
+    if (boxBtn) boxBtn.disabled = local.boxOpen >= 0 || local.running || local.stepping || local.locked;
     drawBoxBar();
     clearBtn.disabled = local.commands.length <= local.lockedCount || local.running || local.stepping || local.locked;
     removeLastBtn.disabled = local.commands.length <= local.lockedCount || local.running || local.stepping || local.locked;
@@ -514,8 +528,7 @@ export function renderPlay(root, step) {
       saveDraft();
       if (isFix) local.fixOpened = true;
       drawQueue();
-      queueEl.scrollLeft = queueEl.scrollWidth;
-      queueEl.scrollTop = queueEl.scrollHeight;
+      scrollQueueToEnd();
       updateControls();
       local.nudge?.poke();
     },
@@ -529,16 +542,11 @@ export function renderPlay(root, step) {
         return;
       }
       if (local.boxOpen >= 0) {
-        if (countChips(local.commands) >= step.maxCommands) {
-          skipClickSfx();
-          return;
-        }
         local.commands[local.boxOpen].box.push(dir);
         saveDraft();
         playSfx(via === 'drag' ? 'snap' : 'tap');
         drawQueue();
-        queueEl.scrollLeft = queueEl.scrollWidth;
-        queueEl.scrollTop = queueEl.scrollHeight;
+        scrollQueueToEnd();
         updateControls();
         local.nudge?.poke();
         return;
@@ -555,10 +563,6 @@ export function renderPlay(root, step) {
           next.times += 1;
           playSfx('stack', { count: next.times });
         } else {
-          if (countChips(local.commands) >= step.maxCommands) {
-            skipClickSfx();
-            return;
-          }
           local.commands.splice(at, 0, { dir, times: 1 });
           playSfx('snap');
         }
@@ -575,10 +579,6 @@ export function renderPlay(root, step) {
         last.times += 1;
         playSfx('stack', { count: last.times });
       } else {
-        if (countChips(local.commands) >= step.maxCommands) {
-          skipClickSfx();
-          return;
-        }
         local.commands.push({ dir, times: 1 });
         playSfx(via === 'drag' ? 'snap' : 'tap');
       }
@@ -587,8 +587,7 @@ export function renderPlay(root, step) {
       drawQueue();
       // 命令列は横スクロールのため、積みすぎると最新のチップが右にはみ出して見えなくなる。
       // 追加のたびに右端へスクロールし、常に最新チップが見える位置にする（Issue #102）。
-      queueEl.scrollLeft = queueEl.scrollWidth;
-      queueEl.scrollTop = queueEl.scrollHeight;
+      scrollQueueToEnd();
       // lastElementChildは使わない（末尾にトレイの次枠(.tray-slot)が付くため。Issue #110）。
       if (via === 'drag') queueEl.querySelector(`.command-chip[data-index="${local.commands.length - 1}"]`)?.classList.add('spring-in');
       updateControls();
@@ -662,7 +661,7 @@ export function renderPlay(root, step) {
       'command-btn btn-tactile flex flex-col items-center justify-center gap-1 px-3 py-2 bg-amber-500 text-white disabled:opacity-40';
     boxBtn.innerHTML = '<span class="text-xl leading-none" aria-hidden="true">🔁</span><span class="text-sm whitespace-nowrap">はこ</span>';
     boxBtn.addEventListener('click', () => {
-      if (local.running || local.stepping || local.locked || local.boxOpen >= 0 || countChips(local.commands) >= step.maxCommands) {
+      if (local.running || local.stepping || local.locked || local.boxOpen >= 0) {
         skipClickSfx();
         return;
       }
@@ -671,8 +670,7 @@ export function renderPlay(root, step) {
       local.boxOpen = local.commands.length - 1;
       saveDraft();
       drawQueue();
-      queueEl.scrollLeft = queueEl.scrollWidth;
-      queueEl.scrollTop = queueEl.scrollHeight;
+      scrollQueueToEnd();
       updateControls();
       local.nudge?.poke();
     });
@@ -1077,8 +1075,7 @@ export function renderPlay(root, step) {
   // 下書きから復元した列が横にはみ出すとき、最新（右端）のチップが隠れないよう右端へ寄せる（Issue #102 と同じ意図）。
   // 初期列（なおす系のずれた列など）は先頭から見せるため、初期列より長いときだけ。
   if (local.commands.length > (step.initialCommands?.length ?? 0)) {
-    queueEl.scrollLeft = queueEl.scrollWidth;
-    queueEl.scrollTop = queueEl.scrollHeight;
+    scrollQueueToEnd();
   }
   updateControls();
   showStartCue(boardArea); // ステージ開始時に1回（再開では出さない。#497）

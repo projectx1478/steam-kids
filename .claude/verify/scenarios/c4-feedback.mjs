@@ -54,8 +54,10 @@ export default async function run({ page, check }) {
   await check('playの区分チップ「うごかす 1/3」（複数ステージ構成。Issue #104）', async () => page.textContent('#menu-stage-chip'), 'うごかす 1/3');
   await page.click('#menu-close');
   await check('よそうは全廃。Issue #104', async () => page.getAttribute('#stage', 'data-step'), 'play');
-  // cmd-03-naosuのp1はinitialCommands(3個)がmaxCommands(3)と同数のため、パレットは
-  // 最初から満杯でdisabled。チップの取り消しで最初の操作を行う。
+  // cmd-03-naosuのp1はinitialCommands(3個)がmaxCommands(3)と同数だが、#615 で上限が無くなり
+  // パレットは最初から有効。チップの取り消しで最初の操作を行う。
+  await check('p1開始時（initialCommandsがmaxCommandsと同数）でも方向ボタンが有効（上限なし。Issue #615）', async () =>
+    page.$eval('[data-command="up"]', (b) => b.disabled), false);
   await page.click('[data-remove-index="2"]');
 
   // --- playから離れるときは確認が出る（Issue #542）。⚙の「まえ」は廃止され、端末の戻るで1ステップ戻る ---
@@ -235,7 +237,7 @@ export default async function run({ page, check }) {
   await check('「3つの ステージを クリア！」が表示される', async () =>
     (await page.locator('.achievement-cards').innerText()).includes('3つの ステージを クリア！')
   );
-  await check('単元スタンプがlessonIds数(3)だけ表示される', async () => (await page.$$('.unit-progress [data-stamp]')).length, 3);
+  await check('単元スタンプがlessonIds数(2。cmd-02 は devOnly)だけ表示される', async () => (await page.$$('.unit-progress [data-stamp]')).length, 2);
   await check('つぎの レッスンへボタンが出る', async () => (await page.$$('[data-action="next-lesson"]')).length, 1);
   // 下端バー（#551）：おわる＝左の副ボタン、つぎへ＝右の主ボタン。大きさ一致は求めず配置を検査する
   const barRects = async () => ({
@@ -313,7 +315,8 @@ export default async function run({ page, check }) {
   await page.waitForSelector('#stage[data-screen="title"]');
   await check('「おわる」でタイトル画面へ戻る', async () => page.getAttribute('#stage', 'data-screen'), 'title');
 
-  // --- 単元ぜんぶクリア：cmd-02・cmd-03も片付けて「めいれいでうごかす」を全クリアする
+  // --- 単元ぜんぶクリア：cmd-03も片付けて「めいれいでうごかす」を全クリアする。
+  // 公開は cmd-01・cmd-03 の2本（cmd-02 は #615 で devOnly。直接入口で解けるので確認は残す）
   // （tutorial(group/fix)はとばす。Issue #98） ---
   await enterPlay(page, 'cmd-02-mijikaku');
   await clearStage(page, ['down', 'down', 'down', 'left', 'left']); // p1(2チップ)

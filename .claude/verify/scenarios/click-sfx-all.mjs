@@ -65,10 +65,13 @@ export default async function run({ page, check }) {
   await page.click('[data-command="left"]');
   await check('命令ボタン: 別方向は tap が1件', () => log(page), ['tap']);
 
-  // --- 受け付けない押下：上限到達（maxCommands=2、チップ2個の状態でもう1つ）は鳴らさない ---
+  // --- 上限なし（#615）：旧上限（maxCommands=2、チップ2個）を超えて押しても鳴る ---
   await clearLog(page);
   await page.click('[data-command="right"]', { force: true });
-  await check('上限到達: 押しても何も鳴らない', () => log(page), []);
+  await check('上限を超えても音が鳴る（tap が1件）', () => log(page), ['tap']);
+  await check('上限を超えてチップが3個になる', async () => (await page.$$('.command-chip')).length, 3);
+  // 後続のじっこう（失敗してretryが出る前提）を保つため、足した3個目を外して元の2個に戻す
+  await page.click('[data-remove-index="2"]');
 
   // --- じっこう：1回押して増分1（run のみ）。実行中の命令ボタンは鳴らさない。ためしなおす（retry）は tap なし ---
   await clearLog(page);

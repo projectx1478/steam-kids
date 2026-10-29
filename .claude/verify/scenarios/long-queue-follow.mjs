@@ -1,4 +1,4 @@
-// 長い命令の列（31手・maxCommands 32）を組んで実行しても、最後のチップが見え、追加ボタンと「うごかす」が
+// 長い命令の列（31手・maxCommands 32。#615 で上限なし・列は折り返す）を組んで実行しても、最後のチップが見え、追加ボタンと「うごかす」が
 // 押し出されず、実行中は今のチップが列の中に追従する。列を指で動かしてもチップは消えない（Issue #393）。
 // 360px 縦（360x640）と横（844x390。既存の c10-result-gap が使う低い横向き）の両方で確かめる。
 
@@ -70,14 +70,28 @@ export default async function run({ page, check }) {
 
     for (let i = 0; i < COUNT; i += 1) await page.click('[data-command="right"]');
     await check(`${label}: チップが${COUNT}個並ぶ`, () => chipCount(page), COUNT);
-    await check(`${label}: 列は横か縦にスクロールできる長さになっている`, () =>
-      page.evaluate(() => {
+    await check(`${label}: 列は折り返し（横スクロールなし・最後のチップが先頭より下の行）、縦長なら縦にスクロールできる長さになっている`, () =>
+      page.evaluate((portrait) => {
         const q = document.querySelector('.command-queue');
-        return q.scrollWidth > q.clientWidth + 1 || q.scrollHeight > q.clientHeight + 1;
-      })
+        const chips = q.querySelectorAll('.command-chip');
+        const wrapped = chips[chips.length - 1].offsetTop > chips[0].offsetTop;
+        const noHScroll = q.scrollWidth <= q.clientWidth + 1;
+        const vScroll = q.scrollHeight > q.clientHeight + 1;
+        return wrapped && noHScroll && (!portrait || vScroll);
+      }, h > w)
     );
     await check(`${label}: 追加後、最後のチップが列の中に見えている`, () => chipInQueue(page, COUNT - 1), true);
     await check(`${label}: 追加ボタンと「うごかす」が画面内にある`, () => buttonsInScreen(page), true);
+
+    // 旧上限（32）を超えて33個まで足しても置ける。最後のチップが見え、ボタンも画面内。確認後に2個外して元の31個に戻す
+    await page.click('[data-command="right"]');
+    await page.click('[data-command="right"]');
+    await check(`${label}: 旧上限を超えて33個目まで置ける`, () => chipCount(page), COUNT + 2);
+    await check(`${label}: 33個目を置いた直後、最後のチップが列の中に見えている`, () => chipInQueue(page, COUNT + 1), true);
+    await check(`${label}: 33個でも追加ボタンと「うごかす」が画面内にある`, () => buttonsInScreen(page), true);
+    await page.click(`[data-remove-index="${COUNT + 1}"]`);
+    await page.click(`[data-remove-index="${COUNT}"]`);
+    await check(`${label}: 2個外して${COUNT}個に戻る`, () => chipCount(page), COUNT);
 
     // 指でスクロールした相当（scrollLeft/scrollTop を直接動かす）。チップは消えず、ボタンも動かない。
     await page.evaluate(() => {

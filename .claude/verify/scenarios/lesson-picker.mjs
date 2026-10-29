@@ -1,4 +1,4 @@
-export const name = 'レッスン選択画面: ?lesson無しで13本が並び、解放済みから選べる(Issue #31, #60, #216)';
+export const name = 'レッスン選択画面: ?lesson無しで12本が並び、解放済みから選べる(Issue #31, #60, #216)';
 
 async function boxesOk(page) {
   const boxes = [];
@@ -47,10 +47,10 @@ function title(id) {
 export default async function run({ page, check }) {
   await page.goto('/index.html?view=map');
 
-  await check('13本のレッスンボタンが表示される', async () => (await page.$$('.lesson-pick-btn')).length, 13);
+  await check('12本のレッスンボタンが表示される', async () => (await page.$$('.lesson-pick-btn')).length, 12);
   await check('レッスン1のタイトルが表示される', async () => title('cmd-01-susumu')(page), 'すすむ');
-  await check('レッスン2のタイトルが表示される', async () => title('cmd-02-mijikaku')(page), 'みじかくする');
-  await check('レッスン3のタイトルが表示される', async () => title('cmd-03-naosu')(page), 'なおす');
+  await check('レッスン2のタイトルが表示される（cmd-02 は #615 で非公開、2番目は cmd-03）', async () => title('cmd-03-naosu')(page), 'なおす');
+  await check('cmd-02 は選択画面に並ばない（devOnly）', async () => (await page.$$('[data-lesson-id="cmd-02-mijikaku"]')).length, 0);
   await check('donguri-01のタイトルが表示される', async () => title('donguri-01-hirou')(page), 'ひろう');
   await check('donguri-02のタイトルが表示される', async () => title('donguri-02-mawarimichi')(page), 'まわりみち');
   await check('選択画面のボタンが48px以上', async () => boxesOk(page));
@@ -58,7 +58,7 @@ export default async function run({ page, check }) {
   await check('選択画面で横スクロールが出ない', async () => noHorizontalScroll(page));
   await check('レッスンボタンが.island内に収まる（overflow-hiddenでクリップされない）', async () => lessonButtonsInsideIslands(page));
 
-  // 段階解放（Issue #216）：cmd-02はcmd-01のクリア後に解放されるため、clearイベントを注入して開き直す。
+  // 段階解放（Issue #216）：cmd-03はcmd-01のクリア後に解放されるため（cmd-02 は #615 で非公開）、clearイベントを注入して開き直す。
   await page.evaluate(() =>
     localStorage.setItem(
       'steamkids.events',
@@ -66,6 +66,6 @@ export default async function run({ page, check }) {
     )
   );
   await page.goto('/index.html?view=map');
-  await page.click('[data-lesson-id="cmd-02-mijikaku"]');
+  await page.click('[data-lesson-id="cmd-03-naosu"]');
   await check('タップしたレッスンのintroへ遷移する', async () => page.getAttribute('#stage', 'data-step'), 'intro');
 }
