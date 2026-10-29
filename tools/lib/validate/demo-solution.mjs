@@ -160,7 +160,7 @@ function checkSolution(play, add, label) {
   // repeatBoxは箱1＋中の命令数（chipCount）で数える（Issue #66）。
   const chips = play.repeatBox ? chipCount(queue) : play.groupRepeats ? queue.filter((c, i) => c !== queue[i - 1]).length : queue.length;
   if (typeof play.maxCommands === 'number' && chips > play.maxCommands) {
-    add('solutionの手数', `${label}solutionが${chips}${play.groupRepeats || play.repeatBox ? 'チップ' : '手'}でmaxCommands=${play.maxCommands}を超える`);
+    add('solutionの手数', `${label}solutionが${chips}${play.groupRepeats || play.repeatBox ? 'チップ' : '手'}で想定の手数 maxCommands=${play.maxCommands} より多い`);
   }
   return chips;
 }
