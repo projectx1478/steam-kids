@@ -2,7 +2,6 @@ export const name = 'U1 段階解放・次のレッスン強調・開発者画�
 
 const ORDER = [
   'cmd-01-susumu',
-  'cmd-02-mijikaku',
   'cmd-03-naosu',
   'donguri-01-hirou',
   'donguri-02-mawarimichi',
@@ -43,11 +42,11 @@ const pulseIds = (page) => page.$$eval('.next-pulse', (els) => els.map((e) => e.
 export default async function run({ page, check }) {
   // --- 初期：先頭だけ有効 ---
   await page.goto('/index.html?view=map');
-  await check('初期は先頭以外(レッスン11本＋れんしゅう1本)がdisabled＋data-locked', async () => (await lockedIds(page)).length, 12);
+  await check('初期は先頭以外(レッスン10本＋れんしゅう1本)がdisabled＋data-locked', async () => (await lockedIds(page)).length, 11);
   await check('先頭(cmd-01)は有効', async () => page.$eval('[data-lesson-id="cmd-01-susumu"]', (b) => !b.disabled));
   await check('パルスは先頭の1件だけ', async () => pulseIds(page), ['cmd-01-susumu']);
-  await check('ボタンに単元内番号が付く(cmd-02は2)', async () =>
-    page.textContent('[data-lesson-id="cmd-02-mijikaku"] .lesson-num'), '2');
+  await check('ボタンに単元内番号が付く(cmd-03は2。cmd-02は#615で非公開)', async () =>
+    page.textContent('[data-lesson-id="cmd-03-naosu"] .lesson-num'), '2');
   await check('単元色: 解放済みcommandsはemerald、未解放iceはslate', async () =>
     page.evaluate(() => [
       document.querySelector('[data-lesson-id="cmd-01-susumu"]').classList.contains('bg-emerald-400'),
@@ -57,12 +56,12 @@ export default async function run({ page, check }) {
   // --- クリア注入で次が解放され、パルスが移る（単元をまたぐ） ---
   await setCleared(page, ORDER.slice(0, 1));
   await page.goto('/index.html?view=map');
-  await check('cmd-01クリアでcmd-02が解放される', async () =>
-    page.$eval('[data-lesson-id="cmd-02-mijikaku"]', (b) => !b.disabled && !b.dataset.locked));
-  await check('パルスがcmd-02へ移る', async () => pulseIds(page), ['cmd-02-mijikaku']);
-  await check('cmd-03はまだロック', async () => (await lockedIds(page)).includes('cmd-03-naosu'));
+  await check('cmd-01クリアでcmd-03が解放される', async () =>
+    page.$eval('[data-lesson-id="cmd-03-naosu"]', (b) => !b.disabled && !b.dataset.locked));
+  await check('パルスがcmd-03へ移る', async () => pulseIds(page), ['cmd-03-naosu']);
+  await check('donguri-01はまだロック', async () => (await lockedIds(page)).includes('donguri-01-hirou'));
 
-  await setCleared(page, ORDER.slice(0, 3));
+  await setCleared(page, ORDER.slice(0, 2));
   await page.goto('/index.html?view=map');
   await check('cmd-03クリアで次の単元(donguri-01)が解放される', async () =>
     page.$eval('[data-lesson-id="donguri-01-hirou"]', (b) => !b.disabled));
