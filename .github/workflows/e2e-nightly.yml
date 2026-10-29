@@ -40,7 +40,26 @@ jobs:
 
       - name: E2E 全件
         if: steps.gate.outputs.run == 'true'
-        run: npm run verify:e2e
+        run: |
+          set -o pipefail
+          mkdir -p .verify
+          npm run verify:e2e 2>&1 | tee .verify/nightly-out.txt
+
+      - name: 赤のシナリオを単独3回再実行（決定的か揺れかを見分ける）
+        if: failure() && steps.gate.outputs.run == 'true'
+        run: |
+          : > .verify/rerun.txt
+          cp .verify/verify-all.log .verify/verify-all-full.log
+          for NAME in $(grep '^FAILED: ' .verify/nightly-out.txt | sed 's/^FAILED: //' | head -5); do
+            P=0; F=0
+            for I in 1 2 3; do
+              if npm run verify:e2e -- "$NAME" >/dev/null 2>&1; then P=$((P+1)); else F=$((F+1)); fi
+            done
+            if [ "$P" = 0 ]; then KIND="決定的（3回とも赤）"; else KIND="揺れ（緑$P・赤$F）"; fi
+            echo "- $NAME: $KIND" >> .verify/rerun.txt
+          done
+          cat .verify/rerun.txt
+        continue-on-error: true
 
       - name: ログを保存
         if: always() && steps.gate.outputs.run == 'true'
@@ -60,10 +79,12 @@ jobs:
           LABEL=e2e-nightly
           gh label create "$LABEL" --color B60205 --description "夜間E2Eの失敗" 2>/dev/null || true
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          [ -f .verify/verify-all-full.log ] && cp .verify/verify-all-full.log .verify/verify-all.log
           TAIL=$( [ -f .verify/verify-all.log ] && tail -n 60 .verify/verify-all.log || echo "(ログなし。セットアップで失敗)" )
+          RERUN=$( [ -s .verify/rerun.txt ] && cat .verify/rerun.txt || echo "(再実行なし)" )
           COMMITS=$(git log --since='25 hours ago' --format='%h %s' | head -20)
-          BODY=$(printf '夜間E2Eが失敗しました。\n\n- コミット: %s\n- 実行ログ: %s\n\n直近のコミット:\n```\n%s\n```\n\nログ末尾:\n```\n%s\n```\n' \
-            "${{ github.sha }}" "$RUN_URL" "$COMMITS" "$TAIL")
+          BODY=$(printf '夜間E2Eが失敗しました。\n\n- コミット: %s\n- 実行ログ: %s\n\n単独3回の再実行:\n%s\n\n直近のコミット:\n```\n%s\n```\n\nログ末尾:\n```\n%s\n```\n' \
+            "${{ github.sha }}" "$RUN_URL" "$RERUN" "$COMMITS" "$TAIL")
           EXISTING=$(gh issue list --label "$LABEL" --state open --json number --jq '.[0].number')
           if [ -n "$EXISTING" ]; then
             gh issue comment "$EXISTING" --body "$BODY"
