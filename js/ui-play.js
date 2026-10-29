@@ -224,7 +224,7 @@ export function renderPlay(root, step) {
   controls.insertBefore(paletteEl, actionsEl);
 
   const queueEl = document.createElement('ul');
-  queueEl.className = 'command-queue command-tray flex flex-wrap items-center gap-2 max-h-[72px] overflow-y-auto min-h-[64px] py-1';
+  queueEl.className = 'command-queue command-tray flex flex-wrap items-center gap-2 portrait:max-h-[72px] overflow-y-auto min-h-[64px] py-1';
   controls.insertBefore(queueEl, actionsEl);
 
   const removeLastBtn = document.createElement('button');
