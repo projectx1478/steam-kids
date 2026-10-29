@@ -31,8 +31,12 @@ export default async function run({ page, check }) {
   await page.click('[data-action="box-times"]');
   await check('×4の次は×2へ戻る', () => page.textContent('.box-times'), 'はこ ×2');
 
-  // maxCommands=3: 箱1＋中2=3。これ以上は入らない。
-  await check('箱1+中2=3チップで上限、方向ボタンが無効', () => page.$eval('[data-command="left"]', (b) => b.disabled), true);
+  // maxCommands=3: 箱1＋中2=3 でも上限なし（#615）。さらに箱の中へ入る。
+  await check('箱1+中2=3チップでも方向ボタンが有効', () => page.$eval('[data-command="left"]', (b) => b.disabled), false);
+  await page.click('[data-command="left"]');
+  await check('3チップの後も箱の中へ入る(箱の中3個)', async () => page.$$eval('.command-chip [data-inner]', (e) => e.length), 3);
+  await page.click('[data-action="remove-last"]');
+  await check('消して箱の中2個に戻る', async () => page.$$eval('.command-chip [data-inner]', (e) => e.length), 2);
   await page.click('[data-action="remove-last"]');
   await check('開いている間のけすは箱の中の最後の1個を消す', async () => page.$$eval('.command-chip [data-inner]', (e) => e.length), 1);
   await page.click('[data-command="up"]');
