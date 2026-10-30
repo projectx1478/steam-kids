@@ -410,7 +410,10 @@ export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts 
     else for (let y = 0; y < grid.rows; y += 1) for (let x = 0; x < grid.cols; x += 1) cells.push({ x, y });
     const order = shuffle(rng, cells);
     const wallCount = Math.min(countOf(rng, stageGen.walls), cells.length - 2);
-    let spec = { grid, start: order[0], goal: order[1], walls: order.slice(2, 2 + wallCount), items: [] };
+    // base のときだけ、生成の壁を制約①（橋と橋の隣に置かない）を満たすマスから取る
+    const wallPool = baseInfo ? order.slice(2).filter((p) => can('wall', p)) : order.slice(2);
+    const genWalls = wallPool.slice(0, wallCount);
+    let spec = { grid, start: order[0], goal: order[1], walls: genWalls, items: [] };
     if (base) {
       spec = { ...spec, walls: [...base.walls.map((p) => ({ x: p.x, y: p.y })), ...spec.walls] };
       if (base.water.length > 0) {
@@ -418,7 +421,8 @@ export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts 
         if (base.bridge.length > 0) spec = { ...spec, bridge: base.bridge.map((p) => ({ x: p.x, y: p.y })) };
       }
     }
-    let free = order.slice(2 + wallCount);
+    const wallKeys = new Set(genWalls.map(keyOf));
+    let free = baseInfo ? order.slice(2).filter((p) => !wallKeys.has(keyOf(p))) : order.slice(2 + wallCount);
     let cursor = 0;
     const take = (n, kind) => {
       if (baseInfo) {

@@ -5,6 +5,7 @@ import { generateBoard, canonicalKey, metrics, itemsMustMatter, GEN_VERSION, GEN
 import { simulate, isRunCleared, shortestSteps } from '../js/engine-grid.js';
 import { mattersFor } from '../js/gimmicks/index.js';
 import { iceMustMatter, keysMustMatter, warpsMustMatter, periodicMustMatter, paintMustMatter, waterMustMatter } from '../tools/lib/must-matter.mjs';
+import { checkBoard } from '../tools/lib/validate/board.mjs';
 import { checkStageGen } from '../tools/lib/validate/stagegen.mjs';
 
 const base = {
@@ -426,6 +427,10 @@ test('stage-gen: base-strip を土台にすると水・橋が一致し、ギミ�
       assert.equal(b.waterMode, 'cushion');
       assert.deepEqual(b.grid, { cols: 6, rows: 6 });
       assert.ok(isRunCleared(simulate(b.solution, b)));
+      b.walls.forEach((p) => assert.ok(key(p) !== key(bridge) && !around(p).some((q) => key(q) === key(bridge)), `${teach} seed=${seed} 壁 ${key(p)} が橋のそば`));
+      const ngs = [];
+      checkBoard(b, (cat, msg) => ngs.push(`${cat}: ${msg}`), `${teach} seed=${seed} `);
+      assert.deepEqual(ngs, [], `${teach} seed=${seed} 盤検査`);
       const placed = (kind, list) => list.forEach((p) => {
         const tag = `${teach} seed=${seed} ${kind} ${key(p)}`;
         assert.ok(!water.has(key(p)), tag);
