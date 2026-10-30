@@ -1,0 +1,96 @@
+{
+  "lessonId": "teko-05-ryouhou",
+  "unitId": "teko",
+  "title": "おもさと ばしょを かえよう",
+  "type": "predict-slider",
+  "estimatedMinutes": 5,
+  "steps": [
+    {
+      "stepId": "s1",
+      "kind": "intro",
+      "text": "おもさも ばしょも かえよう"
+    },
+    {
+      "stepId": "p1",
+      "kind": "play",
+      "seesaw": {
+        "notches": 2,
+        "left": [
+          {
+            "robots": 1,
+            "pos": 2
+          }
+        ],
+        "mover": {
+          "robots": 1,
+          "maxRobots": 3,
+          "start": 1
+        }
+      },
+      "solution": [1, 2]
+    },
+    {
+      "stepId": "p2",
+      "kind": "play",
+      "text": "べつの やりかたでも つりあうかな",
+      "seesaw": {
+        "notches": 2,
+        "left": [
+          {
+            "robots": 1,
+            "pos": 2
+          }
+        ],
+        "mover": {
+          "robots": 2,
+          "maxRobots": 3,
+          "start": 2
+        }
+      },
+      "solution": [2, 1]
+    },
+    {
+      "stepId": "p3",
+      "kind": "play",
+      "seesaw": {
+        "notches": 4,
+        "left": [
+          {
+            "robots": 1,
+            "pos": 4
+          }
+        ],
+        "mover": {
+          "robots": 1,
+          "maxRobots": 3,
+          "start": 1
+        }
+      },
+      "solution": [2, 2]
+    },
+    {
+      "stepId": "p4",
+      "kind": "play",
+      "seesaw": {
+        "notches": 3,
+        "left": [
+          {
+            "robots": 2,
+            "pos": 3
+          }
+        ],
+        "mover": {
+          "robots": 1,
+          "maxRobots": 3,
+          "start": 1
+        }
+      },
+      "solution": [2, 3]
+    },
+    {
+      "stepId": "s2",
+      "kind": "summary",
+      "text": "おもさと とおさで つりあうよ"
+    }
+  ]
+}
