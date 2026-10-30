@@ -16,6 +16,8 @@ import { renderTutorial, isTutorialDone } from './ui-tutorial.js';
 import { renderSummary } from './ui-summary.js';
 import { renderSeedPick } from './ui-seedpick.js';
 import { generateMap } from './engine-generate.js';
+import { generateSeesawRun } from './engine-seesaw-gen.js';
+import { solutions } from './engine-seesaw.js';
 import { codeToSeed } from './seed-code.js';
 import { isLessonCleared } from './ui-picker.js';
 import { clearedGimmicks, isIntroKnown } from './gimmick-unlock.js';
@@ -398,7 +400,13 @@ function renderStep() {
   // generator付きplay：確定したたねから盤面を作ってステップへ差し込む（同じたね→同じ盤面。Issue #69）。
   // 前のたねの盤のギミックが残らないよう、代入の前に ice・keys・doors を消す。混ぜるギミックはクリア済みの
   // 種類だけ（units 未読込・失敗時は空＝壁のみ。Issue #266）。
-  if (step.generator && S.seed != null) {
+  if (step.generator?.seesawStage && S.seed != null) {
+    // シーソーのれんしゅう（Issue #611）：番号から5面を作り、playの並び順の面を差し込む。
+    const plays = S.lesson.steps.filter((s) => s.kind === 'play');
+    const run = generateSeesawRun(plays.map((p) => p.generator.seesawStage), S.seed);
+    step.seesaw = run[plays.indexOf(step)];
+    step.solution = solutions(step.seesaw)[0];
+  } else if (step.generator && S.seed != null) {
     delete step.ice;
     delete step.keys;
     delete step.doors;
