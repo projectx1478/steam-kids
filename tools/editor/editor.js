@@ -357,8 +357,21 @@ function applyGrid() {
 }
 document.getElementById('grid-apply').addEventListener('click', applyGrid);
 
-function doUndo() { apply(undo(state)); }
-function doRedo() { apply(redo(state)); }
+function doUndo() { const r = undo(state); apply(r); if (r.ok) syncTutFromSpec(); }
+function doRedo() { const r = redo(state); apply(r); if (r.ok) syncTutFromSpec(); }
+
+// undo／redo で戻った spec の text／script を、選択中の tutorial 面へ写す（#628）。play 面・未選択は何もしない。
+function syncTutFromSpec() {
+  if (!lesson || lesson.selected === null) return;
+  const step = lesson.steps[lesson.selected];
+  if (step.kind !== 'tutorial') return;
+  for (const key of ['text', 'script']) {
+    if (state.spec[key] === undefined) delete step[key]; else step[key] = state.spec[key];
+  }
+  lessonDirty = true;
+  renderSteps();
+  render();
+}
 
 // マスのクリック。Shift+クリック＝動かす元を選ぶ → 次のクリックが行き先。それ以外はパレットの選択どおり置く／消す。
 boardWrap.addEventListener('click', (e) => {
