@@ -176,20 +176,36 @@ export const GEN_SOLO_EXCEPT = { paint: ['water'] };
 export const GEN_ONE_OF_GIMMICKS = ['warps', 'periodic', 'water'];
 const isInteger = (v) => Number.isInteger(v);
 
-// フォームの値 { cols:{min,max}, rows, walls, shortestPath, minTurns, seed, teach, gimmicks:{items:{on,min,max},ice,keys,cushion,switches,warps,periodic,paint,water} } を送る前に検査する。
+// 土台にするとき、土台で決まるので送らない（フォームの欄は disabled にする）ギミック（#631）。
+export const GEN_BASE_FIXED_GIMMICKS = ['water', 'paint'];
+
+// 盤（spec）から /api/generate の stageGen.base を作る。空の水・橋・壁は書かない。
+export function baseFromSpec(spec) {
+  const pts = (list) => (list || []).map((p) => ({ x: p.x, y: p.y }));
+  const base = { grid: { cols: spec.grid.cols, rows: spec.grid.rows } };
+  for (const k of ['water', 'bridge', 'walls']) if ((spec[k] || []).length > 0) base[k] = pts(spec[k]);
+  return base;
+}
+
+// フォームの値 { cols:{min,max}, rows, walls, shortestPath, minTurns, seed, teach, gimmicks:{items:{on,min,max},ice,keys,cushion,switches,warps,periodic,paint,water}, base?, baseDirty? } を送る前に検査する。
+// base は「いまの盤を土台にする」が ON のときの stageGen.base（baseFromSpec）。baseDirty は盤が置き換え前のとき真（#631）。
 // 問題の文字列の配列（空なら送れる）。
 export function checkGenerateForm(form) {
   const out = [];
+  const baseOn = !!form.base;
   const range = (label, v, [lo, hi]) => {
     if (!v || !isInteger(v.min) || !isInteger(v.max) || v.min < lo || v.max > hi || v.min > v.max) out.push(`${label} は ${lo}〜${hi} の整数で 最小≦最大 にしてください`);
   };
-  range('よこ', form.cols, GEN_LIMITS.grid);
-  range('たて', form.rows, GEN_LIMITS.grid);
+  if (!baseOn) {
+    range('よこ', form.cols, GEN_LIMITS.grid);
+    range('たて', form.rows, GEN_LIMITS.grid);
+  }
+  if (baseOn && form.baseDirty) out.push('土台にするには、盤を置き換えてから');
   range('かべ', form.walls, GEN_LIMITS.walls);
   range('最短手数', form.shortestPath, GEN_LIMITS.shortestPath);
   if (!isInteger(form.minTurns) || form.minTurns < GEN_LIMITS.minTurns[0] || form.minTurns > GEN_LIMITS.minTurns[1]) out.push(`曲がる回数の下限 は ${GEN_LIMITS.minTurns[0]}〜${GEN_LIMITS.minTurns[1]} の整数にしてください`);
   if (!isInteger(form.seed) || form.seed < 0) out.push('シード は 0 以上の整数にしてください');
-  const on = GEN_GIMMICKS.filter(([k]) => form.gimmicks && form.gimmicks[k] && form.gimmicks[k].on);
+  const on = GEN_GIMMICKS.filter(([k]) => form.gimmicks && form.gimmicks[k] && form.gimmicks[k].on && !(baseOn && GEN_BASE_FIXED_GIMMICKS.includes(k)));
   for (const [k, label] of on) range(label, form.gimmicks[k], GEN_LIMITS[k]);
   const isOn = (k) => on.some(([name]) => name === k);
   if (isOn('switches') && isOn('keys')) out.push('スイッチと かぎは いっしょに 使えません');
@@ -199,14 +215,18 @@ export function checkGenerateForm(form) {
   }
   const oneOfOn = GEN_ONE_OF_GIMMICKS.filter((k) => isOn(k));
   if (oneOfOn.length > 1) out.push(`${oneOfOn.join('・')} は同時に指定できない（${GEN_ONE_OF_GIMMICKS.join('・')} は1種まで）`);
+  if (baseOn && (form.base.water || []).length > 0 && (isOn('warps') || isOn('periodic'))) out.push('土台に水があるときは、ワープ・周期ドアは使えません');
   if (on.length > 0 && !on.some(([k]) => k === form.teach)) out.push('おしえる物 は 使うギミックから選んでください');
   return out;
 }
 
 // 検査を通ったフォームから POST /api/generate の本文を作る。ギミックなしなら gimmicks・teach は付けない。
 export function buildGenerateBody(form, seed) {
-  const on = GEN_GIMMICKS.filter(([k]) => form.gimmicks[k] && form.gimmicks[k].on).map(([k]) => k);
-  const stageGen = { grid: { cols: { ...form.cols }, rows: { ...form.rows } }, walls: { ...form.walls }, shortestPath: { ...form.shortestPath }, minTurns: form.minTurns };
+  const baseOn = !!form.base;
+  const on = GEN_GIMMICKS.filter(([k]) => form.gimmicks[k] && form.gimmicks[k].on && !(baseOn && GEN_BASE_FIXED_GIMMICKS.includes(k))).map(([k]) => k);
+  const stageGen = baseOn
+    ? { base: form.base, walls: { ...form.walls }, shortestPath: { ...form.shortestPath }, minTurns: form.minTurns }
+    : { grid: { cols: { ...form.cols }, rows: { ...form.rows } }, walls: { ...form.walls }, shortestPath: { ...form.shortestPath }, minTurns: form.minTurns };
   if (on.length > 0) {
     stageGen.gimmicks = Object.fromEntries(on.map((k) => [k, { min: form.gimmicks[k].min, max: form.gimmicks[k].max }]));
     stageGen.teach = form.teach;

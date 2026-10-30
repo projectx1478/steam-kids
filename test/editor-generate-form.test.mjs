@@ -1,7 +1,7 @@
 // #401 段2: たたき台フォームの送信前検査・本文の組み立て・状態文言（純関数）。実行: npm run test:unit
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { checkGenerateForm, buildGenerateBody, generateStatusText, GEN_COUNT } from '../tools/editor/editor-view.js';
+import { checkGenerateForm, buildGenerateBody, generateStatusText, baseFromSpec, GEN_COUNT } from '../tools/editor/editor-view.js';
 import { checkGenerateInput } from '../tools/editor/serve.mjs';
 
 const form = () => ({
@@ -159,4 +159,36 @@ test('クッション・スイッチ（#492）: 単独で通り、サーバー�
   assert.deepEqual(checkGenerateInput(buildGenerateBody(cu, 1)), []);
   cu.gimmicks.ice.on = false;
   assert.ok(checkGenerateForm(cu).length > 0);
+});
+
+test('土台（#631）: OFF の本文は従来と同じ。ON は base を送り grid・water・paint を送らず、サーバーの検査を通る', () => {
+  const off = form();
+  assert.deepEqual(buildGenerateBody({ ...off, base: null, baseDirty: false }, 3), buildGenerateBody(off, 3));
+  const spec = { grid: { cols: 6, rows: 6 }, start: { x: 0, y: 0 }, water: [{ x: 3, y: 0 }, { x: 3, y: 1 }, { x: 3, y: 2 }, { x: 3, y: 3 }, { x: 3, y: 5 }], bridge: [{ x: 3, y: 4 }], walls: [] };
+  const base = baseFromSpec(spec);
+  assert.deepEqual(Object.keys(base), ['grid', 'water', 'bridge']);
+  const on = form();
+  on.base = base;
+  on.baseDirty = false;
+  on.gimmicks.water = { on: true, min: 2, max: 2 };
+  on.gimmicks.paint = { on: true, min: 4, max: 4 };
+  on.cols = { min: NaN, max: NaN };
+  assert.deepEqual(checkGenerateForm(on), []);
+  const body = buildGenerateBody(on, 1);
+  assert.equal('grid' in body.stageGen, false);
+  assert.deepEqual(body.stageGen.base, base);
+  assert.deepEqual(Object.keys(body.stageGen.gimmicks), ['items']);
+  assert.deepEqual(checkGenerateInput(body), []);
+});
+
+test('土台（#631）: 未置換は問題、土台に水があるとワープ・周期ドアは問題', () => {
+  const f = form();
+  f.base = { grid: { cols: 6, rows: 6 }, water: [{ x: 3, y: 0 }] };
+  f.baseDirty = true;
+  assert.deepEqual(checkGenerateForm(f), ['土台にするには、盤を置き換えてから']);
+  f.baseDirty = false;
+  f.gimmicks.warps = { on: true, min: 1, max: 1 };
+  assert.equal(checkGenerateForm(f).length, 1);
+  f.base = { grid: { cols: 6, rows: 6 } };
+  assert.deepEqual(checkGenerateForm(f), []);
 });

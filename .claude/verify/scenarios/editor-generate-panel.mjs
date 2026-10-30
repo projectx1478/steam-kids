@@ -28,7 +28,8 @@ export default async function run({ page, check, shot }) {
     const json = (route, obj) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(obj) });
     await page.route('**/api/analyze', (route) => json(route, { status: 'ok', clearable: true, shortest: 6, matters: {}, turns: 1, gradient: [], messages: [] }));
     await page.route('**/favicon.ico', (route) => route.fulfill({ status: 204 }));
-    await page.route('**/api/lessons', (route) => json(route, [{ lessonId: 'dirty-test', stepCount: 1 }]));
+    await page.route('**/api/lessons', (route) => json(route, [{ lessonId: 'dirty-test', stepCount: 1 }, { lessonId: 'base-test', stepCount: 1 }]));
+    await page.route('**/api/lessons/base-test', (route) => json(route, { steps: [{ stepId: 'b1', ...board(0, []), water: [{ x: 2, y: 3 }], bridge: [{ x: 2, y: 2 }] }] }));
     await page.route('**/api/lessons/dirty-test', (route) => json(route, { steps: [{ stepId: 's1', ...board(0, WALLS[0]) }] }));
     await page.route('**/api/drafts', (route) => json(route, []));
     await page.route('**/api/generate', async (route) => {
@@ -132,6 +133,26 @@ export default async function run({ page, check, shot }) {
     await check('OK すると候補が読み込まれる', async () => JSON.stringify(await cells('#board')) === JSON.stringify(fourth), true);
     await check('OK でパネルが閉じる', () => hidden('#gen-panel'), true);
     await check('確認は計2回', () => dialogs.length, 2);
+
+    // 土台（#631）。水と橋のある面を開いて、いまの盤を土台にする
+    await page.selectOption('#lesson-select', 'base-test');
+    await page.waitForSelector('#lesson-select option[value="base-test"]');
+    await page.waitForFunction(() => document.querySelectorAll('#step-list .st').length === 1 && document.querySelector('#step-list .st').textContent.includes('b1'));
+    await page.click('#step-list .st');
+    await page.click('#gen-open');
+    await check('開いた直後は土台 OFF', () => page.evaluate(() => { const e = document.querySelector('#gen-base-on'); return [!!e, e && e.checked]; }), [true, false]);
+    await page.check('#gen-base-on');
+    mode = 'ok';
+    await page.click('#gen-run');
+    await check('土台 ON の本文に base（grid・water・bridge）があり grid が無い', () => { const b = bodies[bodies.length - 1].stageGen; return [Object.keys(b.base), 'grid' in b, 'gimmicks' in b && 'water' in b.gimmicks]; }, [['grid', 'water', 'bridge'], false, false]);
+    await check('土台 ON で土台で決まる欄が無効', () => page.evaluate(() => ['#gen-cols-min', '#gen-water-on', '#gen-paint-on'].map((s) => document.querySelector(s).disabled)), [true, true, true]);
+    await check('土台 ON で縮小図が出る', () => page.evaluate(() => document.querySelectorAll('#gen-base-view .grid-cell').length), 16);
+    await page.evaluate(() => document.querySelector('#board .grid-cell[data-x="0"][data-y="3"]').click()); // 盤を1マス書き換える（未置換にする）
+    await check('土台 ON で盤を未置換にすると「つくる」が無効', () => disabled('#gen-run'), true);
+    await check('未置換の理由が出る', () => text('#gen-problems'), '土台にするには、盤を置き換えてから');
+    await page.click('#gen-close');
+    await page.click('#gen-open');
+    await check('閉じて開き直すと土台 OFF', () => page.evaluate(() => document.querySelector('#gen-base-on').checked), false);
   } finally {
     server.close();
   }

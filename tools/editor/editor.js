@@ -1,6 +1,6 @@
 // 盤面エディタ（開発者用）の画面。盤面は js/ui-board.js の drawBoard 経由で描く。
 import { drawBoard } from '/js/ui-board.js';
-import { EMPTY_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clampCellPx, wheelCellPx, zoomPercent, formatMetrics, pendingSwitches, pendingGroupSwitches, pendingKeys, pendingBridges, pendingPaint, selectionHint, switchModeOptions, switchGroupOptions, GEN_COUNT, GEN_GIMMICKS, checkGenerateForm, buildGenerateBody, generateStatusText } from './editor-view.js';
+import { EMPTY_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clampCellPx, wheelCellPx, zoomPercent, formatMetrics, pendingSwitches, pendingGroupSwitches, pendingKeys, pendingBridges, pendingPaint, selectionHint, switchModeOptions, switchGroupOptions, GEN_COUNT, GEN_GIMMICKS, GEN_BASE_FIXED_GIMMICKS, baseFromSpec, checkGenerateForm, buildGenerateBody, generateStatusText } from './editor-view.js';
 
 import { GIMMICKS } from '/js/gimmicks/index.js';
 import { markGatePassedToday } from '/js/gate-date.js';
@@ -342,6 +342,7 @@ function apply(result) {
   notice = result.ok ? '' : `できません: ${result.reason}`;
   render();
   if (result.ok) scheduleAnalyze();
+  refreshGenerateIfOpen(); // たたき台パネルが開いていれば、土台の判定を盤の変化に合わせる（#631）
 }
 
 // ステージ設定：とめる回数。空欄は0。不正値（負数・小数）は拒否して表示を元に戻す。
@@ -680,12 +681,16 @@ const genProblemsEl = document.getElementById('gen-problems');
 const genCandsEl = document.getElementById('gen-cands');
 const genNum = (id) => { const v = document.getElementById(id).value; return v === '' ? NaN : Number(v); };
 const GEN_CAND_AREA_PX = 200; // 候補1枚の盤面の最大の辺
+const GEN_BASE_AREA_PX = 120; // 土台の縮小図の最大の辺
 const layoutOpenEl = document.getElementById('layout-open');
 let genAbort = null; // 生成中の AbortController
 let genNextSeed = null; // 「もう4枚」で使う次の seed
 
 function readGenerateForm() {
+  const baseOn = document.getElementById('gen-base-on').checked;
   return {
+    base: baseOn ? baseFromSpec(state.spec) : null,
+    baseDirty: baseOn && !!boardDirty(),
     cols: { min: genNum('gen-cols-min'), max: genNum('gen-cols-max') },
     rows: { min: genNum('gen-rows-min'), max: genNum('gen-rows-max') },
     walls: { min: genNum('gen-walls-min'), max: genNum('gen-walls-max') },
@@ -699,6 +704,23 @@ function readGenerateForm() {
 
 // 入力が変わるたびに検査し、問題があれば「つくる」「もう4枚」を押せなくする
 function refreshGenerateForm() {
+  const baseEl = document.getElementById('gen-base-on');
+  const dirty = !!boardDirty();
+  baseEl.disabled = dirty && !baseEl.checked; // 置き換え前の盤は土台にできない（ONにしたあとで盤を変えたときは、外せるように残す）
+  const fixed = baseEl.checked;
+  const baseIds = ['gen-cols-min', 'gen-cols-max', 'gen-rows-min', 'gen-rows-max', ...GEN_BASE_FIXED_GIMMICKS.flatMap((k) => [`gen-${k}-on`, `gen-${k}-min`, `gen-${k}-max`])];
+  for (const id of baseIds) document.getElementById(id).disabled = fixed;
+  const viewEl = document.getElementById('gen-base-view');
+  const noteEl = document.getElementById('gen-base-note');
+  viewEl.hidden = !fixed;
+  if (fixed) {
+    const spec = state.spec;
+    noteEl.textContent = `土台：${spec.grid.cols}×${spec.grid.rows}・水${(spec.water || []).length}`;
+    drawBoard({ boardWrap: viewEl, spec, cellSize: Math.max(6, Math.floor(GEN_BASE_AREA_PX / Math.max(spec.grid.cols, spec.grid.rows))), playerPos: spec.start || { x: -1, y: -1 } });
+  } else {
+    viewEl.replaceChildren();
+    noteEl.textContent = dirty ? '（盤を置き換えてから）' : '';
+  }
   const problems = checkGenerateForm(readGenerateForm());
   genProblemsEl.replaceChildren(...problems.map((t) => { const d = document.createElement('div'); d.textContent = t; return d; }));
   genRunEl.disabled = problems.length > 0 || genAbort !== null;
@@ -706,8 +728,11 @@ function refreshGenerateForm() {
   layoutOpenEl.disabled = genAbort !== null; // 生成中は「配置」を開かない（#618）
 }
 
+function refreshGenerateIfOpen() { if (!genPanelEl.hidden) refreshGenerateForm(); }
+
 function openGeneratePanel() {
   genPanelEl.hidden = false;
+  document.getElementById('gen-base-on').checked = false; // 開くたびに土台は OFF
   refreshGenerateForm();
 }
 
