@@ -106,7 +106,11 @@ export default async function run({ page, check, shot }) {
     p.once('dialog', (d) => d.accept());
     await p.click('#tut-del');
     await check('消した後 tutorial 欄は隠れる', () => p.isHidden('#tut-ctl'), true);
-    await check('消した後 「チュートリアルを足す」は有効に戻る', () => p.isDisabled('#tut-add'), false);
+    // 消した直後は選択なし（removeStep → reselect で selected=null）なので足せない。play の面を選ぶと再び足せる。
+    await check('消した直後は面を選んでいないので「チュートリアルを足す」は無効', () => p.isDisabled('#tut-add'), true);
+    p.once('dialog', (d) => d.accept());
+    await p.click('#step-list .st[data-index="1"]');
+    await check('play の面を選ぶと 「チュートリアルを足す」は有効に戻る', () => p.isDisabled('#tut-add'), false);
     await saveOk();
     await check('保存後 #save-ng は空', () => ngText(), '');
     await check('一時のレッスン JSON に tutorial が無い', () => JSON.parse(raw()).steps.some((s) => s.kind === 'tutorial'), false);
