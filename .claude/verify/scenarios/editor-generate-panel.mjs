@@ -135,8 +135,8 @@ export default async function run({ page, check, shot }) {
     await check('確認は計2回', () => dialogs.length, 2);
 
     // 土台（#631）。水と橋のある面を開いて、いまの盤を土台にする
+    await page.waitForSelector('#lesson-select option[value="base-test"]', { state: 'attached' }); // option は可視にならない
     await page.selectOption('#lesson-select', 'base-test');
-    await page.waitForSelector('#lesson-select option[value="base-test"]');
     await page.waitForFunction(() => document.querySelectorAll('#step-list .st').length === 1 && document.querySelector('#step-list .st').textContent.includes('b1'));
     await page.click('#step-list .st');
     await page.click('#gen-open');
