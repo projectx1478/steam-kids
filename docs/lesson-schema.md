@@ -129,12 +129,13 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 
 ### `predict-slider`の`play`（シーソー。Issue #150）
 
-`type: "predict-slider"`のレッスンは`kind: "play"`に`seesaw`と`solution`（整数）を持つ。`pos`・`start`は支点からの刻み数（1〜`notches`）。
+`type: "predict-slider"`のレッスンは`kind: "play"`に`seesaw`と`solution`を持つ。`solution`は、位置だけ動く面＝位置（整数）、重さだけ動く面＝重さ（整数）、両方動く面＝`[pos, robots]`。`pos`・`start`は支点からの刻み数（1〜`notches`）。
 ```json
 { "stepId": "p1", "kind": "play", "text": "つりあう ところに おこう",
   "seesaw": { "notches": 4, "left": [{ "robots": 2, "pos": 2 }], "mover": { "robots": 1, "start": 1 } },
   "solution": 4 }
 ```
+`mover.maxRobots`（2〜3。あれば重さを − ＋ で1〜maxRobotsに変える。省略＝重さ固定）、`mover.fixedPos`（あれば位置は固定で`start`と同じ値。`maxRobots`が要る）。
 
 ### `tutorial`（なぞり操作型チュートリアル）
 
