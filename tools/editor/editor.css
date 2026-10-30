@@ -4,6 +4,8 @@
 #topbar { height: 48px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 12px; background: #4c1d95; color: #fff; border-bottom: 3px solid #f59e0b; box-sizing: border-box; }
 #topbar h1 { font-size: 15px; margin: 0 12px 0 0; }
 #topbar .sp { flex: 1; }
+#topbar .grid-ctl { font-size: 13px; }
+#topbar .grid-ctl input { width: 4em; height: 26px; box-sizing: border-box; }
 .dev-badge { background: #f59e0b; color: #451a03; font-weight: 700; font-size: 12px; padding: 2px 8px; border-radius: 999px; }
 .btn { border: 1px solid #c4b5fd; background: #ede9fe; color: #2e1065; border-radius: 6px; height: 32px; padding: 0 12px; font-size: 13px; cursor: pointer; }
 .btn:disabled { opacity: 0.5; cursor: default; }
@@ -20,6 +22,8 @@
 #boardArea { flex: 1; min-height: 0; display: flex; overflow: auto; }
 #board { margin: auto; padding: 8px; }
 #status { flex: none; height: 28px; display: flex; align-items: center; padding: 0 12px; font-size: 12px; color: #475569; background: #fff; border-top: 1px solid #cbd5e1; }
+/* 判定欄は高さ固定。行数が変わっても盤の領域を動かさない（#511） */
+#metrics { flex: none; height: 200px; overflow-y: auto; box-sizing: border-box; }
 #plist { overflow-y: auto; padding: 6px; flex: 1; min-height: 0; }
 .sep { font-size: 11px; color: #64748b; padding: 6px 6px 2px; }
 .pi { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 6px; border: 2px solid transparent; border-radius: 8px; box-sizing: border-box; cursor: pointer; }
@@ -50,6 +54,17 @@
 .st.sel { border-color: #7c3aed; background: #ede9fe; }
 .st.nob { color: #94a3b8; cursor: default; }
 .st .tag { margin-left: auto; color: #b45309; }
+#tut-ctl { padding: 6px 8px; border-top: 1px solid #e2e8f0; font-size: 12px; }
+#tut-ctl[hidden] { display: none; }
+.tut-hd { display: flex; align-items: center; justify-content: space-between; gap: 4px; font-weight: bold; }
+.tut-lbl { display: block; margin-top: 6px; }
+#tut-text { width: 100%; box-sizing: border-box; font-size: 12px; }
+#tut-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.tut-chip { display: inline-flex; align-items: center; gap: 2px; padding: 2px 4px 2px 8px; border: 1px solid #94a3b8; border-radius: 12px; background: #f8fafc; }
+.tut-chip.run { padding-right: 8px; background: #ede9fe; border-color: #7c3aed; }
+.tut-chip button { border: 0; background: transparent; cursor: pointer; font-size: 12px; padding: 0 2px; }
+.tut-cmds { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+#tut-reach { margin-top: 4px; color: #475569; }
 #step-warn { padding: 6px 8px; font-size: 12px; color: #b45309; border-top: 1px solid #e2e8f0; }
 #step-warn:empty { display: none; }
 .drafts-ctl { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 8px; border-top: 1px solid #e2e8f0; }
@@ -85,6 +100,27 @@
 .grid-cell.ed-sw-sel { outline: 3px solid #7c3aed; outline-offset: -3px; }
 .grid-cell.ed-sw-target { outline: 3px dashed #7c3aed; outline-offset: -3px; }
 .grid-cell.ed-gw { background-image: repeating-linear-gradient(45deg, rgba(124, 58, 237, 0.35) 0 6px, transparent 6px 12px); }
+.grid-cell.ed-paint { background-color: rgba(245, 158, 11, 0.45); box-shadow: inset 0 0 0 3px #f59e0b; }
 .grid-cell.ed-sw-pending::after { content: "!"; position: absolute; right: 2px; top: 2px; width: 18px; height: 18px; border-radius: 50%; background: #f59e0b; color: #451a03; font-weight: 700; font-size: 13px; line-height: 18px; text-align: center; z-index: 5; }
-#stage-settings { padding: 10px 12px; font-size: 13px; border-top: 1px solid #e2e8f0; }
+#stage-settings { padding: 10px 12px; font-size: 13px; }
 #stage-settings input { width: 4em; }
+/* 配置パネル（#618）。たたき台パネルと同じ作り */
+#layout-msg { font-size: 12px; color: #b91c1c; }
+#layout-panel { position: fixed; inset: 48px 0 0 0; z-index: 10; display: flex; align-items: flex-start; justify-content: center; padding-top: 16px; background: rgba(15, 23, 42, 0.45); }
+#layout-panel[hidden] { display: none; }
+.layout-box { width: 760px; max-height: calc(100vh - 80px); overflow-y: auto; background: #fff; border: 1px solid #94a3b8; border-radius: 8px; padding: 12px; box-sizing: border-box; }
+#layout-ng { color: #b91c1c; font-size: 12px; }
+#layout-ng:empty { display: none; }
+#layout-ng.ok { color: #15803d; }
+.lay-track { margin-top: 10px; font-weight: 700; font-size: 14px; border-bottom: 2px solid #cbd5e1; }
+.lay-unit { margin: 6px 0 0 8px; font-size: 13px; font-weight: 700; color: #334155; }
+.lay-row { display: flex; align-items: center; gap: 4px; margin: 2px 0 2px 20px; font-size: 12px; font-weight: 400; }
+.lay-row .nm { flex: 1; }
+.lay-row .kind { width: 5em; color: #64748b; }
+.lay-row.dev .nm { color: #94a3b8; }
+.lay-row select { height: 24px; font-size: 12px; }
+.lay-track, .lay-unit { display: flex; align-items: center; gap: 6px; }
+.lay-title { flex: 1; height: 24px; font-size: 13px; font-weight: 700; }
+.lay-add { display: flex; align-items: center; gap: 4px; margin: 4px 0 0 8px; font-size: 12px; }
+.lay-add input { height: 24px; font-size: 12px; }
+.lay-add-err, .lay-hint { color: #b91c1c; font-size: 12px; }

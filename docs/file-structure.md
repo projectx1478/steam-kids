@@ -6,6 +6,8 @@
 index.html
 dashboard.html # 保護者・教師向けダッシュボード
 service-worker.js # オフライン対応・更新反映（docs/caching.md）
+manifest.webmanifest # PWAのmanifest（ホーム画面追加用の名前・色・アイコン。Issue #381）
+icons/ # ホーム画面用アイコンPNG（tools/gen-icons.mjsで生成）
 style.css # Tailwind生成物（コミット対象・直接編集禁止）
 tailwind.src.css # Tailwindソース
 tailwind.config.js
@@ -19,9 +21,11 @@ js/
   engine-generate.js # シードからgrid-runtime盤面を生成する純粋関数（PRNG・制約判定・予備盤面。Issue #68）
   engine-seesaw.js # predict-slider（シーソー）の純粋関数（おもさ×きょりの傾き判定。Issue #150）
   ui-seesaw.js # シーソーplay画面の描画（Issue #150）
-  ui-screen.js # 操作画面の枠の共通部品（問い文の行・盤面・パネル・ボタン行。play・シーソーが使う。docs/components.md。Issue #343）
+  ui-screen.js # 操作画面の枠の共通部品（補助行・盤面・パネル・ボタン行と小鳥の吹き出し。play・シーソー・predict が使う。docs/components.md。Issue #343）
+  ui-bird.js # 小鳥の顔アイコン（40px・押せる範囲64px）と吹き出しの器。createOpScreen が盤面の角に置く（Issue #468）
+  bird-phrases.js # 小鳥の吹き出し文言テーブル（口調4種・ギミック別）と選び方（ランダム・同セッション重複回避・一巡リセット）。docs/hint-bubble.md。Issue #468 段3
   ui-clear.js # クリア演出の共通部品（星→間→結果ダイアログ。使い方は docs/clear-component.md。Issue #342）
-  ui-retry.js # やり直しの流れの共通部品（失敗のゆれ shakeBoard・ボタン切替 setRetryButton・「スタート！」showRestartCue。Issue #344）
+  ui-retry.js # やり直しの流れの共通部品（失敗のゆれ shakeBoard・ボタン切替 setRetryButton・「スタート！」showStartCue〔開始時の「スタート！」。Issue #497〕。Issue #344）
   seed-code.js # れんしゅうの3桁の番号（'000'〜'999'）⇔シード変換（Issue #69・#398）
   ui-seedpick.js # れんしゅうの番号入力画面（テンキー＋おまかせ。Issue #69・#398）
   ui-grid.js # SVGグリッド描画とハイライト
@@ -45,7 +49,7 @@ js/
   ui-dashboard.js # dashboard.htmlの描画（summarize結果の描画のみ）
   register-sw.js # SW登録・更新時の自動リロード
 lessons/ # レッスンJSON（P1〜）
-tools/ # レッスンJSON検証ツール
+tools/ # レッスンJSON検証ツール（gen-icons.mjs＝アイコンPNG生成）
 docs/ # 詳細ドキュメント（PROJECT.md 7章の索引を参照）
   components.md # 共通部品の台帳（部品名・置き場・説明・禁止パターン。Issue #347）
 test/ # 単体テスト（node --test）

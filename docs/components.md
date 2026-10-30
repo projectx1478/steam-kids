@@ -7,13 +7,16 @@
 | 部品 | 置き場 | 個別の説明 | 禁止パターン（部品の外で自前で組まない） | 基準件数（`patterns`） |
 | --- | --- | --- | --- | --- |
 | クリア演出（星のトースト→間→結果ダイアログ＋紙吹雪） | `js/ui-clear.js` | `docs/clear-component.md` | ダイアログの自前生成、待ち時間の直書き、星サイズの直書き、`showSuccess`・紙吹雪・クリア記録・クリアログの直呼び | dialog 0・wait 0・star 0・showsuccess 0・confetti 2・clearrecord 0・clearlog 0 |
-| 操作画面の枠（問い文の行・盤面・操作パネル・ボタン行の骨格。縦・横・背の低い横向き） | `js/ui-screen.js` | 本表（下の「操作画面の枠」） | 旧クラス名（`play-screen`・`status-bar`・`board-area`・`controller-panel`・`action-row`）での枠の自前組み立て | screen 0（allow 2） |
+| 操作画面の枠（補助行・盤面・小鳥の吹き出し・操作パネル・ボタン行の骨格。縦・横・背の低い横向き） | `js/ui-screen.js` | 本表（下の「操作画面の枠」） | 旧クラス名（`play-screen`・`status-bar`・`board-area`・`controller-panel`・`action-row`）での枠の自前組み立て | screen 0（allow 2） |
+| 確認ダイアログ（play中にレッスンせんたくがめんへ離れる確認・ほごしゃの画面を開く確認。縦並び：つづける＝大・離れる＝小。覆いのタップ＝つづける。文言は呼び出し側が渡す） | `js/ui-dialog.js`（`confirmDialog`） | 本表 | `window.confirm`、確認の自前生成（`.leave-confirm` の直書き） | 検査なし（Issue #542） |
 | 盤面の描画（マスの大きさ計算・`renderGrid` 呼び出し・盤面エリアの大きさが変わったときの描き直し） | `js/ui-board.js` | 本表（下の「盤面の描画」） | `renderGrid(`・`computeCellSize(` の直呼び（`js/ui-board.js`・`js/ui-grid.js` 以外） | board 0（excluded の `js/ui-demo.js` に 1） |
-| やり直しの流れ（失敗のゆれ・「もういちど」ボタン切替・「スタート！」） | `js/ui-retry.js` | `js/ui-retry.js` 先頭のコメント | 検査なし（登録表に足さない。Issue #344） | — |
+| やり直しの流れ（失敗のゆれ・「ためしなおす」ボタン切替・開始時の「スタート！」） | `js/ui-retry.js` | `js/ui-retry.js` 先頭のコメント | 検査なし（登録表に足さない。Issue #344） | — |
+| 小鳥の吹き出しでのヒント（失敗後のヒント・顔アイコンのタップ・失敗2回目の自動1回・「とめる」のヒント） | `js/ui-bird.js`・`js/bird-phrases.js`・`js/ui-reaction.js`（`showHint`） | `docs/hint-bubble.md` | なし（#468-19B） | なし（#468-19B） |
+| 下端バー（intro・まとめ・スロット選択・単元マップ・大項目の主ボタン・副ボタンを画面の下端に固定し、スクロールせずに押せる。`#stage` 直下の最後の子。高さ72px・ボタン64px以上・間隔16px以上。左寄せは `.sk-bottom-bar--start`。play 画面には出さない） | `tailwind.src.css`（`.sk-bottom-bar`）。使う側は `js/ui-step.js`（intro）・`js/ui-summary.js`・`js/ui-slots.js`・`js/ui-picker.js`・`js/ui-tracks.js` | 本表 | なし（#551） | 検査なし（Issue #551。E2E `b1-primary-in-view` で見る） |
 
 基準件数の正本は `test/forbidden-baseline.json`。`showsuccess 0`：`js/ui-predict.js`・`js/ui-tutorial.js` も `showClearToast` に移行済み（状態：移行完了）。`confetti 2` は `js/ui-reaction.js` の `showSuccess` 本体と `js/ui-seesaw.js` のアダプタ。
 
-歯車メニュー（ヘッダー右上の歯車＝64px→「ほごしゃの かた」→確認パネル「すすむ／やめる」→`dashboard.html`。開閉・覆い・確認パネル）は `js/ui-menu.js`（`initMenu`）。`<dialog>` は使わず `hidden` 切替（Issue #389 段A）。拡大の3項目（おおきく／ちいさく／ぜんぶみる）は段Bで足し、`getActiveZoom()` が拡大できる盤（既定でマス24px未満）のときだけ出す。
+歯車メニュー（開く⚙は、play・れんしゅうでは吹き出し欄右端の `[data-action="menu"]`（`createOpScreen` の `gear`。#574 段C）、tutorial ではパレット上段右の `[data-action="menu"]`、ほかの画面ではヘッダー右上の `#gear-btn`。どちらも64px以上で同じ中央パネル `#gear-menu` を開く。中身は「いまの ばしょ」〔単元名・区分チップ・ステップ点列。play・れんしゅうのみ〕・「レッスンせんたくがめん」〔`#menu-home`。まえは廃止〕・「がめん」・「ほごしゃの かた」→確認「ほごしゃの がめんへ／とじる」〔`#guardian-confirm`・`#guardian-go`・`#guardian-cancel`。開いている間だけ DOM にある〕→`dashboard.html`・「とじる」。クレジット・ほごしゃの かた はレッスン外の画面のみで、レッスン内は `renderHeader` が隠す）は `js/ui-menu.js`（`initMenu`・`openMenu(opener)`）。`<dialog>` は使わず `hidden` 切替（Issue #389 段A・#467）。「がめん」（`#menu-zoom-open`）は `getActiveZoom()` が拡大できる盤（既定でマス24px未満）のときだけ出し、押すとパネルを閉じて画面下のズームバー `#zoom-bar`（`#zoom-in`・`#zoom-out`・`#zoom-all`・`#zoom-back`。覆いなし）を開く。倍率を変えてもバーは閉じず、もどる・Esc で閉じる。レッスン内のメニューの「レッスンせんたくがめん」は まとめ 以外の全画面で出す（ためしあそびは除く。Issue #574。ヘッダ・⚙の画面ごとの構成は `docs/ui-rules.md` の「ヘッダ・⚙メニュー構成表」）。ヘッダの←と点列のメニュー内への移し替えは `js/ui-step.js`（`renderHeader`・`renderStepDots`・`setBackDisabled`。対象は play〔シーソー除く〕・tutorial。`#app` の `data-op-compact`）。tutorial のパレットの⚙（`onMenu`）と、「とめる」ボタンへの残り回数の統合（`data-pause-count`・`data-pause-left`・バッジ。`setPauseLeft`）は `js/ui-commands.js`（`renderCommandPalette`）。
 
 盤面の拡大縮小（CSS transform で再描画しない。倍率 1→1.5→2→3・ホイール・2本指ピンチ・拡大中の1本指ドラッグ〔直接操作型は2本指のみ〕・実行中の追従・実行後は戻さない・拡大中だけ `touch-action:none`）は `js/ui-zoom.js`（`createZoom({ boardArea, boardWrap, direct })`。ui-play・ui-tutorial・ui-predict が接続、`onDraw` を `drawBoard` の後に呼ぶ）。
 
@@ -21,9 +24,11 @@
 
 ## 操作画面の枠
 
-- 呼び方：`createOpScreen({ root, question })` → `{ frame, questionEl, boardArea, panel, actions, renderQuestion(text) }`。各要素に `data-sk-screen`（`frame`・`question`・`board`・`panel`・`actions`）、クラスは `sk-screen-*`。E2E は属性セレクタで探す。
-- 変えてよい（画面ごと）：盤面の中身、パネルの中身、ボタンの数と文言。変えてはいけない：盤面が flex-1 で残り高さに縮むこと、問い文の行の高さ（20px 揃え）、ボタン高さ48px以上、横向きの `1fr＋320px` 2列、クリア演出の `controls`・`lockEl` に渡す要素とその位置・寸法、シーソーのボタン配置。
-- ボタン行の修飾：`actions.classList.add('sk-screen-actions--one-row')` で横向きでも1行（◀・▶ 各1/4幅、残りが主ボタン）。使用はシーソーのみ。
+- 呼び方：`createOpScreen({ root, question })` → `{ frame, questionEl, boardArea, panel, actions, renderQuestion(text), announceQuestion, bird }`。問い文は小鳥の吹き出し（`js/ui-bird.js`）で出し、`questionEl` は鍵トレイ・残数・塗りの見本だけの補助行（中身が無ければ非表示）。各要素に `data-sk-screen`（`frame`・`question`・`bird-lane`・`board`・`panel`・`actions`）、クラスは `sk-screen-*`。E2E は属性セレクタで探す。
+- 吹き出し欄（Issue #544）：盤面の上・盤面と同じ列に、高さ64px固定の欄 `sk-screen-bird`（`data-sk-screen="bird-lane"`）を置き、顔と吹き出しはこの欄の中に並べる（盤面に重ねない。低い横向きも同じ盤面の上）。吹き出しは1行表示で、1行に収まらない文は吹き出し内を横スライドして読む（指が8px以上動けばスライド＝消えない、未満はタップ＝消える。続く側の端を白くぼかして「▶」を重ね、末尾で消える）。
+- 変えてよい（画面ごと）：盤面の中身、パネルの中身、ボタンの数と文言。変えてはいけない：盤面が flex-1 で残り高さに縮むこと、吹き出しは顔・吹き出し自体のタップで消え、下の盤面マスへは素通ししないこと、ボタン高さ48px以上、横向きの `1fr＋320px` 2列、クリア演出の `controls`・`lockEl` に渡す要素とその位置・寸法、シーソーのボタン配置（位置だけ動く面）。
+- ボタン行の修飾：`actions.classList.add('sk-screen-actions--one-row')` で横向きでも1行（◀・▶ 各1/4幅、残りが主ボタン。重さだけ動く面は ◀・▶ の場所に −・＋）。シーソーの重さも位置も動く面は `sk-screen-actions--two-row`（1行目 ◀・▶｜−・＋、溝16px以上、2行目に主ボタン全幅）。使用はシーソーのみ。
+- ボタン行の修飾：`sk-screen-actions--play`（play 全ギミック・tutorial）＝ぜんぶけす・１つけす｜32px｜1コマ・じっこうの順、間隔8px。高さ480px以上の横向き（1024×600）は2×2（行間16px）。
 - 状態：移行完了（tutorial・seedpick は例外）。置き換え済みは `js/ui-play.js`・`js/ui-seesaw.js`・`js/ui-predict.js`。`js/ui-seedpick.js` の `status-bar`（別用途の問い文）と `js/ui-tutorial.js` の `board-area`（結果の星を盤面に重ねる別骨格）は `allow-component:screen` で逃がしている（allow 2）。
 
 ## 盤面の描画
@@ -35,6 +40,21 @@
 - 水・橋（#338）：`drawBoard` は `spec.water`・`spec.waterMode`・`spec.bridge` を `renderGrid` に通す。描画は `js/gimmicks/water.js` の `render`（水＝`data-water`、橋＝`data-bridge`・`data-bridge-dir`〔h横/v縦〕。隣と2pxつなげる）。水で止まったときは `view.bounce(dir, 'water')`（水しぶき＋困り顔）と音 `splash`（`js/ui-step.js` が盤の `water` と進行方向で判定）。`generator.shape` は PR2。
 - 盤面エディタ（`tools/editor/`）は盤面を `drawBoard`（`js/ui-board.js`）経由で描き、`renderGrid(`・`computeCellSize(` を直呼びしない。
 - 盤面エディタのパレットは `GIMMICKS` の `key`・`label` から生成され、登録表に足せば自動で出る。
+
+## クリック音（共通処理と無音の例外）
+
+- 共通処理：ボタンのクリック音（`tap`）は `js/sfx.js` の `initClickSfx()`（`app.js` で1回初期化）が document の click 委譲で鳴らす。対象は `button`・`[role=button]`。個別のボタンで `playSfx('tap')` を直書きしない（Issue #550。例外は次行の命令ボタン）。disabled・ミュート中は鳴らさない。pointerdown を伴わない click（キーボード等）は click 時点の状態で判定。
+- 例外（命令ボタン）：pointerup で受け付けを確定するボタン（`attachTapOrDrag` の onTap → `onAdd`）は、受け付けた地点（`js/ui-play.js`・`js/ui-tutorial.js` の `onAdd`）で `tap` を直接鳴らす（#550-8A）。受け付け直後にパレットが全 disabled になり click が届かない場合（上限到達の最後の1押下）でも鳴らすため。委譲側は下の二重鳴りの抑止で鳴らない。この `onAdd` の `tap` を消さない。
+- 命令ボタンはキー経由（`js/ui-keys.js`、Issue #380）では click を伴わない（矢印は `onAdd` 直接で `tap` 1回）。Enter・Backspace は対応ボタンの `.click()` 委譲で、タップと同じ音が1回。
+- 二重鳴りの抑止：pointerdown（capture）から click までの間に別の音が鳴っていれば、委譲は鳴らさない（命令ボタンは pointerup で `stack` 等を鳴らすため）。
+- ガードで受け付けない押下（実行中・上限到達・シーソーの端など）：`skipClickSfx()` を呼んで無音にする。次の pointerdown で解除される。
+- ドラッグ：click を伴わないので委譲は鳴らない。ドラッグ経由の操作だけ `snap` を個別に鳴らす。
+
+無音の例外（専用音・大演出音のあるボタンのみ）。正本は `js/config.js` の `CLICK_SFX_EXEMPT`（セレクタ＋理由）。足すときはこの表も更新する。
+
+| セレクタ | 理由 |
+| --- | --- |
+| `[data-action="retry"]` | ためしなおす：黒幕の遷移のあと start 合図音（`ui-retry` の `showStartCue`）が鳴る |
 
 ## 禁止パターンの検査
 
@@ -88,7 +108,6 @@
 | レッスンの枠 | 効果が小さい（2026-10-08 判断） | 同じ見た目かロジックが3画面以上で必要になったとき |
 | くりかえし箱の操作行 | 効果が小さい（2026-10-08 判断） | 同じ見た目かロジックが3画面以上で必要になったとき |
 | 最初のステージの指ガイド | 効果が小さい（2026-10-08 判断） | 同じ見た目かロジックが3画面以上で必要になったとき |
-| ヒント表示 | 効果が小さい（2026-10-08 判断） | 同じ見た目かロジックが3画面以上で必要になったとき |
 
 ## レイアウト・ビルドの落とし穴（SESSION.mdから移動。Issue #447）
 

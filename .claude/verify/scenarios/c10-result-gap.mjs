@@ -1,4 +1,4 @@
-// クリア直後の「間」：1コマの連打が次のステージ・もういちどに当たらないこと、間のあとに結果ボタンが
+// クリア直後の「間」：1コマの連打が次のステージ・ためしなおすに当たらないこと、間のあとに結果ボタンが
 // 1コマボタンと別の位置に出ること、間の最中の「← もどる」でタイマーが片付くこと（Issue #336）。
 
 export const name = 'C10 クリア後の間: 1コマ連打が結果ボタンに当たらない・もどるで片付く(Issue #336)';
@@ -35,8 +35,13 @@ export default async function run({ page, check }) {
 
   await page.waitForSelector('[data-action="next-stage"]', { timeout: 4000 });
   await check('間のあと: つぎの ステージが出る', async () => (await page.$$('[data-action="next-stage"]')).length, 1);
-  await check('間のあと: もういちどが出る', async () => (await page.$$('[data-action="replay"]')).length, 1);
+  await check('間のあと: ためしなおすが出る', async () => (await page.$$('[data-action="replay"]')).length, 1);
   await check('間のあと: 「…」は消える', async () => (await page.$$('[data-result-gap]')).length, 0);
+  // キー操作（Issue #380）：結果表示中は矢印を押してもチップが増えない（クリア演出中は全キー無視）。
+  const chipsBeforeKey = (await page.$$('.command-chip')).length;
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowRight');
+  await check('キー: 結果表示中に矢印を押してもチップが増えない', async () => (await page.$$('.command-chip')).length, chipsBeforeKey);
   const nextBox = await (await page.$('[data-action="next-stage"]')).boundingBox();
   const replayBox = await (await page.$('[data-action="replay"]')).boundingBox();
   await check('ダイアログがパネル(controls)の境界内に収まる', async () =>
@@ -48,15 +53,24 @@ export default async function run({ page, check }) {
   await check('トースト消去後も盤面の境界ボックスが変わらない', async () => await boardBox(), boardBefore);
   await check('ダイアログ表示中: 背面のパレット・操作行・queue が inert', async () =>
     page.evaluate(() =>
-      ['.palette-row', '.command-queue', '[data-sk-screen="actions"]'].every((s) => document.querySelector(s).closest('[inert]') !== null)
+      ['.palette-row [data-command]', '.command-queue', '[data-sk-screen="actions"]'].every((s) => document.querySelector(s).closest('[inert]') !== null)
     )
   );
-  await check('ダイアログ表示中: 「← もどる」は inert でない', async () =>
-    page.evaluate(() => document.querySelector('#back-btn').closest('[inert]') === null)
+  await check('ダイアログ表示中: メニューの「レッスンせんたくがめん」は inert でない', async () =>
+    page.evaluate(() => document.querySelector('#menu-home').closest('[inert]') === null)
+  );
+  await check('ダイアログ表示中: ⚙は inert でなく、結果ダイアログに隠れず実クリックが届く（Issue #467）', async () =>
+    page.evaluate(() => {
+      const b = document.querySelector('[data-action="menu"]');
+      const r = b.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return b.closest('[inert]') === null && (hit === b || b.contains(hit));
+    }),
+    true
   );
   await check('つぎの ステージの高さは64px', async () => Math.round(nextBox.height), 64);
-  await check('もういちどの高さは64px・幅160px', async () => [Math.round(replayBox.height), Math.round(replayBox.width)], [64, 160]);
-  await check('連打しても結果ボタンのもういちどは起動していない', stepId, p1);
+  await check('ためしなおすの高さは64px・幅160px', async () => [Math.round(replayBox.height), Math.round(replayBox.width)], [64, 160]);
+  await check('連打しても結果ボタンのためしなおすは起動していない', stepId, p1);
 
   // --- 間の最中の「← もどる」：タイマーが片付き、結果ボタンが後から現れない ---
   await page.click('[data-action="replay"]');
@@ -65,7 +79,11 @@ export default async function run({ page, check }) {
   await page.evaluate(() => localStorage.removeItem('steamkids.events'));
   for (let i = 0; i < 10 && (await page.$('[data-action="step"]')); i += 1) await page.click('[data-action="step"]');
   await page.waitForSelector('[data-result-gap]');
-  await page.click('#back-btn');
+  // 間の最中も ⚙ だけは inert から外れる（Issue #467）。⚙ → レッスンせんたくがめん → 確認の「もどる」を実クリックする（Issue #542）。
+  await page.click('[data-action="menu"]');
+  await page.click('#menu-home');
+  await page.click('[data-action="leave-ok"]');
+  await page.waitForSelector('[data-screen="picker"]');
   await check('もどる: playから出る', async () => (await page.getAttribute('#stage', 'data-step')) !== 'play');
   await page.waitForTimeout(2200);
   await check('もどる: 間のタイマーが片付き結果ボタンが現れない', async () => (await page.$$('[data-result-row]')).length, 0);
@@ -105,5 +123,5 @@ export default async function run({ page, check }) {
     inside(await (await page.$('[data-result-dialog]')).boundingBox(), await panelBox())
   );
   await check('横向き: つぎの ステージの高さは64px以上', async () => (await (await page.$('[data-action="next-stage"]')).boundingBox()).height >= 64);
-  await check('横向き: もういちどの高さは64px以上', async () => (await (await page.$('[data-action="replay"]')).boundingBox()).height >= 64);
+  await check('横向き: ためしなおすの高さは64px以上', async () => (await (await page.$('[data-action="replay"]')).boundingBox()).height >= 64);
 }

@@ -82,6 +82,7 @@ validate と集計側で同じ一覧を参照する）。一覧の照合はフ�
 `groupRepeats`とは併存し（同一stepで同時指定は検証NG）、`{dir, times}`は箱の1命令版の別表現として
 残す。`solution`は必須で、箱を`{box, times}`で書ける（`repeatBox`時のみ）。ループ込みの最短性は
 BFSで求めない（`js/ui-summary.js`は「いちばん みじかい」を出さない）。
+長い盤は箱（`groupRepeats`）を併用してよい。使うかは盤ごとに決める（Issue #393）。
 実行中は箱チップの「はこ ×N」ラベルの下に周回の点（`.box-rounds`・N個）が並び、済みの周と
 実行中の周が塗りつぶされる（実行中の点だけ強調。実行外はすべて空で、点の数だけで回数が分かる）。
 DOM判定用に箱チップへ`data-round`（0始まりの現在周。実行外は属性なし。Issue #167）。
@@ -102,9 +103,11 @@ DOM判定用に箱チップへ`data-round`（0始まりの現在周。実行外�
 
 `play.items`（任意・マス座標`{x, y}`の配列・既定`[]`）を指定すると、盤面に回収対象（どんぐり）
 を置く。クリア条件は「ゴール到達」から「ゴール到達 **かつ** 全item回収」に変わる（items未指定時
-は従来通りゴール到達のみ）。item同士・item-壁の座標重複は不可（`validate-lessons.mjs`が検証）。`ice`（こおり）も座標範囲・壁/start/goal/items/ice同士の重複不可、`cushion`（クッション）も同様（仕様は`docs/gimmicks.md`）。`switches`（スイッチ。`[{x, y, targets: [{x, y, initial?}], mode?, color?}]`）の`mode`は`"open"`（省略時）｜`"close"`｜`"toggle"`で、`initial`（`"closed"`既定｜`"open"`）は`toggle`の`targets`だけに指定でき、`targets`の要素は`{x, y}`の上位互換（仕様と併用禁止は`docs/gimmicks.md`の`## switches`）。`switches[].group`（任意・文字列）と盤面トップの`groupWalls`（任意・`{x, y, group}`の配列・省略時`[]`）の仕様は`docs/gimmicks.md`の`## switches`。`keyMode`（任意・`"remote"`｜`"carry"`、省略時`"carry"`）は`keys`・`doors`のある盤面（play・tutorial・intro.demo）だけに書け、無い盤面や2値以外はvalidateで落ちる（仕様は`docs/gimmicks.md`の`## keys`）。既存のレッスンは見た目を変えないよう`"keyMode": "remote"`を明示する。`water`・`bridge`（`{x, y}`の配列。水・橋。省略時`[]`）と`waterMode`（`"cushion"`既定／`"bump"`）も同様（`docs/gimmicks.md`の`## water`）。`play.paint`（任意・`{x, y}`の配列＝目標の模様。クリアは「ゴール到達かつ最後の塗り＝目標」。全回収との違いは`docs/gimmicks.md`の`## paint`）。
+は従来通りゴール到達のみ）。item同士・item-壁の座標重複は不可（`validate-lessons.mjs`が検証）。`ice`（こおり）も座標範囲・壁/start/goal/items/ice同士の重複不可、`cushion`（クッション）も同様（仕様は`docs/gimmicks.md`）。`switches`（スイッチ。`[{x, y, targets: [{x, y, initial?}], mode?, color?}]`）の`mode`は`"open"`（省略時）｜`"close"`｜`"toggle"`で、`initial`（`"closed"`既定｜`"open"`）は`toggle`の`targets`だけに指定でき、`targets`の要素は`{x, y}`の上位互換（仕様と重ねられない組み合わせは`docs/gimmicks.md`の`## switches`）。`switches[].group`（任意・文字列）と盤面トップの`groupWalls`（任意・`{x, y, group}`の配列・省略時`[]`）の仕様は`docs/gimmicks.md`の`## switches`。`keyMode`（任意・`"remote"`｜`"carry"`、省略時`"carry"`）は`keys`・`doors`のある盤面（play・tutorial・intro.demo）だけに書け、無い盤面や2値以外はvalidateで落ちる（仕様は`docs/gimmicks.md`の`## keys`）。既存のレッスンは見た目を変えないよう`"keyMode": "remote"`を明示する。`water`・`bridge`（`{x, y}`の配列。水・橋。省略時`[]`）と`waterMode`（`"cushion"`既定／`"bump"`）も同様（`docs/gimmicks.md`の`## water`）。`play.paint`（任意・`{x, y}`の配列＝目標の模様。クリアは「ゴール到達かつ最後の塗り＝目標」。全回収との違いは`docs/gimmicks.md`の`## paint`）。
 `maxCommands`はゴール到達と全item回収の両方を満たす最短経路の手数（`groupRepeats`時はチップ数）
-で判定される（Issue #60）。
+で判定される（Issue #60）。`maxCommands`は想定の手数（盤の最短手数以上の整数）で、子どもの画面の上限ではない。
+子どもの画面は手数を制限しない。ギミックを使わない遠回りの解は許す。ギミックは想定の最短（`maxCommands`）では必須（検査で確かめる）。命令の列が長くなっても、
+実行中は今のチップが列の中に追従して見える（Issue #393）。
 
 `play.text`（任意・文字列。他stepの`text`と同じくルビ記法・20字制限の検証対象）を指定すると、
 playステップの指示文になる。未指定時の既定文言は`items`の有無で決まる（`js/ui-step.js`）：
@@ -114,7 +117,7 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 `intro.demo`（任意・`{ grid, start, goal, walls, items?, commands, showCommands?, fixFrom? }`。
 `play`と同じ形状の自前の盤面）を指定すると、「はじめに」画面でロボットがその経路をたどって
 ゴールへ到達する完成イメージをアニメーションで見せる（`js/ui-demo.js`の`renderGoalDemo`）。
-自動再生は1回だけ（「もういちど みる」で再生し直せる）。`start`/`goal`の組は**本番の`play`の
+自動再生は1回だけ（「おてほんを みる」で再生し直せる）。`start`/`goal`の組は**本番の`play`の
 どのステージとも同一にしない**（答えのネタバレになるため。`validate-lessons.mjs`が機械チェックする）。
 `commands`は壁にぶつからずゴール到達・全item回収する内容にする（同じくチェック対象）。
 `commands`の各要素は方向文字列、`{dir, times}`（まとめ表示。`cmd-02-mijikaku`で使用）、または`{box, times}`（くりかえしの箱。`cmd-04-kurikaeshi`で使用）。
@@ -126,12 +129,13 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 
 ### `predict-slider`の`play`（シーソー。Issue #150）
 
-`type: "predict-slider"`のレッスンは`kind: "play"`に`seesaw`と`solution`（整数）を持つ。`pos`・`start`は支点からの刻み数（1〜`notches`）。
+`type: "predict-slider"`のレッスンは`kind: "play"`に`seesaw`と`solution`を持つ。`solution`は、位置だけ動く面＝位置（整数）、重さだけ動く面＝重さ（整数）、両方動く面＝`[pos, robots]`。`pos`・`start`は支点からの刻み数（1〜`notches`）。
 ```json
 { "stepId": "p1", "kind": "play", "text": "つりあう ところに おこう",
   "seesaw": { "notches": 4, "left": [{ "robots": 2, "pos": 2 }], "mover": { "robots": 1, "start": 1 } },
   "solution": 4 }
 ```
+`mover.maxRobots`（2〜3。あれば重さを − ＋ で1〜maxRobotsに変える。省略＝重さ固定）、`mover.fixedPos`（あれば位置は固定で`start`と同じ値。`maxRobots`が要る）。
 
 ### `tutorial`（なぞり操作型チュートリアル）
 
@@ -235,9 +239,10 @@ MustMatterは、ギミックモジュールの`strip(spec)`（ギミックを除
 
 - `stageGen`（レッスンの最上位。任意）：`ver`（生成器の版。整数≥1）、`stages`（play の総数の上限。2〜8。4を超えてよい）、
   `keepHandwritten`（手書きで残す play の stepId。先頭から連続。省略時は空）、`grid.cols`・`grid.rows`（`{min,max}`。3〜20）、
-  `walls`（`{min,max}`。0〜60。省略時0）、`gimmicks`（`items`・`ice`・`keys` のみ。`{min,max}`）、`teach`（必須性を判定するギミック）、
+  `walls`（`{min,max}`。0〜60。省略時0）、`gimmicks`（`items`・`ice`・`keys` のみ。`{min,max}`。加えて `warps:{min,max}`＝組数1〜2。`periodic`・`water` と同時に指定できない（この3つは1種まで）。どんぐり・こおり・かぎ・クッション・スイッチ・壁とは併用できる。`paint`・`groupRepeats` とは併用不可）、`periodic:{min,max}`＝ドア数1〜2（周期3・4のみ生成。`warps`・`water` と同時に指定できない（この3つは1種まで）。どんぐり・こおり・かぎ・クッション・スイッチ・壁とは併用できる。`paint`・`groupRepeats` とは併用不可）、`paint:{min,max}`＝目標マス数4〜8（整数。単独で指定する。ただし water とだけ併用できる（目標は水マスに置かず、橋の1マスを通る。items・ice・keys・cushion・switches・warps・periodic とは併用できない））、`water:{min,max}`＝水マス数2〜8（整数。`warps`・`periodic` と同時に指定できない（この3つは1種まで）。どんぐり・こおり・かぎ・クッション・スイッチ・壁とは併用できる。paint とは併用できる（paint の項を参照）。groupRepeats とは併用不可。`waterMode`は入力にしない）、`teach`（必須性を判定するギミック）、
   `shortestPath`（`{min,max}`。2〜60）、`minTurns`（0〜8。省略時0）、`allowedCommands`（上下左右の部分集合。省略時4方向）、`seedBase`（省略時1）。
   表に無いキーは不合格。使わないマス（`shape`・`grid.holes`）は未対応（Issue #338）。
+- `stageGen.base`（エディタの /api/generate 専用。レッスン JSON には書かない。書けば未知キーで不合格）：エディタで開いている盤を土台に渡す入力で、土台の水・橋・壁・盤の大きさを固定し、陸だけに start・goal・壁・ギミックを置く。水の上限 2〜8 は土台の水に掛けない。土台に水があれば `warps`・`periodic` は併用できない。土台は保存されない。
 - `gen`（生成した play ステップの中）：`{ "seed": <整数≥0>, "ver": <stageGen.ver と同じ> }`。手書きで残す play には付けない。
 - 生成の規則：`maxCommands` は最短手数ちょうど。最短手数は非減少で、真ん中あたりに「最短は前と同じで曲がり角が少ない」面を1つ置く。
   回転・鏡写しで同じになる盤は除く。同じレッスンの中で盤を急に2段以上大きくしない。
@@ -291,17 +296,17 @@ MustMatterは、ギミックモジュールの`strip(spec)`（ギミックを除
 - `groupRepeats` を持つ場合はboolean型であること
 - `repeatBox` を持つ場合はboolean型で、`groupRepeats`と同時に`true`にしないこと。`true`の場合は
   `solution`が必須で、箱は空でなく中が方向のみ（入れ子なし）・`times`が2〜4の整数であること、
-  `solution`のチップ数（箱1＋中の命令数）が`maxCommands`以内であること、箱を使わない最短手数が
-  `maxCommands`を超えること（箱が必須）。ステージ難度の比較は`solution`のチップ数で行う
-- `initialCommands` を持つ場合は語彙が正しく、長さが `maxCommands` 以内であり、そのまま実行
+  `solution`のチップ数（箱1＋中の命令数）が想定の手数`maxCommands`の内であること、箱を使わない最短手数が
+  `maxCommands`より多いこと（想定の手数の内では箱が必須）。ステージ難度の比較は`solution`のチップ数で行う
+- `initialCommands` を持つ場合は語彙が正しく、長さが想定の手数 `maxCommands` の内であり、そのまま実行
   してもゴールに到達しないこと（`items` がある場合は全回収も満たしていないこと）
 - `solution` を持つ場合は形式が正しく、実行するとクリアし（ゴール到達・全item回収・壁や盤外に
-  当たらない）、手数（`groupRepeats`時はチップ数）が `maxCommands` 以内であること
+  当たらない）、手数（`groupRepeats`時はチップ数）が想定の手数 `maxCommands` の内であること
 - `start` `goal` `walls` `optionCells` `items` の座標が盤内であること
 - `start` と `goal` が重ならず、`walls` が `start` `goal` を含まないこと
 - `items` が `walls` と重ならず、`items` 同士も座標重複しないこと
-- ゴールが到達可能であること（`items` がある場合は全回収した上でのゴール到達）を `maxCommands`
-  以内の最短手数でBFS確認する（`groupRepeats: true` の場合は同方向連続を1チップにまとめた
+- ゴールが到達可能であること（`items` がある場合は全回収した上でのゴール到達）を想定の手数
+  `maxCommands`の内の最短手数でBFS確認する（`groupRepeats: true` の場合は同方向連続を1チップにまとめた
   最小チップ数で判定する）
 - 複数の`play`ステージがある場合、後のステージほど最短手数（`groupRepeats`時はチップ数）が
   非減少であること（Issue #104）

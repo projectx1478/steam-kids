@@ -16,12 +16,17 @@ import { renderTutorial, isTutorialDone } from './ui-tutorial.js';
 import { renderSummary } from './ui-summary.js';
 import { renderSeedPick } from './ui-seedpick.js';
 import { generateMap } from './engine-generate.js';
+import { generateSeesawRun } from './engine-seesaw-gen.js';
+import { solutions } from './engine-seesaw.js';
 import { codeToSeed } from './seed-code.js';
 import { isLessonCleared } from './ui-picker.js';
 import { clearedGimmicks, isIntroKnown } from './gimmick-unlock.js';
 import { withDev } from './dev-mode.js';
 import { isTrial } from './trial-lesson.js';
 import { readResume, writeResume, clearResume } from './storage.js';
+import { setScene } from './bgm.js';
+import { sceneFor } from './config.js';
+import { confirmDialog } from './ui-dialog.js';
 
 const STEP_DELAY_MS = 600;
 const STEP_TRANSITION_MS = 220;
@@ -83,10 +88,21 @@ function headerEls() {
   return {
     wrap: document.getElementById('lesson-header'),
     back: document.getElementById('back-btn'),
-    home: document.getElementById('home-btn'),
     title: document.getElementById('lesson-title'),
     chip: document.getElementById('step-kind-chip'),
+    // 中央パネル（#gear-menu。Issue #467）内の同等の要素。
+    menuStage: document.getElementById('menu-stage'),
+    menuTitle: document.getElementById('menu-stage-title'),
+    menuChip: document.getElementById('menu-stage-chip'),
+    menuDots: document.getElementById('menu-stage-dots'),
+    menuNav: document.getElementById('menu-nav'),
+    menuHome: document.getElementById('menu-home'),
   };
+}
+
+// ヘッダ・点列をメニュー内へ寄せる対象画面（命令パレットのある play〔シーソー除く〕と tutorial。Issue #467）。
+function isCompactStep(step) {
+  return step.kind === 'tutorial' || (step.kind === 'play' && S.lesson.type !== 'predict-slider');
 }
 
 // 区分チップの文言。playが複数ステージ(だんだん難易度を上げる構成)を持つ時は
@@ -100,26 +116,37 @@ function stepChipLabel(step) {
   return `${base} ${idx + 1}/${playSteps.length}`;
 }
 
-// ヘッダー（#stageの外）：タイトル・区分チップ・もどる/えらぶ がめんへボタン。
+// ヘッダー（#stageの外）：タイトル・区分チップ・← まえの がめんへ・⚙。🏠 は #574 段Bで除いた（離れるは⚙メニューの #menu-home）。
 // renderStepのたびに更新する（Issue #91）。
 function renderHeader() {
-  const { wrap, back, home, title, chip } = headerEls();
+  const { wrap, back, title, chip, menuStage, menuTitle, menuChip, menuDots, menuNav } = headerEls();
   wrap.style.display = 'flex';
-  // home-btnは#lesson-headerの外（ヘッダー右側）にあるため、ここで表示を切り替える
-  // （←ともどるを分けて誤タップを防ぐ配置。Issue #95）。
-  home.style.display = '';
   title.textContent = S.unit ? `${S.unit.title} ・ ${S.lesson.title}` : S.lesson.title;
   chip.textContent = stepChipLabel(currentStep());
   // Tailwindの`flex`ユーティリティ(back.classListが持つ)はUA既定の[hidden]より強いため、
   // hidden属性ではなくinline style.displayで確実に隠す。
   back.style.display = S.stepIndex === 0 ? 'none' : '';
-  if (isTrial()) renderTrialBand(back, home);
+  // 中央パネルの「いまの ばしょ」（対象画面のみ。ヘッダはまだ残す。ヘッダを隠すのは data-op-compact）。
+  const compact = isCompactStep(currentStep());
+  menuStage.hidden = !compact;
+  menuTitle.textContent = title.textContent;
+  menuChip.textContent = chip.textContent;
+  if (!compact) menuDots.innerHTML = '';
+  // 離れる(#menu-home)は まとめ 以外のレッスン内の全画面で出す（まとめの出口は本文とバーにあり、メニューは とじる のみ。Issue #574）。
+  menuNav.style.display = currentStep().kind === 'summary' ? 'none' : 'flex';
+  // クレジット・ほごしゃの かた はレッスン外（title・map）のみ（Issue #552）。
+  // レッスンを離れるとページを読み直すので、戻す処理は要らない。
+  for (const id of ['menu-credit-open', 'menu-guardian']) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  }
+  if (isTrial()) renderTrialBand(back);
 }
 
-// ためしあそび（Issue #403）：もどる・えらぶ を隠し、画面上部に帯を常時出す（開発者の取り違え防止）。
-function renderTrialBand(back, home) {
+// ためしあそび（Issue #403）：← と離れる(menuNav) を隠し、画面上部に帯を常時出す（開発者の取り違え防止）。
+function renderTrialBand(back) {
   back.style.display = 'none';
-  home.style.display = 'none';
+  headerEls().menuNav.style.display = 'none';
   if (document.getElementById('trial-band')) return;
   const band = document.createElement('div');
   band.id = 'trial-band';
@@ -128,12 +155,12 @@ function renderTrialBand(back, home) {
   document.body.insertBefore(band, document.body.firstChild);
 }
 
-// 実行アニメーション中はもどる・えらぶ がめんへを操作させない（playAnimationの開始・終了、
+// 実行アニメーション中は ← と離れる(#menu-home) を操作させない（playAnimationの開始・終了、
 // および1コマ実行の開始時にui-play.jsから呼ぶ。Issue #111）。
 export function setBackDisabled(disabled) {
-  const { back, home } = headerEls();
+  const { back, menuHome } = headerEls();
   back.disabled = disabled;
-  home.disabled = disabled;
+  menuHome.disabled = disabled;
 }
 
 // app.jsが単元情報(S.unit)を非同期取得した後、ヘッダーのタイトルだけ再描画するための窓口。
@@ -144,24 +171,38 @@ export function refreshHeader() {
   renderHeader();
 }
 
-export function initSteps() {
-  // もどる・えらぶ がめんへは確認ダイアログを挟まず即座に遷移する。誤タップの保険は
-  // 確認ダイアログではなく、playの命令列の下書き保持（S.drafts）で行う（Issue #95）。
-  headerEls().back.addEventListener('click', () => {
-    if (headerEls().back.disabled || S.stepIndex === 0) return;
-    goToStep(S.stepIndex - 1);
-  });
+// ← まえの がめんへ（ヘッダ・中央パネル共通。Issue #467）。
+function goBack() {
+  if (headerEls().back.disabled || S.stepIndex === 0) return;
+  if (hasPlayInProgress()) {
+    confirmLeave(() => goToStep(S.stepIndex - 1), BACK_TEXT);
+    return;
+  }
+  goToStep(S.stepIndex - 1);
+}
 
-  headerEls().home.addEventListener('click', () => {
-    if (headerEls().home.disabled) return;
-    if (!hasPlayInProgress()) {
-      location.href = withDev('./index.html?view=map');
-      return;
-    }
-    // playの途中（命令列を組みかけ）で離れると下書きを失うため、ここだけ確認を挟む。
-    // 子どもが読まなくても分かるよう「つづける」を大きく目立たせる（Issue #240）。
-    confirmLeave(() => (location.href = withDev('./index.html?view=map')));
-  });
+// 離れる＝レッスンせんたくがめんへ（⚙メニューの #menu-home。ヘッダの 🏠 は #574 段Bで除いた）。
+// 単元マップへの戻り先URL。今のレッスンの大項目だけに絞るため from を付ける（Issue #616）。
+export function mapUrl() {
+  const id = S.lesson?.lessonId;
+  return withDev(id ? `./index.html?view=map&from=${encodeURIComponent(id)}` : './index.html?view=map');
+}
+
+function goHome() {
+  if (headerEls().menuHome.disabled) return;
+  if (!hasPlayInProgress()) {
+    location.href = mapUrl();
+    return;
+  }
+  // play中は常に確認を挟む。子どもが読まなくても分かるよう「つづける」を大きく目立たせる（Issue #240・#542）。
+  confirmLeave(() => (location.href = mapUrl()));
+}
+
+export function initSteps() {
+  // playでは ← もどる・離れる(#menu-home) の前に確認ダイアログ（confirmDialog）を挟む（Issue #542）。
+  // play以外のステップは即座に遷移する。下書き保持（S.drafts）も併用する（Issue #95）。
+  headerEls().back.addEventListener('click', goBack);
+  headerEls().menuHome.addEventListener('click', goHome);
 
   // 端末の戻る（Android戻る・ブラウザ戻る）も「← もどる」と同じく1ステップ戻す。
   // 各ステップ遷移でhistoryを積み（goToStep）、ここで該当ステップを再描画する（Issue #240）。
@@ -172,6 +213,20 @@ export function initSteps() {
     if (headerEls().back.disabled) {
       // 実行アニメーション中は動かさない。履歴だけ現在位置へ戻す。
       history.pushState({ stepIndex: S.stepIndex }, '');
+      return;
+    }
+    if (hasPlayInProgress()) {
+      // playでは端末の戻るでも確認する。履歴を現在位置へ戻してから問う（Issue #542）。
+      history.pushState({ stepIndex: S.stepIndex }, '');
+      // 確認の表示中は位置を戻すだけ（連打で確認や遷移が二重にならない）。
+      if (leaveConfirmOpen()) return;
+      const backward = target < S.stepIndex;
+      // 「もどる」では積み直した分を1つ戻し、履歴の現在位置も表示と揃える（popstateはtarget===S.stepIndexで無視される）。
+      // 進む方向（target > 現在）では history.back() を呼ばない。
+      confirmLeave(() => {
+        enterStep(target);
+        if (backward) history.back();
+      }, BACK_TEXT);
       return;
     }
     enterStep(target);
@@ -216,43 +271,25 @@ export function goToStep(nextIndex, opts = {}) {
   enterStep(resolvedIndex, opts);
 }
 
-// playの途中か：現在のステップがplayで、命令列の下書きが初期状態（空 or initialCommands）から
-// 変わっている。クリア時は下書きが消えるため、クリア後は途中ではない（Issue #240）。
+// playの途中か：現在のステップがplayなら常にtrue（下書きの有無に関わらず確認を挟む。Issue #542）。
 function hasPlayInProgress() {
-  const step = currentStep();
-  if (step.kind !== 'play') return false;
-  const draft = S.drafts[step.stepId];
-  if (!draft) return false;
-  const initial = (step.initialCommands ?? []).map((dir) => ({ dir, times: 1 }));
-  return JSON.stringify(draft) !== JSON.stringify(initial);
+  return currentStep().kind === 'play';
 }
 
-// confirmLeave(onLeave): 「やめる？」の確認。つづける（既定・大）／やめる（小）。
-function confirmLeave(onLeave) {
-  const overlay = document.createElement('div');
-  overlay.className = 'leave-confirm';
-  overlay.setAttribute('role', 'dialog');
-  overlay.style.cssText =
-    'position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.4)';
-  const card = document.createElement('div');
-  card.className = 'bg-white rounded-2xl shadow p-6 text-center';
-  card.style.cssText = 'max-width:90vw';
-  const msg = document.createElement('p');
-  msg.className = 'text-xl mb-4';
-  msg.textContent = 'ここで やめる？';
-  const keep = createPrimaryButton('つづける', () => overlay.remove(), 'leave-cancel');
-  const leave = document.createElement('button');
-  leave.type = 'button';
-  leave.dataset.action = 'leave-ok';
-  leave.className = 'btn-tactile block mx-auto mt-3 min-w-[64px] min-h-[64px] px-6 bg-slate-200 text-slate-700 text-base';
-  leave.textContent = 'やめる';
-  leave.addEventListener('click', () => {
-    overlay.remove();
-    onLeave();
+// confirmLeave(onLeave): レッスンせんたくがめんへ離れる確認。共通部品 ui-dialog.js を使う（Issue #542）。
+// text: 文言（既定＝レッスンせんたくがめんへ。goBack・端末の戻るはBACK_TEXT＝まえの がめんへ）。
+const BACK_TEXT = { question: 'まえの がめんに もどる？', keepLabel: 'プレイを つづける', leaveLabel: 'もどる' };
+const HOME_TEXT = { question: 'レッスンせんたくがめんに もどる？', keepLabel: 'プレイを つづける', leaveLabel: 'もどる' };
+function leaveConfirmOpen() {
+  return !!document.querySelector('[data-action="leave-ok"]');
+}
+function confirmLeave(onLeave, text = HOME_TEXT) {
+  confirmDialog({
+    ...text,
+    onLeave,
+    keepAction: 'leave-cancel',
+    leaveAction: 'leave-ok',
   });
-  card.append(msg, keep, leave);
-  overlay.appendChild(card);
-  document.body.appendChild(overlay);
 }
 
 // 区分ごとの短い記号（文字を読ませない方針のため、既存のじっこう「▶」等と同じ記法。Issue #104）。
@@ -270,16 +307,25 @@ function stepGlyph(step, stageIdx) {
 // クリア済みレッスンではplayステージのノードがボタン化し、goToStepで直接そのステージへ移動できる
 // （よそうはIssue #104で全廃したため対象はplayのみ）。
 function renderStepDots(root) {
+  // 対象画面は #stage に点列を出さない（ヘッダ側の点列は data-op-compact で隠れる。メニュー内のみ）。
+  if (!isCompactStep(currentStep())) root.appendChild(buildStepDots());
+  // 対象画面（play・tutorial）は中央パネルの「いまの ばしょ」にも同じ点列を描く（Issue #467）。
+  const { menuDots } = headerEls();
+  menuDots.innerHTML = '';
+  if (isCompactStep(currentStep())) menuDots.appendChild(buildStepDots());
+}
+
+function buildStepDots() {
   const wrap = document.createElement('div');
   const isIntro = currentStep().kind === 'intro';
   const nodeSizeClass = isIntro ? 'w-12 h-12 text-base' : 'w-8 h-8 text-xs';
   const playSteps = S.lesson.steps.filter((s) => s.kind === 'play');
   const lessonCleared_ = isLessonCleared(S.lesson.lessonId);
-  // 描画ノード数（tutorial除外を反映）。クリア済みで7以上なら折返し・48px・線なしにする（Issue #320）。
+  // 描画ノード数（tutorial除外を反映）。クリア済みで7以上なら折返し・64px・線なしにする（Issue #320）。
   const drawnCount = S.lesson.steps.filter((s, i) => !(s.kind === 'tutorial' && i !== S.stepIndex)).length;
   const wrapMode = lessonCleared_ && drawnCount >= 7;
   wrap.className = wrapMode
-    ? 'step-roadmap flex flex-wrap justify-center items-center gap-x-2 gap-y-2 mb-2'
+    ? 'step-roadmap flex flex-wrap justify-center items-center gap-x-3 gap-y-3 mb-2'
     : 'step-roadmap flex justify-center items-center gap-0.5 mb-2';
 
   let drawn = 0;
@@ -300,7 +346,7 @@ function renderStepDots(root) {
 
     const node = document.createElement(clickable ? 'button' : 'span');
     if (clickable) node.type = 'button';
-    const clickableSize = wrapMode ? 'min-w-[48px] min-h-[48px] px-0' : 'min-w-[64px] min-h-[64px] px-2';
+    const clickableSize = wrapMode ? 'min-w-[64px] min-h-[64px] px-0' : 'min-w-[64px] min-h-[64px] px-2';
     const sizeClass = clickable ? clickableSize : nodeSizeClass;
     const stateClass = isCurrent
       ? 'bg-sky-500 text-white ring-2 ring-sky-300 ring-offset-1'
@@ -309,7 +355,15 @@ function renderStepDots(root) {
         : 'bg-slate-200 text-slate-500';
     node.className = `step-dot relative inline-flex items-center justify-center rounded-full font-bold shrink-0 ${sizeClass} ${stateClass}`;
     if (isCurrent) node.dataset.current = 'true';
-    node.textContent = isDone ? '✓' : stepGlyph(step, stageIdx);
+    // 番号は常に表示し、完了は右上の緑バッジ✓で示す（Issue #554）。
+    node.textContent = stepGlyph(step, stageIdx);
+    if (isDone) {
+      const badge = document.createElement('span');
+      badge.className = 'step-dot-badge absolute -top-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 text-white text-xs leading-5 text-center ring-2 ring-white';
+      badge.textContent = '✓';
+      badge.setAttribute('aria-hidden', 'true');
+      node.appendChild(badge);
+    }
     if (clickable) {
       node.addEventListener('click', () => {
         vibrate();
@@ -319,7 +373,7 @@ function renderStepDots(root) {
     wrap.appendChild(node);
     drawn += 1;
   });
-  root.appendChild(wrap);
+  return wrap;
 }
 
 // ステップ遷移の横スライド。reduced-motion時は即表示（Issue #57）。
@@ -342,10 +396,17 @@ function renderStep() {
   activeAnimation?.cancel();
   activeAnimation = null;
   const step = currentStep();
+  setScene(sceneFor(step.kind));
   // generator付きplay：確定したたねから盤面を作ってステップへ差し込む（同じたね→同じ盤面。Issue #69）。
   // 前のたねの盤のギミックが残らないよう、代入の前に ice・keys・doors を消す。混ぜるギミックはクリア済みの
   // 種類だけ（units 未読込・失敗時は空＝壁のみ。Issue #266）。
-  if (step.generator && S.seed != null) {
+  if (step.generator?.seesawStage && S.seed != null) {
+    // シーソーのれんしゅう（Issue #611）：番号から5面を作り、playの並び順の面を差し込む。
+    const plays = S.lesson.steps.filter((s) => s.kind === 'play');
+    const run = generateSeesawRun(plays.map((p) => p.generator.seesawStage), S.seed);
+    step.seesaw = run[plays.indexOf(step)];
+    step.solution = solutions(step.seesaw)[0];
+  } else if (step.generator && S.seed != null) {
     delete step.ice;
     delete step.keys;
     delete step.doors;
@@ -357,6 +418,10 @@ function renderStep() {
   root.dataset.step = step.kind;
   root.dataset.stepId = step.stepId;
 
+  // 対象画面は data-op-compact を立てる（ヘッダを隠すのは CSS。#467 段B）。
+  const app = document.getElementById('app');
+  if (isCompactStep(step)) app.dataset.opCompact = 'true';
+  else delete app.dataset.opCompact;
   renderHeader();
   renderStepDots(root);
   if (step.kind === 'intro') renderIntro(root, step);
@@ -428,9 +493,14 @@ export function createStepper(commands, spec, view, { onTick, onPickup, startInd
       const dir = dirAt(cmds, raw.stepOwner[i], raw.innerOwner[i]);
       const [ddx, ddy] = WATER_DELTA[dir] ?? [0, 0];
       const watered = cushioned && (spec.water ?? []).some((c) => c.x === from.x + ddx && c.y === from.y + ddy);
-      playSfx(bumped ? 'bump' : watered ? 'splash' : cushioned ? 'cushion' : result.slid[i] ? 'slide' : 'step', { index: i });
+      const warped = !bumped && !cushioned && result.warped?.[i] === true;
+      playSfx(bumped ? 'bump' : watered ? 'splash' : cushioned ? 'cushion' : warped ? 'whoosh' : result.slid[i] ? 'slide' : 'step', { index: i });
       if (bumped || cushioned) {
         view.bounce(dir, watered ? 'water' : cushioned ? 'cushion' : 'wall');
+      } else if (warped) {
+        // ワープ（Issue #64）：入口（from）に足あとを残し、滑らず出口へ移る
+        view.footprint(from);
+        view.warpTo(to);
       } else {
         view.footprint(from);
         view.moveTo(to);
@@ -585,37 +655,46 @@ function renderStagePicker(root) {
 
 function renderIntro(root, step) {
   stagePicked = false;
+  // intro-body：高さ479px以下の画面だけ、左に問い文、右にデモの横並びになる（Issue #551。CSSは tailwind.src.css）。
+  // それ以外の高さでは display: contents で、従来どおり問い文→デモの縦積み。
+  const body = document.createElement('div');
+  body.className = 'intro-body';
   const p = document.createElement('p');
-  p.className = 'text-2xl text-center py-8';
+  p.className = 'intro-question text-2xl text-center py-2';
   renderInto(p, step.text, S.readingLevel, S.furigana);
-  root.appendChild(p);
+  body.appendChild(p);
+  root.appendChild(body);
   // ロボットが正解の道をたどってゴールへ到達する完成イメージ（本番とは別のstart/goal。
   // Issue #97）。demoが無い教材型は対象外。
   // 既習のレッスン（isIntroKnown）は1回だけ再生して止める（Issue #269）。
   if (step.demo) {
-    renderGoalDemo(root, step.demo, { once: isIntroKnown(S.units, S.lesson.lessonId, isLessonCleared) });
+    renderGoalDemo(body, step.demo, { once: isIntroKnown(S.units, S.lesson.lessonId, isLessonCleared) });
   }
+  renderStagePicker(root);
+  // 主ボタンと副ボタンは下端バー（.sk-bottom-bar。Issue #551）に置き、スクロールせずに押せるようにする。
+  // 並びは左から「はじめから」（再開時のみ）・「そうさほうほう」・主ボタン。
+  const bar = document.createElement('div');
+  bar.className = 'sk-bottom-bar';
+  bar.dataset.role = 'bottom-bar';
   // 途中再開（Issue #242）：保存があり、そのstepIdがレッスンにあり、未クリアのときだけ
   // 主ボタンを「つづきから」にし、「はじめから」（保存は触らない）を控えめに添える。
-  renderStagePicker(root);
   const resumeIndex = findResumeIndex();
+  let primaryBtn;
   if (resumeIndex !== -1) {
-    const resumeBtn = createPrimaryButton('つづきから', () => goToStep(resumeIndex, { resumed: true }), 'resume');
-    resumeBtn.classList.add('min-h-[64px]');
-    root.appendChild(resumeBtn);
     const restartBtn = document.createElement('button');
     restartBtn.type = 'button';
     restartBtn.dataset.action = 'start';
     restartBtn.textContent = 'はじめから';
-    restartBtn.className =
-      'block mx-auto mt-6 min-w-[64px] min-h-[64px] px-6 rounded-lg bg-white shadow text-base text-slate-600';
+    restartBtn.className = 'sk-bar-sub';
     restartBtn.addEventListener('click', () => {
       vibrate();
       goToStep(S.stepIndex + 1);
     });
-    root.appendChild(restartBtn);
+    bar.appendChild(restartBtn);
+    primaryBtn = createPrimaryButton('つづきから', () => goToStep(resumeIndex, { resumed: true }), 'resume');
+    primaryBtn.classList.add('min-h-[64px]');
   } else {
-    root.appendChild(createPrimaryButton('はじめる', () => goToStep(S.stepIndex + 1), 'start'));
+    primaryBtn = createPrimaryButton('はじめる', () => goToStep(S.stepIndex + 1), 'start');
   }
 
   // tutorialがあるレッスンは「そうさほうほう」でだけtutorialへ入れる。未見の間は光らせて誘導する
@@ -629,14 +708,16 @@ function renderIntro(root, step) {
     howBtn.dataset.action = 'how-to';
     howBtn.textContent = 'そうさほうほう';
     howBtn.className = unseen
-      ? 'block mx-auto mt-2 min-w-[64px] min-h-[64px] px-6 rounded-lg bg-amber-100 shadow text-base font-bold text-amber-900 ring-4 ring-amber-400 ring-offset-2 motion-safe:animate-pulse'
-      : 'block mx-auto mt-2 min-w-[64px] min-h-[64px] px-4 rounded-lg bg-white shadow text-sm text-slate-600';
+      ? 'sk-bar-sub bg-amber-100 font-bold text-amber-900 ring-4 ring-amber-400 motion-safe:animate-pulse'
+      : 'sk-bar-sub';
     if (unseen) howBtn.dataset.highlight = 'true';
     howBtn.addEventListener('click', () => {
       vibrate();
       S.forceTutorial = true;
       goToStep(tutorialIndex);
     });
-    root.appendChild(howBtn);
+    bar.appendChild(howBtn);
   }
+  bar.appendChild(primaryBtn);
+  root.appendChild(bar);
 }

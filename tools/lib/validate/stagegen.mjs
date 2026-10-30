@@ -4,9 +4,16 @@ import { KEY_MODES } from '../../../js/gimmicks/keys.js';
 import { COMMANDS, isInt, isObj } from './common.mjs';
 
 const SG_KEYS = ['ver', 'stages', 'keepHandwritten', 'grid', 'walls', 'gimmicks', 'teach', 'shortestPath', 'minTurns', 'allowedCommands', 'seedBase', 'keyMode'];
-const SG_GIMMICK_RANGES = { items: [1, 4], ice: [1, 4], keys: [1, 2], cushion: [1, 4], switches: [1, 2] };
+const SG_GIMMICK_RANGES = { items: [1, 4], ice: [1, 4], keys: [1, 2], cushion: [1, 4], switches: [1, 2], warps: [1, 2], periodic: [1, 2], paint: [4, 8], water: [2, 8] };
 
-function checkStageGen(data, steps, add) {
+// 他のギミックと併用できない（単独で指定する）ギミック。要素を足せば同じ検査が働く。
+export const SG_SOLO_GIMMICKS = ['paint'];
+// 単独集合の要素ごとの例外（併用してよい相手）。paint は water とだけ併用できる（#531 段2）。
+export const SG_SOLO_EXCEPT = { paint: ['water'] };
+// 同時に1種までしか指定できないギミック（他の items・ice 等とは併用できる。#531）。
+export const SG_ONE_OF_GIMMICKS = ['warps', 'periodic', 'water'];
+
+function checkStageGen(data, steps, add, soloGimmicks = SG_SOLO_GIMMICKS, oneOfGimmicks = SG_ONE_OF_GIMMICKS) {
   const sg = data.stageGen;
   const label = 'stageGen';
   const unknown = (obj, allowed, where) => {
@@ -58,7 +65,7 @@ function checkStageGen(data, steps, add) {
         add(label, 'gimmicks がオブジェクトでない');
       } else {
         for (const [k, v] of Object.entries(gim)) {
-          if (!(k in SG_GIMMICK_RANGES)) add('stageGen 未対応のギミック', `gimmicks の ${k} は未対応（items・ice・keys・cushion・switches のみ）`);
+          if (!(k in SG_GIMMICK_RANGES)) add('stageGen 未対応のギミック', `gimmicks の ${k} は未対応（items・ice・keys・cushion・switches・warps・periodic・paint・water のみ）`);
           else range(v, SG_GIMMICK_RANGES[k][0], SG_GIMMICK_RANGES[k][1], `gimmicks.${k}`);
         }
         const names = Object.keys(gim);
@@ -70,6 +77,13 @@ function checkStageGen(data, steps, add) {
           if (!('keys' in gim)) add(label, 'keyMode は gimmicks.keys があるときだけ指定できる');
         }
         if ('switches' in gim && 'keys' in gim) add(label, 'switches と keys は併用できない');
+        for (const solo of soloGimmicks) {
+          if (!(solo in gim)) continue;
+          const others = Object.keys(gim).filter((k) => k !== solo && !(SG_SOLO_EXCEPT[solo] ?? []).includes(k));
+          if (others.length > 0) add(label, `${solo} は単独で指定する（${others.join('・')} と併用できない）`);
+        }
+        const oneOfOn = oneOfGimmicks.filter((k) => k in gim);
+        if (oneOfOn.length > 1) add(label, `${oneOfOn.join('・')} は同時に指定できない（${oneOfGimmicks.join('・')} は1種まで）`);
         if (sg.teach === 'cushion' && !(isObj(gim.ice) && isInt(gim.ice.max) && gim.ice.max >= 1)) add(label, 'teach=cushion には gimmicks.ice（最大1以上）の併用が必要');
       }
       range(sg.shortestPath, 2, 60, 'shortestPath');

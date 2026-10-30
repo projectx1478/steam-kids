@@ -31,6 +31,18 @@ kids-player（出典コミット`74adf54`）の`service-worker.js`から移植�
 指定しないとGitHub Pagesの`max-age=600`がSWを介しても残る。`no-cache`はETagによる再検証を強制し、
 変更が無ければ304で帯域も無駄にしない（kids-playerはVercel配信のためこの指定が無い）。
 
+## BGM音源（audio/）の例外（Issue #378）
+
+BGM音源（`audio/*.ogg`、MusMus）は**`APP_SHELL`に入れない**。`cache.addAll`は1件の
+404で`install`全体が失敗し、音源を持たない環境（Pagesデプロイ前の検証・取得失敗時）で
+アプリ自体が更新できなくなるため。取得はPagesデプロイ時に非公開リポジトリから行い、
+配信物には含まれない環境もある。
+
+代わりに**初回再生時の遅延保存**を使う（`service-worker.js`のfetchハンドラ。Issue #378 段2で実装）。
+アプリシェルとは違い音源は**キャッシュ優先**（`caches.match`→未ヒット時のみfetchして保存。
+同名更新の再検証はしない）。オフラインではキャッシュ済みの音源のみ再生する。
+`install`の挙動は変えない。
+
 ## 版数管理
 
 `service-worker.js`の`CACHE_NAME`と`js/config.js`の`APP_VERSION`を同値にする。SWは`import`できず
@@ -40,6 +52,8 @@ kids-player（出典コミット`74adf54`）の`service-worker.js`から移植�
 
 キャッシュの内容を変える変更（`APP_SHELL`に含まれるファイルの追加・削除、分岐規則の変更）を
 行うPRでは、両方の値を同時に上げること。
+
+`manifest.webmanifest`と`icons/*.png`（ホーム画面用。`tools/gen-icons.mjs`で生成。Issue #381）は`APP_SHELL`に載せる（`check:static`が登録漏れを検出）。差し替え時も版数を上げる。
 
 `tools/editor/`は`service-worker.js`の`APP_SHELL`に載せず、公開サイトの配信物から除外する（PagesはActions配信。設定変更は人が行う）。
 

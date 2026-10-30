@@ -15,7 +15,13 @@
   <button type="button" class="btn" id="undo" disabled>元に戻す</button>
   <button type="button" class="btn" id="redo" disabled>やり直し</button>
   <button type="button" class="btn" id="gen-open">たたき台</button>
+  <button type="button" class="btn" id="layout-open">配置</button>
+  <span id="layout-msg"></span>
   <button type="button" class="btn" id="trial-open">ためしあそび</button>
+  <label class="grid-ctl">よこ <input type="number" id="grid-w" min="1" max="20" step="1"></label>
+  <label class="grid-ctl">たて <input type="number" id="grid-h" min="1" max="20" step="1"></label>
+  <button type="button" class="btn" id="grid-apply">大きさを変える</button>
+  <a class="btn" style="display:inline-flex;align-items:center;text-decoration:none" href="/help.html" target="_blank" rel="noopener">つかいかた</a>
   <span class="sp"></span>
   <span class="hint">ホイールで拡大縮小</span>
   <span class="zoom" id="zoom">100%</span>
@@ -35,6 +41,7 @@
         <button type="button" class="btn sm" id="step-pin" disabled>固定する</button>
         <button type="button" class="btn sm" id="step-add" disabled>この盤面を面として追加</button>
         <button type="button" class="btn sm" id="step-del" disabled>削除</button>
+        <button type="button" class="btn sm" id="tut-add" disabled>チュートリアルを足す</button>
         <button type="button" class="btn sm" id="lesson-save" disabled>保存</button>
       </div>
     </div>
@@ -45,6 +52,24 @@
       <button type="button" class="btn sm" id="draft-load" disabled>読み込む</button>
     </div>
     <div id="step-list"></div>
+    <div id="tut-ctl" hidden>
+      <div class="tut-hd"><span>チュートリアル</span><button type="button" class="btn sm" id="tut-del">この面を消す</button></div>
+      <label class="tut-lbl" for="tut-text">文面</label>
+      <input type="text" id="tut-text" autocomplete="off">
+      <div id="tut-script">
+        <span class="tut-lbl">おてほん手順</span>
+        <div id="tut-chips"></div>
+        <span class="tut-lbl">命令を追加</span>
+        <div class="tut-cmds">
+          <button type="button" class="btn sm" id="tut-cmd-up" data-tap="up" aria-label="うえ">↑</button>
+          <button type="button" class="btn sm" id="tut-cmd-down" data-tap="down" aria-label="した">↓</button>
+          <button type="button" class="btn sm" id="tut-cmd-left" data-tap="left" aria-label="ひだり">←</button>
+          <button type="button" class="btn sm" id="tut-cmd-right" data-tap="right" aria-label="みぎ">→</button>
+          <button type="button" class="btn sm" id="tut-back">1つ戻す</button>
+        </div>
+        <div id="tut-reach"></div>
+      </div>
+    </div>
     <div id="step-warn"></div>
     <div id="save-ng"></div>
   </aside>
@@ -53,18 +78,26 @@
     <div id="status"></div>
   </main>
   <aside id="settings"><div class="hd">選択中の要素</div><div id="settings-body" class="empty"></div>
+    <div class="hd">盤全体の設定</div>
     <div id="stage-settings"><label>とめる回数（maxPauses） <input type="number" id="max-pauses" min="0" step="1" value="0"></label></div></aside>
 </div>
 <div id="gen-panel" hidden>
   <div class="gen-box" role="dialog" aria-label="たたき台">
     <div class="gen-head"><strong>たたき台を出す</strong><button type="button" class="btn sm" id="gen-close">とじる</button></div>
     <div class="gen-form">
+      <div class="gen-row"><label><input type="checkbox" id="gen-base-on"> いまの盤を土台にする</label> <span id="gen-base-note"></span><div id="gen-base-view" class="gen-board" hidden></div></div>
       <div class="gen-row">よこ <input type="number" id="gen-cols-min" value="4"> 〜 <input type="number" id="gen-cols-max" value="5"> たて <input type="number" id="gen-rows-min" value="4"> 〜 <input type="number" id="gen-rows-max" value="5"></div>
       <div class="gen-row">かべ <input type="number" id="gen-walls-min" value="1"> 〜 <input type="number" id="gen-walls-max" value="3"></div>
       <div class="gen-row"><label><input type="checkbox" id="gen-items-on" checked> どんぐり</label> <input type="number" id="gen-items-min" value="1"> 〜 <input type="number" id="gen-items-max" value="2"></div>
       <div class="gen-row"><label><input type="checkbox" id="gen-ice-on"> こおり</label> <input type="number" id="gen-ice-min" value="1"> 〜 <input type="number" id="gen-ice-max" value="1"></div>
       <div class="gen-row"><label><input type="checkbox" id="gen-keys-on"> かぎ</label> <input type="number" id="gen-keys-min" value="1"> 〜 <input type="number" id="gen-keys-max" value="1"></div>
-      <div class="gen-row">おしえる物 <select id="gen-teach"><option value="items">どんぐり</option><option value="ice">こおり</option><option value="keys">かぎ</option></select></div>
+      <div class="gen-row"><label><input type="checkbox" id="gen-cushion-on"> クッション（おしえる物には こおりも）</label> <input type="number" id="gen-cushion-min" value="1"> 〜 <input type="number" id="gen-cushion-max" value="1"></div>
+      <div class="gen-row"><label><input type="checkbox" id="gen-switches-on"> スイッチ（かぎと いっしょは ふか）</label> <input type="number" id="gen-switches-min" value="1"> 〜 <input type="number" id="gen-switches-max" value="1"></div>
+      <div class="gen-row"><label><input type="checkbox" id="gen-warps-on"> ワープ（ワープ・周期ドア・水は どれか1つ）</label> <input type="number" id="gen-warps-min" value="1"> 〜 <input type="number" id="gen-warps-max" value="1"></div>
+      <div class="gen-row"><label><input type="checkbox" id="gen-periodic-on"> 周期ドア（ワープ・周期ドア・水は どれか1つ）</label> <input type="number" id="gen-periodic-min" value="1"> 〜 <input type="number" id="gen-periodic-max" value="1"></div>
+      <div class="gen-row"><label><input type="checkbox" id="gen-paint-on"> 色ぬり（水とだけ いっしょに できる。マス数）</label> <input type="number" id="gen-paint-min" value="4"> 〜 <input type="number" id="gen-paint-max" value="4"></div>
+      <div class="gen-row"><label><input type="checkbox" id="gen-water-on"> 水（ワープ・周期ドア・水は どれか1つ。マス数）</label> <input type="number" id="gen-water-min" value="2"> 〜 <input type="number" id="gen-water-max" value="2"></div>
+      <div class="gen-row">おしえる物 <select id="gen-teach"><option value="items">どんぐり</option><option value="ice">こおり</option><option value="keys">かぎ</option><option value="cushion">クッション</option><option value="switches">スイッチ</option><option value="warps">ワープ</option><option value="periodic">周期ドア</option><option value="paint">色ぬり</option><option value="water">水</option></select></div>
       <div class="gen-row">最短手数 <input type="number" id="gen-sp-min" value="3"> 〜 <input type="number" id="gen-sp-max" value="8"> 曲がる回数の下限 <input type="number" id="gen-turns" value="0"></div>
       <div class="gen-row">シード <input type="number" id="gen-seed" value="1"></div>
     </div>
@@ -76,6 +109,14 @@
       <span id="gen-status"></span>
     </div>
     <div id="gen-cands"></div>
+  </div>
+</div>
+<div id="layout-panel" hidden>
+  <div class="layout-box" role="dialog" aria-label="配置">
+    <div class="gen-head"><strong>れっすんを えらぼう の配置</strong>
+      <span><button type="button" class="btn sm" id="layout-save" disabled>保存</button> <button type="button" class="btn sm" id="layout-close">とじる</button></span></div>
+    <div id="layout-ng"></div>
+    <div id="layout-body"></div>
   </div>
 </div>
 <script type="module" src="/editor.js"></script>

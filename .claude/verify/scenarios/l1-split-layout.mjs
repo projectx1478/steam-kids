@@ -26,12 +26,40 @@ const LESSON_DEF = {
       items: [{ x: 1, y: 3 }],
       allowedCommands: ['up', 'down', 'left', 'right'],
       solution: ['right', 'down', 'down', 'down', 'up', 'up', 'up', 'right'],
-      maxCommands: 10,
+      maxCommands: 20,
     },
     { stepId: 's2', kind: 'summary', text: 'できたね' },
   ],
 };
 const TUTORIAL_LESSON = 'cmd-01-susumu';
+
+// 顔アイコンの押せる範囲（64px）と操作ボタンの最短距離（px）。吹き出し化（Issue #497）で盤面が広がっても16px以上空ける。
+const birdGap = () =>
+  document.querySelectorAll('[data-sk-bird="icon"]').length === 0
+    ? -1
+    : (() => {
+        const a = document.querySelector('[data-sk-bird="icon"]').getBoundingClientRect();
+        let min = Infinity;
+        document.querySelectorAll('.palette-row button, [data-sk-screen="actions"] button').forEach((b) => {
+          const r = b.getBoundingClientRect();
+          if (r.width === 0) return;
+          const dx = Math.max(0, a.left - r.right, r.left - a.right);
+          const dy = Math.max(0, a.top - r.bottom, r.top - a.bottom);
+          min = Math.min(min, Math.hypot(dx, dy));
+        });
+        return Math.round(min);
+      })();
+
+// 吹き出しが吹き出し欄の中にあり、盤面と交差しない（Issue #544 段2）
+const bubbleInLane = () => {
+  const r = (el) => el.getBoundingClientRect();
+  const b = r(document.querySelector('[data-sk-bird="bubble"]'));
+  const lane = r(document.querySelector('[data-sk-screen="bird-lane"]'));
+  const board = r(document.querySelector('[data-sk-screen="board"]'));
+  const inLane = b.left >= lane.left - 1 && b.right <= lane.right + 1 && b.top >= lane.top - 1 && b.bottom <= lane.bottom + 1;
+  const hit = b.left < board.right && b.right > board.left && b.top < board.bottom && b.bottom > board.top;
+  return inLane && !hit;
+};
 
 async function geometry(page) {
   return page.evaluate(() => {
@@ -93,6 +121,11 @@ export default async function run({ page, check }) {
     await check(`${label} play: 操作パネルが盤面エリアの右`, () => rightOf(g));
     await check(`${label} play: #appが768pxを超える`, () => g.appW > 768);
     await check(`${label} play: 全ボタン64px以上`, () => g.smallButtons, 0);
+    await check(`${label} play: 顔の押せる範囲と操作ボタンは16px以上離れる`, async () => (await page.evaluate(birdGap)) >= 16);
+    await check(`${label} play: 吹き出しが欄の中にあり盤面と交差しない`, async () => {
+      await page.waitForSelector('[data-sk-bird="bubble"]:not([hidden])', { timeout: 5000 });
+      return page.evaluate(bubbleInLane);
+    });
     await check(`${label} play: 盤面が盤面エリア内`, () =>
       g.board.left >= g.area.left - 1 && g.board.right <= g.area.right + 1 && g.board.top >= g.area.top - 1 && g.board.bottom <= g.area.bottom + 1);
     if (vp.width === 1280) await check(`${label} play: セルが64pxを超える`, () => g.cellW > 64);
@@ -102,19 +135,19 @@ export default async function run({ page, check }) {
       await check(`${label} play: パレット4つが2行（上段うえ・下段ひだり/した/みぎ）`, () => ys, 2);
     }
 
-    // 命令を積み続けても盤面の大きさが変わらず、トレイ内でスクロールする
+    // 命令を上限(20)を超えて積み続けても盤面の大きさが変わらず、トレイ内でスクロールする
     const before = g.board.width;
-    for (let i = 0; i < 10; i += 1) {
+    for (let i = 0; i < 25; i += 1) {
       const btn = await page.$('.palette-row [data-command]:not(:disabled)');
       if (!btn) break;
       await btn.click();
     }
     const after = await geometry(page);
-    await check(`${label} play: 上限までチップ積んでも盤面の幅が変わらない`, () => Math.abs(after.board.width - before) < 1);
-    await check(`${label} play: 上限までチップ積んでも縦スクロールが出ない`, () =>
+    await check(`${label} play: 上限(20個)を超えて25個積んでも盤面の幅が変わらない`, () => Math.abs(after.board.width - before) < 1);
+    await check(`${label} play: 上限(20個)を超えて25個積んでも縦スクロールが出ない`, () =>
       page.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 1));
     await check(`${label} play: トレイが操作パネル内に収まる`, () => after.tray.bottom <= after.panel.bottom + 1 && after.tray.top >= after.panel.top - 1);
-    if (vp.height === 600) await check(`${label} play: 上限までチップはトレイ内で縦スクロール`, () => after.trayScrolls);
+    if (vp.height === 600) await check(`${label} play: 上限(20個)を超えて25個積んでもチップはトレイ内で縦スクロール`, () => after.trayScrolls);
   }
 
   // 縦向き：従来の縦積み・セル上限64px
@@ -127,6 +160,7 @@ export default async function run({ page, check }) {
   const pg = await geometry(page);
   await check('390x844 play: 操作パネルが盤面エリアの下', () => below(pg));
   await check('390x844 play: セルは64px以下', () => pg.cellW <= 64.5);
+  await check('390x844 play: 顔の押せる範囲と操作ボタンは16px以上離れる', async () => (await page.evaluate(birdGap)) >= 16);
   await check('390x844 play: #appは768px以下', () => pg.appW <= 768);
 
   // レッスン選択画面は横向きでも#app 768px以下

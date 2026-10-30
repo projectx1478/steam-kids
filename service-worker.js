@@ -5,7 +5,7 @@
 // steam-kids固有の追加: GitHub Pages配信（Cache-Control: max-age=600）のため、
 // アプリシェル取得に cache: "no-cache" を指定しHTTPキャッシュを迂回する（kids-playerはVercel
 // 配信のためこの指定が無い）。CACHE_NAMEはjs/config.jsのAPP_VERSIONと同値にする（docs/caching.md）。
-const CACHE_NAME = "steam-kids-cache-v67";
+const CACHE_NAME = "steam-kids-cache-v103";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -13,13 +13,20 @@ const APP_SHELL = [
   "./style.css",
   "./fonts/mplusrounded1c-800.woff2",
   "./app.js",
+  "./manifest.webmanifest",
+  "./icons/icon-192.png",
+  "./icons/icon-512.png",
+  "./icons/icon-maskable-512.png",
+  "./icons/apple-touch-icon-180.png",
   "./js/analytics.js",
+  "./js/bgm.js",
   "./js/config.js",
   "./js/index-units.js",
   "./js/gimmick-unlock.js",
   "./js/engine-grid.js",
   "./js/engine-generate.js",
   "./js/engine-seesaw.js",
+  "./js/engine-seesaw-gen.js",
   "./js/events.js",
   "./js/gimmicks/cushion.js",
   "./js/gimmicks/ice.js",
@@ -30,6 +37,7 @@ const APP_SHELL = [
   "./js/gimmicks/periodic.js",
   "./js/gimmicks/switches.js",
   "./js/gimmicks/water.js",
+  "./js/gimmicks/warps.js",
   "./js/gate-date.js",
   "./js/guardian.js",
   "./js/kanji-grades.js",
@@ -47,7 +55,9 @@ const APP_SHELL = [
   "./js/ui-dashboard.js",
   "./js/ui-demo.js",
   "./js/ui-gate.js",
+  "./js/ui-keys.js",
   "./js/ui-menu.js",
+  "./js/ui-dialog.js",
   "./js/ui-zoom.js",
   "./js/ui-grid.js",
   "./js/ui-board.js",
@@ -65,6 +75,8 @@ const APP_SHELL = [
   "./js/ui-clear.js",
   "./js/ui-retry.js",
   "./js/ui-screen.js",
+  "./js/ui-bird.js",
+  "./js/bird-phrases.js",
   "./js/ui-seedpick.js",
   "./js/ui-seesaw.js",
   "./js/ui-step.js",
@@ -75,6 +87,7 @@ const APP_SHELL = [
   "./js/ui-title.js",
   "./js/ui-toast.js",
   "./js/ui-tutorial.js",
+  "./js/undo-clear.js",
   "./js/vendor/confetti.js",
 ];
 
@@ -118,6 +131,24 @@ self.addEventListener("fetch", (event) => {
           return response;
         })
         .catch(() => caches.match(event.request).then((cached) => cached || Response.error()))
+    );
+    return;
+  }
+
+  // BGM音源（audio/）はAPP_SHELLに入れず、初回再生時に遅延保存（docs/caching.md。Issue #378 段2）。
+  // 容量を抑え・installを壊さないため。キャッシュ優先（配布物の音源は同名更新のため再検証しない）。
+  if (url.includes("/audio/")) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(event.request).then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone).catch(() => {}));
+          }
+          return response;
+        });
+      })
     );
     return;
   }

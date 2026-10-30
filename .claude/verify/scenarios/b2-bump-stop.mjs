@@ -1,7 +1,7 @@
-// 壁・盤外にぶつかった手で実行を止める、と失敗→もういちどの画面暗転（Issue #136）。
+// 壁・盤外にぶつかった手で実行を止める、と失敗→ためしなおすの画面暗転（Issue #136）。
 // 凍結fixtureに依存しないようrouteLessonのインライン最小盤面で書く。
 
-export const name = '衝突した手で実行が止まり、もういちどで画面暗転を挟んでからスタートに戻る(Issue #136)';
+export const name = '衝突した手で実行が止まり、ためしなおすで画面暗転を挟んでからスタートに戻る(Issue #136)';
 import { routeLesson, enterPlay } from '../helpers.mjs';
 
 const LESSON = {
@@ -50,6 +50,17 @@ export default async function run({ page, check }) {
 
   // --- じっこう: right,right,left,left,left(盤外でぶつかる),right,right ---
   await enterPlay(page, 'bump-stop-smoke');
+  // 問い文の吹き出し（Issue #497 段B）は盤面の置き物（ロボット・ゴール）を覆わず、盤面エリアの内側に出る
+  await page.waitForSelector('[data-sk-bird="bubble"]:not([hidden])', { timeout: 4000 });
+  await check('問い文の吹き出しがロボット・ゴールのマスを覆わない', () =>
+    page.evaluate(() => {
+      const b = document.querySelector('[data-sk-bird="bubble"]').getBoundingClientRect();
+      const hit = (el) => {
+        const r = el.getBoundingClientRect();
+        return r.left < b.right && r.right > b.left && r.top < b.bottom && r.bottom > b.top;
+      };
+      return [...document.querySelectorAll('.grid-player, [data-goal]')].some(hit);
+    }), false);
   for (const c of ['right', 'right', 'left', 'left', 'left', 'right', 'right']) {
     await page.click(`[data-command="${c}"]`);
   }
@@ -59,10 +70,25 @@ export default async function run({ page, check }) {
   await page.waitForTimeout(1500);
   await check('衝突より後の手の足あとが増えない（4個）', () => footprints(page), 4);
   await check('ロボットは衝突マスのまま', () => robotCell(page), '0,0');
-  await check('もういちどだけ押せる', () => page.$eval('[data-action="retry"]', (b) => b.disabled), false);
+  await check('ためしなおすだけ押せる', () => page.$eval('[data-action="retry"]', (b) => b.disabled), false);
   await check('パレットはロック', async () => (await page.$$('[data-command]:not([disabled])')).length, 0);
+  // 失敗の吹き出し（おしい！＋ヒント）は吹き出し欄の中に1つだけ出て、盤面・命令列と交差しない（Issue #544 段2）
+  await page.waitForSelector('[data-sk-bird="bubble"] [data-hint]', { timeout: 4000 });
+  await check('失敗の吹き出しが欄の中にあり盤面・列と交差しない', () =>
+    page.evaluate(() => {
+      const r = (el) => el.getBoundingClientRect();
+      const b = r(document.querySelector('[data-sk-bird="bubble"]'));
+      const lane = r(document.querySelector('[data-sk-screen="bird-lane"]'));
+      const inLane = b.left >= lane.left - 1 && b.right <= lane.right + 1 && b.top >= lane.top - 1 && b.bottom <= lane.bottom + 1;
+      const hit = (el) => {
+        const x = r(el);
+        return x.width > 0 && x.left < b.right && x.right > b.left && x.top < b.bottom && x.bottom > b.top;
+      };
+      const others = [...document.querySelectorAll('[data-sk-screen="board"], .grid-board, .command-queue, [data-sk-screen="panel"]')];
+      return inLane && !others.some(hit) && document.querySelectorAll('[data-sk-bird="bubble"]:not([hidden])').length === 1;
+    }), true);
 
-  // --- もういちど: 暗転が出てから消え、盤面がstartへ戻り「スタート！」が出る ---
+  // --- ためしなおす: 暗転が出てから消え、盤面がstartへ戻る（「スタート！」は出さない） ---
   await page.click('[data-action="retry"]');
   await check('暗転の黒幕が出る', async () => (await page.waitForSelector('[data-transition="retry"]', { timeout: 1000 })) !== null, true);
   await check(
@@ -74,7 +100,9 @@ export default async function run({ page, check }) {
   await check('暗転が消える', async () => (await page.$$('[data-transition="retry"]')).length, 0);
   await check('盤面がstartに戻る', () => robotCell(page), '0,0');
   await check('足あとが消える', () => footprints(page), 0);
-  await check('スタート！が出る', async () => (await page.$$('[data-restart="true"]')).length, 1);
+  await check('再開時はスタート！が出ない（出るのはステージ開始時のみ。#497）', async () => (await page.$$('.sk-start-cue')).length, 0);
+  // 失敗後の ためしなおす は列を残す（#545）。空の列から始める前提を保つため ぜんぶけす で空にする。
+  await page.click('[data-action="clear-all"]');
   await check('命令列が空に戻る', async () => (await page.$$('.command-chip')).length, 0);
 
   // --- 1コマ（reduced-motion）: 1タップ目(left)が盤外で終わる。retryは暗転せず即時に作り直す ---
@@ -87,5 +115,5 @@ export default async function run({ page, check }) {
   await check('足あとは増えない', () => footprints(page), 0);
   await page.click('[data-action="retry"]');
   await check('reduced-motionでは暗転しない', async () => (await page.$$('[data-transition="retry"]')).length, 0);
-  await check('もういちど後にじっこうへ戻る', async () => (await page.$$('[data-action="run"]')).length, 1);
+  await check('ためしなおす後にじっこうへ戻る', async () => (await page.$$('[data-action="run"]')).length, 1);
 }

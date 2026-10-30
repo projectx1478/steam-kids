@@ -1,5 +1,5 @@
 // クリア演出の共通部品（Issue #342）。星のトースト（showSuccess）→ 間（操作行を空き枠にして「…」）
-// → 結果ダイアログ（つぎへ＋もういちど）の流れを1か所に集める。間・ボタン64px・背面inert・
+// → 結果ダイアログ（つぎへ＋ためしなおす）の流れを1か所に集める。間・ボタン64px・背面inert・
 // ダイアログの見た目は画面ごとに変えない（Issue #336・#340）。
 import { S } from './state.js';
 import { logEvent } from './events.js';
@@ -8,6 +8,8 @@ import { isTrial } from './trial-lesson.js';
 import { prefersReducedMotion } from './ui-grid.js';
 import { createPrimaryButton, markLessonCleared, saveResumePoint, isStagePicked } from './ui-step.js';
 import { showSuccess } from './ui-reaction.js';
+import { setScene } from './bgm.js';
+import { sceneFor } from './config.js';
 import { create as createConfetti } from './vendor/confetti.js';
 
 const CONFETTI_COUNT = 40;
@@ -20,16 +22,18 @@ const GAP_FRAME_CLASSES = ['min-h-[64px]', 'items-center', 'rounded-2xl', 'borde
 // 途中ステージは stage_clear のみ（レッスン全体のクリアや単元スタンプの対象にしない。Issue #104）。
 // 番号選択で始めたとき（isStagePicked）は最終でも clear を記録せず再開点も消さない（Issue #399）。
 // ためしあそび（isTrial。Issue #403）は何も書かない。
-export function recordClear({ isFinal, stageIndex }) {
+// optimal（Issue #491）: 最短手数以内なら true、超過なら false、算出不能は undefined（payload にキーを付けない）。
+export function recordClear({ isFinal, stageIndex, optimal }) {
   if (isTrial()) return;
+  const extra = typeof optimal === 'boolean' ? { optimal } : {};
   if (isFinal) {
     if (!isStagePicked()) {
-      logEvent('clear', {});
+      logEvent('clear', { ...extra });
       clearResume(S.lesson.lessonId);
     }
     markLessonCleared();
   } else {
-    logEvent('stage_clear', { stage: stageIndex + 1 });
+    logEvent('stage_clear', { stage: stageIndex + 1, ...extra });
     saveResumePoint();
   }
 }
@@ -122,36 +126,66 @@ export function showResultDialog({ controls, host, observed, primaryBtn, replayB
   };
 }
 
-// disposeClear({ lockEl, gapEl, dialogHandle }): 結果ダイアログ・空き枠を片付け、inert と relative を戻す。
-export function disposeClear({ lockEl, gapEl, dialogHandle }) {
+// lockScreen(lockEl, keepEl) → unlock(): lockEl 配下を inert にする。keepEl（⚙。省略可）だけは押せる（Issue #467）。
+// inert は子孫だけ例外にできないため、lockEl から keepEl までの祖先は inert にせず、各階層の兄弟だけに掛ける。
+// keepEl は結果ダイアログ（z-10）より手前に出す。unlock() で全部戻す。
+function lockScreen(lockEl, keepEl) {
+  if (!keepEl || !lockEl.contains(keepEl)) {
+    lockEl.inert = true;
+    return () => {
+      lockEl.inert = false;
+    };
+  }
+  const locked = [];
+  for (let node = keepEl; node !== lockEl; node = node.parentElement) {
+    for (const sib of node.parentElement.children) {
+      if (sib !== node && !sib.inert) {
+        sib.inert = true;
+        locked.push(sib);
+      }
+    }
+  }
+  keepEl.classList.add('relative', 'z-20');
+  return () => {
+    locked.forEach((el) => {
+      el.inert = false;
+    });
+    keepEl.classList.remove('relative', 'z-20');
+  };
+}
+
+// disposeClear({ unlock, gapEl, dialogHandle }): 結果ダイアログ・空き枠を片付け、inert と relative を戻す。
+export function disposeClear({ unlock, gapEl, dialogHandle }) {
   dialogHandle?.rowEl.remove();
   dialogHandle?.detach();
-  lockEl.inert = false;
+  unlock();
   gapEl?.classList.remove(...GAP_FRAME_CLASSES);
 }
 
 // showClearToast(slotEl, { view, restore, label, confetti }) → トースト（星）だけを出す。間・結果ダイアログは出さない。
 //   引数は showSuccess と同じ（confetti の既定は showSuccess と同じ true）。predict・tutorial 用（Issue #352）。
-export function showClearToast(slotEl, { view, restore, label, confetti } = {}) {
+export function showClearToast(slotEl, { view, restore, label, confetti, bird } = {}) {
   showSuccess(slotEl, {
     view,
     restore,
+    bird,
     ...(label !== undefined ? { label } : {}),
     ...(confetti !== undefined ? { confetti } : {}),
   });
 }
 
-// showClearSequence({ statusBar, controls, lockEl, host, gapEl, view, restore, label, primary, replay, heading,
+// showClearSequence({ bird, controls, lockEl, host, gapEl, view, restore, label, primary, replay, heading,
 // setActiveAnimation }) → { dispose() }
-//   lockEl: 間の始まりから inert にする操作画面の外枠（1要素）。host: ダイアログを置く外枠の親（root）。
+//   lockEl: 間の始まりから inert にする操作画面の外枠（1要素）。keepEl: 外枠の中で押せるままにする要素（⚙。省略可）。host: ダイアログを置く外枠の親（root）。
 //   primary: { label, action, id }（action＝つぎへ押下時の処理、id＝data-action）。
-//   gapEl: 間のあいだ空き枠にする操作行（省略可）。
+//   gapEl: 間のあいだ空き枠にする操作行（省略可）。afterDialogSay: ダイアログ表示後に小鳥が言う文言（省略可。最短超過のとき）。
 //   dispose(): 間のタイマー・ダイアログ・inert を片付ける（冪等）。ダイアログ表示後も setActiveAnimation に
 //   登録したままなので、画面の作り直し（renderStep の activeAnimation.cancel()）でも呼ばれる。
 export function showClearSequence({
-  statusBar,
+  bird,
   controls,
   lockEl,
+  keepEl,
   host,
   gapEl,
   view,
@@ -160,8 +194,10 @@ export function showClearSequence({
   primary,
   replay,
   heading,
+  afterDialogSay,
   setActiveAnimation,
 }) {
+  let unlock = () => {};
   let dialogHandle = null;
   let timer = null;
   let disposed = false;
@@ -169,16 +205,22 @@ export function showClearSequence({
     if (disposed) return;
     disposed = true;
     clearTimeout(timer);
-    disposeClear({ lockEl, gapEl, dialogHandle });
+    disposeClear({ unlock, gapEl, dialogHandle });
   }
-  showSuccess(statusBar, { view, restore, confetti: false, ...(label ? { label } : {}) });
+  showSuccess(null, { bird, view, restore, confetti: false, ...(label ? { label } : {}) });
   const primaryBtn = createPrimaryButton(primary.label, primary.action, primary.id);
-  const replayBtn = createPrimaryButton('もういちど', replay, 'replay');
+  const replayBtn = createPrimaryButton('ためしなおす', () => {
+    // クリア曲から操作画面の曲へ戻す（Issue #541。replay は renderStep を通らない）。
+    setScene(sceneFor('play'));
+    return replay();
+  }, 'replay');
   const dots = showResultGap({ gapEl });
-  lockEl.inert = true;
+  unlock = lockScreen(lockEl, keepEl);
   timer = setTimeout(() => {
     dots?.remove();
     dialogHandle = showResultDialog({ controls, host, observed: lockEl, primaryBtn, replayBtn, heading });
+    // 最短超過のときだけ、結果ダイアログが出てから小鳥が続けて言う（Issue #491。ほめの吹き出しは後勝ちで置き換わる）。
+    if (afterDialogSay && bird) bird.showBubble(afterDialogSay, { result: 'clear', shorter: 'true' });
   }, prefersReducedMotion() ? RESULT_GAP_REDUCED_MS : RESULT_GAP_MS);
   setActiveAnimation({ cancel: dispose });
   return { dispose };

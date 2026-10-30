@@ -1,11 +1,27 @@
 // 低背の横向き 1024×600 で、play 画面の操作ボタン行（2×2）が #stage に収まり縦スクロールが出ないこと（Issue #370）。
-// 操作ボタン行は高さ480〜700pxの横向きで2×2（136px）。入りきらず状態ごとにスクロール量が変わるのを防ぐため、
-// 次の4状態すべてで #stage の scrollHeight <= clientHeight を見る（実測: ボタン行は4状態とも136pxで、
-// 最も高いのは4つ目のボタンが「↺ もういちど」になる失敗後）。
-//   ①命令トレイ空 ②命令を積んだ状態 ③クリア後の「間」（[data-result-gap]） ④失敗後（もういちど）
+// 操作ボタン行は高さ480〜700pxの横向きで2×2（行間16pxで144px。Issue #549）。入りきらず状態ごとにスクロール量が変わるのを防ぐため、
+// 次の4状態すべてで #stage の scrollHeight <= clientHeight を見る（ボタン行は4状態とも同じ高さで、
+// 最も高いのは4つ目のボタンが「↺ ためしなおす」になる失敗後）。
+//   ①命令トレイ空 ②命令を積んだ状態 ③クリア後の「間」（[data-result-gap]） ④失敗後（ためしなおす）
 
 export const name = 'C11 1024×600: 操作ボタン行が#stageに収まる4状態(Issue #370)';
 import { enterPlay } from '../helpers.mjs';
+
+const birdGap = () =>
+  document.querySelectorAll('[data-sk-bird="icon"]').length === 0
+    ? -1
+    : (() => {
+        const a = document.querySelector('[data-sk-bird="icon"]').getBoundingClientRect();
+        let min = Infinity;
+        document.querySelectorAll('.palette-row button, [data-sk-screen="actions"] button').forEach((b) => {
+          const r = b.getBoundingClientRect();
+          if (r.width === 0) return;
+          const dx = Math.max(0, a.left - r.right, r.left - a.right);
+          const dy = Math.max(0, a.top - r.bottom, r.top - a.bottom);
+          min = Math.min(min, Math.hypot(dx, dy));
+        });
+        return Math.round(min);
+      })();
 
 export default async function run({ page, check }) {
   await page.unroute('**/lessons/cmd-01-susumu.json');
@@ -18,7 +34,9 @@ export default async function run({ page, check }) {
 
   await enterPlay(page, 'cmd-01-susumu');
   await check('①命令トレイ空: #stage に収まる', fits, true);
-  await check('①命令トレイ空: 操作ボタン行は2×2の136px', actionsHeight, 136);
+  await check('①命令トレイ空: 操作ボタン行は2×2の144px(行間16px)', actionsHeight, 144);
+  await check('①命令トレイ空: 顔の押せる範囲と操作ボタンは16px以上離れる(Issue #497)', async () => (await page.evaluate(birdGap)) >= 16);
+  await check('①命令トレイ空: 問い文の行は出ない(吹き出しへ。Issue #497)', () => page.evaluate(() => getComputedStyle(document.querySelector('[data-sk-screen="question"]')).display), 'none');
 
   for (const dir of ['up', 'up', 'left', 'left']) await page.click(`[data-command="${dir}"]`);
   await check('②命令を積んだ状態: #stage に収まる', fits, true);
@@ -28,11 +46,11 @@ export default async function run({ page, check }) {
   await check('③クリア後の間: #stage に収まる', fits, true);
   await page.waitForSelector('[data-action="next-stage"]', { timeout: 4000 });
 
-  // 失敗後（間違った手で実行 → 4つ目が「もういちど」）
+  // 失敗後（間違った手で実行 → 4つ目が「ためしなおす」）
   await enterPlay(page, 'cmd-01-susumu');
   for (const dir of ['down', 'down']) await page.click(`[data-command="${dir}"]`);
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="retry"]', { timeout: 8000 });
-  await check('④失敗後(もういちど): #stage に収まる', fits, true);
-  await check('④失敗後(もういちど): 操作ボタン行は136px', actionsHeight, 136);
+  await check('④失敗後(ためしなおす): #stage に収まる', fits, true);
+  await check('④失敗後(ためしなおす): 操作ボタン行は144px', actionsHeight, 144);
 }

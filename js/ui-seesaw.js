@@ -6,15 +6,14 @@ import { balance } from './engine-seesaw.js';
 import { logEvent } from './events.js';
 import { shapeSvg, setMoodIn, prefersReducedMotion, screenConfetti } from './ui-grid.js';
 import { vibrate } from './ui-commands.js';
-import { play as playSfx } from './sfx.js';
+import { play as playSfx, skipClickSfx } from './sfx.js';
 import { createOpScreen } from './ui-screen.js';
 import { showHandHint } from './ui-hand.js';
 import { isLessonCleared } from './ui-picker.js';
 import { goToStep, setBackDisabled, setActiveHandHint, setActiveAnimation } from './ui-step.js';
-import { showHint } from './ui-reaction.js';
+import { showHint, clearResultBubble } from './ui-reaction.js';
 import { showClearSequence, recordClear } from './ui-clear.js';
-import { clearToast } from './ui-toast.js';
-import { setRetryButton, shakeBoard, showRestartCue } from './ui-retry.js';
+import { setRetryButton, shakeBoard, showStartCue } from './ui-retry.js';
 
 const UNIT = 40; // 1刻みの幅（viewBox単位）
 const BOARD_H = 260;
@@ -47,12 +46,15 @@ export function renderSeesaw(root, step) {
   const stageIndex = playSteps.findIndex((s) => s.stepId === step.stepId);
   const isFinalStage = stageIndex === playSteps.length - 1;
 
-  const local = { pos: spec.mover.start, phase: 'edit', timer: null };
+  const local = { pos: spec.mover.start, robots: spec.mover.robots, phase: 'edit', timer: null };
+  // 重さが動く面（maxRobots あり）／位置が固定の面（fixedPos あり）。teko-01〜03 はどちらも無い。
+  const maxRobots = spec.mover.maxRobots ?? null;
+  const posFixed = spec.mover.fixedPos != null;
 
   // 画面の枠は共通部品（js/ui-screen.js。Issue #343）。
-  const screen = createOpScreen({ root, question: step.text ?? 'つりあう ところに おこう' });
-  const { frame: opScreen, questionEl: statusBar, boardArea, actions: actionsEl } = screen;
-  actionsEl.classList.add('sk-screen-actions--one-row');
+  const screen = createOpScreen({ root, question: step.text ?? 'つりあう ところに おこう', stepKey: `${S.lesson.lessonId}:${step.stepId}` });
+  const { frame: opScreen, boardArea, actions: actionsEl, bird } = screen;
+  actionsEl.classList.add(maxRobots && !posFixed ? 'sk-screen-actions--two-row' : 'sk-screen-actions--one-row');
   function renderQuestion() {
     screen.renderQuestion();
   }
@@ -110,6 +112,20 @@ export function renderSeesaw(root, step) {
   rightBtn.dataset.action = 'pos-right';
   rightBtn.textContent = '▶';
   rightBtn.className = moveBtnClass;
+  const robotsBtnClass =
+    'robots-btn min-w-[64px] min-h-[64px] px-4 text-2xl font-bold transition-transform duration-100 active:scale-95 disabled:opacity-40';
+  const minusBtn = document.createElement('button');
+  minusBtn.type = 'button';
+  minusBtn.dataset.action = 'robots-minus';
+  minusBtn.textContent = '−';
+  minusBtn.setAttribute('aria-label', 'かるくする');
+  minusBtn.className = robotsBtnClass;
+  const plusBtn = document.createElement('button');
+  plusBtn.type = 'button';
+  plusBtn.dataset.action = 'robots-plus';
+  plusBtn.textContent = '＋';
+  plusBtn.setAttribute('aria-label', 'おもくする');
+  plusBtn.className = robotsBtnClass;
   const runBtn = document.createElement('button');
   runBtn.type = 'button';
   runBtn.dataset.action = 'run';
@@ -124,6 +140,8 @@ export function renderSeesaw(root, step) {
     const editing = local.phase === 'edit';
     leftBtn.disabled = !editing || local.pos <= 1;
     rightBtn.disabled = !editing || local.pos >= notches;
+    minusBtn.disabled = !editing || local.robots <= 1;
+    plusBtn.disabled = !editing || local.robots >= (maxRobots ?? 1);
     runBtn.disabled = local.phase === 'running';
   }
 
@@ -134,20 +152,39 @@ export function renderSeesaw(root, step) {
     clearSequence?.dispose();
     clearSequence = null;
     actionsEl.innerHTML = '';
-    actionsEl.append(leftBtn, rightBtn, runBtn);
+    const posBtns = posFixed ? [] : [leftBtn, rightBtn];
+    const weightBtns = maxRobots ? [minusBtn, plusBtn] : [];
+    actionsEl.append(...posBtns, ...weightBtns, runBtn);
   }
 
   function drawMover() {
     mover.setAttribute('transform', `translate(${local.pos * UNIT},0)`);
     mover.dataset.pos = String(local.pos);
+    if (maxRobots) {
+      mover.dataset.robots = String(local.robots);
+      mover.innerHTML = robotsSvg(cx0, local.robots);
+    }
     updateControls();
+  }
+
+  function setRobots(robots) {
+    const next = Math.max(1, Math.min(maxRobots ?? robots, robots));
+    if (local.phase !== 'edit' || next === local.robots) {
+      skipClickSfx();
+      return;
+    }
+    local.robots = next;
+    drawMover();
   }
 
   function setPos(pos, via) {
     const next = Math.max(1, Math.min(notches, pos));
-    if (local.phase !== 'edit' || next === local.pos) return;
+    if (local.phase !== 'edit' || next === local.pos) {
+      skipClickSfx();
+      return;
+    }
     local.pos = next;
-    playSfx(via === 'drag' ? 'snap' : 'tap');
+    if (via === 'drag') playSfx('snap');
     drawMover();
   }
 
@@ -157,19 +194,22 @@ export function renderSeesaw(root, step) {
     plank.dataset.tilt = String(tilt);
   }
 
-  function addFootprint(pos) {
-    if (footprints.querySelector(`[data-footprint="${pos}"]`)) return;
+  // 足あとのキー：重さが動く面だけ `pos:robots`、位置だけの面は今までどおり pos。
+  function addFootprint(pos, robots) {
+    const key = maxRobots ? `${pos}:${robots}` : String(pos);
+    if (footprints.querySelector(`[data-footprint="${key}"]`)) return;
     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    g.dataset.footprint = String(pos);
+    g.dataset.footprint = key;
     g.setAttribute('opacity', '0.25');
     g.setAttribute('transform', `translate(${pos * UNIT},0)`);
-    g.innerHTML = robotsSvg(cx0, spec.mover.robots);
+    g.innerHTML = robotsSvg(cx0, robots);
     footprints.appendChild(g);
   }
 
   function resetBoard() {
     local.phase = 'edit';
     local.pos = spec.mover.start;
+    local.robots = spec.mover.robots;
     setTilt(0);
     support.style.opacity = '1';
     setMoodIn(svg, 'normal');
@@ -180,20 +220,19 @@ export function renderSeesaw(root, step) {
     local.timer = null;
     setActiveAnimation(null);
     setBackDisabled(false);
-    const result = balance(spec, local.pos);
+    const result = balance(spec, local.pos, local.robots);
     if (result.tilt === 0) {
       local.phase = 'cleared';
       updateControls();
       recordClear({ isFinal: isFinalStage, stageIndex });
       clearSequence?.dispose();
       clearSequence = showClearSequence({
-        statusBar,
+        bird,
         controls: opScreen,
         lockEl: opScreen,
         host: root,
         gapEl: actionsEl,
         view,
-        restore: renderQuestion,
         primary: isFinalStage
           ? { label: 'つぎへ', action: () => goToStep(S.stepIndex + 1), id: 'next' }
           : { label: 'つぎの ステージ', action: () => goToStep(S.stepIndex + 1), id: 'next-stage' },
@@ -206,11 +245,11 @@ export function renderSeesaw(root, step) {
     local.phase = 'failed';
     setRunMode('retry');
     updateControls();
-    addFootprint(local.pos);
+    addFootprint(local.pos, local.robots);
     playSfx('tryAgain');
     setMoodIn(svg, 'puzzled');
     shakeBoard(boardArea);
-    showHint(statusBar, { kind: 'tilt', message: HEAVY_MESSAGE[result.tilt], restore: renderQuestion });
+    showHint(null, { bird, kind: 'tilt', message: HEAVY_MESSAGE[result.tilt] });
   }
 
   function run() {
@@ -218,13 +257,13 @@ export function renderSeesaw(root, step) {
     local.phase = 'running';
     updateControls();
     setActiveHandHint(null);
-    clearToast(statusBar);
+    clearResultBubble(bird);
     vibrate();
-    logEvent('run', { pos: local.pos });
+    logEvent('run', maxRobots ? { pos: local.pos, robots: local.robots } : { pos: local.pos });
     playSfx('run');
     setBackDisabled(true);
     support.style.opacity = '0';
-    setTilt(balance(spec, local.pos).tilt);
+    setTilt(balance(spec, local.pos, local.robots).tilt);
     const delay = prefersReducedMotion() ? 0 : TILT_MS + 100;
     local.timer = setTimeout(finishRun, delay);
     setActiveAnimation({
@@ -235,26 +274,20 @@ export function renderSeesaw(root, step) {
     });
   }
 
-  function restartCue() {
-    showRestartCue(statusBar, { restore: () => renderQuestion() });
-  }
-
   function retry() {
     vibrate();
     logEvent('retry', {});
-    clearToast(statusBar);
+    clearResultBubble(bird);
     setRunMode('run');
     resetBoard();
-    restartCue();
   }
 
   function replay() {
     vibrate();
     showNormalActions();
-    clearToast(statusBar);
+    clearResultBubble(bird);
     footprints.innerHTML = '';
     resetBoard();
-    restartCue();
   }
 
   leftBtn.addEventListener('click', () => {
@@ -264,6 +297,14 @@ export function renderSeesaw(root, step) {
   rightBtn.addEventListener('click', () => {
     vibrate();
     setPos(local.pos + 1, 'tap');
+  });
+  minusBtn.addEventListener('click', () => {
+    vibrate();
+    setRobots(local.robots - 1);
+  });
+  plusBtn.addEventListener('click', () => {
+    vibrate();
+    setRobots(local.robots + 1);
   });
   runBtn.addEventListener('click', () => (runBtn.dataset.action === 'retry' ? retry() : run()));
 
@@ -276,7 +317,7 @@ export function renderSeesaw(root, step) {
     return Math.round(((ev.clientX - left) / scale - cx0) / UNIT);
   }
   mover.addEventListener('pointerdown', (ev) => {
-    if (local.phase !== 'edit') return;
+    if (local.phase !== 'edit' || posFixed) return;
     dragging = true;
     setActiveHandHint(null);
     mover.setPointerCapture?.(ev.pointerId);
@@ -293,10 +334,13 @@ export function renderSeesaw(root, step) {
   renderQuestion();
   showNormalActions();
   drawMover();
+  showStartCue(boardArea); // ステージ開始時に1回（再開では出さない。#497）
+  screen.announceQuestion(); // 問い文の吹き出し。「スタート！」が消えてから出る（#497 段B）
 
   // 未クリアレッスンの最初のステージだけ、◀▶の指ガイドを1回出す（最初の操作で消える）。
   if (stageIndex === 0 && !isLessonCleared(S.lesson.lessonId)) {
-    setActiveHandHint(showHandHint({ from: rightBtn, mode: 'tap' }));
+    const hintBtn = posFixed ? plusBtn : rightBtn.disabled ? leftBtn : rightBtn;
+    setActiveHandHint(showHandHint({ from: hintBtn, mode: 'tap' }));
     opScreen.addEventListener('pointerdown', () => setActiveHandHint(null), { once: true });
   }
 }

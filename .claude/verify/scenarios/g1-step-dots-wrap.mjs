@@ -1,8 +1,8 @@
 // 進捗ドットの折返し（Issue #320）：クリア済みで描画ノード7以上のレッスンは、360pxでも横にはみ出さず、
-// 2行に折り返す（play最小48px・ノード間8px以上・線なし）。7未満では折返さない。外部APIなし。
+// 2行に折り返す（play最小64px・ノード間12px以上・線なし）。7未満では折返さない。外部APIなし。
 import { routeLesson, clearLesson } from '../helpers.mjs';
 
-export const name = 'G1 進捗ドット折返し: 11ステップ・クリア済みで360pxに収まる・play48px以上・間隔8px以上・7未満はnowrap(Issue #320)';
+export const name = 'G1 進捗ドット折返し: 11ステップ・クリア済みで360pxに収まる・play64px以上・間隔12px以上・7未満はnowrap(Issue #320)';
 
 const stage = (stepId) => ({
   stepId,
@@ -67,15 +67,24 @@ export default async function run({ page, check }) {
   await check('ページが横スクロールしない（documentElement.scrollWidth<=360）', () =>
     page.evaluate(() => document.documentElement.scrollWidth <= 360), true);
   await check('クリア済みplayノード8個が全てボタン', async () => (await page.$$('button.step-dot')).length, 8);
-  await check('クリア済みplayの最小辺が48px以上', () =>
+  await check('クリア済みplayの最小辺が64px以上', () =>
     page.$$eval('button.step-dot', (els) =>
       els.every((el) => {
         const r = el.getBoundingClientRect();
-        return Math.min(r.width, r.height) >= 48 - 0.5;
+        return Math.min(r.width, r.height) >= 64 - 0.5;
       })), true);
-  await check('2行に折り返している（行数2以上）', () =>
-    page.$$eval('.step-dot', (els) => new Set(els.map((el) => Math.round(el.getBoundingClientRect().top))).size >= 2), true);
-  await check('同じ行で隣り合うノードの間隔が8px以上', () =>
+  await check('2〜3行に折り返している', () =>
+    page.$$eval('.step-dot', (els) => {
+      const centers = [];
+      for (const el of els) {
+        const r = el.getBoundingClientRect();
+        const cy = r.top + r.height / 2;
+        if (!centers.some((c) => Math.abs(c - cy) < 4)) centers.push(cy);
+      }
+      const n = centers.length;
+      return n >= 2 && n <= 3;
+    }), true);
+  await check('同じ行で隣り合うノードの間隔が12px以上', () =>
     page.$$eval('.step-dot', (els) => {
       const rects = els.map((el) => el.getBoundingClientRect());
       const rows = [];
@@ -86,7 +95,7 @@ export default async function run({ page, check }) {
       }
       return rows.every((row) => {
         const s = [...row].sort((a, b) => a.left - b.left);
-        return s.slice(1).every((r, i) => r.left - s[i].right >= 8 - 0.5);
+        return s.slice(1).every((r, i) => r.left - s[i].right >= 12 - 0.5);
       });
     }), true);
 }

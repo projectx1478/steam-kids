@@ -94,6 +94,13 @@
   .ghost-slot {
     @apply border-2 border-dashed border-amber-500/70 bg-amber-100/40 rounded-lg motion-safe:animate-pulse;
   }
+  /* 差し込み先の太い縦線（#545）。.command-queue 直下に絶対配置（位置は JS が left/top/height を入れる）。 */
+  .command-queue {
+    position: relative;
+  }
+  .ghost-slot.ghost-line {
+    @apply absolute z-10 w-1.5 p-0 border-0 rounded-full bg-amber-500 pointer-events-none;
+  }
 }
 
 /* 指ガイド・ドロップ演出。prefers-reduced-motion時はアニメーションさせず静止表示にする（Issue #95）。 */
@@ -137,6 +144,13 @@
   border-left: 2px solid #1e293b;
   border-bottom: 2px solid #1e293b;
   transform: rotate(45deg);
+}
+
+/* キー操作時のフォーカス枠（Issue #380）。:focus-visible だけなのでタップでは出ない。
+   置き場所は @media の外（reduce 設定でも枠を出す）。詳細度は(0,1,0)で、後ろの .command-chip.sk-cmd-fail(0,2,0)の橙の枠が優先される。 */
+:focus-visible {
+  outline: 4px solid #0369a1;
+  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -225,7 +239,7 @@
     animation: wobble-soft 0.5s ease-in-out;
   }
 
-  /* 壁衝突の失敗時、「もういちど」を2回パルス(scale 1→1.08→1)で強調する（Issue #214）。
+  /* 壁衝突の失敗時、「ためしなおす」を2回パルス(scale 1→1.08→1)で強調する（Issue #214）。
      強調は既存の motion-safe:animate-pulse(opacity点滅)に上書きさせるため、要素指定で
      詳細度を上げている（Tailwind側のvariant規則がcustom CSSより後に生成されるため）。 */
   @keyframes retry-pulse {
@@ -239,6 +253,12 @@
   }
   button.retry-pulse {
     animation: retry-pulse 0.6s ease-in-out 2;
+  }
+
+  /* 失敗後に最初に外れた命令の1個だけの強調（Issue #545）。ring-4 ring-amber-400 は残し、枠をさらに太くする。 */
+  .command-chip.sk-cmd-fail {
+    outline: 4px solid #d97706;
+    outline-offset: 2px;
   }
 
   /* 単元マップの「次に遊ぶレッスン」を無限パルスで強調する（Issue #216）。 */
@@ -426,28 +446,120 @@ dialog.result-row {
 .palette-row > [data-blank='right'] {
   grid-area: 1 / 3;
 }
-/* 「とめる」（maxPauses>0。Issue #395）：上段左に「とめる」、上段右に残り回数「✋×N」（表示のみ） */
+/* 「とめる」（maxPauses>0。Issue #395・#467）：上段左。✋・とめる・×N を1ボタンに統合 */
 .palette-row > [data-action='pause'] {
   grid-area: 1 / 1;
   padding-top: 0;
   padding-bottom: 0;
+  position: relative;
 }
-.palette-row > .palette-count {
+.palette-row > [data-action='pause'] .pause-badge {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.5rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.125rem;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+/* ⚙（せってい。#467）：上段右。実行中も押せる */
+.palette-row > [data-action='menu'] {
   grid-area: 1 / 3;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+/* 命令パレットのある画面（play・tutorial）はヘッダを隠す（#467。⚙・レッスンせんたくがめん はパレットとメニュー側へ。まえは #542 で廃止） */
+#app[data-op-compact='true'] > header {
+  display: none;
+}
+/* 操作画面は外側の余白を片側8px（#app 4px＋#stage 4px）に詰めて盤面を広げる（Issue #497 段B。見本の枠は端から8px）。 */
+#app[data-op-compact='true'] {
+  padding: 0.25rem;
+}
+#app[data-op-compact='true'] > #stage {
+  padding: 0.25rem;
+}
+/* intro の本文（Issue #551）。高さ479px以下は横並び：左に問い文と命令列、右に盤面。「▶ おてほんを みる」は問い文の右。
+   demo-widget は display: contents にして、中身をこの grid の項目として並べる（DOM は変えない）。 */
+.intro-body {
+  display: contents;
+}
+@media (max-height: 479px) {
+  .intro-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas: 'q replay board' 'queue queue board';
+    align-items: center;
+    column-gap: 0.75rem;
+    margin: 0.25rem 0 0;
+  }
+  .intro-body > .intro-question {
+    grid-area: q;
+    text-align: left;
+    padding: 0;
+  }
+  .intro-body > .demo-widget {
+    display: contents;
+  }
+  .intro-body > .demo-widget > .command-queue {
+    grid-area: queue;
+    justify-content: flex-start;
+  }
+  .intro-body > .demo-widget > [data-action='demo-replay'] {
+    grid-area: replay;
+  }
+  .intro-body > .demo-widget > .relative {
+    grid-area: board;
+  }
+}
+/* 下端バー（Issue #551）：intro・まとめの主ボタンを、スクロールしなくても画面内に置く。#stage の直下の最後の子にし、
+   sticky で下端に張り付く。#stage の余白（p-2＝8px／sm:p-4＝16px）は負マージンで相殺して端まで広げる。
+   内容が短い画面は margin-top:auto で下へ寄る。高さは72px、ボタンは64px以上・間隔16px以上。play 画面には出さない（#485）。 */
+.sk-bottom-bar {
+  position: sticky;
+  bottom: -0.5rem; /* Chrome の sticky は余白を除いた内容箱を基準にするため、相殺した余白ぶん下げる */
+  z-index: 10;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.25rem;
-  min-height: 64px;
-  border-radius: 0.5rem;
-  background: #fef3c7;
-  color: #b45309;
-  font-size: 1.5rem;
-  font-weight: 700;
+  justify-content: flex-end;
+  gap: 1rem;
+  height: 72px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  padding: 0 0.5rem;
+  margin: auto -0.5rem -0.5rem;
+  background: #fff;
+  box-shadow: 0 -2px 6px rgb(0 0 0 / 0.15);
 }
-.palette-row > .palette-count .palette-count-x {
-  font-size: 1.125rem;
-  opacity: 0.7;
+@media (min-width: 640px) {
+  .sk-bottom-bar {
+    bottom: -1rem;
+    margin: auto -1rem -1rem;
+    padding: 0 1rem;
+  }
+}
+.sk-bottom-bar > button {
+  margin: 0;
+  min-height: 64px;
+  white-space: nowrap;
+}
+.sk-bottom-bar > .primary-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 14rem;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+.sk-bottom-bar > .sk-bar-sub {
+  flex: 0 1 auto;
+  padding: 0 0.75rem;
+  border-radius: 0.5rem;
+  background: #f1f5f9;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
+  font-size: 0.875rem;
+  color: #475569;
 }
 .palette-row > [data-action='box-open'] {
   grid-column: 1 / -1;
@@ -468,6 +580,180 @@ dialog.result-row {
   }
 }
 
+/* 問い文は吹き出し。補助行（残数・塗りの見本）が空なら行ごと非表示にして盤面を広げる（Issue #497 段B）。 */
+.sk-screen-question:empty {
+  display: none;
+}
+
+/* 小鳥の欄（js/ui-screen.js・Issue #544）：盤面の上の高さ64px固定。左に吹き出し、右に顔。盤面とは重ならない。 */
+.sk-screen-bird {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 64px;
+  min-height: 64px;
+  min-width: 0;
+}
+/* 小鳥の顔アイコン（js/ui-bird.js・Issue #468）：見た目40px、押せる範囲は透明パディングで64px。 */
+.sk-bird-icon {
+  flex: none;
+  box-sizing: border-box;
+  width: 64px;
+  height: 64px;
+  padding: 12px 6px 12px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+/* 欄右端の⚙（js/ui-screen.js の gear。Issue #574 段C）：64×64、顔との間16px。吹き出しは約192pxを下回らない（内幅344のとき）。 */
+.sk-bird-gear {
+  flex: none;
+  box-sizing: border-box;
+  width: 64px;
+  height: 64px;
+  min-width: 64px;
+  min-height: 64px;
+  margin-left: 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: #fff;
+  color: #475569;
+}
+.sk-screen-bird[data-gear='true'] .sk-bird-bubble {
+  max-width: calc(100% - 152px);
+}
+/* 吹き出し：1行表示。長い文は中の .sk-bird-track を横スライドで見せる。しっぽは右（顔）へ向ける。 */
+.sk-bird-bubble {
+  position: relative;
+  box-sizing: border-box;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: calc(100% - 64px);
+  max-height: 100%;
+  margin-right: 8px;
+  padding: 0.4rem 0.75rem;
+  border-radius: 14px;
+  border: 2px solid #1e293b;
+  background: #fff;
+  color: #334155;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  touch-action: pan-y;
+  user-select: none;
+}
+.sk-bird-track {
+  overflow: hidden;
+  white-space: nowrap;
+  max-height: 100%;
+}
+.sk-bird-bubble::before {
+  content: '';
+  position: absolute;
+  top: calc(50% - 6px);
+  right: -8px;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border-right: 2px solid #1e293b;
+  border-top: 2px solid #1e293b;
+  transform: rotate(45deg);
+}
+/* 続きがある側（右端）を白くぼかし、小さな「▶」を重ねる。末尾に着くと data-more が外れて消える。 */
+.sk-bird-bubble[data-more='true']::after {
+  content: '▶';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  bottom: 2px;
+  width: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 8px;
+  box-sizing: border-box;
+  border-radius: 0 12px 12px 0;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0), #fff 65%);
+  color: #475569;
+  font-size: 0.7rem;
+  pointer-events: none;
+}
+.sk-bird-bubble[hidden] {
+  display: none;
+}
+/* index.html は hidden と .flex を併記しており、.flex が UA の [hidden] を上書きするため（#540・#543・#577） */
+#menu-main[hidden],
+#menu-credit-view[hidden] {
+  display: none;
+}
+
+/* ステージ開始時の「スタート！」（js/ui-retry.js showStartCue・Issue #497 A案）：盤面中央、傾き-6度・二重縁・影・グラデ文字。
+   タップは素通し（pointer-events:none）。動きを止める設定では静止表示（アニメーションは no-preference のみ）。 */
+.sk-start-cue {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 6;
+  pointer-events: none;
+  white-space: nowrap;
+  font-size: clamp(2rem, 11vmin, 3.25rem);
+  font-weight: 900;
+  line-height: 1.1;
+  transform: translate(-50%, -50%) rotate(-6deg);
+}
+.sk-start-cue > span {
+  position: relative;
+  z-index: 1;
+  background: linear-gradient(180deg, #fde68a 0%, #facc15 50%, #f59e0b 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.sk-start-cue::before,
+.sk-start-cue::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  text-align: center;
+}
+.sk-start-cue::before {
+  color: #713f12;
+  -webkit-text-stroke: 0.32em #713f12;
+  text-shadow: 0.14em 0.2em 0 rgba(59, 29, 6, 0.35);
+}
+.sk-start-cue::after {
+  color: #fff;
+  -webkit-text-stroke: 0.18em #fff;
+}
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes sk-start-cue-pop {
+    0% {
+      transform: translate(-50%, -50%) rotate(-6deg) scale(0.6);
+      opacity: 0;
+    }
+    30% {
+      transform: translate(-50%, -50%) rotate(-6deg) scale(1.1);
+      opacity: 1;
+    }
+    100% {
+      transform: translate(-50%, -50%) rotate(-6deg) scale(1);
+      opacity: 1;
+    }
+  }
+  .sk-start-cue {
+    animation: sk-start-cue-pop 0.35s ease-out;
+  }
+}
+
 /* 操作画面（play・れんしゅう）：横向きは「盤面｜操作パネル」の左右分割、縦向きは従来の縦積み（Issue #156）。 */
 .tutorial-main,
 .tutorial-side {
@@ -481,7 +767,7 @@ dialog.result-row {
   .sk-screen-frame.sk-screen-frame {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 320px;
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: auto 64px minmax(0, 1fr);
     column-gap: 0.5rem;
     row-gap: 0.5rem;
   }
@@ -489,12 +775,29 @@ dialog.result-row {
     grid-column: 1;
     grid-row: 1;
   }
-  .sk-screen-frame > .sk-screen-board {
+  .sk-screen-frame > .sk-screen-bird {
     grid-column: 1;
     grid-row: 2;
   }
+  .sk-screen-frame > .sk-screen-board {
+    grid-column: 1;
+    grid-row: 3;
+  }
   .sk-screen-frame > .sk-screen-panel {
     grid-column: 2;
+    grid-row: 1 / span 3;
+  }
+  /* 補助行が空：欄を1行目、盤面を2行目へ（問い文は吹き出し。Issue #497 段B・#544） */
+  .sk-screen-frame.sk-screen-frame:has(> .sk-screen-question:empty) {
+    grid-template-rows: 64px minmax(0, 1fr);
+  }
+  .sk-screen-frame:has(> .sk-screen-question:empty) > .sk-screen-bird {
+    grid-row: 1;
+  }
+  .sk-screen-frame:has(> .sk-screen-question:empty) > .sk-screen-board {
+    grid-row: 2;
+  }
+  .sk-screen-frame:has(> .sk-screen-question:empty) > .sk-screen-panel {
     grid-row: 1 / span 2;
   }
 
@@ -566,11 +869,56 @@ dialog.result-row {
   }
 }
 
+/* ボタン行の修飾 sk-screen-actions--play（play 全ギミック・tutorial。Issue #549）：順は ぜんぶけす・１つけす｜32px｜1コマ・じっこう、
+   ボタン間 8px。1行4ボタン（縦向き・背の低い横向き）は 1コマ の前に 24px 足して 32px 空ける。
+   高さ480px以上の横向き（1024×600級）は 2×2（行間16px・列間8px）で、間隔の追加はしない。 */
+.sk-screen-actions.sk-screen-actions--play {
+  gap: 0.5rem;
+}
+.sk-screen-actions--play > [data-action='step'] {
+  margin-left: 1.5rem;
+}
+@media (orientation: landscape) and (max-height: 479px) {
+  /* 1コマ の列は左の余白 24px ぶん広げ、ボタンを 64px 未満にしない（重なり防止） */
+  .sk-screen-panel > .sk-screen-actions.sk-screen-actions--play {
+    grid-template-columns: minmax(64px, 1fr) minmax(64px, 1fr) minmax(88px, 1fr) minmax(64px, 1fr);
+  }
+}
+@media (orientation: landscape) and (min-height: 480px) {
+  .sk-screen-panel > .sk-screen-actions.sk-screen-actions--play {
+    row-gap: 1rem;
+  }
+  .sk-screen-actions--play > [data-action='step'] {
+    margin-left: 0;
+  }
+}
+
 /* ボタン行の修飾 sk-screen-actions--one-row（シーソー）：横向きでも3つのボタンを1行に並べる（Issue #354）。 */
 @media (orientation: landscape) {
   .sk-screen-panel > .sk-screen-actions.sk-screen-actions--one-row {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr);
   }
+}
+
+/* ボタン行の修飾 sk-screen-actions--two-row（シーソーの重さも位置も動く面。Issue #612）：1行目 ◀ ▶ ｜ − ＋（溝16px）、2行目に主ボタン全幅。
+   − ＋ は丸角の水色（robots-btn）。向きによらず同じ配置。 */
+.sk-screen-panel > .sk-screen-actions.sk-screen-actions--two-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  column-gap: 0.5rem;
+  row-gap: 0.5rem;
+}
+.sk-screen-actions--two-row > [data-action='robots-minus'] {
+  margin-left: 0.5rem;
+}
+.sk-screen-actions--two-row > [data-action='run'],
+.sk-screen-actions--two-row > [data-action='retry'] {
+  grid-column: 1 / -1;
+}
+.robots-btn {
+  background-color: #bae6fd;
+  color: #0c4a6e;
+  border-radius: 9999px;
 }
 
 /* predict（Issue #355）：命令の行（predict-command-row）を問い文と盤面の間に置き、ボタン行 sk-screen-actions--predict は
@@ -586,17 +934,35 @@ dialog.result-row {
 }
 @media (orientation: landscape) {
   .sk-screen-frame.sk-screen-frame.sk-screen-frame--predict {
-    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-rows: auto 64px auto minmax(0, 1fr);
+  }
+  .sk-screen-frame--predict > .sk-screen-bird {
+    grid-row: 2;
   }
   .sk-screen-frame--predict > .predict-command-row {
     grid-column: 1;
-    grid-row: 2;
+    grid-row: 3;
   }
   .sk-screen-frame--predict > .predict-command-row ~ .sk-screen-board {
     grid-column: 1;
-    grid-row: 3;
+    grid-row: 4;
   }
   .sk-screen-frame--predict > .predict-command-row ~ .sk-screen-panel {
+    grid-row: 1 / span 4;
+  }
+  .sk-screen-frame.sk-screen-frame.sk-screen-frame--predict:has(> .sk-screen-question:empty) {
+    grid-template-rows: 64px auto minmax(0, 1fr);
+  }
+  .sk-screen-frame--predict:has(> .sk-screen-question:empty) > .sk-screen-bird {
+    grid-row: 1;
+  }
+  .sk-screen-frame--predict:has(> .sk-screen-question:empty) > .predict-command-row {
+    grid-row: 2;
+  }
+  .sk-screen-frame--predict:has(> .sk-screen-question:empty) > .predict-command-row ~ .sk-screen-board {
+    grid-row: 3;
+  }
+  .sk-screen-frame--predict:has(> .sk-screen-question:empty) > .predict-command-row ~ .sk-screen-panel {
     grid-row: 1 / span 3;
   }
   .sk-screen-panel > .sk-screen-actions.sk-screen-actions--predict {
@@ -613,16 +979,34 @@ dialog.result-row {
 /* 鍵トレイ行（carry盤。Issue #391）：問い文の直下に別行。横向きの左右分割では問い文・トレイ・盤面を左列に積む。 */
 @media (orientation: landscape) {
   .sk-screen-frame.sk-screen-frame.sk-screen-frame--keys {
-    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-rows: auto auto 64px minmax(0, 1fr);
   }
   .sk-screen-frame--keys > .sk-key-tray-row {
     grid-column: 1;
     grid-row: 2;
   }
-  .sk-screen-frame--keys > .sk-key-tray-row ~ .sk-screen-board {
+  .sk-screen-frame--keys > .sk-key-tray-row ~ .sk-screen-bird {
     grid-row: 3;
   }
+  .sk-screen-frame--keys > .sk-key-tray-row ~ .sk-screen-board {
+    grid-row: 4;
+  }
   .sk-screen-frame--keys > .sk-key-tray-row ~ .sk-screen-panel {
+    grid-row: 1 / span 4;
+  }
+  .sk-screen-frame.sk-screen-frame.sk-screen-frame--keys:has(> .sk-screen-question:empty) {
+    grid-template-rows: auto 64px minmax(0, 1fr);
+  }
+  .sk-screen-frame--keys:has(> .sk-screen-question:empty) > .sk-key-tray-row {
+    grid-row: 1;
+  }
+  .sk-screen-frame--keys:has(> .sk-screen-question:empty) > .sk-key-tray-row ~ .sk-screen-bird {
+    grid-row: 2;
+  }
+  .sk-screen-frame--keys:has(> .sk-screen-question:empty) > .sk-key-tray-row ~ .sk-screen-board {
+    grid-row: 3;
+  }
+  .sk-screen-frame--keys:has(> .sk-screen-question:empty) > .sk-key-tray-row ~ .sk-screen-panel {
     grid-row: 1 / span 3;
   }
 }
@@ -673,4 +1057,31 @@ dialog.result-row {
   .track-card { flex-direction: column; justify-content: center; text-align: center; flex: 1; gap: 12px; min-height: 160px; }
   .track-card .track-name { flex: none; }
   .track-card .track-robot { width: 80px; height: 80px; }
+}
+/* 左寄せのバー（もどる 用。Issue #551）。 */
+.sk-bottom-bar--start {
+  justify-content: flex-start;
+}
+/* タイトル（Issue #551）：高さ479px以下は はじめから・つづきから を横並びにし、ロボットを縮める。それ以外は従来の縦積み。 */
+.title-actions {
+  display: contents;
+}
+@media (max-height: 479px) {
+  .title-wrap {
+    gap: 0.5rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+  .title-wrap .title-robot {
+    width: 5rem;
+    height: 5rem;
+  }
+  .title-actions {
+    display: flex;
+    gap: 1.5rem;
+  }
+  .title-actions > button {
+    min-width: 168px;
+    min-height: 64px;
+  }
 }

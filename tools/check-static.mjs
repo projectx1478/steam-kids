@@ -4,6 +4,7 @@
 // 2. 配信対象ファイル（lessons/*.json を除く）がすべて APP_SHELL に入っており、APP_SHELL の各項目が実在する
 //    lessons/*.json はネットワーク優先のランタイムキャッシュなので対象外（docs/caching.md）
 // 3. HTML/JS/CSS が外部URLからスクリプト・スタイル・フォント・モジュールを読み込んでいない（CDN禁止）
+// 4. 音声拡張子（ogg/mp3/wav/m4a等）のファイルがリポジトリ内に無い（BGM音源は公開リポジトリに置かない。#378）
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import path from 'node:path';
 
@@ -12,11 +13,12 @@ const failures = [];
 const fail = (msg) => failures.push(msg);
 const read = (p) => readFileSync(path.join(ROOT, p), 'utf-8');
 
-function walk(dir, exts) {
+function walk(dir, exts, skipDirs = []) {
   const out = [];
   for (const name of readdirSync(path.join(ROOT, dir))) {
+    if (skipDirs.includes(name)) continue;
     const rel = path.posix.join(dir, name);
-    if (statSync(path.join(ROOT, rel)).isDirectory()) out.push(...walk(rel, exts));
+    if (statSync(path.join(ROOT, rel)).isDirectory()) out.push(...walk(rel, exts, skipDirs));
     else if (exts.some((e) => name.endsWith(e))) out.push(rel);
   }
   return out;
@@ -47,6 +49,8 @@ if (!shellSrc) {
     'index.html', 'dashboard.html', 'style.css', 'app.js',
     ...walk('js', ['.js']),
     ...walk('fonts', ['.woff2']),
+    'manifest.webmanifest',
+    ...walk('icons', ['.png']),
   ];
   for (const f of served) if (!shellSet.has(f)) fail(`APP_SHELL に未登録（オフラインで欠ける）: ${f}`);
 }
@@ -65,6 +69,13 @@ for (const f of targets) {
   const src = read(f);
   for (const [re, label] of EXTERNAL) if (re.test(src)) fail(`${f}: ${label}`);
 }
+
+// 4. 音声ファイルのリポジトリ内配置禁止（#378）。BGM音源は MusMus 規約上
+//    公開リポジトリに置かず、Pages デプロイ時に非公開 steam-kids-state から取得する
+const AUDIO_EXT = ['.ogg', '.mp3', '.wav', '.m4a', '.flac', '.aac'];
+const AUDIO_SKIP = ['node_modules', '.git', '_site', '.worktrees', '.verify', '.jscpd-report'];
+const audioFiles = walk('.', AUDIO_EXT, AUDIO_SKIP);
+for (const f of audioFiles) fail(`音声ファイルをリポジトリに置いてはいけない（#378）: ${f}`);
 
 if (failures.length) {
   for (const m of failures) console.log(`FAIL ${m}`);

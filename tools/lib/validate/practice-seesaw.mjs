@@ -3,7 +3,8 @@
 import { generateMap, SHAPE_PRESETS } from '../../../js/engine-generate.js';
 import { isValidCode, codeToSeed } from '../../../js/seed-code.js';
 import { simulate, boardSpec } from '../../../js/engine-grid.js';
-import { balance, solutions, difficulty } from '../../../js/engine-seesaw.js';
+import { balance, solutions, solutionPairs, difficulty } from '../../../js/engine-seesaw.js';
+import { generateSeesawRun, SEESAW_STAGES, SEESAW_RUN_STAGES } from '../../../js/engine-seesaw-gen.js';
 import { KEY_MODES } from '../../../js/gimmicks/keys.js';
 import { MIN_PLAY, MAX_PLAY, UNIT_GIMMICKS, isObj } from './common.mjs';
 
@@ -37,7 +38,62 @@ function validateShape(play, add) {
   }
   return ok;
 }
-function validatePractice(steps, add) {
+// シーソーのれんしゅう（predict-slider＋seedPick。Issue #611）。構成は seedPick, play×5, summary。
+// playの generator は { seesawStage: 'A'|'B'|'C' } だけ（seesaw・solution は書かない）。段の並びは A,A,B,B,C。
+// 面は全1000番号で generateSeesawRun を回して確かめる（解ちょうど1つ・開始で傾く・段のd範囲内・d非減少・盤の重複なし）。
+function validateSeesawPractice(steps, add) {
+  const expected = ['seedPick', ...SEESAW_RUN_STAGES.map(() => 'play'), 'summary'];
+  const kinds = steps.map((s) => s.kind).join(',');
+  if (kinds !== expected.join(',')) {
+    add('れんしゅうの構成', `steps=${kinds}（${expected.join(',')}の順である必要がある）`);
+    return;
+  }
+  const plays = steps.filter((s) => s.kind === 'play');
+  let ok = true;
+  plays.forEach((play, i) => {
+    const label = `stepId="${play.stepId}"`;
+    const g = play.generator;
+    if (!isObj(g) || Object.keys(g).length !== 1 || !('seesawStage' in g)) {
+      add('generator', `${label} のgeneratorは { "seesawStage": "A"|"B"|"C" } だけ（他のキーは受け付けない）`);
+      ok = false;
+    } else if (g.seesawStage !== SEESAW_RUN_STAGES[i]) {
+      add('generator', `${label} のseesawStage=${JSON.stringify(g.seesawStage)} が不正（${i + 1}面目は"${SEESAW_RUN_STAGES[i]}"。並びは${SEESAW_RUN_STAGES.join(',')}）`);
+      ok = false;
+    }
+    for (const key of ['seesaw', 'solution']) {
+      if (play[key] !== undefined) {
+        add('generator', `${label} に${key}は書けない（面は番号から生成される）`);
+        ok = false;
+      }
+    }
+  });
+  if (!ok) return;
+  const stages = plays.map((p) => p.generator.seesawStage);
+  const boardKey = (s) => JSON.stringify([s.notches, s.left.map((w) => [w.robots, w.pos]), s.mover.robots]);
+  for (let n = 0; n < 1000; n += 1) {
+    const code = String(n).padStart(3, '0');
+    const run = generateSeesawRun(stages, code);
+    let prevD = 0;
+    run.forEach((spec, i) => {
+      const label = `番号${code}の${i + 1}面目`;
+      const cond = SEESAW_STAGES[stages[i]];
+      const found = solutions(spec);
+      if (found.length !== 1) add('解の個数', `${label}の解が${found.length}個（ちょうど1つ必要）`);
+      if (balance(spec, spec.mover.start).tilt === 0) add('start', `${label}がstartの時点でつりあっている`);
+      const d = difficulty(spec);
+      if (d < cond.d[0] || d > cond.d[1]) add('難易度', `${label}のd=${d}が段${stages[i]}の範囲外`);
+      if (d < prevD) add('難易度', `${label}のd=${d}が前の面(${prevD})より小さい`);
+      prevD = d;
+    });
+    if (new Set(run.map(boardKey)).size !== run.length) add('盤の重複', `番号${code}の面に同じ盤がある`);
+  }
+}
+
+function validatePractice(steps, add, type) {
+  if (type === 'predict-slider') {
+    validateSeesawPractice(steps, add);
+    return;
+  }
   const kinds = steps.map((s) => s.kind).join(',');
   if (kinds !== 'seedPick,play,summary') {
     add('れんしゅうの構成', `steps=${kinds}（seedPick,play,summaryの順である必要がある）`);
@@ -81,7 +137,15 @@ function validatePractice(steps, add) {
 }
 
 // predict-slider（シーソー）：playは2〜4個、座標が範囲内、solutionでつりあいstartでは傾く、
-// 解がちょうど1つ、難易度（左のおもさ合計）が非減少（Issue #150）。
+// 解が1つ以上、難易度（左のおもさ合計）が非減少（Issue #150）。
+// 面の種類で solution の形が変わる（Issue #612）：位置だけ＝整数（位置）／重さだけ（fixedPos あり）＝整数（重さ）／両方＝[pos, robots]。
+function solutionPair(play, spec) {
+  const { fixedPos, maxRobots } = spec.mover;
+  const s = play.solution;
+  if (fixedPos !== undefined) return Number.isInteger(s) ? { pos: fixedPos, robots: s } : null;
+  if (maxRobots !== undefined) return Array.isArray(s) && s.length === 2 && s.every(Number.isInteger) ? { pos: s[0], robots: s[1] } : null;
+  return Number.isInteger(s) ? { pos: s, robots: spec.mover.robots } : null;
+}
 function validateSeesaw(playSteps, add, maxPlay = MAX_PLAY) {
   if (playSteps.length < MIN_PLAY || playSteps.length > maxPlay) {
     add('盤面の必須', `kind="play" が${playSteps.length}個（${MIN_PLAY}〜${maxPlay}個である必要がある）`);
@@ -101,13 +165,21 @@ function validateSeesaw(playSteps, add, maxPlay = MAX_PLAY) {
       isInt(spec.mover.robots) &&
       isInt(spec.mover.start) &&
       spec.mover.start <= spec.notches;
-    if (!ok) {
-      add('seesaw', `${label} のseesaw（notches・left・mover）が不正（robots・pos・startは1〜notchesの整数）`);
+    const { maxRobots, fixedPos } = ok ? spec.mover : {};
+    const newOk =
+      ok &&
+      (maxRobots === undefined || (Number.isInteger(maxRobots) && maxRobots >= 2 && maxRobots <= 3 && spec.mover.robots <= maxRobots)) &&
+      (fixedPos === undefined || (maxRobots !== undefined && isInt(fixedPos) && fixedPos <= spec.notches && fixedPos === spec.mover.start));
+    if (!newOk) {
+      add('seesaw', `${label} のseesaw（notches・left・mover）が不正（robots・pos・startは1〜notchesの整数、maxRobotsは2〜3でrobots以上、fixedPosはmaxRobotsがあるときだけでstartと同じ）`);
       continue;
     }
-    const found = solutions(spec);
-    if (found.length !== 1) add('解の個数', `${label} のつりあう位置が${found.length}個（ちょうど1つである必要がある）`);
-    if (play.solution !== found[0]) add('solution', `${label} のsolution=${play.solution} がつりあう位置と一致しない`);
+    const found = solutionPairs(spec);
+    if (found.length === 0) add('解の個数', `${label} のつりあう組が0個（1つ以上必要）`);
+    const given = solutionPair(play, spec);
+    if (!given || !found.some((f) => f.pos === given.pos && f.robots === given.robots)) {
+      add('solution', `${label} のsolution=${JSON.stringify(play.solution)} がつりあう組と一致しない（面の種類に合う形か）`);
+    }
     if (balance(spec, spec.mover.start).tilt === 0) add('start', `${label} がstartの時点でつりあっている`);
     const d = difficulty(spec);
     if (d < prevDifficulty) add('難易度', `${label} の左のおもさ合計(${d})が前のステージ(${prevDifficulty})より小さい`);

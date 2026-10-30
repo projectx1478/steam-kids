@@ -1,11 +1,17 @@
 # /lesson-ideas
 
-計画型レッスンの充実案を、既存との重複を整理したうえで評価し、絞り込む。
-目的は「案の評価」まで。実装・仕様確定・PROJECT.md の変更はしない。
+対象単元のレッスンの充実案を、出す（round0）→既存との重複を整理→評価→絞り込む。
+目的は「案出しと評価」まで。実装・仕様確定・PROJECT.md の変更はしない。
+
+## 引数
+
+`$ARGUMENTS` は単元キー（例 `/lesson-ideas teko`）。空なら `grid`（従来どおり）。以降、`<単元>` はこの値。
+保存先は `review/lesson-ideas/<単元>/`（inventory.md・pool.md・round0〜2・report.md）。
+`review/lesson-ideas/` 直下の既存結果（2026-10-03、grid）は読むだけで、変更しない。
 
 ## 守ること
 
-- 書き込んでよいのは `review/lesson-ideas/` 配下のみ。それ以外は変更しない。
+- 書き込んでよいのは `review/lesson-ideas/<単元>/` 配下のみ。それ以外は変更しない。
   特に `config.mjs`、凍結fixture（cmd-01・donguri-01）、PROJECT.md、CLAUDE.md、AGENTS.md。
 - 三原則と非目標は動かさない前提。次の制約に反する案は「見送り」とし、理由を書く。
   - 読ませる説明は先に置かない（見せる説明は可）
@@ -20,18 +26,28 @@
 
 ## 0. 準備確認（足りなければ停止して報告）
 
-- `review/lesson-ideas/inventory.md`（無ければ停止。先に調査を行う）
+- `review/lesson-ideas/<単元>/inventory.md`。無ければ停止せず、メインセッションが棚卸しを作る。
+  - 内容：その単元のレッスンJSON・エンジン・既存の操作・`npm run validate:lessons` の結果。「確認できたこと」と「推測・未確認」を分ける。形式は直下の既存 `inventory.md` を流用する。
+  - 単元が `grid` で直下に `review/lesson-ideas/inventory.md` があれば、それを読んで流用する（移動・変更しない。新しい結果は `grid/` に保存）。流用時は調査日を報告に書き、レッスン構成が変わっていれば作り直す。
 - `review/principles/context.md`、`difficulty.md`、`foundation-questions.md`
 - `docs/principles-review.md`、`docs/foundation-review.md`（読むだけ）
+
+## 0.5 案出しラウンド（round0）
+
+- `lesson-ideas-edu`、`lesson-ideas-designer` の2役を並列に起動。互いの出力は見せない。
+- 各自、対象単元の案を最大10案。形式は「案／内容／既存との差／依存／改修範囲」。
+- 保存先は `review/lesson-ideas/<単元>/round0/<自分の名前>.md` のみ。
+- メインが重複を統合し、`review/lesson-ideas/<単元>/pool.md` を作る。これが第1ラウンドの候補プール。
+- `grid` は、末尾の「候補プール（45案）」を既定プールとして使う。round0 は省略してよい（プール外の新案のみ出す）。
 
 ## 1. 第1ラウンド（2役を並列に起動。互いの出力は見せない）
 
 | 役 | 見るもの | 重点 |
 |---|---|---|
-| lesson-ideas-edu（foundation-edu の複製） | 準備確認のファイル、inventory.md、PROJECT.md、docs、過去のIssue（`gh issue view`、読み取りのみ） | 学びとの対応、対象学年（根拠が無ければ仮置きと明記）、過去の却下理由との衝突 |
-| lesson-ideas-designer（game-designer の複製） | 準備確認のファイル、inventory.md、レッスンJSON、コード（Bashは読み取りのみ） | 難易度曲線、構造の繰り返し、grid-runtime の改修範囲、E2E・validate-lessons・凍結fixtureへの影響 |
+| lesson-ideas-edu（foundation-edu の複製） | 準備確認のファイル、`<単元>/inventory.md`、`<単元>/pool.md`、PROJECT.md、docs、過去のIssue（`gh issue view`、読み取りのみ） | 学びとの対応、対象学年（根拠が無ければ仮置きと明記）、過去の却下理由との衝突 |
+| lesson-ideas-designer（game-designer の複製） | 準備確認のファイル、`<単元>/inventory.md`、`<単元>/pool.md`、レッスンJSON、コード（Bashは読み取りのみ） | 難易度曲線、構造の繰り返し、対象単元の型とエンジンの改修範囲、E2E・validate-lessons・（grid のときは）凍結fixtureへの影響 |
 
-- 各自、`review/lesson-ideas/round1/<自分の名前>.md` のみに保存する。
+- 各自、`review/lesson-ideas/<単元>/round1/<自分の名前>.md` のみに保存する。
 - Issueは、本文を読んだものとタイトルだけ見たものを分けて報告する。
 - 「確認できたこと」と「推測・未確認」を分けて書く。
 
@@ -50,11 +66,11 @@
 
 - 判定が割れた案を最大5つに絞る。
 - 討論は1往復まで。エージェントチームが無効なら、関係するエージェントに個別に追加質問する。
-- 保存先は `review/lesson-ideas/round2/`。
+- 保存先は `review/lesson-ideas/<単元>/round2/`。
 
 ## 3. 統合
 
-`review/lesson-ideas/report.md` に次を書く。
+`review/lesson-ideas/<単元>/report.md` に次を書く。
 
 1. 判定の数（採用候補／条件付き／既存で充足／見送り／証拠不足）
 2. 全案の判定表（inventory.md の重複判定を併記）
@@ -64,12 +80,12 @@
    - 狙う飽き要因（1つ）
    - 検証方法
    - 1 Issueの単位の目安
-   - 実施時期（基準値の取得前／後）と影響範囲
+   - 実施時期（1回に1要因だけ変える。確認はAI確認＋同単元の相対比較）と影響範囲
 4. 意見が割れたまま残った点（決めるのは人）
 5. プール外の新案（最大5。同じ形式）
 6. 前提と限界（音・動き・実プレイのログは見ていない。学習効果の証拠ではない）
 
-実施時期の原則：基準値の取得前に、前後比較を崩す変更を入れない。1回に1要因だけ変える。
+実施時期の原則：1回に1要因だけ変える。確認はAI確認＋同単元の相対比較で行う。
 
 ## 4. 完了報告
 
@@ -77,9 +93,9 @@
 
 ---
 
-## 候補プール（45案）
+## 候補プール（grid の既定・45案）
 
-既存の有無は inventory.md の判定を使う。重複していても評価対象にする。
+単元が `grid` のときだけ使う。他の単元は `<単元>/pool.md`。既存の有無は inventory.md の判定を使う。重複していても評価対象にする。
 
 **A. ギミックを増やす**
 1. すべる床（氷）：入ると壁まで滑る

@@ -92,13 +92,15 @@ export default async function run({ page, check }) {
   await check('ぜんぶ けすでremove音は鳴らない', async () => page.evaluate(() => !window.__sfxLog.includes('remove')));
   await check('ぜんぶ けすでチップが0個になる', async () => (await page.$$('.command-chip')).length, 0);
 
-  // 確認ダイアログは存在しない。←で戻っても命令列の下書きが復元される（Issue #95）。
-  // p1から← もどるはtutorialを飛ばしてintroへ戻り（Issue #236）、はじめるで再びp1へ進める。
+  // playで戻ると確認が出る（Issue #542）。「もどる」で戻っても命令列の下書きが復元される（Issue #95）。
+  // p1から端末の戻る＋確認はtutorialを飛ばしてintroへ戻り（Issue #236）、はじめるで再びp1へ進める。
   await check('.confirm-dialogは存在しない', async () => (await page.$$('.confirm-dialog')).length, 0);
   for (const dir of ['up', 'up', 'left']) await page.click(`[data-command="${dir}"]`);
   await check('編集後の命令列は3個', async () => (await page.$$('.command-chip')).length, 3);
-  await page.click('#back-btn');
-  await check('確認なしで即座にintroへ戻る', async () => page.getAttribute('#stage', 'data-step'), 'intro');
+  await page.goBack();
+  await check('playで戻ると確認が出る', async () => (await page.$$('.leave-confirm')).length, 1);
+  await page.click('[data-action="leave-ok"]');
+  await check('確認の「もどる」でintroへ戻る', async () => page.getAttribute('#stage', 'data-step'), 'intro');
   await page.click('[data-action="start"]');
   await check('play(p1)へ戻ると下書き(3個)が復元される', async () => (await page.$$('.command-chip')).length, 3);
 
@@ -107,7 +109,9 @@ export default async function run({ page, check }) {
   for (const dir of ['up', 'up', 'left', 'left']) await page.click(`[data-command="${dir}"]`);
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="next-stage"]', { timeout: 8000 });
-  await page.click('#back-btn');
+  // 端末の戻る＋確認の「もどる」でintroへ戻る（Issue #542。⚙の「まえ」は廃止）。
+  await page.goBack();
+  await page.click('[data-action="leave-ok"]');
   await page.click('[data-action="start"]');
   await check('クリア後は下書きが残らず命令列が空で始まる', async () => (await page.$$('.command-chip')).length, 0);
 

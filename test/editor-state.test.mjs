@@ -1,8 +1,8 @@
 // #397 段4: 盤面エディタの状態管理（置く・消す・動かす・元に戻す・やり直し、拒否値）。実行: npm run test:unit
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createState, setCellPx, setGrid, place, erase, move, undo, redo, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, COMPLEX_KEYS, HISTORY_MAX } from '../tools/editor/editor-state.js';
-import { SAMPLE_SPEC, EDITOR_MAX_SIZE, pendingSwitches, switchModeOptions, switchGroupOptions, pendingGroupSwitches } from '../tools/editor/editor-view.js';
+import { occupants, createState, setCellPx, setGrid, place, erase, move, undo, redo, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, COMPLEX_KEYS, HISTORY_MAX, setKeyColor, setDoorColor, setKeyMode, setPeriodicPeriod, setWaterMode, togglePaint, canUndo as canUndoState, addTutorialStep, setStepText, setTutorialScript, tutorialReach } from '../tools/editor/editor-state.js';
+import { SAMPLE_SPEC, EDITOR_MAX_SIZE, pendingSwitches, switchModeOptions, switchGroupOptions, pendingGroupSwitches, pendingKeys, pendingBridges } from '../tools/editor/editor-view.js';
 import { analyzeSpec } from '../tools/editor/validate-worker.mjs';
 
 const fresh = () => createState(SAMPLE_SPEC);
@@ -55,12 +55,66 @@ test('editor-state: 動かす（移動先に要素があれば拒否）', () => 
   assert.equal(move(s, 3, 3, 3, 3).ok, false); // 同じマスは移動先に要素がある扱い
 });
 
-test('editor-state: 組・設定が要る要素は置けない・消せない・動かせない', () => {
+test('editor-state: COMPLEX_KEYS は空（paint も置ける。#523 段4）', () => {
+  assert.deepEqual(COMPLEX_KEYS, []);
   const s = fresh();
-  assert.deepEqual(COMPLEX_KEYS, ['keys', 'paint', 'periodic']); // switches は #404 段A で外した
-  for (const key of ['keys', 'paint', 'periodic']) assert.equal(place(s, key, 2, 1).ok, false, key);
-  assert.equal(erase(s, 0, 2).ok, false); // かぎ
-  assert.equal(move(s, 2, 2, 2, 1).ok, false); // ドア
+  assert.equal(place(s, 'nothing', 2, 1).reason, 'nothing は置けない');
+});
+
+test('editor-state: 周期ドア（置く・period 変更・消す・動かす・undo/redo）', () => {
+  const s = fresh();
+  const original = snap(s.spec); // SAMPLE_SPEC は (4,2) に period 3 を持つ
+  assert.equal(place(s, 'periodic', 4, 2).ok, false); // 重なり
+  assert.equal(place(s, 'periodic', 9, 9).ok, false); // 盤外
+  assert.equal(place(s, 'periodic', 2, 1).ok, true);
+  assert.deepEqual(s.spec.periodic.at(-1), { x: 2, y: 1, period: 3 }); // 既定 3・初期位相なし
+  for (const n of [2, 4, 3]) {
+    assert.equal(setPeriodicPeriod(s, 2, 1, n).ok, true);
+    assert.equal(s.spec.periodic.find((c) => c.x === 2 && c.y === 1).period, n);
+  }
+  assert.equal(setPeriodicPeriod(s, 2, 1, 5).ok, false);
+  assert.equal(setPeriodicPeriod(s, 2, 1, '2').ok, false);
+  assert.equal(setPeriodicPeriod(s, 0, 3, 2).ok, false); // 周期ドアが無いマス
+  const len = s.history.length;
+  assert.equal(setPeriodicPeriod(s, 2, 1, 3).ok, true); // 同値は履歴に積まない
+  assert.equal(s.history.length, len);
+  assert.equal(move(s, 2, 1, 3, 2).ok, true);
+  assert.deepEqual(s.spec.periodic.at(-1), { x: 3, y: 2, period: 3 });
+  assert.equal(move(s, 3, 2, 1, 0).ok, false); // 移動先に壁
+  assert.equal(erase(s, 3, 2).ok, true);
+  assert.equal(erase(s, 4, 2).ok, true);
+  assert.equal('periodic' in s.spec, false); // 空になればキーごと消す
+  while (canUndoState(s)) undo(s);
+  assert.deepEqual(s.spec, original);
+  assert.equal(redo(s).ok, true);
+  assert.equal(s.spec.periodic.length, 2);
+});
+
+test('editor-state: ワープ（warps1/warps2）は1個ずつ置く・同マスは NG・消す・動かす・空で warps キー削除', () => {
+  const s = fresh();
+  const free = [];
+  for (let y = 0; y < s.spec.grid.rows && free.length < 5; y++) for (let x = 0; x < s.spec.grid.cols && free.length < 5; x++) if (occupants(s.spec, x, y).length === 0) free.push({ x, y });
+  assert.ok(free.length >= 5);
+  const [a, b, c, d, e] = free;
+  assert.equal(s.spec.warps, undefined);
+  assert.equal(place(s, 'warps1', a.x, a.y).ok, true);
+  assert.deepEqual(s.spec.warps, [{ x: a.x, y: a.y, pair: 1 }]);
+  assert.equal(place(s, 'warps2', a.x, a.y).ok, false); // 同マスは NG
+  assert.equal(place(s, 'wall', a.x, a.y).ok, false);
+  assert.equal(place(s, 'warps1', b.x, b.y).ok, true);
+  assert.equal(place(s, 'warps2', c.x, c.y).ok, true);
+  assert.equal(place(s, 'warps2', d.x, d.y).ok, true);
+  assert.deepEqual(s.spec.warps.map((w) => w.pair), [1, 1, 2, 2]);
+  assert.equal(place(s, 'warps1', 99, 99).ok, false); // 盤外
+  assert.equal(move(s, c.x, c.y, a.x, a.y).ok, false); // 移動先に要素
+  assert.equal(move(s, c.x, c.y, e.x, e.y).ok, true);
+  assert.deepEqual(s.spec.warps[2], { x: e.x, y: e.y, pair: 2 }); // pair は保たれる
+  assert.equal(erase(s, e.x, e.y).ok, true); // 1個ずつ消える
+  assert.equal(s.spec.warps.length, 3);
+  for (const w of [a, b, d]) assert.equal(erase(s, w.x, w.y).ok, true);
+  assert.equal('warps' in s.spec, false); // 空になったらキーごと消える
+  assert.equal(undo(s).ok, true);
+  assert.equal(s.spec.warps.length, 1);
 });
 
 test('editor-state: 単純なギミック（items・ice・cushion・water）は置ける。空になった配列は消える', () => {
@@ -140,6 +194,31 @@ test('editor-state: EDITOR_MAX_SIZE を超える盤面の変更は拒否', () =>
   assert.equal(setGrid(s, EDITOR_MAX_SIZE, EDITOR_MAX_SIZE).ok, true);
   assert.deepEqual(s.spec.grid, { cols: 20, rows: 20 });
   assert.equal(EDITOR_MAX_SIZE, 20);
+});
+
+test('editor-state: setGrid は同サイズなら履歴に積まない', () => {
+  const s = fresh();
+  const len = s.history.length;
+  const cursor = s.cursor;
+  assert.equal(setGrid(s, 5, 5).ok, true);
+  assert.equal(s.history.length, len);
+  assert.equal(s.cursor, cursor);
+  assert.equal(setGrid(s, 6, 5).ok, true);
+  assert.equal(s.history.length, len + 1);
+});
+
+test('editor-state: 5×5→7×6→元に戻す→5×5、はみ出す縮小は拒否して spec 不変', () => {
+  const s = fresh();
+  assert.equal(setGrid(s, 7, 6).ok, true);
+  assert.deepEqual(s.spec.grid, { cols: 7, rows: 6 });
+  assert.equal(undo(s).ok, true);
+  assert.deepEqual(s.spec.grid, { cols: 5, rows: 5 });
+  const len = s.history.length;
+  const r = setGrid(s, 3, 3);
+  assert.equal(r.ok, false);
+  assert.ok(r.reason);
+  assert.deepEqual(s.spec.grid, { cols: 5, rows: 5 });
+  assert.equal(s.history.length, len);
 });
 
 // ---- #402 段2: レッスンの面の一覧・並べ替え・固定 ----
@@ -305,20 +384,21 @@ test('editor-state: 壁のタップで targets をトグル（1手ずつ history
   assert.equal(toggleTarget(s, 3, 1, 3, 0).ok, false); // スイッチが無い
 });
 
-test('editor-state: close と open の併用禁止はグレー・拒否。close の盤は validate を通る／併用は落ちる', () => {
+test('editor-state: close と open は併用できる（#530）。close は対象を共有できない。close の盤は validate を通る', () => {
   const s = createState({ grid: { cols: 5, rows: 3 }, start: { x: 0, y: 0 }, goal: { x: 4, y: 0 }, walls: [] });
   place(s, 'switches', 1, 0);
   place(s, 'switches', 1, 2); // 選択を外して2つ目
-  assert.deepEqual(switchModeOptions(s.spec, 1).map((o) => o.disabled), [false, true, true]); // 相手が open → close・toggle はグレー
-  assert.equal(setSwitchMode(s, 1, 2, 'close').ok, false);
-  assert.equal(setSwitchMode(s, 1, 0, 'close').ok, false);
+  assert.deepEqual(switchModeOptions(s.spec, 1).map((o) => o.disabled), [false, false, false]); // 相手が open でも close・toggle を選べる
   assert.equal(setSwitchMode(s, 1, 2, 'bogus').ok, false);
-  // 併用の盤は validate が落とす（正本）
+  assert.equal(setSwitchMode(s, 1, 2, 'close').ok, true);
+  assert.equal(s.spec.switches[1].mode, 'close');
+  assert.equal(setSwitchMode(s, 1, 2, 'open').ok, true); // 混在から戻せる
+  // 混在の盤は validate の mode 併用では落ちない
   const both = JSON.parse(JSON.stringify(s.spec));
   both.switches[0].mode = 'close';
   both.switches[0].targets = [{ x: 2, y: 0 }];
   both.switches[1].targets = [{ x: 2, y: 2 }];
-  assert.ok(line(both).messages.some((m) => m.includes('併用できない')));
+  assert.ok(!line(both).messages.some((m) => m.includes('併用できない')));
   // 1つだけなら close にできる
   const t = createState({ grid: { cols: 5, rows: 1 }, start: { x: 0, y: 0 }, goal: { x: 4, y: 0 }, walls: [] });
   place(t, 'switches', 1, 0);
@@ -327,7 +407,8 @@ test('editor-state: close と open の併用禁止はグレー・拒否。close 
   assert.equal(t.spec.switches[0].mode, 'close');
   assert.equal(place(t, 'switches', 2, 0).ok, true); // 新しいスイッチは close を引き継ぐ
   assert.equal(t.spec.switches[1].mode, 'close');
-  assert.equal(setSwitchMode(t, 1, 0, 'open').ok, false);
+  assert.equal(setSwitchMode(t, 1, 0, 'open').ok, true); // 混在になっても open へ変えられる
+  assert.equal(setSwitchMode(t, 1, 0, 'close').ok, true);
   assert.equal(toggleTarget(t, 2, 0, 3, 0).ok, false); // close は対象を共有できない
   assert.equal(setSwitchColor(t, 1, 0, 'red').ok, true);
   assert.equal(t.spec.switches[0].color, 'red');
@@ -407,7 +488,7 @@ test('editor-state(group): place(groupWalls)・erase・move と、スイッチ�
   assert.equal('switches' in s.spec, false);
 });
 
-test('editor-state(group): 併用禁止（close・toggle・targets・同じ group）は拒否。state は変わらない', () => {
+test('editor-state(group): 併用禁止（targets・同じ group）は拒否。state は変わらない。close・toggle との併用は許可（#530）', () => {
   const s = gboard();
   place(s, 'switches', 1, 0);
   place(s, 'switches', 3, 0);
@@ -415,7 +496,6 @@ test('editor-state(group): 併用禁止（close・toggle・targets・同じ grou
   assert.equal(setSwitchGroup(s, 3, 0, 'a').ok, false); // 同じ group は1スイッチだけ
   assert.equal(setSwitchGroup(s, 3, 0, 'bogus').ok, false);
   assert.equal(setSwitchGroup(s, 4, 1, 'b').ok, false); // スイッチが無い
-  assert.equal(setSwitchMode(s, 1, 0, 'close').ok, false); // group と close
   const before = snap(s.spec);
   toggleTarget(s, 3, 0, 2, 0); // 3,0 は targets 方式
   assert.equal(setSwitchGroup(s, 3, 0, 'b').ok, false); // targets と group
@@ -425,14 +505,16 @@ test('editor-state(group): 併用禁止（close・toggle・targets・同じ grou
   const t = gboard();
   place(t, 'switches', 1, 0);
   setSwitchMode(t, 1, 0, 'close');
-  assert.equal(setSwitchGroup(t, 1, 0, 'a').ok, false); // close と group
-  assert.equal('group' in t.spec.switches[0], false);
+  assert.equal(setSwitchGroup(t, 1, 0, 'a').ok, true); // close と group は併用できる
+  assert.equal(t.spec.switches[0].group, 'a');
+  assert.equal(setSwitchMode(t, 1, 0, 'open').ok, true);
+  assert.equal(setSwitchMode(t, 1, 0, 'close').ok, true); // group を付けたまま mode を変えられる
   const m = gboard();
   m.spec.switches = [{ x: 1, y: 0, mode: 'toggle', color: 'blue', targets: [] }];
-  assert.equal(setSwitchGroup(m, 1, 0, 'a').ok, false);
-  // 併用した盤は validate も落ちる
+  assert.equal(setSwitchGroup(m, 1, 0, 'a').ok, true); // toggle と group も併用できる
+  // targets と group の併用は validate も落ちる
   const bad = snap(s.spec);
-  bad.switches[0].mode = 'close';
+  bad.switches[0].targets = [{ x: 2, y: 0 }];
   bad.groupWalls = [{ x: 2, y: 0, group: 'a' }];
   assert.equal(line(bad).clearable, false);
   assert.ok(line(bad).messages.length > 0);
@@ -479,36 +561,31 @@ test('editor-state(toggle): mode を toggle にして壁を複数つなぎ、壁
   assert.equal(s.spec.switches[0].mode, 'toggle');
 });
 
-test('editor-state(toggle): 他の mode との併用は拒否（state は変わらない）。validate も落ちる', () => {
+test('editor-state(toggle): 他の mode と併用できる（#530）。toggle は対象を共有できない。validate も mode 併用では落とさない', () => {
   const s = row();
   place(s, 'switches', 1, 0);
   place(s, 'switches', 3, 0);
-  const before = snap(s.spec);
-  assert.equal(setSwitchMode(s, 1, 0, 'toggle').ok, false); // 相手が open
-  assert.equal(setSwitchMode(s, 1, 0, 'toggle').reason.includes('併用'), true);
-  assert.deepEqual(s.spec, before);
+  assert.equal(setSwitchMode(s, 1, 0, 'toggle').ok, true); // 相手が open でも toggle にできる
+  assert.equal(s.spec.switches[0].mode, 'toggle');
   const t = row();
   place(t, 'switches', 1, 0);
   setSwitchMode(t, 1, 0, 'toggle');
   place(t, 'switches', 3, 0); // 2つ目は先のスイッチと同じ mode（toggle）で置く
   assert.equal(t.spec.switches[1].mode, 'toggle');
-  assert.equal(setSwitchMode(t, 3, 0, 'close').ok, false); // toggle と close
-  assert.equal(setSwitchMode(t, 3, 0, 'open').ok, false);
+  assert.equal(setSwitchMode(t, 3, 0, 'close').ok, true); // toggle と close
+  assert.equal(setSwitchMode(t, 3, 0, 'open').ok, true);
   assert.equal(toggleTarget(t, 1, 0, 2, 0).ok, true);
-  assert.equal(toggleTarget(t, 3, 0, 2, 0).ok, false); // toggle は対象を共有できない
-  const bad = snap(t.spec);
-  bad.switches[1].mode = 'open';
-  const r = line(bad);
-  assert.equal(r.clearable, false);
-  assert.ok(r.messages.some((m) => m.includes('併用できない')));
+  assert.equal(toggleTarget(t, 3, 0, 2, 0).ok, false); // toggle は対象を共有できない（相手が open でも）
+  const mixed = snap(t.spec);
+  assert.ok(!line(mixed).messages.some((m) => m.includes('併用できない')));
   const g = row();
   place(g, 'switches', 1, 0);
   setSwitchGroup(g, 1, 0, 'a');
-  assert.equal(setSwitchMode(g, 1, 0, 'toggle').ok, false); // group と toggle
+  assert.equal(setSwitchMode(g, 1, 0, 'toggle').ok, true); // group と toggle
   const h = row();
   place(h, 'switches', 1, 0);
   setSwitchMode(h, 1, 0, 'toggle');
-  assert.equal(setSwitchGroup(h, 1, 0, 'a').ok, false);
+  assert.equal(setSwitchGroup(h, 1, 0, 'a').ok, true);
 });
 
 test('editor-state(toggle): 氷・クッションの上には置けない・動かせない・変えられない。validate も落ちる', () => {
@@ -560,4 +637,279 @@ test('editor-state: setMaxPauses は設定・undo/redo でき、0 でキーを�
   const z = fresh();
   assert.equal(setMaxPauses(z, 0).ok, true); // 既に 0 なら履歴を積まない
   assert.equal(z.cursor, 0);
+});
+
+// ---- かぎ・ドア（#523 段1）。盤は床だけの 5×1（start 左端・goal 右端）。----
+test('editor-state(keys): かぎ・ドアを置く（既定 red）→ 判定を通る。重なりは拒否', () => {
+  const s = row();
+  assert.equal(place(s, 'keys', 1, 0).ok, true);
+  assert.deepEqual(s.spec.keys, [{ x: 1, y: 0, color: 'red' }]);
+  assert.deepEqual(pendingKeys(s.spec), [{ kind: 'keys', index: 0, x: 1, y: 0 }]); // ドアが無いかぎ
+  assert.equal(place(s, 'doors', 2, 0).ok, true);
+  assert.deepEqual(s.spec.doors, [{ x: 2, y: 0, color: 'red' }]);
+  assert.deepEqual(pendingKeys(s.spec), []);
+  assert.deepEqual(line(s.spec).messages, []);
+  assert.equal(line(s.spec).clearable, true);
+  assert.equal(place(s, 'keys', 2, 0).ok, false); // ドアの上
+  assert.equal(place(s, 'doors', 1, 0).ok, false); // かぎの上
+  assert.equal(place(s, 'keys', 0, 0).ok, false); // start の上
+  assert.equal(place(s, 'doors', 9, 0).ok, false); // 盤外
+});
+
+test('editor-state(keys): ドアだけ・色ちがいは接続待ち。validate の「対応する色のかぎが無い」と一致', () => {
+  const s = row();
+  place(s, 'doors', 2, 0);
+  assert.deepEqual(pendingKeys(s.spec), [{ kind: 'doors', index: 0, x: 2, y: 0 }]);
+  assert.ok(line(s.spec).messages.some((m) => m.includes('対応する色のかぎが無い')));
+  place(s, 'keys', 1, 0);
+  assert.equal(setKeyColor(s, 1, 0, 'blue').ok, true);
+  assert.equal(s.spec.keys[0].color, 'blue');
+  assert.equal(pendingKeys(s.spec).length, 2); // かぎ（blue）にドアが無く、ドア（red）にかぎが無い
+  assert.ok(line(s.spec).messages.some((m) => m.includes('対応する色のかぎが無い')));
+  assert.equal(setDoorColor(s, 2, 0, 'blue').ok, true);
+  assert.deepEqual(pendingKeys(s.spec), []);
+  assert.deepEqual(line(s.spec).messages, []);
+});
+
+test('editor-state(keys): 色変更の拒否（不正な色・無い物）と同じ色は履歴を積まない', () => {
+  const s = row();
+  place(s, 'keys', 1, 0);
+  const n = s.history.length;
+  assert.equal(setKeyColor(s, 1, 0, 'green').ok, false);
+  assert.equal(setKeyColor(s, 3, 0, 'blue').ok, false);
+  assert.equal(setDoorColor(s, 1, 0, 'blue').ok, false); // かぎの座標はドアではない
+  assert.equal(setKeyColor(s, 1, 0, 'red').ok, true);
+  assert.equal(s.history.length, n);
+});
+
+test('editor-state(keys): 消去・移動。かぎ・ドアが無くなると keyMode も消える', () => {
+  const s = row();
+  place(s, 'keys', 1, 0);
+  place(s, 'doors', 2, 0);
+  setKeyMode(s, 'remote');
+  assert.equal(move(s, 2, 0, 3, 0).ok, true);
+  assert.deepEqual(s.spec.doors, [{ x: 3, y: 0, color: 'red' }]);
+  assert.equal(move(s, 1, 0, 3, 0).ok, false); // 移動先に要素がある
+  assert.equal(move(s, 1, 0, 0, 0).ok, false); // start の上
+  assert.equal(erase(s, 3, 0).ok, true);
+  assert.equal('doors' in s.spec, false);
+  assert.equal(s.spec.keyMode, 'remote'); // かぎが残っている間は keyMode も残る
+  assert.equal(erase(s, 1, 0).ok, true);
+  assert.equal('keys' in s.spec, false);
+  assert.equal('keyMode' in s.spec, false);
+  assert.equal(erase(s, 1, 0).ok, false);
+});
+
+test('editor-state(keys): keyMode は carry が既定（キーを持たない）。remote のとき持つ。かぎ・ドアの無い盤では拒否', () => {
+  const s = row();
+  assert.equal(setKeyMode(s, 'remote').ok, false);
+  assert.equal(setKeyMode(s, 'bogus').ok, false);
+  place(s, 'keys', 1, 0);
+  place(s, 'doors', 2, 0);
+  const n = s.history.length;
+  assert.equal(setKeyMode(s, 'carry').ok, true); // 既に carry（省略）
+  assert.equal(s.history.length, n);
+  assert.equal(setKeyMode(s, 'remote').ok, true);
+  assert.equal(s.spec.keyMode, 'remote');
+  assert.deepEqual(line(s.spec).messages, []);
+  assert.equal(setKeyMode(s, 'carry').ok, true);
+  assert.equal('keyMode' in s.spec, false);
+});
+
+test('editor-state(keys): 置く・色・keyMode・移動・消去は元に戻す／やり直しで整合する', () => {
+  const s = row();
+  const states = [snap(s.spec)];
+  const step = (r) => { assert.equal(r.ok, true); states.push(snap(s.spec)); };
+  step(place(s, 'keys', 1, 0));
+  step(place(s, 'doors', 2, 0));
+  step(setKeyColor(s, 1, 0, 'blue'));
+  step(setDoorColor(s, 2, 0, 'blue'));
+  step(setKeyMode(s, 'remote'));
+  step(move(s, 2, 0, 3, 0));
+  step(erase(s, 3, 0));
+  for (let i = states.length - 2; i >= 0; i--) { assert.equal(undo(s).ok, true); assert.deepEqual(s.spec, states[i]); }
+  for (let i = 1; i < states.length; i++) { assert.equal(redo(s).ok, true); assert.deepEqual(s.spec, states[i]); }
+});
+
+test('editor-state(keys): 読み込んだ盤のかぎ・ドアも消せる・動かせる（SAMPLE_SPEC）', () => {
+  const s = fresh();
+  assert.equal(move(s, 0, 2, 0, 1).ok, true); // かぎ
+  assert.deepEqual(s.spec.keys, [{ x: 0, y: 1, color: 'red' }]);
+  assert.equal(erase(s, 2, 2).ok, true); // ドア
+  assert.equal('doors' in s.spec, false);
+  assert.equal(s.spec.keyMode, 'remote'); // かぎが残る
+});
+
+// ---- 水の橋・waterMode（#523 段3）----
+const wrow = () => createState({ grid: { cols: 6, rows: 3 }, start: { x: 0, y: 0 }, goal: { x: 5, y: 0 }, walls: [] });
+
+test('editor-state(bridge): 置く・消す・動かす。水が無くても置ける（接続待ち）', () => {
+  const s = wrow();
+  assert.equal(place(s, 'bridge', 2, 1).ok, true);
+  assert.deepEqual(s.spec.bridge, [{ x: 2, y: 1 }]);
+  assert.deepEqual(pendingBridges(s.spec), [{ index: 0, x: 2, y: 1 }]);
+  assert.equal(place(s, 'bridge', 2, 1).ok, false); // 重なり
+  assert.equal(place(s, 'bridge', 0, 0).ok, false); // start の上
+  assert.equal(place(s, 'bridge', 9, 9).ok, false); // 盤外
+  assert.equal(place(s, 'water', 3, 1).ok, true);
+  assert.deepEqual(pendingBridges(s.spec), []);
+  assert.equal(move(s, 2, 1, 2, 2).ok, true);
+  assert.deepEqual(s.spec.bridge, [{ x: 2, y: 2 }]);
+  assert.equal(move(s, 2, 2, 3, 1).ok, false); // 移動先が水
+  assert.equal(erase(s, 2, 2).ok, true);
+  assert.equal('bridge' in s.spec, false);
+});
+
+test('editor-state(bridge): 水を消したとき、隣に水が残る橋は残り、残らない橋は消える', () => {
+  const s = wrow();
+  place(s, 'water', 2, 1);
+  place(s, 'water', 4, 1);
+  place(s, 'bridge', 3, 1); // 両隣が水
+  place(s, 'bridge', 1, 1); // 左の水だけが隣
+  place(s, 'bridge', 0, 2); // 元から水の隣でない（接続待ち）
+  assert.equal(erase(s, 2, 1).ok, true);
+  assert.deepEqual(s.spec.bridge, [{ x: 3, y: 1 }, { x: 0, y: 2 }]); // (3,1) は (4,1) が残る。(1,1) は消える。接続待ちの橋は触らない
+  assert.deepEqual(s.spec.water, [{ x: 4, y: 1 }]);
+  assert.equal(erase(s, 4, 1).ok, true);
+  assert.deepEqual(s.spec.bridge, [{ x: 0, y: 2 }]); // (3,1) も隣の水が無くなって消える
+  assert.equal('water' in s.spec, false);
+});
+
+test('editor-state(bridge): 水が全部無くなると waterMode も消える。水が残る間は waterMode も残る', () => {
+  const s = wrow();
+  place(s, 'water', 2, 1);
+  place(s, 'water', 3, 1);
+  assert.equal(setWaterMode(s, 'bump').ok, true);
+  erase(s, 2, 1);
+  assert.equal(s.spec.waterMode, 'bump');
+  erase(s, 3, 1);
+  assert.equal('waterMode' in s.spec, false);
+});
+
+test('editor-state(waterMode): cushion が既定（キーを持たない）。bump のとき持つ。水の無い盤・不正値は拒否', () => {
+  const s = wrow();
+  assert.equal(setWaterMode(s, 'bump').ok, false);
+  place(s, 'water', 2, 1);
+  assert.equal(setWaterMode(s, 'bogus').ok, false);
+  assert.equal(setWaterMode(s, 'cushion').ok, true); // 既に cushion（省略）
+  assert.equal(s.history.length, s.cursor + 1);
+  assert.equal(setWaterMode(s, 'bump').ok, true);
+  assert.equal(s.spec.waterMode, 'bump');
+  assert.equal(setWaterMode(s, 'cushion').ok, true);
+  assert.equal('waterMode' in s.spec, false);
+});
+
+test('editor-state(bridge): 置く・消す・waterMode は元に戻す／やり直しで整合する', () => {
+  const s = wrow();
+  const states = [snap(s.spec)];
+  const step = (r) => { assert.equal(r.ok, true); states.push(snap(s.spec)); };
+  step(place(s, 'water', 2, 1));
+  step(place(s, 'bridge', 1, 1));
+  step(setWaterMode(s, 'bump'));
+  step(move(s, 1, 1, 1, 2));
+  step(erase(s, 2, 1));
+  for (let i = states.length - 2; i >= 0; i--) { assert.equal(undo(s).ok, true); assert.deepEqual(s.spec, states[i]); }
+  for (let i = 1; i < states.length; i++) { assert.equal(redo(s).ok, true); assert.deepEqual(s.spec, states[i]); }
+});
+
+test('editor-state(paint): 目標のトグル。start・goal と重なってよく、他の要素とは重ならない', () => {
+  const s = createState({ grid: { cols: 4, rows: 4 }, start: { x: 0, y: 0 }, goal: { x: 3, y: 3 }, walls: [{ x: 1, y: 1 }] });
+  assert.equal(togglePaint(s, 9, 9).ok, false); // 盤外
+  assert.equal(togglePaint(s, 1, 1).ok, false); // 壁
+  assert.equal(togglePaint(s, 0, 0).ok, true); // start と重なる
+  assert.equal(togglePaint(s, 3, 3).ok, true); // goal と重なる
+  assert.equal(place(s, 'paint', 1, 0).ok, true); // place 経由も同じ
+  assert.deepEqual(s.spec.paint, [{ x: 0, y: 0 }, { x: 3, y: 3 }, { x: 1, y: 0 }]);
+  assert.deepEqual(s.spec.start, { x: 0, y: 0 });
+  assert.equal(togglePaint(s, 1, 0).ok, true); // もう一度で外す
+  assert.equal(s.spec.paint.length, 2);
+  assert.equal(place(s, 'wall', 3, 3).ok, false); // 目標のあるマスに壁は置けない
+  assert.equal(place(s, 'items', 3, 3).ok, false);
+  assert.equal(togglePaint(s, 0, 0).ok, true);
+  assert.equal(togglePaint(s, 3, 3).ok, true);
+  assert.equal('paint' in s.spec, false); // 空になったらキーごと消す
+});
+
+test('editor-state(paint): 消す・動かす（start・goal と重なるマスを含む）', () => {
+  const s = createState({ grid: { cols: 4, rows: 4 }, start: { x: 0, y: 0 }, goal: { x: 3, y: 3 }, walls: [], paint: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 3, y: 3 }] });
+  assert.equal(erase(s, 0, 0).ok, false); // start と重なるマスは消しゴムで消せない（ぬりマスで外す）
+  assert.equal(erase(s, 1, 0).ok, true);
+  assert.equal(s.spec.paint.length, 2);
+  assert.equal(place(s, 'paint', 1, 0).ok, true);
+  assert.equal(move(s, 1, 0, 2, 0).ok, true); // 目標だけのマスは目標を動かす
+  assert.deepEqual(s.spec.paint.at(-1), { x: 2, y: 0 });
+  assert.equal(move(s, 2, 0, 3, 3).ok, false); // 目標のあるマスへは動かせない
+  assert.equal(move(s, 2, 0, 3, 2).ok, true);
+  assert.equal(move(s, 3, 2, 3, 3).ok, false);
+  assert.equal(move(s, 0, 0, 0, 1).ok, true); // start と重なるマスでは start が動く（目標は残る）
+  assert.deepEqual(s.spec.start, { x: 0, y: 1 });
+  assert.ok(s.spec.paint.some((c) => c.x === 0 && c.y === 0));
+  assert.equal(move(s, 0, 1, 3, 3).ok, false); // goal は重ねてよいが、goal 自身がいるマスは不可
+  assert.equal(move(s, 0, 1, 0, 0).ok, true); // start を目標のマスへ（重なってよい）
+  assert.deepEqual(s.spec.start, { x: 0, y: 0 });
+});
+
+test('editor-state(tutorial): 足す＝intro の直後・allowedCommands を引き継ぎ・script は [run]・solution 等は落とす', () => {
+  const play = { stepId: 'p1', kind: 'play', text: 'どこ？', grid: { cols: 3, rows: 3 }, start: { x: 0, y: 0 }, goal: { x: 2, y: 0 }, allowedCommands: ['right', 'down'], solution: ['right', 'right'], maxCommands: 3, gen: { a: 1 } };
+  const ls = createLessonState('x', [{ stepId: 's1', kind: 'intro', text: 'a' }, play, { stepId: 's2', kind: 'summary', text: 'b' }]);
+  const r = addTutorialStep(ls, play);
+  assert.equal(r.ok, true);
+  assert.deepEqual(ls.steps.map((x) => x.kind), ['intro', 'tutorial', 'play', 'summary']);
+  const t = ls.steps[1];
+  assert.deepEqual(t.allowedCommands, ['right', 'down']);
+  assert.deepEqual(t.script, [{ tap: 'run' }]);
+  assert.equal(t.stepId, 'tutorial');
+  for (const k of ['solution', 'maxCommands', 'gen', 'text']) assert.equal(k in t, false, k);
+  assert.equal(ls.selected, 1);
+  assert.equal(play.solution.length, 2, '元の spec は変えない');
+  // 二重に足さない
+  assert.equal(addTutorialStep(ls, play).ok, false);
+  assert.equal(ls.steps.length, 4);
+  // 消す（既存の removeStep）
+  assert.equal(removeStep(ls, 1).ok, true);
+  assert.equal(ls.steps.some((x) => x.kind === 'tutorial'), false);
+});
+
+test('editor-state(tutorial): intro が無い・最初の play より後の intro・盤面が無いときは拒否', () => {
+  const play = { stepId: 'p1', kind: 'play', grid: { cols: 2, rows: 1 }, start: { x: 0, y: 0 }, goal: { x: 1, y: 0 } };
+  assert.equal(addTutorialStep(createLessonState('x', [play]), play).ok, false);
+  assert.equal(addTutorialStep(createLessonState('x', [play, { stepId: 's1', kind: 'intro' }]), play).ok, false);
+  assert.equal(addTutorialStep(createLessonState('x', [{ stepId: 's1', kind: 'intro' }, play]), { stepId: 'z' }).ok, false);
+});
+
+test('editor-state(tutorial): setStepText は文字列のみ。空は text を消す。元に戻せる', () => {
+  const s = fresh();
+  assert.equal(setStepText(s, 3).ok, false);
+  assert.equal(setStepText(s, 'ここを おす').ok, true);
+  assert.equal(s.spec.text, 'ここを おす');
+  assert.equal(setStepText(s, '').ok, true);
+  assert.equal('text' in s.spec, false);
+  undo(s);
+  assert.equal(s.spec.text, 'ここを おす');
+});
+
+test('editor-state(tutorial): setTutorialScript は末尾に run を足して入れる。run は捨てる・範囲外の命令は拒否・元に戻せる', () => {
+  const play = { stepId: 'p1', kind: 'play', grid: { cols: 3, rows: 1 }, start: { x: 0, y: 0 }, goal: { x: 2, y: 0 }, allowedCommands: ['right', 'down'] };
+  const ls = createLessonState('x', [{ stepId: 's1', kind: 'intro' }, play]);
+  assert.equal(addTutorialStep(ls, play).ok, true);
+  const s = createState(ls.steps[ls.selected]);
+  assert.equal(setTutorialScript(s, [{ tap: 'right' }, { tap: 'run' }, { tap: 'right' }]).ok, true);
+  assert.deepEqual(s.spec.script, [{ tap: 'right' }, { tap: 'right' }, { tap: 'run' }]);
+  assert.equal(setTutorialScript(s, [{ tap: 'up' }]).ok, false, 'allowedCommands の範囲外');
+  assert.equal(setTutorialScript(s, 'right').ok, false);
+  assert.deepEqual(s.spec.script.length, 3, '拒否時は変えない');
+  assert.equal(setTutorialScript(s, []).ok, true);
+  assert.deepEqual(s.spec.script, [{ tap: 'run' }]);
+  undo(s);
+  assert.equal(s.spec.script.length, 3);
+  assert.equal(setTutorialScript(fresh(), [{ tap: 'right' }]).ok, false, 'tutorial の面ではない');
+});
+
+test('editor-state(tutorial): tutorialReach はゴールに着く手順だけ true。方向以外の tap は null', () => {
+  const t = { stepId: 't', kind: 'tutorial', grid: { cols: 3, rows: 1 }, start: { x: 0, y: 0 }, goal: { x: 2, y: 0 }, allowedCommands: ['right'] };
+  assert.equal(tutorialReach({ ...t, script: [{ tap: 'right' }, { tap: 'right' }, { tap: 'run' }] }), true);
+  assert.equal(tutorialReach({ ...t, script: [{ tap: 'right' }, { tap: 'run' }] }), false);
+  assert.equal(tutorialReach({ ...t, script: [{ tap: 'run' }] }), false);
+  assert.equal(tutorialReach({ ...t, script: [{ tap: 'remove', index: 0 }, { tap: 'run' }] }), null);
+  assert.equal(tutorialReach({ stepId: 'z' }), null);
 });

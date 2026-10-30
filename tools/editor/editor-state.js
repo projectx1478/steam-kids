@@ -2,16 +2,24 @@
 // 開発者用・手元専用。子ども向け画面（APP_SHELL）には載せない。
 // 状態 { spec, history: spec[], cursor, cellPx }。spec は既存の盤面 JSON 全体を形を変えずに持つ。
 // 元に戻すはスナップショット方式。各関数は state を直接更新し、{ ok: true } か { ok: false, reason } を返す（拒否時は state を変えない）。
+import { simulate, isRunCleared } from '../../js/engine-grid.js';
 import { EDITOR_MAX_SIZE, CELL_PX_MIN, CELL_PX_MAX, CELL_PX_DEFAULT, switchModeOptions, switchGroupOptions } from './editor-view.js';
 
 export const HISTORY_MAX = 100; // 超えたら先頭（古いもの）から捨てる
 
 // 1マスの単純な要素（盤面 JSON 側の配列名）。置く・消す・動かすができる。
 export const SIMPLE_LISTS = ['walls', 'items', 'ice', 'cushion', 'water'];
-// 組・周期・方向などの設定が要る要素。まだ置けない（#404 E6）。switches は #404 段A で外した（open/close のみ。group・toggle は段B・C）。
-export const COMPLEX_KEYS = ['keys', 'paint', 'periodic'];
+// 組・周期・方向などの設定が要り、まだ置けない要素。switches は #404 段A、keys（かぎ・ドア）は #523 段1、periodic は #523 段2、paint は #523 段4 で外し、空になった（bridge は SIMPLE_LISTS ではなく専用の分岐。段3）。
+export const COMPLEX_KEYS = [];
 export const SWITCH_COLORS = ['red', 'blue'];
+export const KEY_COLORS = ['red', 'blue'];
+export const KEY_MODES = ['remote', 'carry']; // keyMode。省略は carry（js/gimmicks/keys.js と同じ）
+export const WATER_MODES = ['cushion', 'bump']; // waterMode。省略は cushion（js/gimmicks/water.js と同じ）
+export const PERIODIC_PERIODS = [2, 3, 4]; // 周期ドアの period（初期位相は無い）
+const PERIODIC_DEFAULT = 3;
+const KEY_LISTS = ['keys', 'doors']; // パレットの key（かぎ・ドア）と盤面 JSON の配列名が同じ
 const SWITCH_KINDS = ['switches', 'switches.targets'];
+const WARP_KEYS = { warps1: 1, warps2: 2 }; // パレットの key → pair。1回で穴を1個置く（#488）。個数の検査は保存時の validate
 const GROUP_WALLS = 'groupWalls'; // 色連動の壁 [{ x, y, group }]（#404 段B）
 const SINGLE = ['start', 'goal'];
 
@@ -101,10 +109,21 @@ export function setMaxPauses(state, value) {
   return commit(state, next);
 }
 
+// 文面（text）を設定する。文字列のみ。空は text を持たない。検査（ルビ・20字・否定語）は保存時の validateLesson。
+export function setStepText(state, text) {
+  if (typeof text !== 'string') return ng('文面は文字列のみ');
+  if (text === (typeof state.spec.text === 'string' ? state.spec.text : '')) return ok();
+  const next = clone(state.spec);
+  if (text === '') delete next.text;
+  else next.text = text;
+  return commit(state, next);
+}
+
 // 盤面サイズを変える。EDITOR_MAX_SIZE 超過・1 未満・非整数、要素が盤外になる場合は拒否。
 export function setGrid(state, cols, rows) {
   if (!Number.isInteger(cols) || !Number.isInteger(rows) || cols < 1 || rows < 1) return ng('盤面サイズは1以上の整数');
   if (cols > EDITOR_MAX_SIZE || rows > EDITOR_MAX_SIZE) return ng(`盤面サイズの上限は ${EDITOR_MAX_SIZE}×${EDITOR_MAX_SIZE}`);
+  if (state.spec.grid.cols === cols && state.spec.grid.rows === rows) return ok();
   const next = clone(state.spec);
   next.grid = { cols, rows };
   for (let y = 0; y < Math.max(state.spec.grid.rows, rows); y++) {
@@ -122,12 +141,34 @@ export function place(state, key, x, y, group) {
   const spec = state.spec;
   if (key === 'switches') return placeSwitch(state, x, y);
   if (key === GROUP_WALLS) return placeGroupWall(state, group, x, y);
+  if (key === 'paint') return togglePaint(state, x, y);
+  if (KEY_LISTS.includes(key)) {
+    if (!inGrid(spec, x, y)) return ng('盤外');
+    if (occupants(spec, x, y).length) return ng('そのマスには既に要素がある');
+    const next = clone(spec);
+    next[key] = [...list(next[key]), { x, y, color: 'red' }];
+    return commit(state, next);
+  }
+  if (key === 'periodic' || key === 'bridge') {
+    if (!inGrid(spec, x, y)) return ng('盤外');
+    if (occupants(spec, x, y).length) return ng('そのマスには既に要素がある');
+    const next = clone(spec);
+    next[key] = [...list(next[key]), key === 'bridge' ? { x, y } : { x, y, period: PERIODIC_DEFAULT }];
+    return commit(state, next);
+  }
+  if (WARP_KEYS[key]) {
+    if (!inGrid(spec, x, y)) return ng('盤外');
+    if (occupants(spec, x, y).length) return ng('そのマスには既に要素がある');
+    const next = clone(spec);
+    next.warps = [...list(next.warps), { x, y, pair: WARP_KEYS[key] }];
+    return commit(state, next);
+  }
   const isSimple = key === 'wall' || SIMPLE_LISTS.includes(key);
   if (!isSimple && !SINGLE.includes(key)) {
-    return ng(COMPLEX_KEYS.includes(key) ? `${key} は組・設定が要るためまだ置けない（#404）` : `${key} は置けない`);
+    return ng(`${key} は置けない`);
   }
   if (!inGrid(spec, x, y)) return ng('盤外');
-  if (occupants(spec, x, y).length) return ng('そのマスには既に要素がある');
+  if (occupants(spec, x, y).some((o) => !(SINGLE.includes(key) && o.kind === 'paint'))) return ng('そのマスには既に要素がある'); // start・goal は目標マス（paint）と重なってよい
   const next = clone(spec);
   if (SINGLE.includes(key)) {
     next[key] = { x, y };
@@ -145,8 +186,36 @@ export function erase(state, x, y) {
   const here = occupants(spec, x, y);
   if (here.length === 0) return ng('消す物が無い');
   if (here.some((o) => SINGLE.includes(o.kind))) return ng('スタート・ゴールは消せない（各1個）');
-  if (here.some((o) => !SIMPLE_LISTS.includes(o.kind) && !SWITCH_KINDS.includes(o.kind) && o.kind !== GROUP_WALLS)) return ng('組・設定のある要素はまだ消せない（#404）');
+  if (here.some((o) => !SIMPLE_LISTS.includes(o.kind) && !SWITCH_KINDS.includes(o.kind) && o.kind !== GROUP_WALLS && o.kind !== 'warps' && o.kind !== 'periodic' && o.kind !== 'bridge' && o.kind !== 'paint' && !KEY_LISTS.includes(o.kind))) return ng('消せない要素');
   const next = clone(spec);
+  if (here.some((o) => o.kind === 'paint')) {
+    next.paint = list(next.paint).filter((c) => !(c.x === x && c.y === y));
+    if (next.paint.length === 0) delete next.paint;
+    return commit(state, next);
+  }
+  if (here.some((o) => o.kind === 'bridge')) {
+    next.bridge = list(next.bridge).filter((c) => !(c.x === x && c.y === y));
+    if (next.bridge.length === 0) delete next.bridge;
+    return commit(state, next);
+  }
+  if (here.some((o) => o.kind === 'periodic')) {
+    next.periodic = list(next.periodic).filter((c) => !(c.x === x && c.y === y));
+    if (next.periodic.length === 0) delete next.periodic;
+    return commit(state, next);
+  }
+  if (here.some((o) => KEY_LISTS.includes(o.kind))) {
+    for (const name of KEY_LISTS) {
+      next[name] = list(next[name]).filter((c) => !(c.x === x && c.y === y));
+      if (next[name].length === 0) delete next[name];
+    }
+    if (!next.keys && !next.doors) delete next.keyMode; // keyMode は keys・doors のある盤だけに指定できる（validate）
+    return commit(state, next);
+  }
+  if (here.some((o) => o.kind === 'warps')) {
+    next.warps = list(next.warps).filter((c) => !(c.x === x && c.y === y));
+    if (next.warps.length === 0) delete next.warps;
+    return commit(state, next);
+  }
   if (here.some((o) => o.kind === 'switches')) {
     // スイッチ本体を消す（同じマスの氷は残す）。対象の壁は他に持ち主がいなければ床に戻る。
     const gone = list(next.switches).find((c) => c.x === x && c.y === y);
@@ -171,10 +240,19 @@ export function erase(state, x, y) {
     else if (kept.length) next[name] = kept;
     else {
       delete next[name];
-      if (name === 'water') { delete next.waterMode; delete next.bridge; }
+      if (name === 'water') delete next.waterMode; // 水が無い盤に waterMode は指定できない（validate）
     }
   }
+  if (here.some((o) => o.kind === 'water')) dropOrphanBridges(next, x, y);
   return commit(state, next);
+}
+
+// 消した水 (x,y) の隣にあった橋のうち、上下左右に水が残らないものを消す（隣接する水が残る橋は残す。#523 段3）。
+// 元から水の隣でない橋（接続待ち）は触らない。
+function dropOrphanBridges(next, x, y) {
+  const near = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y) === 1;
+  next.bridge = list(next.bridge).filter((b) => !near(b, { x, y }) || list(next.water).some((w) => near(w, b)));
+  if (next.bridge.length === 0) delete next.bridge;
 }
 
 // (fromX,fromY) の単純な要素（start・goal 含む）を (toX,toY) へ動かす。移動先に要素があれば拒否。
@@ -192,6 +270,24 @@ export function move(state, fromX, fromY, toX, toY) {
     moved.switches[swHere.index].y = toY;
     return commit(state, moved);
   }
+  if (here.every((o) => o.kind === 'warps')) {
+    if (occupants(spec, toX, toY).length) return ng('移動先に要素がある');
+    const moved = clone(spec);
+    for (const w of list(moved.warps)) if (w.x === fromX && w.y === fromY) { w.x = toX; w.y = toY; }
+    return commit(state, moved);
+  }
+  if (here.every((o) => o.kind === 'periodic' || o.kind === 'bridge')) {
+    if (occupants(spec, toX, toY).length) return ng('移動先に要素がある');
+    const moved = clone(spec);
+    for (const name of ['periodic', 'bridge']) for (const c of list(moved[name])) if (c.x === fromX && c.y === fromY) { c.x = toX; c.y = toY; }
+    return commit(state, moved);
+  }
+  if (here.every((o) => KEY_LISTS.includes(o.kind))) {
+    if (occupants(spec, toX, toY).length) return ng('移動先に要素がある');
+    const moved = clone(spec);
+    for (const name of KEY_LISTS) for (const c of list(moved[name])) if (c.x === fromX && c.y === fromY) { c.x = toX; c.y = toY; }
+    return commit(state, moved);
+  }
   if (here.every((o) => o.kind === GROUP_WALLS)) {
     if (occupants(spec, toX, toY).length) return ng('移動先に要素がある');
     const moved = clone(spec);
@@ -205,13 +301,86 @@ export function move(state, fromX, fromY, toX, toY) {
     for (const sw of list(moved.switches)) for (const t of list(sw.targets)) if (t.x === fromX && t.y === fromY) { t.x = toX; t.y = toY; }
     return commit(state, moved);
   }
-  if (here.length > 1 || !(SINGLE.includes(here[0].kind) || SIMPLE_LISTS.includes(here[0].kind))) return ng('組・設定のある要素はまだ動かせない（#404）');
-  if (occupants(spec, toX, toY).length) return ng('移動先に要素がある');
+  if (here.some((o) => o.kind === 'paint') && here.every((o) => o.kind === 'paint' || SINGLE.includes(o.kind))) {
+    // 目標マス（paint）。start・goal と重なるマスでは start・goal のほうを動かす（目標マスは残る）。
+    const single = here.find((o) => SINGLE.includes(o.kind));
+    const blockers = occupants(spec, toX, toY).filter((o) => !(single && o.kind === 'paint') && !(!single && SINGLE.includes(o.kind)));
+    if (blockers.length) return ng('移動先に要素がある');
+    const moved = clone(spec);
+    const target = single ? moved[single.kind] : list(moved.paint).find((c) => c.x === fromX && c.y === fromY);
+    target.x = toX;
+    target.y = toY;
+    return commit(state, moved);
+  }
+  if (here.length > 1 || !(SINGLE.includes(here[0].kind) || SIMPLE_LISTS.includes(here[0].kind))) return ng('動かせない要素');
+  if (occupants(spec, toX, toY).some((o) => !(SINGLE.includes(here[0].kind) && o.kind === 'paint'))) return ng('移動先に要素がある');
   const next = clone(spec);
   const o = here[0];
   const target = SINGLE.includes(o.kind) ? next[o.kind] : next[o.kind][o.index];
   target.x = toX;
   target.y = toY;
+  return commit(state, next);
+}
+
+// ---- ぬりマス（#523 段4）。目標マスのトグル（あれば外し、無ければ足す）。start・goal と重なってよい（validate は start・goal を目標に含めさせる）。他の要素とは重ならない。----
+export function togglePaint(state, x, y) {
+  const spec = state.spec;
+  if (!inGrid(spec, x, y)) return ng('盤外');
+  const here = occupants(spec, x, y);
+  const next = clone(spec);
+  if (here.some((o) => o.kind === 'paint')) {
+    next.paint = list(next.paint).filter((c) => !(c.x === x && c.y === y));
+    if (next.paint.length === 0) delete next.paint;
+    return commit(state, next);
+  }
+  if (here.some((o) => !SINGLE.includes(o.kind))) return ng('そのマスには既に要素がある');
+  next.paint = [...list(next.paint), { x, y }];
+  return commit(state, next);
+}
+
+// ---- かぎ・ドア（#523 段1）。選ぶ物は種類（keys か doors）と座標 (x,y) で指す（元に戻す・やり直しでも番号がずれない）。----
+function setKeyDoorColor(state, name, x, y, color) {
+  const i = list(state.spec[name]).findIndex((c) => c.x === x && c.y === y);
+  if (i < 0) return ng(name === 'keys' ? 'かぎが選ばれていない' : 'ドアが選ばれていない');
+  if (!KEY_COLORS.includes(color)) return ng('色は red か blue');
+  if (state.spec[name][i].color === color) return ok();
+  const next = clone(state.spec);
+  next[name][i].color = color;
+  return commit(state, next);
+}
+export const setKeyColor = (state, x, y, color) => setKeyDoorColor(state, 'keys', x, y, color);
+export const setDoorColor = (state, x, y, color) => setKeyDoorColor(state, 'doors', x, y, color);
+
+// ---- 周期ドア（#523 段2）。選ぶ物は座標 (x,y) で指す。period は 2・3・4 のみ。----
+export function setPeriodicPeriod(state, x, y, period) {
+  const i = list(state.spec.periodic).findIndex((c) => c.x === x && c.y === y);
+  if (i < 0) return ng('周期ドアが選ばれていない');
+  if (!PERIODIC_PERIODS.includes(period)) return ng('period は 2・3・4');
+  if (state.spec.periodic[i].period === period) return ok();
+  const next = clone(state.spec);
+  next.periodic[i].period = period;
+  return commit(state, next);
+}
+
+// waterMode（盤全体）。cushion は既定（省略）なのでキーごと消す。水が1つも無い盤には指定できない（validate）。
+export function setWaterMode(state, mode) {
+  if (!WATER_MODES.includes(mode)) return ng('waterMode は cushion か bump');
+  if (list(state.spec.water).length === 0) return ng('水が無い盤には waterMode を指定できない');
+  if ((state.spec.waterMode ?? 'cushion') === mode) return ok();
+  const next = clone(state.spec);
+  if (mode === 'cushion') delete next.waterMode;
+  else next.waterMode = mode;
+  return commit(state, next);
+}
+
+// keyMode（盤全体）。carry は既定（省略）なのでキーごと消す。かぎ・ドアが1つも無い盤には指定できない（validate）。
+export function setKeyMode(state, mode) {
+  if (!KEY_MODES.includes(mode)) return ng('keyMode は remote か carry');
+  if (list(state.spec.keys).length === 0 && list(state.spec.doors).length === 0) return ng('かぎ・ドアが無い盤には keyMode を指定できない');
+  if ((state.spec.keyMode ?? 'carry') === mode) return ok();
+  const next = clone(state.spec);
+  if (mode === 'carry') delete next.keyMode;
+  else next.keyMode = mode;
   return commit(state, next);
 }
 
@@ -286,7 +455,7 @@ function dropGroupWalls(spec, group) {
   if (spec.groupWalls.length === 0) delete spec.groupWalls;
 }
 
-// group を選ぶ（'' か null は「なし」）。グレーの選択肢（switchGroupOptions の disabled）は選べない＝close・toggle と targets のある間は併用不可、同じ group は1スイッチだけ。
+// group を選ぶ（'' か null は「なし」）。グレーの選択肢（switchGroupOptions の disabled）は選べない＝targets のある間は併用不可、同じ group は1スイッチだけ。
 // 「なし」に戻すと、その group の壁は床に戻り、スイッチは接続待ち（targets 空）になる。別の group へ変えると壁も付いていく。
 export function setSwitchGroup(state, sx, sy, group) {
   const i = findSwitch(state.spec, sx, sy);
@@ -449,6 +618,66 @@ export function addDraftStep(ls, spec, baseId, index = null) {
   ls.steps.splice(at, 0, next);
   ls.selected = at;
   return ok();
+}
+
+// チュートリアル（tutorial）の面を intro の直後に足す。盤面・allowedCommands は spec（編集中の元の面）から引き継ぎ、
+// maxCommands・solution・gen は持たない。script は [{ tap: 'run' }]（命令0個）で始める。0〜1個・直前が intro・最初の play より前（lesson.mjs と同じ）。追加した面を選ぶ。
+export function addTutorialStep(ls, spec) {
+  if (!hasBoard(spec)) return ng('盤面（grid・start・goal）が無い');
+  if (ls.steps.some((s) => s.kind === 'tutorial')) return ng('チュートリアルは1つだけ');
+  const introIdx = ls.steps.findIndex((s) => s.kind === 'intro');
+  if (introIdx === -1) return ng('チュートリアルは intro の直後に置く（intro が無い）');
+  const firstPlay = ls.steps.findIndex((s) => s.kind === 'play');
+  if (firstPlay !== -1 && firstPlay <= introIdx) return ng('チュートリアルは最初の play より前に置く');
+  const next = clone(spec);
+  const ids = new Set(ls.steps.map((s) => s.stepId));
+  let id = 'tutorial';
+  for (let n = 2; ids.has(id); n++) id = `tutorial${n}`;
+  next.stepId = id;
+  next.kind = 'tutorial';
+  delete next.text; // 元の面の文面は引き継がない（作者が入れる）
+  next.script = [{ tap: 'run' }];
+  for (const k of ['maxCommands', 'solution', 'gen']) delete next[k];
+  ls.steps.splice(introIdx + 1, 0, next);
+  ls.selected = introIdx + 1;
+  return ok();
+}
+
+// おてほん手順（script）を設定する。script は命令（{tap:'up|down|left|right'}）の並び。run が混ざっていても捨て、末尾に {tap:'run'} を1つ足して入れる
+// （state の script は常に末尾 run 付き。作者は run を入れない）。tap は allowedCommands の範囲だけ。検査（到達可能性）は保存時の validateLesson。
+export function setTutorialScript(state, script) {
+  if (state.spec.kind !== 'tutorial') return ng('チュートリアルの面ではない');
+  if (!Array.isArray(script)) return ng('手順は配列のみ');
+  const allowed = Array.isArray(state.spec.allowedCommands) ? state.spec.allowedCommands : [];
+  const taps = [];
+  for (const e of script) {
+    const tap = e && typeof e === 'object' ? e.tap : undefined;
+    if (tap === 'run') continue;
+    if (typeof tap !== 'string' || !allowed.includes(tap)) return ng('使えない命令がある');
+    taps.push({ tap });
+  }
+  const full = taps.concat([{ tap: 'run' }]);
+  if (JSON.stringify(full) === JSON.stringify(state.spec.script)) return ok();
+  const next = clone(state.spec);
+  next.script = full;
+  return commit(state, next);
+}
+
+// 手順欄の表示用：spec の script（方向の tap のみ）を simulate で再生し、ゴール到達＋全回収かを返す。保存の可否にはしない（保存検査は validateLesson）。
+// initialCommands・groupRepeats は lesson.mjs の再生と同じ。方向以外の tap（remove・box 等）は扱わず null。
+export function tutorialReach(spec) {
+  if (!hasBoard(spec) || !Array.isArray(spec.script)) return null;
+  const initial = Array.isArray(spec.initialCommands) ? spec.initialCommands : [];
+  const chips = initial.map((dir) => ({ dir, times: 1 }));
+  for (const e of spec.script) {
+    const tap = e && e.tap;
+    if (tap === 'run') break;
+    if (!['up', 'down', 'left', 'right'].includes(tap)) return null;
+    const last = chips.at(-1);
+    if (spec.groupRepeats && last && last.dir === tap) last.times += 1;
+    else chips.push({ dir: tap, times: 1 });
+  }
+  return isRunCleared(simulate(chips, spec));
 }
 
 // 保存 NG の文言を「自分の面（placedIds）が原因か」で分ける。検査名（「検査名: 文言」の頭）・stepId・数値は文言のまま出す。

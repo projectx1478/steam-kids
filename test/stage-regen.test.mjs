@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { generateBoard, GEN_VERSION } from '../tools/gen/stage-gen.mjs';
+import { simulate } from '../js/engine-grid.js';
 import { boardToStep, collectCandidates, pickStages, MAX_SEEDS } from '../tools/gen-stages.mjs';
 
 // 書き込む形の比較用（ギミックの無いフィールドは省略されているので、無い＝空として揃える）
@@ -85,3 +86,36 @@ test('stage-regen: 条件を満たせなければ失敗する（書き込まな�
   const r = pickStages({ ...stageGen, stages: 8 }, null, cands.slice(0, 3));
   assert.equal(r.ok, false);
 });
+
+// 混在（Issue #531 段1b）：warps・periodic・water のうち1種を items・ice・かぎ・スイッチ・クッションと混ぜた生成。
+// どの seed でも、同じ seed で同じ盤になり、マスが重ならず、solution でゴールに着き、取り残しが無い。
+const mixBase = { ver: 1, stages: 8, grid: { cols: { min: 5, max: 6 }, rows: { min: 5, max: 6 } }, walls: { min: 2, max: 5 }, shortestPath: { min: 4, max: 16 } };
+const mixCases = [
+  ['warps×items', { warps: { min: 1, max: 1 }, items: { min: 1, max: 2 } }, 'warps'],
+  ['warps×ice', { warps: { min: 1, max: 1 }, ice: { min: 1, max: 2 } }, 'warps'],
+  ['water×ice', { water: { min: 2, max: 3 }, ice: { min: 1, max: 2 } }, 'water'],
+  ['water×items', { water: { min: 2, max: 3 }, items: { min: 1, max: 2 } }, 'water'],
+  ['periodic×ice', { periodic: { min: 1, max: 1 }, ice: { min: 1, max: 2 } }, 'periodic'],
+  ['periodic×items', { periodic: { min: 1, max: 1 }, items: { min: 1, max: 2 } }, 'periodic'],
+  ['periodic×keys', { periodic: { min: 1, max: 1 }, keys: { min: 1, max: 1 } }, 'periodic'],
+];
+for (const [name, gimmicks, teach] of mixCases) {
+  test(`stage-regen: 混在 ${name} は重ならず解ける盤を決まった seed で生成する`, () => {
+    const sg = { ...mixBase, gimmicks, teach };
+    let made = 0;
+    for (let seed = 1; seed <= 30; seed += 1) {
+      const b = generateBoard(sg, seed);
+      assert.ok(b === null || typeof b === 'object', `${name} seed=${seed}: 探索が打ち切られた`);
+      if (!b) continue;
+      made += 1;
+      assert.deepEqual(generateBoard(sg, seed), b, `${name} seed=${seed}: 同じ seed で盤が変わる`);
+      const cells = [b.start, b.goal, ...b.walls, ...(b.items ?? []), ...(b.ice ?? []), ...(b.cushion ?? []), ...(b.keys ?? []),
+        ...(b.doors ?? []), ...(b.warps ?? []), ...(b.periodic ?? []), ...(b.water ?? [])];
+      for (const s of b.switches ?? []) cells.push(s, ...s.targets);
+      assert.equal(new Set(cells.map((p) => `${p.x},${p.y}`)).size, cells.length, `${name} seed=${seed}: マスが重なっている`);
+      const r = simulate(b.solution, b);
+      assert.ok(r.reachedGoal && r.remainingItems.length === 0, `${name} seed=${seed}: solution で解けない`);
+    }
+    assert.ok(made >= 15, `${name}: 30 seed のうち ${made} 盤しかできない（半分未満）`);
+  });
+}

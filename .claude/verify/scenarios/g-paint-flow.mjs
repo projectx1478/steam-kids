@@ -67,7 +67,7 @@ export default async function scenario({ page, check }) {
 
   // 塗り残し：何も出さない
   await clickRetry(page);
-  await check('もういちどで塗りがstartだけに戻る', () => paintCount(page), 1);
+  await check('ためしなおすで塗りがstartだけに戻る', () => paintCount(page), 1);
   await run(page, ['down', 'down']);
   await page.waitForSelector('[data-action="retry"]', { timeout: 10000 });
   await check('塗り残しは失敗で、枠も文言ヒントも出ない', async () =>

@@ -198,9 +198,76 @@ export const GENERATE_COUNT_DEFAULT = 4;
 export const GENERATE_COUNT_MAX = 6;
 const GENERATE_WORKER_FILE = path.join(EDITOR_DIR, 'generate-worker.mjs');
 const GENERATE_BODY_KEYS = ['stageGen', 'count', 'seed'];
-// エディタが受け取る stageGen のキー・ギミック（ver・stages・keepHandwritten・keyMode と cushion・switches は受け取らない）
-const GENERATE_SG_KEYS = ['grid', 'walls', 'gimmicks', 'teach', 'shortestPath', 'minTurns', 'allowedCommands', 'seedBase'];
-const GENERATE_GIMMICKS = ['items', 'ice', 'keys'];
+// エディタが受け取る stageGen のキー・ギミック（ver・stages・keepHandwritten・keyMode は受け取らない）
+const GENERATE_SG_KEYS = ['grid', 'walls', 'gimmicks', 'teach', 'shortestPath', 'minTurns', 'allowedCommands', 'seedBase', 'base'];
+const GENERATE_GIMMICKS = ['items', 'ice', 'keys', 'cushion', 'switches', 'warps', 'periodic', 'paint', 'water'];
+
+// stageGen.base（土台の盤。/api/generate の要求専用でレッスン JSON には書かない）の入力検査。問題があれば messages（空なら OK）。
+// 形：{grid:{cols,rows}（3〜20 の整数）, water?, bridge?, walls?（{x,y} の配列）}。stageGen は base 以外のキーとの併用検査用。
+const BASE_KEYS = ['grid', 'water', 'bridge', 'walls'];
+export function checkGenerateBase(base, stageGen = {}) {
+  const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
+  if (!isObj(base)) return ['stageGen.base はオブジェクトにしてください'];
+  const out = [];
+  for (const k of Object.keys(base)) if (!BASE_KEYS.includes(k)) out.push(`stageGen.base の ${k} は受け付けません`);
+  const dim = (v) => Number.isInteger(v) && v >= 3 && v <= 20;
+  if (!isObj(base.grid) || !dim(base.grid.cols) || !dim(base.grid.rows)
+    || Object.keys(base.grid).some((k) => k !== 'cols' && k !== 'rows')) {
+    out.push('stageGen.base.grid は {cols, rows}（どちらも 3〜20 の整数）にしてください');
+    return out;
+  }
+  if ('grid' in stageGen) out.push('stageGen.base と stageGen.grid は同時に指定できません（盤の大きさは base.grid で決まります）');
+  const gim = isObj(stageGen.gimmicks) ? stageGen.gimmicks : {};
+  for (const k of ['water', 'paint']) if (k in gim) out.push(`stageGen.base と gimmicks.${k} は同時に指定できません`);
+  const { cols, rows } = base.grid;
+  const lists = {};
+  const seen = new Map();
+  let shapeOk = true;
+  for (const k of ['water', 'bridge', 'walls']) {
+    const v = base[k] ?? [];
+    if (!Array.isArray(v)) { out.push(`stageGen.base.${k} は {x,y} の配列にしてください`); shapeOk = false; continue; }
+    lists[k] = v;
+    const own = new Set();
+    for (const p of v) {
+      if (!isObj(p) || !Number.isInteger(p.x) || !Number.isInteger(p.y) || p.x < 0 || p.y < 0 || p.x >= cols || p.y >= rows) {
+        out.push(`stageGen.base.${k} に盤の外か形の誤りの座標があります: ${JSON.stringify(p)}`);
+        shapeOk = false;
+        continue;
+      }
+      const key = `${p.x},${p.y}`;
+      if (own.has(key)) out.push(`stageGen.base.${k} に重複の座標があります: ${key}`);
+      else if (seen.has(key)) out.push(`stageGen.base の ${seen.get(key)} と ${k} が同じマスに重なっています: ${key}`);
+      own.add(key);
+      if (!seen.has(key)) seen.set(key, k);
+    }
+  }
+  if (!shapeOk) return out;
+  const water = new Set(lists.water.map((p) => `${p.x},${p.y}`));
+  if (water.size > 0) {
+    if ('warps' in gim) out.push('土台に水があるときは gimmicks.warps と併用できません');
+    if ('periodic' in gim) out.push('土台に水があるときは gimmicks.periodic と併用できません');
+  }
+  for (const p of lists.bridge) {
+    const near = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => water.has(`${p.x + dx},${p.y + dy}`));
+    if (!near) out.push(`stageGen.base.bridge の ${p.x},${p.y} の上下左右に水がありません`);
+  }
+  const blocked = new Set([...water, ...lists.walls.map((p) => `${p.x},${p.y}`)]);
+  const land = [];
+  for (let y = 0; y < rows; y += 1) for (let x = 0; x < cols; x += 1) if (!blocked.has(`${x},${y}`)) land.push(`${x},${y}`);
+  if (land.length < 2) { out.push('土台の陸が少ない（陸は2マス以上必要です）'); return out; }
+  const landSet = new Set(land);
+  const reached = new Set([land[0]]);
+  const stack = [land[0]];
+  while (stack.length > 0) {
+    const [x, y] = stack.pop().split(',').map(Number);
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const k = `${x + dx},${y + dy}`;
+      if (landSet.has(k) && !reached.has(k)) { reached.add(k); stack.push(k); }
+    }
+  }
+  if (reached.size !== land.length) out.push('土台の陸がつながっていない');
+  return out;
+}
 
 // 生成 API の入力検査。範囲は tools/lib/validate/stagegen.mjs の checkStageGen をそのまま呼んで揃える
 // （ver・stages は検査を通すための仮値を足す）。問題があれば messages（空なら OK）。
@@ -216,11 +283,20 @@ export function checkGenerateInput(body) {
   const gim = stageGen.gimmicks;
   if (gim && typeof gim === 'object' && !Array.isArray(gim)) {
     for (const k of Object.keys(gim)) {
-      if (!GENERATE_GIMMICKS.includes(k)) out.push(`stageGen.gimmicks の ${k} は受け付けません（items・ice・keys のみ）`);
+      if (!GENERATE_GIMMICKS.includes(k)) out.push(`stageGen.gimmicks の ${k} は受け付けません（items・ice・keys・cushion・switches・warps・periodic・paint・water のみ）`);
     }
   }
   if (out.length === 0) {
-    checkStageGen({ stageGen: { ...stageGen, ver: 1, stages: 2 } }, [], (rule, detail) => out.push(`${rule}: ${detail}`));
+    let checked = stageGen;
+    if ('base' in stageGen) {
+      // base は serve 側で検査し、checkStageGen には base を外して grid（min＝max）に変換した写しを渡す（validate 側は無変更）
+      const { base, ...rest } = stageGen;
+      const baseProblems = checkGenerateBase(base, stageGen);
+      out.push(...baseProblems);
+      const g = base && base.grid;
+      checked = baseProblems.length === 0 ? { ...rest, grid: { cols: { min: g.cols, max: g.cols }, rows: { min: g.rows, max: g.rows } } } : null;
+    }
+    if (checked) checkStageGen({ stageGen: { ...checked, ver: 1, stages: 2 } }, [], (rule, detail) => out.push(`${rule}: ${detail}`));
   }
   if (count !== undefined && !(Number.isInteger(count) && count >= 1 && count <= GENERATE_COUNT_MAX)) out.push(`count は 1〜${GENERATE_COUNT_MAX} の整数にしてください`);
   if (seed !== undefined && !(Number.isInteger(seed) && seed >= 0)) out.push('seed は 0 以上の整数にしてください');
@@ -269,7 +345,8 @@ async function handleGenerate(req, res, opts) {
   sendJson(res, 200, await runGenerate(body, { ...opts, signal: ac.signal }));
 }
 
-// ---- レッスンの読み書き（#402 段1）。書き込み先は lessons/<id>.json と退避置き場だけ。index.json・新規作成は不可 ----
+// ---- レッスンの読み書き（#402 段1）。書き込み先は lessons/<id>.json と退避置き場だけ。新規作成は不可。
+// index.json は /api/lessons からは書けず、専用の /api/index（#618）だけが書く ----
 export const SAVE_TIMEOUT_MS = 10_000; // 保存検査の打ち切り（ANALYZE_TIMEOUT_MS と同じ仮置き）
 export const BACKUP_KEEP = 10; // レッスンごとの退避の保持数
 const SAVE_WORKER_CODE = `
@@ -278,7 +355,7 @@ const { parentPort, workerData } = require('node:worker_threads');
   try {
     const { validateLesson, validateIndex } = await import(workerData.validateUrl);
     const { id, data, longTrialIds, indexData, lessons, fileIds } = workerData;
-    const errors = validateLesson(id + '.json', data, longTrialIds);
+    const errors = data ? validateLesson(id + '.json', data, longTrialIds) : [];
     if (indexData) errors.push(...validateIndex(indexData, new Map(lessons), new Set(fileIds)));
     parentPort.postMessage({ ok: true, errors });
   } catch (e) {
@@ -358,6 +435,84 @@ export function runSaveValidate(payload, timeoutMs = SAVE_TIMEOUT_MS) {
     worker.once('message', (m) => finish(m && m.ok ? { timeout: false, errors: m.errors } : { timeout: false, errors: [`検査中にエラー: ${m && m.error}`] }));
     worker.once('error', (e) => finish({ timeout: false, errors: [`検査中にエラー: ${e.message}`] }));
   });
+}
+
+// ---- 配置の読み書き（#618）。lessons/index.json 専用。レッスン ID の足し引き・改名は不可。
+// 単元間の移動のときだけ、移った lessons/<id>.json の unitId を書き換える（検査後・退避後のみ） ----
+const idsOfUnit = (u) => ['lessonIds', 'practiceIds', 'devOnlyIds'].flatMap((k) => (Array.isArray(u[k]) ? u[k] : []));
+const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+
+// 現行 index と新しい index の食い違い（作者向けの文言）。空なら OK。
+export function checkIndexChange(current, next) {
+  if (!isObj(next) || !Array.isArray(next.tracks)) return ['index.json の形が不正です（tracks が配列のオブジェクトにしてください）'];
+  const problems = [];
+  const cur = new Map();
+  const nxt = new Map();
+  for (const t of current.tracks || []) for (const u of t.units || []) for (const id of idsOfUnit(u)) cur.set(id, u.unitId);
+  for (const t of next.tracks) {
+    if (!isObj(t) || !Array.isArray(t.units)) return ['index.json の形が不正です（大項目に units がありません）'];
+    for (const u of t.units) {
+      if (!isObj(u)) return ['index.json の形が不正です（単元がオブジェクトではありません）'];
+      for (const id of idsOfUnit(u)) {
+        if (nxt.has(id)) problems.push(`レッスン ${id} が2回出てきます`);
+        nxt.set(id, u.unitId);
+      }
+      if (!Array.isArray(u.lessonIds) || u.lessonIds.length === 0) problems.push(`単元 ${u.unitId} の公開レッスンが空になります。1つ以上残してください`);
+    }
+  }
+  for (const id of nxt.keys()) if (!cur.has(id)) problems.push(`レッスン ${id} は追加できません（配置の保存では足し引きできません）`);
+  for (const id of cur.keys()) if (!nxt.has(id)) problems.push(`レッスン ${id} は削除できません（配置の保存では足し引きできません）`);
+  const nextUnits = new Set(next.tracks.flatMap((t) => t.units.map((u) => u.unitId)));
+  const nextTracks = new Set(next.tracks.map((t) => t.trackId));
+  for (const t of current.tracks || []) {
+    for (const u of t.units || []) if (!nextUnits.has(u.unitId) && idsOfUnit(u).length > 0) problems.push(`レッスンの入った単元 ${u.unitId} は削除できません`);
+    if (!nextTracks.has(t.trackId) && (t.units || []).length > 0) problems.push(`単元の入った大項目 ${t.trackId} は削除できません`);
+  }
+  return problems;
+}
+
+async function handleIndex(req, res, opts) {
+  const dir = lessonsDirOf(opts);
+  const file = path.join(dir, 'index.json');
+  let raw;
+  try { raw = await fs.promises.readFile(file, 'utf8'); } catch { return sendJson(res, 404, { messages: ['index.json がありません'] }); }
+  let current;
+  try { current = JSON.parse(raw); } catch { return sendJson(res, 400, { messages: ['index.json: JSONとして読めません'] }); }
+  if (req.method === 'GET') return sendJson(res, 200, current);
+  if (req.method !== 'PUT') return sendJson(res, 404, { messages: ['Not Found'] });
+
+  const text = await readBody(req);
+  if (text === null) return sendJson(res, 400, { messages: ['body が大きすぎます'] });
+  let body;
+  try { body = JSON.parse(text); } catch { return sendJson(res, 400, { messages: ['JSON として読めません'] }); }
+  const problems = checkIndexChange(current, body);
+  if (problems.length > 0) return sendJson(res, 400, { messages: problems });
+
+  const { files, lessons } = await readAllLessons(dir);
+  // 単元間の移動：レッスン本体の unitId を移動先の単元に合わせる（メモリ上）
+  const moved = new Map();
+  for (const t of body.tracks) for (const u of t.units) for (const id of idsOfUnit(u)) {
+    const l = lessons.get(id);
+    if (l && l.unitId !== u.unitId) { moved.set(id, { ...l, unitId: u.unitId }); lessons.set(id, moved.get(id)); }
+  }
+  const longTrialIds = Array.isArray(body.longTrialIds) ? body.longTrialIds.filter((x) => typeof x === 'string') : [];
+  const result = await runSaveValidate({ id: 'index', data: null, longTrialIds, indexData: body, lessons: [...lessons], fileIds: files.map((f) => f.slice(0, -5)) }, opts.saveTimeoutMs);
+  if (result.timeout) return sendJson(res, 400, { messages: ['検査が時間内に終わらなかったため保存しません（時間切れ）'] });
+  if (result.errors.length > 0) return sendJson(res, 400, { messages: result.errors });
+
+  const backups = backupsDirOf(opts);
+  const crlf = (rawText, out) => (rawText.includes('\r\n') ? out.replace(/\n/g, '\r\n') : out);
+  const lessonWrites = [];
+  for (const [id, data] of moved) {
+    const lf = lessonFileOf(dir, id);
+    const lraw = await fs.promises.readFile(lf, 'utf8');
+    lessonWrites.push({ id, lf, lraw, out: crlf(lraw, `${formatLesson(data)}\n`) });
+  }
+  await backupLesson('index', raw, backups);
+  for (const w of lessonWrites) await backupLesson(w.id, w.lraw, backups);
+  for (const w of lessonWrites) await fs.promises.writeFile(w.lf, w.out, 'utf8');
+  await fs.promises.writeFile(file, crlf(raw, `${formatLesson(body)}\n`), 'utf8');
+  sendJson(res, 200, { ok: true, moved: [...moved.keys()] });
 }
 
 async function handleLessons(req, res, pathname, opts) {
@@ -471,6 +626,10 @@ export function createEditorServer(opts = {}) {
     const pathname = new URL(req.url, 'http://localhost').pathname;
     if (pathname === '/api/lessons' || pathname.startsWith('/api/lessons/')) {
       handleLessons(req, res, pathname, opts).catch(() => sendJson(res, 500, { messages: ['内部エラー'] }));
+      return;
+    }
+    if (pathname === '/api/index') {
+      handleIndex(req, res, opts).catch(() => sendJson(res, 500, { messages: ['内部エラー'] }));
       return;
     }
     if (pathname === '/api/drafts' || pathname.startsWith('/api/drafts/')) {

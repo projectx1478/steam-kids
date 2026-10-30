@@ -1,7 +1,7 @@
 // レッスン1本の検証（validateLesson）。tools/lib/validate/ からの分割（Issue #448）。
 import path from 'node:path';
 import { simulate, shortestSteps, shortestChips, boardSpec } from '../../../js/engine-grid.js';
-import { iceMustMatter, keysMustMatter, periodicMustMatter, paintMustMatter, itemsMustMatter } from '../../lib/must-matter.mjs';
+import { iceMustMatter, warpsMustMatter,keysMustMatter, periodicMustMatter, paintMustMatter, itemsMustMatter } from '../../lib/must-matter.mjs';
 import { plainSegmentsText, plainReading, parseSegments, rubyGrade, KANJI_RE } from '../../../js/text-render.js';
 import {
   REQUIRED_KEYS,
@@ -58,7 +58,7 @@ export function validateLesson(fileName, data, longTrialIds = []) {
   checkStageGen(data, steps, add);
   if (steps.some((s) => s.kind === 'seedPick')) {
     if (isLong) add('長尺試作とseedPick', 'longTrialIdsのレッスンはseedPick（れんしゅう）を持てない');
-    validatePractice(steps, add);
+    validatePractice(steps, add, data.type);
     return errors;
   }
   if (steps.length < MIN_STEPS || steps.length > maxSteps) {
@@ -142,7 +142,7 @@ export function validateLesson(fileName, data, longTrialIds = []) {
       if (!Array.isArray(initial) || initial.some((c) => !COMMANDS.includes(c))) {
         add('命令語彙', `${label}initialCommands=${JSON.stringify(initial)} が不正`);
       } else if (typeof play.maxCommands === 'number' && initial.length > play.maxCommands) {
-        add('なおすの初期状態', `${label}initialCommands.length=${initial.length} がmaxCommands=${play.maxCommands}を超える`);
+        add('なおすの初期状態', `${label}initialCommands.length=${initial.length} が想定の手数 maxCommands=${play.maxCommands} より多い`);
       }
     }
 
@@ -163,7 +163,7 @@ export function validateLesson(fileName, data, longTrialIds = []) {
       if (play.start && play.goal && grid.cols && grid.rows) {
         const noBox = shortestSteps(boardSpec(play));
         if (noBox <= play.maxCommands) {
-          add('箱の必須性', `${label}箱なしでmaxCommands=${play.maxCommands}以内に解ける（最短${noBox}手）`);
+          add('箱の必須性', `${label}箱なしで想定の手数（maxCommands=${play.maxCommands}）の内に解ける（最短${noBox}手）`);
         }
       }
       dist = typeof solutionChips === 'number' ? solutionChips : null;
@@ -176,20 +176,25 @@ export function validateLesson(fileName, data, longTrialIds = []) {
         add(
           'ゴール到達可能性',
           `${label}最短${dist === Infinity ? '到達不能' : dist + (play.groupRepeats ? 'チップ' : '手')}` +
-            `（maxCommands=${play.maxCommands}以内で到達できない）`
+            `（想定の手数 maxCommands=${play.maxCommands} の内で到達できない）`
         );
       }
       // 氷ステージは氷を壁扱いにしても到達できるなら、氷を踏まずにクリアできてしまう。
       const iceCheck = iceMustMatter(play);
       if (!iceCheck.matters) {
-        add('こおりの必須性', `${label}こおりを踏まずにmaxCommands=${play.maxCommands}以内でゴールできる（最短${iceCheck.dist}）`);
+        add('こおりの必須性', `${label}こおりを踏まずに想定の手数（maxCommands=${play.maxCommands}）の内でゴールできる（最短${iceCheck.dist}）`);
+      }
+      // ワープの穴を壁扱いにしても到達できるなら、ワープが飾り（氷と同形）。
+      const warpsCheck = warpsMustMatter(play);
+      if (!warpsCheck.matters) {
+        add('ワープの必須性', `${label}ワープを使わずに想定の手数（maxCommands=${play.maxCommands}）の内でゴールできる（最短${warpsCheck.dist}）`);
       }
     }
     // ドアは壁扱いにしても到達できるなら、かぎを取らずにクリアできてしまう（ドアが飾り）。
     if (dist !== null) {
       const keysCheck = keysMustMatter(play);
       if (!keysCheck.matters) {
-        add('かぎの必須性', `${label}かぎを取らずにmaxCommands=${play.maxCommands}以内でゴールできる（最短${keysCheck.dist}）`);
+        add('かぎの必須性', `${label}かぎを取らずに想定の手数（maxCommands=${play.maxCommands}）の内でゴールできる（最短${keysCheck.dist}）`);
       }
     }
     // 生成したステップ（gen 付き）で teach=items のとき、どんぐりを除いた盤の最短が実際の最短より短いこと（Issue #337）。

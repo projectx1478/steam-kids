@@ -48,11 +48,24 @@ export default async function run({ page, check }) {
   // --- carry・reduced-motion（既定）：描画・取っても閉・進入で開・即時 ---
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await enterPlay(page, carryLesson.lessonId);
-  await check('鍵トレイが1行・問い文の行の直下にある', () =>
+  await check('鍵トレイが1行・問い文の行の位置の直下にある', () =>
     page.evaluate(() => {
       const q = document.querySelector('[data-sk-screen="question"]');
       const t = document.querySelector('.key-tray');
       return document.querySelectorAll('.key-tray').length === 1 && q.nextElementSibling === t && t.classList.contains('sk-key-tray-row');
+    }), true);
+  // 問い文は吹き出し（Issue #497）。補助行は空（items無し）で非表示、鍵トレイが先頭の行になる。
+  await check('補助行(問い文の行)は空で高さ0・非表示', () =>
+    page.evaluate(() => {
+      const q = document.querySelector('[data-sk-screen="question"]');
+      return q.childElementCount === 0 && getComputedStyle(q).display === 'none';
+    }), true);
+  await check('問い文は小鳥の吹き出しに出る', () => page.locator('[data-sk-bird="bubble"][data-question] p').first().textContent(), 'ドアは あく？');
+  await check('鍵トレイが問い文の行の分だけ上へ詰まる(フレーム上端から10px以内)', () =>
+    page.evaluate(() => {
+      const f = document.querySelector('[data-sk-screen="frame"]').getBoundingClientRect();
+      const t = document.querySelector('.key-tray').getBoundingClientRect();
+      return t.top - f.top <= 10;
     }), true);
   await check('色の数(2)だけ空き枠が最初から出る', () => page.$$eval('.key-slot', (s) => s.map((e) => `${e.dataset.color}:${e.dataset.filled ?? 'empty'}`).join()), 'red:empty,blue:empty');
   await check('枠は48pxの正方形', () => page.$$eval('.key-slot', (s) => s.map((e) => { const r = e.getBoundingClientRect(); return `${Math.round(r.width)}x${Math.round(r.height)}`; }).join()), '48x48,48x48');
@@ -98,7 +111,7 @@ export default async function run({ page, check }) {
   await check('鍵なしで赤い扉に当たると、赤の空き枠だけゆれる', () => page.evaluate(() => [...new Set(window.__slotShake)].join()), 'red');
   await check('当たっても扉は閉じたまま', () => doorsOpen(page), 'false,false');
   await clickRetry(page);
-  await check('もういちどでトレイは空き枠に戻る', () => filled(page), '');
+  await check('ためしなおすでトレイは空き枠に戻る', () => filled(page), '');
 
   // --- reduced-motion：ゆらさない ---
   await page.emulateMedia({ reducedMotion: 'reduce' });

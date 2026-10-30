@@ -1,0 +1,80 @@
+{
+  "lessonId": "teko-04-omosa",
+  "unitId": "teko",
+  "title": "おもさを かえよう",
+  "type": "predict-slider",
+  "estimatedMinutes": 5,
+  "steps": [
+    {
+      "stepId": "s1",
+      "kind": "intro",
+      "text": "おもさを かえて つりあわせよう"
+    },
+    {
+      "stepId": "p1",
+      "kind": "play",
+      "text": "＋ で ふやそう",
+      "seesaw": {
+        "notches": 3,
+        "left": [
+          {
+            "robots": 1,
+            "pos": 2
+          }
+        ],
+        "mover": {
+          "robots": 1,
+          "maxRobots": 3,
+          "fixedPos": 1,
+          "start": 1
+        }
+      },
+      "solution": 2
+    },
+    {
+      "stepId": "p2",
+      "kind": "play",
+      "seesaw": {
+        "notches": 3,
+        "left": [
+          {
+            "robots": 1,
+            "pos": 3
+          }
+        ],
+        "mover": {
+          "robots": 1,
+          "maxRobots": 3,
+          "fixedPos": 1,
+          "start": 1
+        }
+      },
+      "solution": 3
+    },
+    {
+      "stepId": "p3",
+      "kind": "play",
+      "seesaw": {
+        "notches": 3,
+        "left": [
+          {
+            "robots": 2,
+            "pos": 2
+          }
+        ],
+        "mover": {
+          "robots": 1,
+          "maxRobots": 3,
+          "fixedPos": 2,
+          "start": 2
+        }
+      },
+      "solution": 2
+    },
+    {
+      "stepId": "s2",
+      "kind": "summary",
+      "text": "ふえると おもくなるよ"
+    }
+  ]
+}

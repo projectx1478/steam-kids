@@ -1,16 +1,15 @@
-// やり直しの流れ（失敗のゆれ・もういちど後の「スタート！」）の共通部品（Issue #344）。
+// やり直しの流れ（失敗のゆれ）とステージ開始時の「スタート！」の共通部品（Issue #344・#497）。
 // 画面ごとに違う部分（盤面の印・ヒント文・復帰処理）は呼び出し側が引数・呼び出し順で決める。
 import { prefersReducedMotion } from './ui-grid.js';
 import { play as playSfx } from './sfx.js';
-import { showToast } from './ui-toast.js';
 
-// setRetryButton(btn, mode, { runLabel, emphasis }): 実行ボタンを「もういちど」(mode='retry') と
+// setRetryButton(btn, mode, { runLabel, emphasis }): 実行ボタンを「ためしなおす」(mode='retry') と
 // 通常 (それ以外) で切り替える。data-action は 'retry' / 'run'、色は amber / emerald。
 // 強調の強さは画面ごとの引数 emphasis（追加するクラスの配列。retry のときだけ付き、戻すと外れる）。
 export function setRetryButton(btn, mode, { runLabel, emphasis = [] }) {
   if (mode === 'retry') {
     btn.dataset.action = 'retry';
-    btn.textContent = '↺ もういちど';
+    btn.textContent = '↺\nためしなおす';
     btn.classList.remove('bg-emerald-500');
     btn.classList.add('bg-amber-500', ...emphasis);
   } else {
@@ -33,24 +32,29 @@ export function shakeBoard(boardArea) {
   }
 }
 
-// showRestartCue(statusBar, { restore }): 盤面を作り直した直後に「スタート！」を1秒だけ
-// 問い文スロットへ表示する。終了時は data-restart を外してから restore(el) で元の表示へ戻す。
-export function showRestartCue(statusBar, { restore }) {
+// showStartCue(boardArea): ステージ開始時に「スタート！」を盤面中央へ2秒だけ表示する（Issue #497。1秒→2秒は #544-3A）。
+// 盤面の内側に重ねて出す（吹き出し欄の外。docs/ui-rules.md の「start-cue は盤面内表示の例外」）。
+// タップは素通し。表示中は boardArea に data-start-cue を立て、消えたら外して 'sk-start-cue-end' を投げる
+// （吹き出し js/ui-bird.js がこれを見て、消えるまで表示を待つ）。再開（うごかす・ためしなおす）では呼ばない。
+export const START_CUE_MS = 2000;
+export function showStartCue(boardArea) {
+  boardArea.querySelector(':scope > .sk-start-cue')?.remove();
   playSfx('start');
-  showToast(statusBar, {
-    render: (el) => {
-      el.dataset.restart = 'true';
-      const p = document.createElement('p');
-      p.className = 'text-lg font-bold text-sky-700';
-      p.textContent = 'スタート！';
-      el.appendChild(p);
-    },
-    durationMs: 1000,
-    restore: (el) => {
-      delete el.dataset.restart;
-      restore(el);
-    },
-  });
+  const cue = document.createElement('div');
+  cue.className = 'sk-start-cue';
+  cue.dataset.text = 'スタート！';
+  cue.setAttribute('aria-hidden', 'true');
+  const label = document.createElement('span');
+  label.textContent = 'スタート！';
+  cue.appendChild(label);
+  boardArea.appendChild(cue);
+  boardArea.dataset.startCue = 'true';
+  clearTimeout(boardArea._startCueTimer);
+  boardArea._startCueTimer = setTimeout(() => {
+    cue.remove();
+    delete boardArea.dataset.startCue;
+    boardArea.dispatchEvent(new CustomEvent('sk-start-cue-end'));
+  }, START_CUE_MS);
 }
 
 // createRetryChoice({ canResume, onResume, onRestart }): maxPauses>0 のステージで失敗したときの2ボタン

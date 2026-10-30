@@ -1,4 +1,4 @@
-// validate-lessons: 周期ドア(periodic)の検証（形・重なり・paint併用禁止・必須性・repeatBox/groupRepeats禁止）(Issue #310)。リポジトリ直下で実行すること。
+// validate-lessons: 周期ドア(periodic)の検証（形・重なり・必須性・repeatBox禁止。paint・groupRepeatsとは併用可 #529）(Issue #310)。リポジトリ直下で実行すること。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -70,12 +70,12 @@ test('validate-lessons: periodicは他の要素・周期ドア同士・盤外と
   assert.ok(ng(validate(at(9, 9)), '盤外'));
 });
 
-test('validate-lessons: periodicはpaint・repeatBox・groupRepeatsと併用できない', () => {
-  assert.ok(ng(validate((p) => { p.paint = [{ x: 0, y: 0 }, { x: 3, y: 0 }]; }), 'periodic は paint と併用できない'));
-  assert.ok(ng(validate((p) => { p.repeatBox = true; }), 'repeatBox・groupRepeats と併用できない'));
-  assert.ok(ng(validate((p) => { p.groupRepeats = true; }), 'repeatBox・groupRepeats と併用できない'));
-  // paint側の列挙にもperiodicがある（paintの検証でも検出される）。
-  assert.ok(ng(validate((p) => { p.paint = [{ x: 0, y: 0 }, { x: 3, y: 0 }]; }), 'paint はperiodicと併用できない'));
+test('validate-lessons: periodicはrepeatBoxと併用できない（paint・groupRepeatsとは併用できる #529）', () => {
+  assert.ok(ng(validate((p) => { p.repeatBox = true; }), 'periodic は repeatBox と併用できない'));
+  const paint = validate((p) => { p.paint = [{ x: 0, y: 0 }, { x: 3, y: 0 }]; });
+  assert.ok(!paint.out.includes('併用できない'), paint.out);
+  const group = validate((p) => { p.groupRepeats = true; });
+  assert.ok(!group.out.includes('併用できない'), group.out);
 });
 
 test('validate-lessons: 周期ドアの必須性（常に開とみなした最短より長くなければ不合格）', () => {

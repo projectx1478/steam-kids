@@ -1,5 +1,7 @@
 // Web Audio APIで合成する効果音。音声ファイル・BGMなし（Issue #54）。
 // 単一API play(name, opts)。optsは stack の count、step の index のみ使用する。
+import { CLICK_SFX_EXEMPT } from './config.js';
+
 const STORAGE_KEY = 'steamkids.sound';
 const MASTER_VOLUME = 0.3;
 
@@ -73,6 +75,16 @@ export function isMuted() {
 export function setMuted(next) {
   muted = next;
   localStorage.setItem(STORAGE_KEY, next ? 'off' : 'on');
+  muteListeners.forEach((fn) => fn(muted));
+}
+
+// subscribeMuted(fn): ミュート状態の購読口（Issue #378 段2。BGM等、play()以外の音も
+// ミュートに連動させるため）。fn は直後ではなく setMuted 呼び出し時にだけ走る。
+// 返り値は解除関数。初期状態は isMuted() で読む。
+const muteListeners = new Set();
+export function subscribeMuted(fn) {
+  muteListeners.add(fn);
+  return () => muteListeners.delete(fn);
 }
 
 // initSoundToggle(button): ミュート切替ボタンの配線。dataset.mutedをDOM判定用に反映する。
@@ -329,4 +341,59 @@ export function play(name, opts = {}) {
   window.__sfxLog.push(name);
   const ctx = ensureContext();
   SOUND[name]?.(ctx, ctx.currentTime, opts);
+}
+
+// クリック音の共通処理（Issue #550）。document の click を委譲して tap を1か所で鳴らす。
+// - ボタン（button / [role=button]）以外・disabled・CLICK_SFX_EXEMPT・ミュート中は鳴らさない。
+// - pointerdown（capture）から click までの間に別の play() があれば鳴らさない
+//   （命令ボタンは pointerup で stack 等を鳴らす。専用音と二重にならないようにする）。
+// - 実行中・上限到達など、押下を受け付けない分岐は skipClickSfx() を呼んで無音を保つ（#550-7A）。
+let downLogLength = null;
+let clickSkipped = false;
+let downBtn = null;
+let downDisabled = false;
+let downExempt = false;
+
+function isBtnDisabled(btn) {
+  return btn.disabled === true || btn.getAttribute('aria-disabled') === 'true';
+}
+
+// skipClickSfx(): 今の押下に対するクリック音を鳴らさない。次の pointerdown で解除される。
+export function skipClickSfx() {
+  clickSkipped = true;
+}
+
+export function initClickSfx() {
+  document.addEventListener(
+    'pointerdown',
+    (e) => {
+      downLogLength = window.__sfxLog.length;
+      clickSkipped = false;
+      const b = e.target instanceof Element ? e.target.closest('button,[role=button]') : null;
+      downBtn = b;
+      downDisabled = b ? isBtnDisabled(b) : false;
+      downExempt = b ? CLICK_SFX_EXEMPT.some(({ selector }) => b.matches(selector)) : false;
+    },
+    true
+  );
+  document.addEventListener('click', (e) => {
+    const skipped = clickSkipped;
+    const baseline = downLogLength;
+    const wasBtn = downBtn;
+    const wasDisabled = downDisabled;
+    const wasExempt = downExempt;
+    downLogLength = null;
+    downBtn = null;
+    clickSkipped = false;
+    if (skipped || muted) return;
+    const btn = e.target instanceof Element ? e.target.closest('button,[role=button]') : null;
+    if (!btn) return;
+    // pointerdown 時点の状態で判定する（受け付けた押下が click 前に disabled になっても鳴らす）。
+    const disabled = btn === wasBtn ? wasDisabled : isBtnDisabled(btn);
+    if (disabled) return;
+    // 例外も pointerdown 時点で判定する（click 処理で data-action が retry→run に変わるため）。
+    if ((btn === wasBtn && wasExempt) || CLICK_SFX_EXEMPT.some(({ selector }) => btn.matches(selector))) return;
+    if (baseline !== null && window.__sfxLog.length !== baseline) return;
+    play('tap');
+  });
 }

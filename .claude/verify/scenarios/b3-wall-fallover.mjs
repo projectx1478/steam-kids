@@ -1,8 +1,8 @@
-// 壁衝突でロボットが横に倒れ、1.2秒後に「もういちど」が2回パルス強調され、もういちどで
+// 壁衝突でロボットが横に倒れ、1.2秒後に「ためしなおす」が2回パルス強調され、ためしなおすで
 // 姿勢と位置が初期化される（Issue #214）。凍結fixtureに依存しないようrouteLessonのインライン
 // 最小盤面で書く。
 
-export const name = '壁衝突でロボットが横に倒れ、もういちどがパルス強調され、retryで姿勢が戻る(Issue #214)';
+export const name = '壁衝突でロボットが横に倒れ、ためしなおすがパルス強調され、retryで姿勢が戻る(Issue #214)';
 import { routeLesson, enterPlay } from '../helpers.mjs';
 
 const LESSON = {
@@ -59,7 +59,7 @@ export default async function run({ page, check }) {
     true
   );
   await check(
-    '1.2秒後に「もういちど」がパルス強調(retry-pulse)される',
+    '1.2秒後に「ためしなおす」がパルス強調(retry-pulse)される',
     () =>
       page
         .waitForFunction(() => document.querySelector('[data-action="retry"]')?.classList.contains('retry-pulse'), null, { timeout: 4000 })
@@ -70,13 +70,15 @@ export default async function run({ page, check }) {
   // パルス(scale 1→1.08→1を2回=1.2秒)が終わるとクラスは外れる。
   await page.waitForFunction(() => !document.querySelector('[data-action="retry"]')?.classList.contains('retry-pulse'), null, { timeout: 4000 });
 
-  // --- もういちど: 盤面が作り直され、姿勢・位置ともに初期値へ戻る ---
+  // --- ためしなおす: 盤面が作り直され、姿勢・位置ともに初期値へ戻る ---
   await page.click('[data-action="retry"]');
   await page.waitForFunction(() => !document.querySelector('[data-transition="retry"]'), null, { timeout: 4000 });
   // popIn演出(WAAPI)がcomputed transformに乗るため終わってから確認する。
   await page.waitForTimeout(800);
-  await check('もういちど後、姿勢が初期値に戻る', () => bodyTransform(page), '');
-  await check('もういちど後、ロボットがstartに戻る', async () => (await playerTransform(page)) === startTransform, true);
+  await check('ためしなおす後、姿勢が初期値に戻る', () => bodyTransform(page), '');
+  await check('ためしなおす後、ロボットがstartに戻る', async () => (await playerTransform(page)) === startTransform, true);
+  // 失敗後の ためしなおす は列を残す（#545）。次の入り直しで下書きが復元されないよう ぜんぶけす で空にする。
+  await page.click('[data-action="clear-all"]');
 
   // --- reduced-motion: 倒れもパルスも出ない ---
   await page.emulateMedia({ reducedMotion: 'reduce' });

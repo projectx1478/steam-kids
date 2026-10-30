@@ -11,6 +11,13 @@ async function clearByStepping(page) {
   for (let i = 0; i < 10 && (await page.$('[data-action="step"]')); i += 1) await page.click('[data-action="step"]');
 }
 
+// 直前の up が保存した下書きが enterPlay で復元されないよう、下書きのキーを消す（Issue #583）。
+async function clearDrafts(page) {
+  await page.evaluate(() => {
+    for (const k of Object.keys(localStorage)) if (k.includes('draft.')) localStorage.removeItem(k);
+  });
+}
+
 export default async function run({ page, check }) {
   await page.unroute('**/lessons/cmd-01-susumu.json');
   await page.setViewportSize({ width: 360, height: 640 });
@@ -22,6 +29,12 @@ export default async function run({ page, check }) {
       stageRelative: document.querySelector('#stage').classList.contains('relative'),
       inertCount: document.querySelectorAll('[inert]').length,
     }));
+  // play は ⚙ だけ inert から外れる（Issue #467）。⚙ 以外の各部が inert で、⚙ は inert でない。
+  const playLocked = () =>
+    page.evaluate(() => {
+      const parts = ['[data-sk-screen="question"]', '[data-sk-screen="board"]', '.palette-row [data-command]', '.command-queue', '[data-sk-screen="actions"]'];
+      return parts.every((p) => document.querySelector(p).closest('[inert]') !== null) && document.querySelector('[data-action="menu"]').closest('[inert]') === null;
+    });
   const clean = { dialogs: 0, stageRelative: false, inertCount: 0 };
 
   // --- play: 間（1.5秒）の最中 ---
@@ -29,14 +42,14 @@ export default async function run({ page, check }) {
   const upBox = await (await page.$('[data-command="up"]')).boundingBox();
   await clearByStepping(page);
   await page.waitForSelector('[data-result-gap]');
-  await check('間の最中: 外枠(data-sk-screen=frame)が inert', () => inertOn('[data-sk-screen="frame"]'), true);
+  await check('間の最中: ⚙以外の各部が inert・⚙は inert でない', playLocked, true);
   const before = await queueCount();
   await page.mouse.click(upBox.x + upBox.width / 2, upBox.y + upBox.height / 2);
   await check('間の最中: 操作ボタンを押しても何も起きない', queueCount, before);
 
   // --- play: ダイアログ表示中 ---
   await page.waitForSelector('[data-result-dialog]', { timeout: 4000 });
-  await check('ダイアログ表示中: 外枠は inert のまま', () => inertOn('[data-sk-screen="frame"]'), true);
+  await check('ダイアログ表示中: ⚙以外の各部は inert のまま・⚙は inert でない', playLocked, true);
   await check('ダイアログは外枠の外（#stage の子の dialog）', () =>
     page.evaluate(() => {
       const row = document.querySelector('[data-result-row]');
@@ -53,11 +66,11 @@ export default async function run({ page, check }) {
   await page.keyboard.press('Escape');
   await check('Esc を押してもダイアログが残る', async () => (await page.$$('[data-result-dialog]')).length, 1);
 
-  // --- play: もういちど → 外れる ---
+  // --- play: ためしなおす → 外れる ---
   await page.click('[data-action="replay"]');
   await page.waitForSelector('[data-action="step"]');
-  await check('もういちど: ダイアログ・inert・relative が残らない', noLeftovers, clean);
-  await check('もういちど: 操作ボタンが押せる', async () => {
+  await check('ためしなおす: ダイアログ・inert・relative が残らない', noLeftovers, clean);
+  await check('ためしなおす: 操作ボタンが押せる', async () => {
     const n = await queueCount();
     await page.click('[data-command="up"]');
     return (await queueCount()) === n + 1;
@@ -65,6 +78,7 @@ export default async function run({ page, check }) {
 
   // --- play: つぎの ステージ → 外れる ---
   await page.goto('/index.html?lesson=cmd-01-susumu');
+  await clearDrafts(page);
   await enterPlay(page, 'cmd-01-susumu');
   await clearByStepping(page);
   await page.waitForSelector('[data-action="next-stage"]', { timeout: 4000 });
@@ -79,18 +93,27 @@ export default async function run({ page, check }) {
 
   // --- play: ダイアログ表示中の「← もどる」→ 外れる ---
   await page.reload();
+  await clearDrafts(page);
   await enterPlay(page, 'cmd-01-susumu');
   await clearByStepping(page);
   await page.waitForSelector('[data-result-dialog]', { timeout: 4000 });
-  await page.click('#back-btn');
+  // ダイアログ表示中も ⚙ だけは inert から外れる（Issue #467）。⚙ → レッスンせんたくがめん → 確認の「もどる」を実クリックする（Issue #542）。
+  await page.click('[data-action="menu"]');
+  await page.click('#menu-home');
+  await page.click('[data-action="leave-ok"]');
+  await page.waitForSelector('[data-screen="picker"]');
   await check('もどる(ダイアログ表示中): playから出る', async () => (await page.getAttribute('#stage', 'data-step')) !== 'play');
   await check('もどる(ダイアログ表示中): ダイアログ・inert・relative が残らない', noLeftovers, clean);
 
   // --- play: 間の最中の「← もどる」→ 外れる ---
+  await clearDrafts(page);
   await enterPlay(page, 'cmd-01-susumu');
   await clearByStepping(page);
   await page.waitForSelector('[data-result-gap]');
-  await page.click('#back-btn');
+  await page.click('[data-action="menu"]');
+  await page.click('#menu-home');
+  await page.click('[data-action="leave-ok"]');
+  await page.waitForSelector('[data-screen="picker"]');
   await check('もどる(間の最中): ダイアログ・inert・relative が残らない', noLeftovers, clean);
   await page.waitForTimeout(2200);
   await check('もどる(間の最中): 後からダイアログが現れない', noLeftovers, clean);
@@ -118,7 +141,7 @@ export default async function run({ page, check }) {
   await check('シーソー Esc を押してもダイアログが残る', async () => (await page.$$('[data-result-dialog]')).length, 1);
   await page.click('[data-action="replay"]');
   await page.waitForSelector('[data-action="run"]');
-  await check('シーソー もういちど: ダイアログ・inert・relative が残らない', noLeftovers, clean);
+  await check('シーソー ためしなおす: ダイアログ・inert・relative が残らない', noLeftovers, clean);
   await page.click('[data-action="pos-right"]');
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="next-stage"]', { timeout: 10000 });

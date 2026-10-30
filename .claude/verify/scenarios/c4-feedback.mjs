@@ -1,7 +1,7 @@
 export const name =
-  'C4 実機フィードバック一括対応: ヘッダー(もどる・えらぶ がめんへ)・反応統一・ヒント・もういちど・まとめ(Issue #91/#93/#104)';
+  'C4 実機フィードバック一括対応: ヘッダー(もどる・えらぶ がめんへ)・反応統一・ヒント・ためしなおす・まとめ(Issue #91/#93/#104)';
 
-import { enterPlay, clearStage, clickRetry, routeLesson } from '../helpers.mjs';
+import { enterPlay, clearStage, clickRetry, clickRetryKeep, routeLesson } from '../helpers.mjs';
 
 async function noLongLine(page) {
   const text = await page.locator('body').innerText();
@@ -34,12 +34,14 @@ export default async function run({ page, check }) {
   // --- 1. ヘッダー（タイトル・区分チップ・もどる・えらぶ がめんへ）・introのデモ ---
   await page.goto('/index.html?lesson=cmd-03-naosu');
   await check('introではもどるが非表示', async () => page.isHidden('#back-btn'));
-  await check('introでも えらぶ がめんへ は表示される', async () => page.isVisible('#home-btn'));
+  await page.click('#gear-btn');
+  await check('introでも ⚙メニューに えらぶ がめんへ（離れる）が表示される（Issue #574）', async () => page.isVisible('#menu-home'));
+  await page.click('#menu-close');
   await check('ヘッダーに単元名・レッスン名が表示される', async () => page.textContent('#lesson-title'), 'めいれいでうごかす ・ なおす');
   await check('introの区分チップ「はじめに」', async () => page.textContent('#step-kind-chip'), 'はじめに');
   await check('introにゴールデモが表示される', async () => (await page.$$('.demo-widget[data-demo="goal"]')).length, 1);
   await check(
-    'reduced-motion時でもデモに「もういちど みる」がある（1回だけ自動再生し、再生はボタンで行う。Issue #104）',
+    'reduced-motion時でもデモに「おてほんを みる」がある（1回だけ自動再生し、再生はボタンで行う。Issue #104）',
     async () => (await page.$$('.demo-widget [data-action="demo-replay"]')).length,
     1
   );
@@ -47,33 +49,47 @@ export default async function run({ page, check }) {
   await page.click('[data-action="start"]');
   await check('はじめるは直接play(p1)へ進む（tutorialは「そうさほうほう」から。Issue #236）', async () => page.getAttribute('#stage', 'data-step'), 'play');
   await skipTutorialButton(page);
-  await check('playの区分チップ「うごかす 1/3」（複数ステージ構成。Issue #104）', async () => page.textContent('#step-kind-chip'), 'うごかす 1/3');
+  // play はヘッダを出さず、⚙のメニュー（いまの ばしょ）に区分チップを出す（Issue #467）。
+  await page.click('[data-action="menu"]');
+  await check('playの区分チップ「うごかす 1/3」（複数ステージ構成。Issue #104）', async () => page.textContent('#menu-stage-chip'), 'うごかす 1/3');
+  await page.click('#menu-close');
   await check('よそうは全廃。Issue #104', async () => page.getAttribute('#stage', 'data-step'), 'play');
-  // cmd-03-naosuのp1はinitialCommands(3個)がmaxCommands(3)と同数のため、パレットは
-  // 最初から満杯でdisabled。チップの取り消しで最初の操作を行う。
+  // cmd-03-naosuのp1はinitialCommands(3個)がmaxCommands(3)と同数だが、#615 で上限が無くなり
+  // パレットは最初から有効。チップの取り消しで最初の操作を行う。
+  await check('p1開始時（initialCommandsがmaxCommandsと同数）でも方向ボタンが有効（上限なし。Issue #615）', async () =>
+    page.$eval('[data-command="up"]', (b) => b.disabled), false);
   await page.click('[data-remove-index="2"]');
 
-  // --- もどる・えらぶ がめんへは確認ダイアログを挟まず即座に遷移する。誤タップの保険は
-  // 確認ダイアログではなく命令列の下書き保持で行う（c6-tactile-ui.mjsで検証。Issue #95） ---
-  await check('確認ダイアログは存在しない', async () => (await page.$$('.confirm-dialog')).length, 0);
-  await page.click('#back-btn');
-  // ← もどるはtutorial(fix)を飛ばしてintroへ戻る（Issue #236）。
-  await check('確認無しでintroへ戻る', async () => page.getAttribute('#stage', 'data-step'), 'intro');
+  // --- playから離れるときは確認が出る（Issue #542）。⚙の「まえ」は廃止され、端末の戻るで1ステップ戻る ---
+  await check('確認ダイアログは出ていない', async () => (await page.$$('.leave-confirm')).length, 0);
+  await page.goBack();
+  await check('playで端末の戻るを押すと確認が出る', async () => (await page.$$('.leave-confirm')).length, 1);
+  await page.click('[data-action="leave-ok"]');
+  // 戻るはtutorial(fix)を飛ばしてintroへ戻る（Issue #236）。
+  await check('確認の「もどる」でintroへ戻る', async () => page.getAttribute('#stage', 'data-step'), 'intro');
 
-  await page.click('#home-btn');
-  await check('えらぶ がめんへ も確認無しで即座に遷移する', async () => page.url().endsWith('/index.html?view=map'));
+  await page.click('#gear-btn');
+  await page.click('#menu-home');
+  await page.waitForSelector('[data-screen="picker"]');
+  await check('introでは えらぶ がめんへ が確認無しで即座に遷移する', async () => page.url().includes('view=map'));
 
-  // --- 2. playの失敗ヒント（壁）・その場でもういちど・ひとつ けす ---
+  // --- 2. playの失敗ヒント（壁）・その場でためしなおす・ひとつ けす ---
   // 壁を持つのはp2（4x4, start(0,3), goal(3,0), walls[(2,2)]）なので、p1をクリアしてp2へ進む。
   await enterPlay(page, 'cmd-01-susumu');
   await check('play(p1)に入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
   await clearStage(page, ['up', 'up', 'left', 'left']);
   await check('play(p2)に入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
-  await check('p2の区分チップ「うごかす 2/3」', async () => page.textContent('#step-kind-chip'), 'うごかす 2/3');
+  await page.click('[data-action="menu"]');
+  await check('p2の区分チップ「うごかす 2/3」', async () => page.textContent('#menu-stage-chip'), 'うごかす 2/3');
+  await page.click('#menu-close');
 
   await page.click('[data-command="left"]'); // start(0,3)からleftは盤外
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="retry"]', { timeout: 4000 });
+  // このシナリオはreduced-motion既定（config.mjs）のため、ゆれる代わりに盤面へ0.5秒の
+  // 静止リングが付く（Issue #106のreduced-motion分岐。ゆれ自体はc8-fail-lock.mjsで検証）。
+  // 0.5秒で外れるので、失敗直後（他のcheckより前）に見る（#581）。
+  await check('不正解後: reduced-motionでは盤面に静止リングが付く', async () => (await page.$$('[data-sk-screen="board"].ring-amber-400')).length, 1);
   await check('壁ヒント: じっこう位置がretryになる', async () => (await page.$$('[data-action="run"]')).length, 0);
   await check('壁ヒント: ヒットしたチップに黄色リング', async () => (await page.$$('.command-chip.ring-amber-400')).length, 1);
   await check('壁ヒント: 盤面にwallマーカー', async () => (await page.$$('.grid-marker-wall[data-hint="true"]')).length, 1);
@@ -82,26 +98,24 @@ export default async function run({ page, check }) {
   await assertNoNegativeWords(page, check, 'play壁ヒント');
   await check('壁ヒントではdata-resultが付かない', async () => (await page.$$('#stage [data-result]')).length, 0);
 
-  // --- 不正解後は「もういちど」以外の操作をロックする（Issue #106）。編集ではなく
-  //     もういちどのみで復帰させる ---
+  // --- 不正解後は「ためしなおす」以外の操作をロックする（Issue #106）。編集ではなく
+  //     ためしなおすのみで復帰させる ---
   await check('不正解後: ひとつ けすがdisabled', () => page.$eval('[data-action="remove-last"]', (b) => b.disabled), true);
   await check('不正解後: ぜんぶ けすがdisabled', () => page.$eval('[data-action="clear-all"]', (b) => b.disabled), true);
   await check('不正解後: 命令パレットが全てdisabled', async () => (await page.$$('[data-command]:not([disabled])')).length, 0);
-  // このシナリオはreduced-motion既定（config.mjs）のため、ゆれる代わりに盤面へ0.5秒の
-  // 静止リングが付く（Issue #106のreduced-motion分岐。ゆれ自体はc8-fail-lock.mjsで検証）。
-  await check('不正解後: reduced-motionでは盤面に静止リングが付く', async () => (await page.$$('[data-sk-screen="board"].ring-amber-400')).length, 1);
   await check('不正解後: tryAgain音が鳴る', () => page.evaluate(() => window.__sfxLog.includes('tryAgain')));
   // ロック中はチップ×を押しても何も起きない（pointer-events-noneで受け付けない）
   await page.click('[data-remove-index="0"]', { force: true });
   await check('ロック中のチップ×は無反応', async () => (await page.$$('.command-chip')).length, 1);
 
-  await clickRetry(page);
-  await check('もういちどで[data-action="run"]に戻る', async () => (await page.$$('[data-action="run"]')).length, 1);
-  await check('もういちどでヒント表示が消える', async () => (await page.$$('[data-hint]')).length, 0);
-  await check('もういちどでチップが0個に戻る', async () => (await page.$$('.command-chip')).length, 0);
-  await check('もういちどでロックが解除される（命令パレットが押せる）', () => page.$eval('[data-command="up"]', (b) => b.disabled), false);
+  await clickRetryKeep(page);
+  await check('ためしなおすで[data-action="run"]に戻る', async () => (await page.$$('[data-action="run"]')).length, 1);
+  await check('ためしなおすでヒント表示が消える', async () => (await page.$$('[data-hint]')).length, 0);
+  await check('ためしなおすで列が残る（チップ1個のまま）', async () => (await page.$$('.command-chip')).length, 1);
+  await check('ためしなおすでロックが解除される（命令パレットが押せる）', () => page.$eval('[data-command="up"]', (b) => b.disabled), false);
 
   // --- 未到達ヒント ---
+  await page.click('[data-action="remove-last"]'); // 残った left（失敗原因）を消してから積む（#545）
   await page.click('[data-command="up"]'); // start(0,3)->(0,2)。壁にもゴールにも届かない。
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="retry"]', { timeout: 4000 });
@@ -113,9 +127,9 @@ export default async function run({ page, check }) {
   await check('未到達ヒントパネル', async () => (await page.$$('[data-hint="goal"]')).length, 1);
   await assertNoNegativeWords(page, check, 'play未到達ヒント');
 
-  // --- もういちど（失敗後のretry）は正解・不正解に関わらず命令列をリセットする（Issue #104） ---
-  await clickRetry(page);
-  await check('retryで命令列は0個に戻る（前回の命令を残さない）', async () => (await page.$$('.command-chip')).length, 0);
+  // --- ためしなおす（失敗後のretry）は命令列を残す（#545。以前はリセットしていた Issue #104） ---
+  await clickRetryKeep(page);
+  await check('retryで命令列が残る（未到達で失敗した後の[up]の1個）', async () => (await page.$$('.command-chip')).length, 1);
 
   // --- item未回収ヒント（donguri-01-hirou）。items(1,3)/(2,3)を持つp2で検証する ---
   const pg = { allowedCommands: ['up', 'down', 'left', 'right'], walls: [] };
@@ -167,7 +181,7 @@ export default async function run({ page, check }) {
   await page.setViewportSize({ width: 1280, height: 800 });
 
   // --- 4. ステージクリア演出（Issue #104: 拡大・fanfare・ジャンプ・紙ふぶき60粒）と、
-  // クリア後「もういちど」で命令列がリセットされること ---
+  // クリア後「ためしなおす」で命令列がリセットされること ---
   await enterPlay(page, 'cmd-01-susumu');
   for (const c of ['up', 'up', 'left', 'left']) await page.click(`[data-command="${c}"]`);
   await page.click('[data-action="run"]');
@@ -180,27 +194,29 @@ export default async function run({ page, check }) {
     page.evaluate(() => window.__sfxLog.includes('fanfare'))
   );
   await check('途中ステージのクリアは「つぎの ステージ」が出る', async () => (await page.$$('[data-action="next-stage"]')).length, 1);
-  await check('途中ステージのクリアでも「もういちど」が出る', async () => (await page.$$('[data-action="replay"]')).length, 1);
+  await check('途中ステージのクリアでも「ためしなおす」が出る', async () => (await page.$$('[data-action="replay"]')).length, 1);
   await page.click('[data-action="replay"]');
-  await check('もういちどで結果表示が消える', async () => (await page.$$('#stage [data-result]')).length, 0);
-  await check('もういちどで命令列は0個にリセットされる（Issue #104）', async () => (await page.$$('.command-chip')).length, 0);
+  await check('ためしなおすで結果表示が消える', async () => (await page.$$('#stage [data-result]')).length, 0);
+  await check('ためしなおすで命令列は0個にリセットされる（Issue #104）', async () => (await page.$$('.command-chip')).length, 0);
   await clearStage(page, ['up', 'up', 'left', 'left']);
   await check('つぎの ステージでp2に入る', async () => page.getAttribute('#stage', 'data-step'), 'play');
 
-  // --- なおす系（cmd-03）は「もういちど」で初期の「ずれた」列に戻る ---
+  // --- なおす系（cmd-03）は「ためしなおす」で初期の「ずれた」列に戻る ---
+  // 先行の操作（冒頭でチップを1個取り消した列）が端末内の下書き（Issue #556）に残り、入り直しで復元されるため消す。
+  await page.evaluate(() => localStorage.removeItem('steamkids.draft.cmd-03-naosu'));
   await enterPlay(page, 'cmd-03-naosu');
   await check('なおすp1は初期状態で3個のチップ', async () => (await page.$$('.command-chip')).length, 3);
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="retry"]', { timeout: 8000 });
-  // 不正解直後は編集がロックされるため、もういちどを押してから直す（Issue #106）。
-  await clickRetry(page);
+  // 不正解直後は編集がロックされるため、ためしなおすを押してから直す（Issue #106）。列は残る（#545）。
+  await clickRetryKeep(page);
   await page.click('[data-remove-index="1"]');
   await check('編集後は2個', async () => (await page.$$('.command-chip')).length, 2);
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="next-stage"]', { timeout: 8000 });
   await page.click('[data-action="replay"]');
   await check(
-    'なおす系のもういちどは初期の「ずれた」列(3個)に戻る（空にすると直す題材が消えるため。Issue #104）',
+    'なおす系のためしなおすは初期の「ずれた」列(3個)に戻る（空にすると直す題材が消えるため。Issue #104）',
     async () => (await page.$$('.command-chip')).length,
     3
   );
@@ -221,18 +237,25 @@ export default async function run({ page, check }) {
   await check('「3つの ステージを クリア！」が表示される', async () =>
     (await page.locator('.achievement-cards').innerText()).includes('3つの ステージを クリア！')
   );
-  await check('単元スタンプがlessonIds数(3)だけ表示される', async () => (await page.$$('.unit-progress [data-stamp]')).length, 3);
+  await check('単元スタンプがlessonIds数(2。cmd-02 は devOnly)だけ表示される', async () => (await page.$$('.unit-progress [data-stamp]')).length, 2);
   await check('つぎの レッスンへボタンが出る', async () => (await page.$$('[data-action="next-lesson"]')).length, 1);
-  const boxSize = async (sel) => {
-    const b = await (await page.$(sel)).boundingBox();
-    return [Math.round(b.width), Math.round(b.height)];
-  };
-  await check('「つぎへ」と「おわる」が同じ大きさで並ぶ（Issue #263）', async () => (await boxSize('[data-action="next-lesson"]')), await boxSize('[data-action="finish"]'));
-  await check('「つぎへ」の横に「おわる」がある', async () => {
-    const a = await (await page.$('[data-action="next-lesson"]')).boundingBox();
-    const b = await (await page.$('[data-action="finish"]')).boundingBox();
-    return Math.abs(a.y - b.y) < 1 && b.x > a.x;
+  // 下端バー（#551）：おわる＝左の副ボタン、つぎへ＝右の主ボタン。大きさ一致は求めず配置を検査する
+  const barRects = async () => ({
+    next: await (await page.$('[data-action="next-lesson"]')).boundingBox(),
+    fin: await (await page.$('[data-action="finish"]')).boundingBox(),
   });
+  await check('「おわる」と「つぎへ」が同じ行に並び、おわるが左（#263/#551）', async () => {
+    const { next, fin } = await barRects();
+    return Math.abs(next.y + next.height / 2 - (fin.y + fin.height / 2)) < 8 && fin.x < next.x;
+  }, true);
+  await check('「おわる」「つぎへ」とも高さ64px以上', async () => {
+    const { next, fin } = await barRects();
+    return next.height >= 64 && fin.height >= 64;
+  }, true);
+  await check('「おわる」と「つぎへ」の間隔が16px以上', async () => {
+    const { next, fin } = await barRects();
+    return next.x - (fin.x + fin.width) >= 16;
+  }, true);
   await check('summaryは20字以内', () => noLongLine(page));
   await assertNoNegativeWords(page, check, 'summary');
 
@@ -292,7 +315,8 @@ export default async function run({ page, check }) {
   await page.waitForSelector('#stage[data-screen="title"]');
   await check('「おわる」でタイトル画面へ戻る', async () => page.getAttribute('#stage', 'data-screen'), 'title');
 
-  // --- 単元ぜんぶクリア：cmd-02・cmd-03も片付けて「めいれいでうごかす」を全クリアする
+  // --- 単元ぜんぶクリア：cmd-03も片付けて「めいれいでうごかす」を全クリアする。
+  // 公開は cmd-01・cmd-03 の2本（cmd-02 は #615 で devOnly。直接入口で解けるので確認は残す）
   // （tutorial(group/fix)はとばす。Issue #98） ---
   await enterPlay(page, 'cmd-02-mijikaku');
   await clearStage(page, ['down', 'down', 'down', 'left', 'left']); // p1(2チップ)

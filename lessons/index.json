@@ -1,5 +1,5 @@
 {
-  "longTrialIds": ["cmd-01-susumu-long"],
+  "longTrialIds": ["cmd-01-susumu-long", "teko-01-tsuriai", "teko-02-tsuriai2", "teko-03-tsuriai3"],
   "tracks": [
     {
       "trackId": "robot",
@@ -8,9 +8,9 @@
         {
           "unitId": "commands",
           "title": "めいれいでうごかす",
-          "lessonIds": ["cmd-01-susumu", "cmd-02-mijikaku", "cmd-03-naosu"],
+          "lessonIds": ["cmd-01-susumu", "cmd-03-naosu"],
           "practiceIds": ["cmd-06-practice"],
-          "devOnlyIds": ["cmd-04-kurikaeshi", "cmd-05-kurikaeshi-donguri", "cmd-01-susumu-long"]
+          "devOnlyIds": ["cmd-02-mijikaku", "cmd-04-kurikaeshi", "cmd-05-kurikaeshi-donguri", "cmd-01-susumu-long"]
         },
         {
           "unitId": "donguri",
@@ -46,7 +46,8 @@
         {
           "unitId": "teko",
           "title": "つりあい",
-          "lessonIds": ["teko-01-tsuriai"]
+          "lessonIds": ["teko-01-tsuriai"],
+          "devOnlyIds": ["teko-02-tsuriai2", "teko-03-tsuriai3", "teko-04-omosa", "teko-05-ryouhou", "teko-06-practice"]
         }
       ]
     }

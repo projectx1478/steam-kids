@@ -74,13 +74,16 @@ const DRAG_THRESHOLD_PX = 8;
 // elの見た目を複製したクローンをposition:fixedで指に追従させる。getDropTarget()が返す
 // DOMRect内で離すとonDrop、外なら何もしない（クローンが消えるだけ）。onDragOver(inside)は
 // ドラッグ中、対象領域に入った/出た瞬間にのみ呼ぶ（ゴースト枠の出し入れ用）。
-function attachTapOrDrag(el, { onTap, getDropTarget, onDragOver, onDrop }) {
+// getGap(x, y)（省略可）が数値を返すと、onDragOver(inside, gap)・onDrop(gap) にその隙間indexを渡す
+// （差し込み先。Issue #545）。隙間indexは「commands[gap]の手前」を指す。
+function attachTapOrDrag(el, { onTap, getDropTarget, onDragOver, onDrop, getGap }) {
   el.addEventListener('pointerdown', (downEvent) => {
     if (el.disabled) return;
     const startX = downEvent.clientX;
     const startY = downEvent.clientY;
     let dragging = false;
     let inside = false;
+    let gap = null;
     let clone = null;
 
     function pointInRect(x, y, rect) {
@@ -110,9 +113,11 @@ function attachTapOrDrag(el, { onTap, getDropTarget, onDragOver, onDrop }) {
       if (!dragging) return;
       moveClone(moveEvent.clientX, moveEvent.clientY);
       const nowInside = pointInRect(moveEvent.clientX, moveEvent.clientY, getDropTarget?.());
-      if (nowInside !== inside) {
+      const nowGap = nowInside && getGap ? getGap(moveEvent.clientX, moveEvent.clientY) : null;
+      if (nowInside !== inside || nowGap !== gap) {
         inside = nowInside;
-        onDragOver?.(inside);
+        gap = nowGap;
+        onDragOver?.(inside, gap);
       }
     }
 
@@ -130,7 +135,7 @@ function attachTapOrDrag(el, { onTap, getDropTarget, onDragOver, onDrop }) {
       }
       clone.remove();
       onDragOver?.(false);
-      if (inside) onDrop();
+      if (inside) onDrop(gap);
     }
 
     function onCancel() {
@@ -146,10 +151,51 @@ function attachTapOrDrag(el, { onTap, getDropTarget, onDragOver, onDrop }) {
   });
 }
 
-// toggleGhostSlot(listEl, active): ドラッグ中の配置先を示す。トレイの「次の枠」
+// computeGapIndex(listEl, x, y): 指の位置に最も近い隙間のindex（commands[index]の手前。0..件数）を返す。
+// 各チップ（[data-index]の直下要素）の中心と比べる。折り返して複数行のときは、まず縦位置が最も近い行、
+// その行の中で横位置を見る（行→列の順）。チップが無ければ0（Issue #545）。
+export function computeGapIndex(listEl, x, y) {
+  const items = [...listEl.querySelectorAll(':scope > [data-index]')].map((el) => {
+    const r = el.getBoundingClientRect();
+    return { index: Number(el.dataset.index), cx: (r.left + r.right) / 2, cy: (r.top + r.bottom) / 2 };
+  });
+  if (items.length === 0) return 0;
+  const rowY = items.reduce((best, it) => (Math.abs(it.cy - y) < Math.abs(best - y) ? it.cy : best), items[0].cy);
+  const row = items.filter((it) => Math.abs(it.cy - rowY) < 8);
+  const next = row.find((it) => x < it.cx);
+  return next ? next.index : row[row.length - 1].index + 1;
+}
+
+// toggleGhostSlot(listEl, active, gap): ドラッグ中の配置先を示す。gapが数値のときは、その隙間に
+// 太い縦線（.ghost-slot.ghost-line。.command-queue直下のli・1本）を出す（差し込み。Issue #545）。
+// gapが無いとき: トレイの「次の枠」
 // （[data-tray-slot]。Issue #110）が既にあればそれを光らせ、無い画面（tutorial等）では
 // 従来どおり末尾に仮の枠を出し入れする。
-export function toggleGhostSlot(listEl, active) {
+export function toggleGhostSlot(listEl, active, gap = null) {
+  if (typeof gap === 'number') {
+    let line = listEl.querySelector(':scope > .ghost-line');
+    if (!active) {
+      line?.remove();
+      return;
+    }
+    if (!line) {
+      line = document.createElement('li');
+      line.className = 'ghost-slot ghost-line';
+      line.setAttribute('aria-hidden', 'true');
+      listEl.appendChild(line);
+    }
+    const q = listEl.getBoundingClientRect();
+    const chips = [...listEl.querySelectorAll(':scope > [data-index]')];
+    const at = chips.find((el) => Number(el.dataset.index) === gap);
+    const ref = at || chips[chips.length - 1];
+    const r = ref?.getBoundingClientRect();
+    const x = r ? (at ? r.left - 5 : r.right + 5) : 4;
+    line.style.left = `${x - q.left + listEl.scrollLeft}px`;
+    line.style.top = `${(r ? r.top : q.top) - q.top + listEl.scrollTop}px`;
+    line.style.height = `${r ? r.height : 64}px`;
+    return;
+  }
+  listEl.querySelector(':scope > .ghost-line')?.remove();
   const traySlot = listEl.querySelector(':scope > [data-tray-slot]');
   if (traySlot) {
     traySlot.classList.toggle('ghost-slot', active);
@@ -185,13 +231,20 @@ export function arrowSvg(dir) {
 }
 
 // renderCommandPalette(container, { onAdd, dropTarget, onDragOver })
-// onAdd(dir, { via }): viaは'tap'|'drag'。dropTarget(): ドロップ判定に使うDOMRectを返す関数
+// onAdd(dir, { via, index }): viaは'tap'|'drag'。indexはdropGapがあるときのドラッグの差し込み先の隙間index（#545）。dropGap(x, y)は隙間indexを返す関数。dropTarget(): ドロップ判定に使うDOMRectを返す関数
 // （省略時はドラッグしても追加されない＝タップのみの画面になる）。onDragOver(inside):
 // ドラッグ中、dropTarget領域への出入りで呼ぶ（ゴースト枠の出し入れ用）。
-// maxPauses>0なら上段に「とめる」（タップでonPause()）と残り回数の表示を出す（#395 段3）。
-export function renderCommandPalette(container, { onAdd, dropTarget, onDragOver, maxPauses = 0, onPause }) {
+// maxPauses>0なら上段左に「とめる」（タップでonPause()。✋・とめる・×N を1ボタンに統合）を出す（#395 段3・#467 段B）。
+// onMenu(button) があれば上段右に⚙（せってい）を出す。
+// 返り値 { tapDir(dir) }：キー操作用。タップと同じ振動・onAdd(dir, { via: 'tap' }) を呼ぶ。
+export function renderCommandPalette(container, { onAdd, dropTarget, onDragOver, dropGap, maxPauses = 0, onPause, onMenu }) {
   container.innerHTML = '';
-  // 2行×3列（上段 [空き][うえ][空き]・下段 [ひだり][した][みぎ]）。DOM順は up 先頭のまま、
+  // タップと同じ onTap 相当（振動・onAdd。効果音は onAdd 内の tap 1回）。キー操作（js/ui-keys.js）からも呼ぶ（Issue #380）。
+  const tapDir = (dir) => {
+    vibrate();
+    onAdd(dir, { via: 'tap' });
+  };
+  // 2行×3列（上段 [とめる/空き][うえ][せってい]・下段 [ひだり][した][みぎ]）。DOM順は up 先頭のまま、
   // 配置は tailwind.src.css の .palette-row の grid-area で並べ替える（Issue #395）。
   DIRECTIONS.forEach((dir) => {
     const btn = document.createElement('button');
@@ -201,58 +254,80 @@ export function renderCommandPalette(container, { onAdd, dropTarget, onDragOver,
       'command-btn btn-tactile flex flex-col items-center justify-center gap-1 px-3 py-2 bg-sky-500 text-white touch-none disabled:opacity-40';
     btn.innerHTML = `${arrowSvg(dir)}<span class="text-sm whitespace-nowrap">${COMMAND_LABELS[dir]}</span>`;
     attachTapOrDrag(btn, {
-      onTap: () => {
-        vibrate();
-        onAdd(dir, { via: 'tap' });
-      },
+      onTap: () => tapDir(dir),
       getDropTarget: dropTarget,
+      getGap: dropGap,
       onDragOver,
-      onDrop: () => {
+      onDrop: (gap) => {
         vibrate();
-        onAdd(dir, { via: 'drag' });
+        onAdd(dir, typeof gap === 'number' ? { via: 'drag', index: gap } : { via: 'drag' });
       },
     });
     container.appendChild(btn);
   });
   if (maxPauses > 0) {
-    // 上段左「とめる」・上段右「✋×N」（表示のみ。button にしない。#395 段3）。有効・残り回数は呼び元が更新する。
+    // 上段左「とめる」（✋・とめる・×N を1ボタンに統合。#467 段B）。有効・残り回数は呼び元が更新する。
     const pauseBtn = document.createElement('button');
     pauseBtn.type = 'button';
     pauseBtn.dataset.action = 'pause';
+    pauseBtn.dataset.pauseCount = String(maxPauses);
+    pauseBtn.dataset.pauseLeft = String(maxPauses);
+    pauseBtn.setAttribute('aria-label', `とめる のこり ${maxPauses}かい`);
     pauseBtn.className =
       'command-btn btn-tactile flex flex-col items-center justify-center gap-1 px-3 py-2 bg-amber-500 text-white disabled:opacity-40';
-    pauseBtn.innerHTML = '<span class="text-2xl leading-none" aria-hidden="true">✋</span><span class="text-sm whitespace-nowrap">とめる</span>';
+    pauseBtn.innerHTML = '<span class="text-2xl leading-none" aria-hidden="true">✋</span><span class="text-sm whitespace-nowrap" aria-hidden="true">とめる</span>';
+    const badge = document.createElement('span');
+    badge.className = 'pause-badge';
+    badge.setAttribute('aria-hidden', 'true');
+    const x = document.createElement('span');
+    x.textContent = '×';
+    const left = document.createElement('b');
+    left.dataset.pauseLeftBadge = '';
+    left.textContent = String(maxPauses);
+    badge.append(x, left);
+    pauseBtn.appendChild(badge);
     pauseBtn.addEventListener('click', () => {
       vibrate();
       onPause?.();
     });
     container.appendChild(pauseBtn);
-    const count = document.createElement('div');
-    count.className = 'palette-count';
-    count.dataset.pauseCount = String(maxPauses);
-    count.setAttribute('role', 'img');
-    count.setAttribute('aria-label', `のこり ${maxPauses}かい`);
-    count.innerHTML = `<span aria-hidden="true">✋</span><span class="palette-count-x" aria-hidden="true">×</span><b data-pause-left aria-hidden="true">${maxPauses}</b>`;
-    container.appendChild(count);
-    return;
-  }
-  // 上段の左右の空きマス（button にしない）
-  ['left', 'right'].forEach((side) => {
+  } else {
+    // 上段左の空きマス（button にしない。右は⚙が使う）
     const blank = document.createElement('div');
     blank.className = 'palette-blank';
-    blank.dataset.blank = side;
+    blank.dataset.blank = 'left';
     blank.setAttribute('aria-hidden', 'true');
     container.appendChild(blank);
-  });
+  }
+  if (onMenu) {
+    // 上段右の⚙（せってい）。実行中・ロック中・指ガイド中も押せる＝呼び元の一括無効化の対象外（#467 段B）。
+    const menuBtn = document.createElement('button');
+    menuBtn.type = 'button';
+    menuBtn.dataset.action = 'menu';
+    menuBtn.setAttribute('aria-label', 'せってい');
+    menuBtn.setAttribute('aria-haspopup', 'true');
+    menuBtn.setAttribute('aria-expanded', 'false');
+    menuBtn.className = 'command-btn btn-tactile flex flex-col items-center justify-center gap-1 px-3 py-2 bg-white text-slate-600';
+    menuBtn.innerHTML =
+      '<svg viewBox="0 0 24 24" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.6 1H21a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.6 1z" /></svg><span class="text-sm whitespace-nowrap">せってい</span>';
+    menuBtn.addEventListener('click', () => {
+      vibrate();
+      onMenu(menuBtn);
+    });
+    container.appendChild(menuBtn);
+  }
+  // キーから onTap 相当を呼ぶ口（click を伴わない。ドラッグ処理には触れない）。
+  return { tapDir };
 }
 
-// 残り回数の表示（✋×N）を更新する。表示がない（maxPauses=0）画面では何もしない。
+// 残り回数の表示（「とめる」ボタン内の ×N）を更新する。表示がない（maxPauses=0）画面では何もしない。
 export function setPauseLeft(container, left) {
-  const count = container.querySelector('[data-pause-count]');
-  if (!count) return;
-  count.querySelector('[data-pause-left]').textContent = String(left);
-  count.dataset.pauseLeft = String(left);
-  count.setAttribute('aria-label', `のこり ${left}かい`);
+  const btn = container.querySelector('[data-action="pause"]');
+  if (!btn) return;
+  const badge = btn.querySelector('[data-pause-left-badge]');
+  if (badge) badge.textContent = String(left);
+  btn.dataset.pauseLeft = String(left);
+  btn.setAttribute('aria-label', `とめる のこり ${left}かい`);
 }
 
 // 順番数字（①②③）は::beforeで重ねる（実DOMにspanを増やすと、チップ内テキストをspanで
@@ -434,7 +509,7 @@ export function renderCommandQueue(container, { commands, activeIndex, activeInn
     slot.innerHTML =
       nextSlot === 1
         ? '<span class="text-lg text-slate-400">←</span>'
-        : `<span class="text-xs font-bold text-slate-400">${nextSlot}</span>`;
+        : '';
     container.appendChild(slot);
   }
 }

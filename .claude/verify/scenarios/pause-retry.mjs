@@ -48,7 +48,7 @@ export default async function run({ page, check }) {
 
   await check('失敗すると「とちゅうから」が出る', () => page.$eval('[data-action="retry-resume"]', (e) => e.textContent.replace(/\s/g, '')), '✋とちゅうから');
   await check('失敗すると「さいしょから」が出る', () => page.$eval('[data-action="retry-restart"]', (e) => e.textContent.replace(/\s/g, '')), '↺さいしょから');
-  await check('従来の「もういちど」は出ない', () => count(page, '[data-action="retry"]'), 0);
+  await check('従来の「ためしなおす」は出ない', () => count(page, '[data-action="retry"]'), 0);
   await check('止まった地点があるので「とちゅうから」は押せる', () => page.$eval('[data-action="retry-resume"]', (b) => !b.disabled));
   await check('2ボタンとも64px以上で360pxの幅に収まる', () =>
     page.evaluate(() =>

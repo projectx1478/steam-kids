@@ -63,9 +63,10 @@ function gimmicksKey(states) {
 // {steps, bumped, cushioned}を返す。stepsは通過した各マスの[{pos, states}]（空配列＝最初の1マスが
 // 壁・盤外・blocksで動けない）。壁・盤外・soft以外のblocksで止まったらbumped（失敗）、
 // softなギミック（クッション）で止まったらcushioned（失敗ではない）。
-// 最初の1マスへ入った後、ギミックのredirect（こおりの滑り・将来のワープ）が返す先が空いていれば
+// 最初の1マスへ入った後、ギミックのredirect（こおりの滑り・ワープ）が返す先が空いていれば
 // 続けて1マスずつ進める（同一の1手として扱う。2マス目以降のstepはslid: true）。redirectの連鎖は
-// cols*rows回で打ち切る（Issue #61。フックIFはdocs/gimmicks.md）。
+// cols*rows回で打ち切る（Issue #61。フックIFはdocs/gimmicks.md）。redirectが end:true を返したら
+// 返す先へ入って連鎖を止める（そのstepはwarped: true。他のstepはfalse。Issue #64）。
 export function makeMover(spec) {
   const { grid, walls } = spec;
   const wallSet = new Set(walls.map((w) => `${w.x},${w.y}`));
@@ -90,6 +91,8 @@ export function makeMover(spec) {
     let bumped = false;
     let cushioned = false;
     let byPeriodic = false;
+    let ended = false; // 直前のredirectがend:true（ワープ）なら、次に入るマスで連鎖を止める
+    let warpedNext = false;
     for (let n = 0; n <= limit; n += 1) {
       if (!isOpen(next, cur)) {
         cushioned = isSoft(next, cur);
@@ -98,7 +101,8 @@ export function makeMover(spec) {
         break;
       }
       cur = enterAll(cur, spec, next);
-      steps.push({ pos: next, states: cur, slid: steps.length > 0 });
+      steps.push({ pos: next, states: cur, slid: steps.length > 0, warped: warpedNext });
+      if (ended) break; // ワープの出口：ここで止まる（出口の穴でredirectを呼ばない＝再ワープしない）
       let redirect = null;
       for (const g of GIMMICKS) {
         redirect = g.redirect?.(cur[g.key], next, curDir, spec) ?? null;
@@ -107,6 +111,10 @@ export function makeMover(spec) {
       if (!redirect) break;
       next = redirect.pos;
       curDir = redirect.dir;
+      if (redirect.end) {
+        ended = true;
+        warpedNext = true;
+      }
     }
     // 手の終わりに1度だけ、tickを持つギミック（周期ドア）の状態を進める（氷の各マスでは進めない。壁衝突・クッションで止まる手も1手）。
     let after = cur;
@@ -132,6 +140,7 @@ export function makeMover(spec) {
 // turnAt[k]は展開後のk番目の手（move1回）の開始時の手番（周期ドア。Issue #310）。
 // moveOf[i]はpath[i+1]が属する手（turnAtの添字）。periodicBump[i]はpath[i+1]が閉じた周期ドアへの衝突ならtrue。
 // slid[i]はpath[i+1]が滑走（redirect）で進んだマスならtrue（効果音の切替用）。
+// warped[i]はpath[i+1]がワープの出口へ移ったマスならtrue（その手でワープした印。Issue #64）。
 // remainingItemsは最終位置までに回収されなかったitem座標（reachedGoalとの併用でクリア判定に使う）。
 // unmetはitems以外でクリア条件を満たしていないギミックのkey配列（paint＝塗りが目標と不一致）。
 // paintOverは目標外を塗ったマス（{x,y}の配列。paint無しは[]）。クリア判定はisRunCleared。
@@ -170,6 +179,7 @@ export function simulate(commands, rawSpec) {
   const turnAt = [];
   const moveOf = [];
   const periodicBump = [];
+  const warped = [];
   let pos = { ...start };
   let states = enterAll(initGimmickStates(spec), spec, pos);
 
@@ -187,6 +197,7 @@ export function simulate(commands, rawSpec) {
         roundOwner.push(round);
         pickups.push(states.items?.collected ?? []);
         slid.push(step.slid);
+        warped.push(step.warped);
         bumpedList.push(false);
         moveOf.push(turnAt.length - 1);
         periodicBump.push(false);
@@ -201,6 +212,7 @@ export function simulate(commands, rawSpec) {
         states = enterAll(states, spec, pos);
         pickups.push(states.items?.collected ?? []);
         slid.push(false);
+        warped.push(false);
         bumpedList.push(bumped);
         moveOf.push(turnAt.length - 1);
         periodicBump.push(byPeriodic);
@@ -213,7 +225,7 @@ export function simulate(commands, rawSpec) {
   // items以外でクリア条件を満たしていないギミックのkey（items以外は現状paintのみ。remainingItemsは別途返す）。
   const unmet = GIMMICKS.filter((g) => g.key !== 'items' && !g.isCleared(states[g.key])).map((g) => g.key);
   const paintOver = GIMMICKS.find((g) => g.key === 'paint')?.overCells(states.paint) ?? [];
-  return { path, blockedAt, reachedGoal, stepOwner, innerOwner, roundOwner, pickups, slid, bumped: bumpedList, remainingItems, unmet, paintOver, turnAt, moveOf, periodicBump };
+  return { path, blockedAt, reachedGoal, stepOwner, innerOwner, roundOwner, pickups, slid, bumped: bumpedList, remainingItems, unmet, paintOver, turnAt, moveOf, periodicBump, warped };
 }
 
 // simulate()の結果がクリアか（ゴール到達・item全回収・壁衝突なし・他ギミックの条件達成）。
@@ -292,6 +304,20 @@ export function shortestChips(rawSpec) {
     if (x === spec.goal.x && y === spec.goal.y && allCleared(entry.states)) best = Math.min(best, entry.d);
   }
   return best;
+}
+
+// ステージ(step)の最短手数。groupRepeatsはチップ数、それ以外は手数。repeatBox・到達不能など算出できなければundefined（Issue #491）。
+export function shortestOfStep(step) {
+  if (!step || step.repeatBox) return undefined;
+  const spec = boardSpec(step);
+  const n = step.groupRepeats ? shortestChips(spec) : shortestSteps(spec);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+// 最短判定（Issue #491）。手数 ≦ 最短ならtrue、超過ならfalse、最短が算出不能（数値でない）ならundefined。
+export function judgeOptimal(count, shortest) {
+  if (typeof shortest !== 'number' || !Number.isFinite(shortest)) return undefined;
+  return count <= shortest;
 }
 
 // start→goal（かつ全ギミックisCleared）の最短経路を命令（方向文字列）の配列で返す。到達不能ならnull。

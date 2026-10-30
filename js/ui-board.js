@@ -47,6 +47,7 @@ export function drawBoard({ boardWrap, spec, cellSize, gap, pad, playerPos, labe
     switches: spec.switches,
     paint: spec.paint,
     periodic: spec.periodic,
+    warps: spec.warps,
     playerPos,
     labels,
     cellSize,

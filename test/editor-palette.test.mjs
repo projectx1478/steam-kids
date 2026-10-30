@@ -21,9 +21,18 @@ test('editor-palette: 固定4項目が先頭にある', () => {
 test('editor-palette: GIMMICKS の key が全部（登録順で）パレットに出る', () => {
   const p = buildPalette(GIMMICKS);
   const gim = p.filter((x) => x.kind === 'gimmick');
-  assert.deepEqual(gim.map((x) => x.key), GIMMICKS.map((g) => g.key));
-  assert.deepEqual(gim.map((x) => x.label), GIMMICKS.map((g) => g.label));
-  assert.equal(p.length, 4 + GIMMICKS.length);
+  // ワープだけは組ごとに「ワープ1」「ワープ2」の2項目（#488）
+  // かぎ・ドアも別項目の2つ、水と橋も別項目（#523）
+  const expKeys = GIMMICKS.flatMap((g) => (g.key === 'warps' ? ['warps1', 'warps2'] : g.key === 'keys' ? ['keys', 'doors'] : g.key === 'water' ? ['water', 'bridge'] : [g.key]));
+  const expLabels = GIMMICKS.flatMap((g) => (g.key === 'warps' ? ['ワープ1', 'ワープ2'] : g.key === 'keys' ? ['かぎ', 'ドア'] : g.key === 'water' ? [g.label, '橋'] : [g.label]));
+  assert.deepEqual(gim.map((x) => x.key), expKeys);
+  assert.deepEqual(gim.map((x) => x.label), expLabels);
+  assert.equal(p.length, 4 + expKeys.length);
+});
+
+test('editor-palette: ワープ1・2 のアイコン盤面は pair が違う穴1個', () => {
+  assert.deepEqual(iconSpec('warps1').warps, [{ x: 0, y: 0, pair: 1 }]);
+  assert.deepEqual(iconSpec('warps2').warps, [{ x: 0, y: 0, pair: 2 }]);
 });
 
 test('editor-palette: 登録表に足したギミックもパレットに出る', () => {
@@ -36,4 +45,29 @@ test('editor-palette: アイコン用の盤面は消しゴム以外すべてに�
     if (p.key === 'eraser') assert.equal(iconSpec(p.key), null);
     else assert.deepEqual(iconSpec(p.key).grid, { cols: 1, rows: 1 }, p.key);
   }
+});
+
+test('editor-palette: かぎとドアは別項目。アイコン盤面はそれぞれ1個', () => {
+  const p = buildPalette(GIMMICKS);
+  assert.deepEqual(p.filter((x) => x.key === 'keys' || x.key === 'doors').map((x) => x.label), ['かぎ', 'ドア']);
+  assert.deepEqual(iconSpec('keys').keys, [{ x: 0, y: 0, color: 'red' }]);
+  assert.deepEqual(iconSpec('doors').doors, [{ x: 0, y: 0, color: 'red' }]);
+});
+
+test('editor-palette: 周期ドアは1項目。アイコン盤面は period 3 が1個', () => {
+  const p = buildPalette(GIMMICKS);
+  assert.deepEqual(p.filter((x) => x.key === 'periodic').map((x) => x.label), ['周期ドア']);
+  assert.deepEqual(iconSpec('periodic').periodic, [{ x: 0, y: 0, period: 3 }]);
+});
+
+test('editor-palette: 橋は水と別項目。アイコン盤面は橋が1個', () => {
+  const p = buildPalette(GIMMICKS);
+  assert.deepEqual(p.filter((x) => x.key === 'water' || x.key === 'bridge').map((x) => x.label), [GIMMICKS.find((g) => g.key === 'water').label, '橋']);
+  assert.deepEqual(iconSpec('bridge').bridge, [{ x: 0, y: 0 }]);
+});
+
+test('editor-palette: ぬりマスは1項目。アイコン盤面は paint が1個', () => {
+  const p = buildPalette(GIMMICKS);
+  assert.deepEqual(p.filter((x) => x.key === 'paint').map((x) => x.label), ['ぬりマス']);
+  assert.deepEqual(iconSpec('paint').paint, [{ x: 0, y: 0 }]);
 });

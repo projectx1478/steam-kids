@@ -1,17 +1,19 @@
 // 盤面エディタ（開発者用）の画面。盤面は js/ui-board.js の drawBoard 経由で描く。
 import { drawBoard } from '/js/ui-board.js';
-import { SAMPLE_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clampCellPx, wheelCellPx, zoomPercent, formatMetrics, pendingSwitches, pendingGroupSwitches, switchModeOptions, switchGroupOptions, GEN_COUNT, GEN_GIMMICKS, checkGenerateForm, buildGenerateBody, generateStatusText } from './editor-view.js';
+import { EMPTY_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clampCellPx, wheelCellPx, zoomPercent, formatMetrics, pendingSwitches, pendingGroupSwitches, pendingKeys, pendingBridges, pendingPaint, selectionHint, switchModeOptions, switchGroupOptions, GEN_COUNT, GEN_GIMMICKS, GEN_BASE_FIXED_GIMMICKS, baseFromSpec, checkGenerateForm, buildGenerateBody, generateStatusText } from './editor-view.js';
 
 import { GIMMICKS } from '/js/gimmicks/index.js';
 import { markGatePassedToday } from '/js/gate-date.js';
+import { openLayoutPanel } from './layout-panel.js';
 import { buildPalette, iconSpec } from './palette.js';
-import { createState, setCellPx as setStateCellPx, place, erase, move, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, SWITCH_COLORS, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard, addDraftStep, explainSaveNg } from './editor-state.js';
+import { createState, setCellPx as setStateCellPx, setGrid, place, erase, move, toggleTarget, togglePaint, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, setKeyColor, setDoorColor, setKeyMode, setWaterMode, setPeriodicPeriod, PERIODIC_PERIODS, WATER_MODES, SWITCH_COLORS, KEY_COLORS, KEY_MODES, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard, addDraftStep, explainSaveNg, addTutorialStep, setStepText, setTutorialScript, tutorialReach } from './editor-state.js';
 
-const state = createState(SAMPLE_SPEC, CELL_PX_DEFAULT);
+const state = createState(EMPTY_SPEC, CELL_PX_DEFAULT);
 state.selected = 'wall';
 let notice = ''; // 直前の操作の結果（拒否の理由など）
 let moveFrom = null; // 「Shift+クリックで選んだ動かす元のマス」
 let selSwitch = null; // 「選択中のスイッチ」の座標 { x, y }（パレットが switches のとき）。番号でなく座標で持つ（元に戻すでずれない）
+let selKey = null; // 「選択中のかぎ／ドア」{ kind: 'keys' | 'doors' | 'periodic', x, y }（パレットが keys／doors／periodic のとき。座標で持つ）
 
 const ICON_CELL_PX = 32;
 // 消しゴムは盤面部品に無いので専用の SVG（見本のとおり）
@@ -52,6 +54,7 @@ function paletteRow(item) {
 function selectPalette(key) {
   state.selected = key;
   if (key !== 'switches') selSwitch = null;
+  if (!selKey || selKey.kind !== key) selKey = null;
   moveFrom = null;
   notice = '';
   for (const row of document.querySelectorAll('#plist .pi')) row.classList.toggle('sel', row.dataset.key === key);
@@ -74,13 +77,21 @@ const undoEl = document.getElementById('undo');
 const redoEl = document.getElementById('redo');
 const maxPausesEl = document.getElementById('max-pauses');
 const maxPausesOf = (spec) => (Number.isInteger(spec.maxPauses) ? spec.maxPauses : 0);
+const gridWEl = document.getElementById('grid-w');
+const gridHEl = document.getElementById('grid-h');
+
+// 大きさ入力を現在の spec.grid へ合わせる（render のたび。元に戻す・読込にも追従）
+function syncGridInputs() {
+  gridWEl.value = String(state.spec.grid.cols);
+  gridHEl.value = String(state.spec.grid.rows);
+}
 
 function render() {
   drawBoard({ boardWrap, spec: state.spec, cellSize: state.cellPx, playerPos: state.spec.start });
   zoomEl.textContent = `${zoomPercent(state.cellPx)}%`;
   const { cols, rows } = state.spec.grid;
   const sel = buildPalette(GIMMICKS).find((p) => p.key === state.selected);
-  const moving = moveFrom ? `　動かす元: (${moveFrom.x},${moveFrom.y}) → 行き先をクリック` : '';
+  const moving = moveFrom ? `　動かす元: (${moveFrom.x},${moveFrom.y}) → 行き先をクリック` : (selectionHint(state.spec, state.selected, selSwitch, selKey) ? `　${selectionHint(state.spec, state.selected, selSwitch, selKey)}` : '');
   statusEl.textContent = `${cols}×${rows}（上限 ${EDITOR_MAX_SIZE}×${EDITOR_MAX_SIZE}）　マス ${state.cellPx}px　選択中: ${sel ? sel.label : '—'}${moving}${notice ? `　${notice}` : ''}`;
   if (moveFrom) {
     const cell = boardWrap.querySelector(`.grid-cell[data-x="${moveFrom.x}"][data-y="${moveFrom.y}"]`);
@@ -89,6 +100,9 @@ function render() {
   markSwitches();
   renderSettings();
   maxPausesEl.value = String(maxPausesOf(state.spec));
+  syncGridInputs();
+  renderKeyMode();
+  renderWaterMode();
   undoEl.disabled = !canUndo(state);
   redoEl.disabled = !canRedo(state);
 }
@@ -97,8 +111,13 @@ function render() {
 const swIndex = () => (selSwitch ? (state.spec.switches || []).findIndex((c) => c.x === selSwitch.x && c.y === selSwitch.y) : -1);
 const cellEl = (x, y) => boardWrap.querySelector(`.grid-cell[data-x="${x}"][data-y="${y}"]`);
 
+// 選択中のかぎ／ドアの番号（無ければ -1）
+const keyIndex = () => (selKey ? (state.spec[selKey.kind] || []).findIndex((c) => c.x === selKey.x && c.y === selKey.y) : -1);
+
 function markSwitches() {
-  for (const p of [...pendingSwitches(state.spec), ...pendingGroupSwitches(state.spec)]) { const c = cellEl(p.x, p.y); if (c) c.classList.add('ed-sw-pending'); }
+  for (const p of [...pendingSwitches(state.spec), ...pendingGroupSwitches(state.spec), ...pendingKeys(state.spec), ...pendingBridges(state.spec), ...pendingPaint(state.spec)]) { const c = cellEl(p.x, p.y); if (c) c.classList.add('ed-sw-pending'); }
+  for (const p of state.spec.paint || []) { const pc = cellEl(p.x, p.y); if (pc) { pc.classList.add('ed-paint'); pc.title = 'ぬりマスの目標'; } }
+  if (keyIndex() >= 0) { const kc = cellEl(selKey.x, selKey.y); if (kc) kc.classList.add('ed-sw-sel'); }
   for (const w of state.spec.groupWalls || []) { const gc = cellEl(w.x, w.y); if (gc) { gc.classList.add('ed-gw'); gc.title = `group「${w.group}」の壁`; } }
   const i = swIndex();
   if (i < 0) return;
@@ -149,9 +168,11 @@ function initialRows(sw) {
 // 盤の横の「選択中の要素」パネル。スイッチ選択中だけ設定が出る（色・mode はラジオ）。
 function renderSettings() {
   const i = swIndex();
+  const ki = keyIndex();
+  if (i < 0 && ki >= 0) { renderKeySettings(); return; }
   settingsBody.className = i < 0 ? 'empty' : 'sw-panel';
   if (i < 0) {
-    settingsBody.textContent = 'スイッチを選ぶと設定が出ます（パレットでスイッチを選び、盤上のスイッチをクリック）';
+    settingsBody.textContent = 'スイッチ・かぎ・ドア・周期ドアを選ぶと設定が出ます（パレットで選び、盤上のその物をクリック）';
     return;
   }
   const sw = state.spec.switches[i];
@@ -177,6 +198,84 @@ function renderSettings() {
   groupHd.className = 'sw-hd';
   groupHd.textContent = 'group（同じ名前のスイッチと壁が対応する）';
   settingsBody.replaceChildren(title, colorHd, radioGroup('sw-color', colors, sw.color ?? 'blue', (v) => apply(setSwitchColor(state, sw.x, sw.y, v))), modeHd, radioGroup('sw-mode', switchModeOptions(state.spec, i), sw.mode ?? 'open', (v) => apply(setSwitchMode(state, sw.x, sw.y, v))), groupHd, radioGroup('sw-group', switchGroupOptions(state.spec, i), grouped ? sw.group : '', (v) => apply(setSwitchGroup(state, sw.x, sw.y, v))), ...initialRows(sw), conn);
+}
+
+// かぎ／ドアの設定欄（色のラジオ）。色を変えると、対応するかぎ・ドアの有無で接続待ちの印が変わる。
+function renderKeySettings() {
+  if (selKey.kind === 'periodic') { renderPeriodicSettings(); return; }
+  const isKey = selKey.kind === 'keys';
+  const item = state.spec[selKey.kind][keyIndex()];
+  settingsBody.className = 'sw-panel';
+  const title = document.createElement('div');
+  title.className = 'sw-title';
+  title.textContent = `${isKey ? 'かぎ' : 'ドア'} (${item.x},${item.y})`;
+  const colorHd = document.createElement('div');
+  colorHd.className = 'sw-hd';
+  colorHd.textContent = '色';
+  const colors = KEY_COLORS.map((c) => ({ value: c, label: c === 'red' ? 'あか（まる）' : 'あお（さんかく）', disabled: false, reason: '' }));
+  const setter = isKey ? setKeyColor : setDoorColor;
+  const wait = pendingKeys(state.spec).some((p) => p.kind === selKey.kind && p.x === item.x && p.y === item.y);
+  const conn = document.createElement('div');
+  conn.className = wait ? 'sw-wait' : 'sw-conn';
+  conn.textContent = wait ? `接続待ち：同じ色の${isKey ? 'ドア' : 'かぎ'}がありません` : `同じ色の${isKey ? 'ドア' : 'かぎ'}があります`;
+  settingsBody.replaceChildren(title, colorHd, radioGroup('key-color', colors, item.color, (v) => apply(setter(state, item.x, item.y, v))), conn);
+}
+
+// 周期ドアの設定欄（period のラジオ 2／3／4。初期位相は無い）
+function renderPeriodicSettings() {
+  const item = state.spec.periodic[keyIndex()];
+  settingsBody.className = 'sw-panel';
+  const title = document.createElement('div');
+  title.className = 'sw-title';
+  title.textContent = `周期ドア (${item.x},${item.y})`;
+  const hd = document.createElement('div');
+  hd.className = 'sw-hd';
+  hd.textContent = 'period（何手ごとに開閉するか）';
+  const opts = PERIODIC_PERIODS.map((n) => ({ value: String(n), label: `${n}手`, disabled: false, reason: '' }));
+  settingsBody.replaceChildren(title, hd, radioGroup('periodic-period', opts, String(item.period), (v) => apply(setPeriodicPeriod(state, item.x, item.y, Number(v)))));
+}
+
+// 盤全体の keyMode（remote／carry。既定 carry）。maxPauses 欄の下に出す。かぎ・ドアが無い盤では選べない。
+const keyModeEl = document.createElement('div');
+keyModeEl.id = 'key-mode';
+document.getElementById('stage-settings').append(keyModeEl);
+
+function renderKeyMode() {
+  const has = (state.spec.keys || []).length > 0 || (state.spec.doors || []).length > 0;
+  if (!has) { keyModeEl.replaceChildren(); return; }
+  const hd = document.createElement('div');
+  hd.className = 'sw-hd';
+  hd.textContent = 'keyMode（かぎの動き）';
+  const labels = { carry: 'carry（かぎを持ってドアへ行くと開く）', remote: 'remote（かぎを取ると同じ色のドアが開く）' };
+  const opts = KEY_MODES.map((m) => ({ value: m, label: labels[m], disabled: !has, reason: has ? '' : 'かぎ・ドアを置くと選べる' }));
+  keyModeEl.replaceChildren(hd, radioGroup('key-mode', opts, state.spec.keyMode ?? 'carry', (v) => apply(setKeyMode(state, v))));
+}
+
+// 盤全体の waterMode（cushion／bump。既定 cushion）。keyMode の下に出す。水が無い盤では選べない。
+const waterModeEl = document.createElement('div');
+waterModeEl.id = 'water-mode';
+document.getElementById('stage-settings').append(waterModeEl);
+
+function renderWaterMode() {
+  const has = (state.spec.water || []).length > 0;
+  if (!has) { waterModeEl.replaceChildren(); return; }
+  const hd = document.createElement('div');
+  hd.className = 'sw-hd';
+  hd.textContent = 'waterMode（水にぶつかったときの動き）';
+  const labels = { cushion: 'cushion（手前で止まる）', bump: 'bump（壁と同じで失敗）' };
+  const opts = WATER_MODES.map((m) => ({ value: m, label: labels[m], disabled: !has, reason: has ? '' : '水を置くと選べる' }));
+  waterModeEl.replaceChildren(hd, radioGroup('water-mode', opts, state.spec.waterMode ?? 'cushion', (v) => apply(setWaterMode(state, v))));
+}
+
+// パレットが keys／doors のときのクリック。同じ種類の物をクリック＝選ぶ／もう一度で外す。空きマスなら置いて選ぶ。
+function keyClick(kind, x, y) {
+  if ((state.spec[kind] || []).some((c) => c.x === x && c.y === y)) {
+    selKey = selKey && selKey.kind === kind && selKey.x === x && selKey.y === y ? null : { kind, x, y };
+    return { ok: true };
+  }
+  const r = place(state, kind, x, y);
+  if (r.ok) selKey = { kind, x, y };
+  return r;
 }
 
 // パレットが switches のときのクリック。スイッチをクリック＝選ぶ／もう一度で外す。選択中なら空きマスは対象のトグル。選んでいなければスイッチを置く。
@@ -224,7 +323,12 @@ async function analyzeNow() {
   } catch {
     lines = ['未判定（判定サーバーに接続できません）'];
   }
-  const wait = [...pendingSwitches(state.spec), ...pendingGroupSwitches(state.spec)].map((p) => `接続待ち: スイッチ (${p.x},${p.y}) に壁がつながっていない`);
+  const wait = [
+    ...[...pendingSwitches(state.spec), ...pendingGroupSwitches(state.spec)].map((p) => `接続待ち: スイッチ (${p.x},${p.y}) に壁がつながっていない`),
+    ...pendingKeys(state.spec).map((p) => `接続待ち: ${p.kind === 'keys' ? 'かぎ' : 'ドア'} (${p.x},${p.y}) に同じ色の${p.kind === 'keys' ? 'ドア' : 'かぎ'}が無い`),
+    ...pendingBridges(state.spec).map((p) => `接続待ち: 橋 (${p.x},${p.y}) の上下左右に水が無い`),
+    ...pendingPaint(state.spec).map((p) => `接続待ち: ぬりマスの目標に${p.kind === 'start' ? 'スタート' : 'ゴール'} (${p.x},${p.y}) が含まれていない`),
+  ];
   if (shouldApplyResult(state, gen)) showMetrics([...wait, ...lines]);
 }
 
@@ -238,6 +342,7 @@ function apply(result) {
   notice = result.ok ? '' : `できません: ${result.reason}`;
   render();
   if (result.ok) scheduleAnalyze();
+  refreshGenerateIfOpen(); // たたき台パネルが開いていれば、土台の判定を盤の変化に合わせる（#631）
 }
 
 // ステージ設定：とめる回数。空欄は0。不正値（負数・小数）は拒否して表示を元に戻す。
@@ -246,8 +351,28 @@ maxPausesEl.addEventListener('change', () => {
   apply(setMaxPauses(state, raw === '' ? 0 : Number(raw)));
 });
 
-function doUndo() { apply(undo(state)); }
-function doRedo() { apply(redo(state)); }
+// 盤の大きさ：空欄・小数・範囲外・はみ出す縮小は setGrid が ng を返す。拒否時は render が入力を現在値へ戻す。
+function applyGrid() {
+  const num = (el) => (el.value.trim() === '' ? NaN : Number(el.value));
+  apply(setGrid(state, num(gridWEl), num(gridHEl)));
+}
+document.getElementById('grid-apply').addEventListener('click', applyGrid);
+
+function doUndo() { const r = undo(state); apply(r); if (r.ok) syncTutFromSpec(); }
+function doRedo() { const r = redo(state); apply(r); if (r.ok) syncTutFromSpec(); }
+
+// undo／redo で戻った spec の text／script を、選択中の tutorial 面へ写す（#628）。play 面・未選択は何もしない。
+function syncTutFromSpec() {
+  if (!lesson || lesson.selected === null) return;
+  const step = lesson.steps[lesson.selected];
+  if (step.kind !== 'tutorial') return;
+  for (const key of ['text', 'script']) {
+    if (state.spec[key] === undefined) delete step[key]; else step[key] = state.spec[key];
+  }
+  lessonDirty = true;
+  renderSteps();
+  render();
+}
 
 // マスのクリック。Shift+クリック＝動かす元を選ぶ → 次のクリックが行き先。それ以外はパレットの選択どおり置く／消す。
 boardWrap.addEventListener('click', (e) => {
@@ -260,6 +385,7 @@ boardWrap.addEventListener('click', (e) => {
     moveFrom = null;
     const r = move(state, from.x, from.y, x, y);
     if (r.ok && selSwitch && selSwitch.x === from.x && selSwitch.y === from.y) selSwitch = { x, y };
+    if (r.ok && selKey && selKey.x === from.x && selKey.y === from.y) selKey = { kind: selKey.kind, x, y };
     apply(r);
     return;
   }
@@ -270,12 +396,17 @@ boardWrap.addEventListener('click', (e) => {
     return;
   }
   if (state.selected === 'switches') { apply(switchClick(x, y)); return; }
+  if (state.selected === 'keys' || state.selected === 'doors' || state.selected === 'periodic') { apply(keyClick(state.selected, x, y)); return; }
+  if (state.selected === 'paint') { apply(togglePaint(state, x, y)); return; }
   apply(state.selected === 'eraser' ? erase(state, x, y) : place(state, state.selected, x, y));
 });
 
 undoEl.addEventListener('click', doUndo);
 redoEl.addEventListener('click', doRedo);
 document.addEventListener('keydown', (e) => {
+  // 入力欄（種類不問）・選択欄・編集可能な要素での Ctrl+Z/Y は盤面に効かせない（#512）。
+  const t = e.target;
+  if (t && t.closest && t.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return;
   if (!(e.ctrlKey || e.metaKey)) return;
   const k = e.key.toLowerCase();
   if (k === 'z' && !e.shiftKey) { e.preventDefault(); doUndo(); }
@@ -323,6 +454,52 @@ function renderSteps() {
   stepBtn('step-pin').disabled = !has || !('gen' in lesson.steps[sel]);
   stepBtn('lesson-save').disabled = !lesson || !lessonDirty;
   stepBtn('step-add').disabled = !lesson;
+  // チュートリアル：足せるのは「面を選んでいて、足せる並び」のときだけ。欄は tutorial の面を選んでいるときに出す。
+  const tut = has && lesson.steps[sel].kind === 'tutorial';
+  stepBtn('tut-add').disabled = !has || !addTutorialStep({ steps: lesson.steps.map((x) => x), selected: null }, state.spec).ok;
+  stepBtn('tut-ctl').hidden = !tut;
+  if (tut && stepBtn('tut-text').value !== (lesson.steps[sel].text || '')) stepBtn('tut-text').value = lesson.steps[sel].text || '';
+  if (tut) renderTutScript(lesson.steps[sel]);
+}
+
+// おてほん手順欄：チップ（各 ×）＋末尾に「▶じっこう」固定。命令ボタンは allowedCommands の範囲だけ。ためし結果は表示のみ（保存の可否にはしない）。
+const TUT_ARROW = { up: '↑', down: '↓', left: '←', right: '→' };
+function tutTaps(step) {
+  return (Array.isArray(step.script) ? step.script : []).filter((e) => e && e.tap !== 'run').map((e) => e.tap);
+}
+function renderTutScript(step) {
+  const taps = tutTaps(step);
+  const box = stepBtn('tut-chips');
+  box.replaceChildren();
+  taps.forEach((tap, i) => {
+    const c = document.createElement('span');
+    c.className = 'tut-chip';
+    c.dataset.index = String(i);
+    c.append(TUT_ARROW[tap] || tap);
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'tut-chip-x';
+    x.textContent = '×';
+    x.setAttribute('aria-label', 'けす');
+    x.addEventListener('click', () => changeTutScript(taps.filter((_, k) => k !== i)));
+    c.append(x);
+    box.append(c);
+  });
+  const run = document.createElement('span');
+  run.className = 'tut-chip run';
+  run.id = 'tut-run';
+  run.textContent = '▶じっこう';
+  box.append(run);
+  const allowed = Array.isArray(step.allowedCommands) ? step.allowedCommands : [];
+  for (const dir of Object.keys(TUT_ARROW)) stepBtn(`tut-cmd-${dir}`).hidden = !allowed.includes(dir);
+  stepBtn('tut-back').disabled = taps.length === 0;
+  const reach = tutorialReach(step);
+  stepBtn('tut-reach').textContent = reach === null ? '' : reach ? 'ためし：ゴールに つく' : 'ためし：ゴールに つかない';
+}
+function changeTutScript(taps) {
+  const r = setTutorialScript(state, taps.map((tap) => ({ tap })));
+  if (r.ok) lesson.steps[lesson.selected].script = state.spec.script; // 面にもすぐ書く（text と同じ）
+  lessonResult(r);
 }
 
 function lessonResult(result) {
@@ -422,6 +599,27 @@ stepBtn('step-del').addEventListener('click', () => {
   lessonResult(removeStep(lesson, lesson.selected));
 });
 stepBtn('lesson-save').addEventListener('click', saveLesson);
+stepBtn('tut-add').addEventListener('click', () => {
+  const r = addTutorialStep(lesson, state.spec);
+  if (r.ok) { placedIds.add(lesson.steps[lesson.selected].stepId); loadSpec(state, lesson.steps[lesson.selected]); scheduleAnalyze(); }
+  lessonResult(r);
+});
+stepBtn('tut-del').addEventListener('click', () => {
+  if (!window.confirm('このチュートリアルの面を消しますか？（保存するまでファイルは変わりません）')) return;
+  lessonResult(removeStep(lesson, lesson.selected));
+});
+for (const dir of Object.keys(TUT_ARROW)) {
+  stepBtn(`tut-cmd-${dir}`).addEventListener('click', () => changeTutScript([...tutTaps(lesson.steps[lesson.selected]), dir]));
+}
+stepBtn('tut-back').addEventListener('click', () => changeTutScript(tutTaps(lesson.steps[lesson.selected]).slice(0, -1)));
+stepBtn('tut-text').addEventListener('input', () => {
+  const r = setStepText(state, stepBtn('tut-text').value);
+  if (r.ok) { // 面にもすぐ書く（盤面の「置き換え」を待たない。boardDirty も揺らさない）
+    const step = lesson.steps[lesson.selected];
+    if (state.spec.text === undefined) delete step.text; else step.text = state.spec.text;
+  }
+  lessonResult(r);
+});
 
 loadLessonList();
 renderPalette();
@@ -483,11 +681,16 @@ const genProblemsEl = document.getElementById('gen-problems');
 const genCandsEl = document.getElementById('gen-cands');
 const genNum = (id) => { const v = document.getElementById(id).value; return v === '' ? NaN : Number(v); };
 const GEN_CAND_AREA_PX = 200; // 候補1枚の盤面の最大の辺
+const GEN_BASE_AREA_PX = 120; // 土台の縮小図の最大の辺
+const layoutOpenEl = document.getElementById('layout-open');
 let genAbort = null; // 生成中の AbortController
 let genNextSeed = null; // 「もう4枚」で使う次の seed
 
 function readGenerateForm() {
+  const baseOn = document.getElementById('gen-base-on').checked;
   return {
+    base: baseOn ? baseFromSpec(state.spec) : null,
+    baseDirty: baseOn && !!boardDirty(),
     cols: { min: genNum('gen-cols-min'), max: genNum('gen-cols-max') },
     rows: { min: genNum('gen-rows-min'), max: genNum('gen-rows-max') },
     walls: { min: genNum('gen-walls-min'), max: genNum('gen-walls-max') },
@@ -501,14 +704,35 @@ function readGenerateForm() {
 
 // 入力が変わるたびに検査し、問題があれば「つくる」「もう4枚」を押せなくする
 function refreshGenerateForm() {
+  const baseEl = document.getElementById('gen-base-on');
+  const dirty = !!boardDirty();
+  baseEl.disabled = dirty && !baseEl.checked; // 置き換え前の盤は土台にできない（ONにしたあとで盤を変えたときは、外せるように残す）
+  const fixed = baseEl.checked;
+  const baseIds = ['gen-cols-min', 'gen-cols-max', 'gen-rows-min', 'gen-rows-max', ...GEN_BASE_FIXED_GIMMICKS.flatMap((k) => [`gen-${k}-on`, `gen-${k}-min`, `gen-${k}-max`])];
+  for (const id of baseIds) document.getElementById(id).disabled = fixed;
+  const viewEl = document.getElementById('gen-base-view');
+  const noteEl = document.getElementById('gen-base-note');
+  viewEl.hidden = !fixed;
+  if (fixed) {
+    const spec = state.spec;
+    noteEl.textContent = `土台：${spec.grid.cols}×${spec.grid.rows}・水${(spec.water || []).length}`;
+    drawBoard({ boardWrap: viewEl, spec, cellSize: Math.max(6, Math.floor(GEN_BASE_AREA_PX / Math.max(spec.grid.cols, spec.grid.rows))), playerPos: spec.start || { x: -1, y: -1 } });
+  } else {
+    viewEl.replaceChildren();
+    noteEl.textContent = dirty ? '（盤を置き換えてから）' : '';
+  }
   const problems = checkGenerateForm(readGenerateForm());
   genProblemsEl.replaceChildren(...problems.map((t) => { const d = document.createElement('div'); d.textContent = t; return d; }));
   genRunEl.disabled = problems.length > 0 || genAbort !== null;
   genMoreEl.disabled = problems.length > 0 || genAbort !== null || genNextSeed === null;
+  layoutOpenEl.disabled = genAbort !== null; // 生成中は「配置」を開かない（#618）
 }
+
+function refreshGenerateIfOpen() { if (!genPanelEl.hidden) refreshGenerateForm(); }
 
 function openGeneratePanel() {
   genPanelEl.hidden = false;
+  document.getElementById('gen-base-on').checked = false; // 開くたびに土台は OFF
   refreshGenerateForm();
 }
 
@@ -585,6 +809,7 @@ document.getElementById('trial-open').addEventListener('click', () => {
 });
 
 document.getElementById('gen-open').addEventListener('click', openGeneratePanel);
+layoutOpenEl.addEventListener('click', openLayoutPanel);
 document.getElementById('gen-close').addEventListener('click', () => { if (genAbort) genAbort.abort(); genPanelEl.hidden = true; });
 genRunEl.addEventListener('click', () => { genNextSeed = null; generateNow(genNum('gen-seed')); });
 genMoreEl.addEventListener('click', () => generateNow(genNextSeed));

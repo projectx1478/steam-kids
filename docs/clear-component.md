@@ -1,6 +1,6 @@
 # クリア演出の共通部品（js/ui-clear.js）
 
-星のトースト → 間（操作行が空き枠＋「…」）→ 結果ダイアログ（つぎへ＋もういちど＋紙吹雪）を1か所に集めた部品。新しい画面でクリア演出を出すときは自前で組まず、これを呼ぶ（Issue #342・#347）。台帳は `docs/components.md`。
+星のトースト → 間（操作行が空き枠＋「…」）→ 結果ダイアログ（つぎへ＋ためしなおす＋紙吹雪）を1か所に集めた部品。新しい画面でクリア演出を出すときは自前で組まず、これを呼ぶ（Issue #342・#347）。台帳は `docs/components.md`。
 
 ## 呼び方
 
@@ -22,13 +22,13 @@ clearSequence = showClearSequence({ statusBar, controls, lockEl, host, gapEl, vi
 | gapEl | 間のあいだ空き枠にする操作行（省略可） |
 | label | トーストの文言（省略可） |
 | primary | つぎへ側。action＝押下時の処理、id＝`data-action` |
-| replay | 「もういちど」押下時の処理（`data-action="replay"`） |
+| replay | 「ためしなおす」押下時の処理（`data-action="replay"`） |
 | heading | ダイアログの見出し（省略可。パネルに収まらなければ自動で消える） |
 | setActiveAnimation | 画面側の「進行中アニメ」登録関数。`{ cancel: dispose }` を渡す。ダイアログを出した後も登録したままにし、画面の作り直し（renderStep の `activeAnimation.cancel()`）でも `dispose` が呼ばれるようにする |
 
 - 返り値は `{ dispose() }`。ステージ切替・やり直し・画面を離れる時に必ず呼ぶ（タイマー・ダイアログ・紙吹雪・`inert`・空き枠・`relative`・リスナーを戻す。2回呼んでも安全）。
 - `showClearToast(slotEl, { view, restore, label, confetti })`：星のトーストだけを出す（間・ダイアログなし。引数・既定は showSuccess と同じ）。predict・tutorial 用（Issue #352）。
-- `recordClear`：最終ステージは clear → markLessonCleared → clearResume、途中は stage_clear → saveResumePoint（Issue #104）。
+- `recordClear`：最終ステージは clear → markLessonCleared → clearResume、途中は stage_clear → saveResumePoint（Issue #104）。`optimal`（任意。Issue #491）：最短手数以内なら true、超過なら false、算出不能（repeatBox 等）は省略し、stage_clear・clear の payload に入る。超過のとき `showClearSequence` の `afterDialogSay` で、ダイアログ表示後に小鳥が一言添える。
 
 ## 結果ダイアログ
 
@@ -45,7 +45,7 @@ clearSequence = showClearSequence({ statusBar, controls, lockEl, host, gapEl, vi
 | | ボタン高さ64px、背面の inert（外枠1つ） |
 | | ダイアログの見た目、星の大きさ20px |
 | | 紙吹雪の量・長さ、ダイアログ時だけ出すこと |
-| | ボタン順（つぎへが上、もういちどが下） |
+| | ボタン順（つぎへが上、ためしなおすが下） |
 | | `data-result*`・`data-clear-confetti` 属性名（シナリオが参照） |
 
 ## CSS
@@ -56,7 +56,7 @@ clearSequence = showClearSequence({ statusBar, controls, lockEl, host, gapEl, vi
 
 - play：js/ui-play.js の finishRun
 - seesaw：js/ui-seesaw.js の finishRun
-- predict は結果ボタンの並び（つぎへ上・もういちど下）だけ揃えており、ダイアログ化はしていない。
+- predict は結果ボタンの並び（つぎへ上・ためしなおす下）だけ揃えており、ダイアログ化はしていない。
 
 ## 禁止パターン
 

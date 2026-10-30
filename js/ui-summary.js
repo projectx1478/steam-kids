@@ -3,13 +3,13 @@
 // ステージクリアの演出はjs/ui-reaction.jsのshowSuccessが担う）。
 import { S } from './state.js';
 import { getEvents } from './events.js';
-import { summarize, lessonAchievements } from './analytics.js';
+import { summarize, lessonAchievements, isLessonGold } from './analytics.js';
 import { shortestSteps, shortestChips, boardSpec } from './engine-grid.js';
-import { stampSvg, flagSvg, medalSvg } from './ui-picker.js';
+import { stampSvg, goldStampSvg, flagSvg, medalSvg } from './ui-picker.js';
 import { play as playSfx } from './sfx.js';
 import { prefersReducedMotion, screenConfetti, shapeSvg } from './ui-grid.js';
 import { isUnitEndSeenStored, markUnitEndSeenStored } from './storage.js';
-import { createPrimaryButton, goToStep } from './ui-step.js';
+import { createPrimaryButton, goToStep, mapUrl } from './ui-step.js';
 import { randomNumberCode } from './seed-code.js';
 import { withDev } from './dev-mode.js';
 
@@ -115,9 +115,10 @@ export function renderSummary(root) {
     S.unit.lessonIds.forEach((id) => {
       const dot = document.createElement('span');
       dot.className = 'inline-flex w-6 h-6';
-      dot.dataset.stamp = isCleared(id) ? 'done' : 'todo';
+      const gold = isCleared(id) && isLessonGold(events, id);
+      dot.dataset.stamp = gold ? 'gold' : isCleared(id) ? 'done' : 'todo';
       if (isCleared(id)) {
-        dot.innerHTML = stampSvg();
+        dot.innerHTML = gold ? goldStampSvg() : stampSvg();
         // 今回クリアしたレッスンのスタンプだけ「ぽん」と押される演出にする（reduced-motion時は
         // 静止表示のまま。Issue #104）。
         if (id === lessonId && !prefersReducedMotion()) dot.classList.add('stamp-pop');
@@ -179,22 +180,20 @@ export function renderSummary(root) {
 
   }
 
-  // 「つぎへ」と「おわる」は同じ大きさで横に並べる（Issue #263）。「おわる」はタイトルへ戻る（#257の「タイトルへ」と同じ行き先）。
+  // 「つぎへ」（主・右）と「おわる」（小・左）は下端バー（.sk-bottom-bar。Issue #551）に置く。「おわる」はタイトルへ戻る
+  // （#257の「タイトルへ」と同じ行き先）。「ほかのレッスンへ」は本文末に残す。
   const nextId = S.unit?.lessonIds[S.unit.lessonIds.indexOf(lessonId) + 1];
-  const choiceRow = document.createElement('div');
-  choiceRow.className = 'flex justify-center gap-3 w-full max-w-sm mx-auto px-2';
-  const choiceClass = 'flex-1 max-w-[12rem]';
-  if (nextId) {
-    const nextBtn = createPrimaryButton('つぎへ', () => (location.href = withDev(`./index.html?lesson=${nextId}`)), 'next-lesson');
-    nextBtn.className += ` ${choiceClass}`;
-    choiceRow.appendChild(nextBtn);
-  }
+  const bar = document.createElement('div');
+  bar.className = 'sk-bottom-bar';
+  bar.dataset.role = 'bottom-bar';
   const endBtn = createPrimaryButton('おわる', () => (location.href = withDev('./index.html')), 'finish');
-  endBtn.className += ` ${choiceClass}`;
-  choiceRow.appendChild(endBtn);
-  root.appendChild(choiceRow);
-
-  root.appendChild(
-    createPrimaryButton('ほかのレッスンへ', () => (location.href = withDev('./index.html?view=map')), 'back-to-picker')
-  );
+  if (nextId) {
+    endBtn.classList.add('sk-bar-sub');
+    bar.appendChild(endBtn);
+    bar.appendChild(createPrimaryButton('つぎへ', () => (location.href = withDev(`./index.html?lesson=${nextId}`)), 'next-lesson'));
+  } else {
+    bar.appendChild(endBtn);
+  }
+  const toPicker = createPrimaryButton('ほかのレッスンへ', () => (location.href = mapUrl()), 'back-to-picker');
+  root.append(toPicker, bar);
 }

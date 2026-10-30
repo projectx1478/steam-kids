@@ -4,9 +4,9 @@
 import { parentPort, workerData } from 'node:worker_threads';
 import { shortestSteps, shortestChips, shortestPath, boardSpec } from '../../js/engine-grid.js';
 import { checkBoard, checkSwitchMatters } from '../validate-lessons.mjs';
-import { iceMustMatter, keysMustMatter, periodicMustMatter, paintMustMatter, itemsMustMatter } from '../lib/must-matter.mjs';
+import { iceMustMatter, keysMustMatter, periodicMustMatter, paintMustMatter, itemsMustMatter, warpsMustMatter, waterMustMatter, cushionMustMatter } from '../lib/must-matter.mjs';
 
-export const MATTER_KEYS = ['ice', 'keys', 'items', 'periodic', 'paint', 'switches'];
+export const MATTER_KEYS = ['ice', 'keys', 'items', 'periodic', 'paint', 'switches', 'warps', 'water', 'cushion'];
 const DEFAULT_COMMANDS = ['up', 'down', 'left', 'right'];
 const nonEmpty = (v) => Array.isArray(v) && v.length > 0;
 
@@ -44,19 +44,19 @@ export function analyzeSpec(spec) {
   const maxCommands = typeof board.maxCommands === 'number' ? board.maxCommands : dist;
   const play = { ...board, maxCommands };
   if (dist > maxCommands) {
-    add('ゴール到達可能性', `最短${dist}（maxCommands=${maxCommands}以内で到達できない）`);
+    add('ゴール到達可能性', `最短${dist}（想定の手数 maxCommands=${maxCommands} の内で到達できない）`);
     return { clearable: false, shortest: dist, matters, turns: null, messages };
   }
 
   const ice = iceMustMatter(play);
   if (nonEmpty(play.ice)) {
     matters.ice = ice.matters;
-    if (!ice.matters) add('こおりの必須性', `こおりを踏まずにmaxCommands=${maxCommands}以内でゴールできる（最短${ice.dist}）`);
+    if (!ice.matters) add('こおりの必須性', `こおりを踏まずに想定の手数（maxCommands=${maxCommands}）の内でゴールできる（最短${ice.dist}）`);
   }
   const keys = keysMustMatter(play);
   if (nonEmpty(play.doors)) {
     matters.keys = keys.matters;
-    if (!keys.matters) add('かぎの必須性', `かぎを取らずにmaxCommands=${maxCommands}以内でゴールできる（最短${keys.dist}）`);
+    if (!keys.matters) add('かぎの必須性', `かぎを取らずに想定の手数（maxCommands=${maxCommands}）の内でゴールできる（最短${keys.dist}）`);
   }
   if (play.stageGen?.teach === 'items' && !play.groupRepeats) {
     matters.items = itemsMustMatter(play, dist);
@@ -66,6 +66,21 @@ export function analyzeSpec(spec) {
   if (nonEmpty(play.periodic)) {
     matters.periodic = periodic.matters;
     if (!periodic.matters) add('周期ドアの必須性', `周期ドアを常に開とみなした最短(${periodic.dist})より最短(${dist})が長くない`);
+  }
+  const warps = warpsMustMatter(play);
+  if (nonEmpty(play.warps)) {
+    matters.warps = warps.matters;
+    if (!warps.matters) add('ワープの必須性', `ワープを使わずに想定の手数（maxCommands=${maxCommands}）の内でゴールできる（最短${warps.dist}）`);
+  }
+  const water = waterMustMatter(play, dist);
+  if (nonEmpty(play.water)) {
+    matters.water = water.matters;
+    if (!water.matters) add('水の必須性', `水と橋を外した最短(${water.dist})より最短(${dist})が長くない`);
+  }
+  const cushion = cushionMustMatter(play, dist);
+  if (nonEmpty(play.cushion)) {
+    matters.cushion = cushion.matters;
+    if (!cushion.matters) add('クッションの必須性', `クッションを外しても最短${dist}手のまま`);
   }
   const paint = paintMustMatter(play, dist);
   if (nonEmpty(play.paint)) {

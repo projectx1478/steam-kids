@@ -1,4 +1,4 @@
-// validate-lessons: paintの検証（併用禁止・盤サイズ・目標の妥当性・必須性・手数）(Issue #286)。リポジトリ直下で実行すること。
+// validate-lessons: paintの検証（併用・盤サイズ・目標の妥当性・必須性・手数）(Issue #286)。リポジトリ直下で実行すること。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -25,12 +25,12 @@ test('validate-lessons: paintの基準レッスン(paint-01-nuru)は検証を通
   assert.equal(r.code, 0, r.out);
 });
 
-test('validate-lessons: paintは他ギミックと併用できない（items・ice・cushion・warp・keys・doors・switches）', () => {
+test('validate-lessons: paintは他ギミックと併用できる（併用禁止の文言は出ない。ぬりの目標と氷は同じマスに置けない）(Issue #529)', () => {
   const extras = {
     items: [{ x: 3, y: 3 }],
     ice: [{ x: 3, y: 3 }],
     cushion: [{ x: 3, y: 3 }],
-    warp: [{ x: 3, y: 3 }],
+    warps: [{ x: 3, y: 3, pair: 1 }],
     keys: [{ x: 3, y: 3, color: 'red' }],
     doors: [{ x: 3, y: 0, color: 'red' }],
     switches: [{ x: 3, y: 3, targets: [{ x: 3, y: 0 }] }],
@@ -39,14 +39,17 @@ test('validate-lessons: paintは他ギミックと併用できない（items・i
     const r = validate((p) => {
       p[field] = value;
     });
-    assert.ok(ng(r, `paint は${field}と併用できない`), `${field}: ${r.out}`);
+    assert.ok(!r.out.includes('併用できない'), `${field}: ${r.out}`);
   }
+  const r = validate((p) => {
+    p.ice = [{ x: 3, y: 3 }];
+    p.paint = [...p.paint, { x: 3, y: 3 }];
+  });
+  assert.ok(ng(r, '氷と重なる'), r.out);
 });
 
-test('validate-lessons: paintの盤サイズ・repeatBox/groupRepeats・目標の妥当性', () => {
+test('validate-lessons: paintの盤サイズ・目標の妥当性', () => {
   assert.ok(ng(validate((p) => { p.grid = { cols: 21, rows: 4 }; }), '20×20以内'));
-  assert.ok(ng(validate((p) => { p.repeatBox = true; }), 'repeatBox・groupRepeats と併用できない'));
-  assert.ok(ng(validate((p) => { p.groupRepeats = true; }), 'repeatBox・groupRepeats と併用できない'));
   assert.ok(ng(validate((p) => { p.paint = []; }), 'paint が空'));
   assert.ok(ng(validate((p) => { p.paint = [...p.paint, { x: 9, y: 9 }]; }), '盤外'));
   assert.ok(ng(validate((p) => { p.paint = [...p.paint, p.paint[0]]; }), '座標重複'));

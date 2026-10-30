@@ -46,6 +46,20 @@ export default async function run({ page, check }) {
   await page.click('[data-action="map-back"]');
   await check('もどるで大項目選択へ戻る', () => page.getAttribute('#stage', 'data-screen'), 'tracks');
 
+  // ロボットのレッスンから ホーム→確認→戻ると、ロボットの単元だけで teko は出ない（Issue #616）
+  await page.goto('/index.html?lesson=cmd-01-susumu');
+  await page.click('[data-action="start"]');
+  await page.click('#gear-btn');
+  await page.waitForSelector('#menu-home');
+  await page.click('#menu-home');
+  const needConfirm = await page.$('[data-action="leave-ok"]');
+  if (needConfirm) await page.click('[data-action="leave-ok"]');
+  await page.waitForSelector('[data-lesson-id]');
+  await check('ロボットのレッスンから戻るとロボットの単元だけ（tekoは出ない）', async () => {
+    const got = await page.$$eval('[data-lesson-id]', (els) => els.map((e) => e.dataset.lessonId));
+    return [got.length > 0 && got.every((id) => ids.includes(id)), got.includes('teko-01-tsuriai')].join();
+  }, 'true,false');
+
   // 遊べる大項目が1つだけなら大項目選択を飛ばして単元マップ
   await page.route('**/lessons/index.json', async (route) => {
     const j = JSON.parse(await (await route.fetch()).text());

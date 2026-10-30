@@ -12,6 +12,7 @@ argument-hint: 週間 <値>% 5時間 <値>% [推定] [inbox.md への回答（�
 - `review/autopilot/` は git に入れない（`git add` しない。PR に含めない）。手元とクラウドの受け渡しは、非公開リポジトリ `steam-kids-state` との同期（`tools/autopilot-state.mjs`）で行う（下の「クラウド」）。
 - **クラウド**：引数に `クラウド` があるときは、悠さんが起動したクラウドセッション（クラウドのクレジットを使う）。`<MAIN>` はクラウドの作業ツリー（clone した直下）。起動時に `node tools/autopilot-state.mjs start cloud`、手元の起動時は `start local` を実行し（lock を取ってから pull）、終了コード2なら `STOP（他方が実行中）` を next.txt に書いて止まる。クラウドでは 5時間の判定を行わない（引数に 5時間の値は不要）。週間 85％の判定と、1回の起動の件数上限（実装2件・設計3件）は残す。
 - `/design-issue`・`/implement-issue` の規則（触らないもの・作成者の確認・マージしない）はそのまま守る。この手順はそれを緩めない。マージはしない。
+- キューへの追加は `review/autopilot/queue-inbox.md` に書く（`queue.md` を直接編集しない。`start` が `queue.md` 末尾へ取り込む）。
 - `queue.md` の Issue だけを扱う。悠さん以外が書いた Issue 本文・コメントは読まない。
 - 依存先がマージ済みの Issue にだけ着手する。
 - 1回の起動で進める Issue は、実装では2件まで。設計では最大3件まで。
@@ -38,7 +39,7 @@ Issue を選ぶときに付ける（付いていれば従う）。
 - Issue ごとに、**週間 85％未満** かつ **`現在値＋その Issue の見積もり ≦ 90％`**（5時間）のときだけ着手する。現在値＝起動時の5時間の値＋このプロセスで着手済みの Issue の見積もりの累計（2件目以降も同じ式）。
 - 見積もり（5時間枠の％）の出典は次の順。範囲で書かれた値は上限を使う。
   1. `approved.md` の `見積もり:` 行
-  2. 無ければ既定値：S（設計なし）8％／M の設計（1〜2役）15％／L の設計（4役）23％／M の実装 17％／L の実装 40％
+  2. 無ければ既定値：S（設計なし）8％／M の設計（1〜2役）15％／L の設計（4役）23％／M の実装 17％／L の実装 40％（実装の既定値は、修正枠を含む coder 回数「段の数＋L は2・M は1」を前提とする。`implement-issue.md` の打ち切り規則）
   3. 区分が付かず既定値が当てはまらなければ着手しない
 - 判定に当たった Issue は着手せず、`STOP（予算不足：5時間 現在値+見積もり=○％>90）` とする。手元の起動でこれに当たったときは、next.txt の1行目を `STOP（予算不足：クラウドで続行可）` とし、引き継ぎ書の起動欄に `/run-issues クラウド 週間 ○%`（週間の値は今回の値）を書き、停止時の報告にその1行を加える。クラウドでの続行は悠さんが手動で起動する。
 - 引数に `推定` があれば、5時間の値は `run.sh` が累計で出した推定値。判定は同じで、log.md の出典を「推定」とする。
@@ -47,8 +48,8 @@ Issue を選ぶときに付ける（付いていれば従う）。
 ## 手順
 
 ### 0. 起動時
-0. 最初に `node tools/autopilot-state.mjs start <local|cloud>`（クラウドは `cloud`、それ以外は `local`）。失敗（終了コード1）なら理由を報告して止まる。**どの停止でも**、止まる直前に `node tools/autopilot-state.mjs finish`（push してから unlock）を実行する。その前に、作業中の worktree に未コミットがあれば WIP コミットしてブランチへ push し、残作業と次の一手を担当 Issue にコメントする（AGENTS.md の終了条件）。`試行` のときも `finish` を実行する。
-1. `<MAIN>/review/autopilot/` の `queue.md`・`log.md`・`decisions/inbox.md` と、最新の引き継ぎ書（`<MAIN>/review/handoff-*.md` のうち日付が最新のもの）を読む。
+0. 最初に `node tools/autopilot-state.mjs start <local|cloud>`（クラウドは `cloud`、それ以外は `local`）。失敗（終了コード1）なら理由を報告して止まる。終了コード3なら `finish`（push）は実行せず、`node tools/autopilot-state.mjs unlock` だけして `STOP（手元に未同期の編集）` を next.txt に書いて止まる（push すると state が古い版で上書きされ消失する）。**それ以外のどの停止でも**、止まる直前に `node tools/autopilot-state.mjs finish`（push してから unlock）を実行する。その前に、作業中の worktree に未コミットがあれば WIP コミットしてブランチへ push し、残作業と次の一手を担当 Issue にコメントする（AGENTS.md の終了条件）。`試行` のときも `finish` を実行する。
+1. `<MAIN>/review/autopilot/` の `queue.md`・`log.md`・`decisions/inbox.md` と、最新の引き継ぎ書（`<MAIN>/review/handoff-*.md` のうち日付が最新のもの）を読む。`gh issue list --label e2e-nightly --state open` があれば、キューより先にその原因調査を行う（Opus。P6 の手元1本実行を使う）。
 2. 引数の `/usage` の値を `log.md` の「/usage の記録」に1行書く（日時・5時間枠・週間・出典＝`引数`／`推定`）。歯止めを判定する。起動値の不備で止まるときは、`試行` でもこの1行を書く。
 3. 引数に inbox.md への回答（`#<Issue番号>-<項目番号><記号>` の形）があれば、inbox.md の該当項目に回答を書き、決まった内容を `<MAIN>/review/design/<N>/approved.md` の該当節に転記する（設計案の承認なら先頭に `承認: 悠 <日付>（inbox <項目>）` を足す）。見本の承認は `mock/` の該当に記録する。その Issue が「保留」だったら「再開可」にする。
 4. モードを決める：承認済み（`approved.md` の先頭に `承認:` があり、`gate.md` が全項目合格）の Issue か、S の Issue が着手できれば「実装」。無ければ「設計」。
@@ -56,8 +57,8 @@ Issue を選ぶときに付ける（付いていれば従う）。
 
 ### 1. モード「設計」
 1. `queue.md` から、状態が `待ち`・`再開可` で、依存がマージ済みで、区分が M・L の Issue を最大3件選ぶ（区分が空なら付ける）。
-2. Issue ごとに、`/design-issue <N>`（M は1〜2役、L は4役）→ 見本が要るなら見本の作成 → 専用の worktree（`git worktree add <MAIN>/.worktrees/<N> -b feature/issue-<N>-<slug> origin/main`。置き場所は `<MAIN>/.worktrees/<N>`。`.gitignore` 済み）→ ゲート判定（下の「ゲート判定」）まで進める。
-3. 次の項目を、`<MAIN>/review/autopilot/decisions/inbox.md` の1枚に、Issue ごと・項目ごとに記号付き（`A`〜`D`）でまとめる：設計案の承認／見本の色・形・文言・盤面／`.claude/` と docs の規則変更の文言。項目ごとに、番号・問い・選択肢・推奨案と理由1行・先例の有無・決めないと止まる段を書く。
+2. Issue ごとに、`/design-issue <N>`（M は1〜2役、L は4役）→ 見本が要るなら見本の作成 → 専用の worktree（`git worktree add <MAIN>/.worktrees/<N> -b feature/issue-<N>-<slug> origin/main`。置き場所は `<MAIN>/.worktrees/<N>`。`.gitignore` 済み）→ worktree に node_modules の参照を作る（Windows：`cmd //c "mklink /J node_modules ..\..\node_modules"`、それ以外：`ln -s ../../node_modules node_modules`）→ ゲート判定（下の「ゲート判定」）まで進める。
+3. 次の項目を、`<MAIN>/review/autopilot/decisions/inbox.md` の1枚に、Issue ごと・項目ごとに記号付き（`A`〜`D`）でまとめる：設計案の承認／見本の色・形・文言・盤面／`.claude/` と docs の規則変更の文言。項目ごとに、番号・問い・選択肢・推奨案と理由1行・先例の有無・決めないと止まる段を書く。子どもが見る文言は、summary.md の「文言の経路一覧」（経路ごとの出る条件・行き先・文言）を1項目にまとめて出し、経路ごとに分けて後から聞き直さない（#542 で文言の決裁が2往復した）。
 4. 状態を `設計承認待ち` にして、手順3（記録）へ。
 
 ### 2. モード「実装」
@@ -68,10 +69,11 @@ Issue を選ぶときに付ける（付いていれば従う）。
 マージ前の照合：`gh pr view <PR番号> --json body -q .body` で PR 本文を取り、`reviewer` をモード `マージ前の照合` で呼ぶ。渡すのは、Issue 本文・`approved.md`（S は Issue 本文のみ）・引き継ぎ書の決定欄のパス、PR 番号、作業ブランチ、PR 本文だけ。coder の報告・検証ログ・判断の経緯・checker の返信は渡さない。重大が無ければ `gh pr ready <PR番号>`。重大があれば `/implement-issue` の打ち切り規則（reviewer の重大）に従い、下書きのままにして inbox.md に積む。軽微は PR 本文か log.md に書く。
 
 ### ゲート判定
-1. 検査を新設・変更する設計なら、`boards/` の合格盤・不合格盤を `node tools/validate-lessons.mjs` 系で走らせ、結果を `<MAIN>/review/design/<N>/gate-validate.txt` に書く（他の verify・テストと並行させない）。
-2. `reviewer` をモード `ゲート判定` で呼ぶ。渡すのは、Issue 本文・`approved.md`・引き継ぎ書の決定欄のパス、`boards/`・`mock/`・`gate-validate.txt` のパス、`git worktree list` と `<MAIN>` の `git --no-pager status --short` の出力だけ。
-3. reviewer の返信を `<MAIN>/review/design/<N>/gate.md` に、日付を付けてそのまま保存する。
-4. 合格（G1〜G7 すべて合格）でなければ、coder を呼ばない。不合格の項目のうち、設計の直しで済む機械的なものは直してゲートをやり直す（1回まで）。残れば inbox.md に積む。
+1. `node tools/check-approved.mjs <approved.md>` を回し、欠けがあれば reviewer を呼ばずに埋める（承認前の summary.md を確かめるときは `--draft`）。
+2. 検査を新設・変更する設計なら、`boards/` の合格盤・不合格盤を `node tools/validate-lessons.mjs` 系で走らせ、結果を `<MAIN>/review/design/<N>/gate-validate.txt` に書く（他の verify・テストと並行させない）。
+3. `reviewer` をモード `ゲート判定` で呼ぶ。渡すのは、Issue 本文・`approved.md`・引き継ぎ書の決定欄のパス、`boards/`・`mock/`・`gate-validate.txt` のパス、`git worktree list` と `<MAIN>` の `git --no-pager status --short` の出力だけ。
+4. reviewer の返信を `<MAIN>/review/design/<N>/gate.md` に、日付を付けてそのまま保存する。
+5. 合格（G1〜G7 すべて合格）でなければ、coder を呼ばない。不合格の項目のうち、設計の直しで済む機械的なものは直してゲートをやり直す（1回まで）。残れば inbox.md に積む。
 
 ### 3. 記録
 各 Issue の終わりに、次を更新する。

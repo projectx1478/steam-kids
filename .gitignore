@@ -57,8 +57,13 @@ review/principles/screens/*
 review/principles/round1/
 review/principles/round2/
 review/principles/archive/
+# 画面・導線の点検（design-ui-audit）の報告・スクリーンショットは Git 管理外（#546）
+review/ui-audit/
 review/lesson-ideas/round1/
 review/lesson-ideas/round2/
+review/lesson-ideas/*/round0/
+review/lesson-ideas/*/round1/
+review/lesson-ideas/*/round2/
 
 # 自動進行（/run-issues）の Issue 別 worktree
 .worktrees/
@@ -71,3 +76,7 @@ review/handoff-*.md
 # 盤面エディタ（開発者用）の下書き・レッスン退避。公開しない
 tools/editor/drafts/
 tools/editor/backups/
+
+# BGM音源（MusMus）は公開リポジトリに置かない（#378）。配信時は pages.yml が
+# 非公開 steam-kids-state から _site/audio/ へコピーする。手元の audio/ はコミット対象外
+audio/

@@ -1,7 +1,7 @@
 // #401 段2: たたき台フォームの送信前検査・本文の組み立て・状態文言（純関数）。実行: npm run test:unit
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { checkGenerateForm, buildGenerateBody, generateStatusText, GEN_COUNT } from '../tools/editor/editor-view.js';
+import { checkGenerateForm, buildGenerateBody, generateStatusText, baseFromSpec, GEN_COUNT } from '../tools/editor/editor-view.js';
 import { checkGenerateInput } from '../tools/editor/serve.mjs';
 
 const form = () => ({
@@ -47,4 +47,148 @@ test('generateStatusText: 文言', () => {
   assert.equal(generateStatusText('empty'), '条件に合う盤が出なかった。範囲を広げる');
   assert.equal(generateStatusText('aborted'), '重すぎて途中で止めた。大きさかギミックを減らす');
   assert.equal(generateStatusText('ok'), '');
+});
+
+test('ワープ（#492）: 単独なら通り、サーバーの入力検査も通る。ほかのギミックとの併用・範囲外は通さない', () => {
+  const f = form();
+  f.gimmicks.items.on = false;
+  f.gimmicks.warps = { on: true, min: 1, max: 2 };
+  f.teach = 'warps';
+  assert.deepEqual(checkGenerateForm(f), []);
+  assert.deepEqual(checkGenerateInput(buildGenerateBody(f, 1)), []);
+  const both = form();
+  both.gimmicks.warps = { on: true, min: 1, max: 1 };
+  both.teach = 'warps';
+  assert.deepEqual(checkGenerateForm(both), []); // items との併用は通る（#531）
+  assert.deepEqual(checkGenerateInput(buildGenerateBody(both, 1)), []);
+  const two = form();
+  two.gimmicks.items.on = false;
+  two.gimmicks.warps = { on: true, min: 1, max: 1 };
+  two.gimmicks.water = { on: true, min: 2, max: 4 };
+  two.teach = 'warps';
+  assert.deepEqual(checkGenerateForm(two), ['warps・water は同時に指定できない（warps・periodic・water は1種まで）']);
+  assert.ok(checkGenerateInput(buildGenerateBody(two, 1)).length > 0);
+  const over = form();
+  over.gimmicks.items.on = false;
+  over.gimmicks.warps = { on: true, min: 1, max: 3 };
+  over.teach = 'warps';
+  assert.ok(checkGenerateForm(over).length > 0);
+});
+
+test('周期ドア（#496）: 単独なら通り、サーバーの入力検査も通る。併用・範囲外は通さない', () => {
+  const f = form();
+  f.gimmicks.items.on = false;
+  f.gimmicks.periodic = { on: true, min: 1, max: 2 };
+  f.teach = 'periodic';
+  assert.deepEqual(checkGenerateForm(f), []);
+  assert.deepEqual(checkGenerateInput(buildGenerateBody(f, 1)), []);
+  const both = form();
+  both.gimmicks.periodic = { on: true, min: 1, max: 1 };
+  both.teach = 'periodic';
+  assert.deepEqual(checkGenerateForm(both), []); // items との併用は通る（#531）
+  assert.deepEqual(checkGenerateInput(buildGenerateBody(both, 1)), []);
+  const over = form();
+  over.gimmicks.items.on = false;
+  over.gimmicks.periodic = { on: true, min: 1, max: 3 };
+  over.teach = 'periodic';
+  assert.ok(checkGenerateForm(over).length > 0);
+});
+
+test('色ぬり（#495）: 単独なら通り、サーバーの入力検査も通る。併用・範囲外は通さない', () => {
+  const f = form();
+  f.gimmicks.items.on = false;
+  f.gimmicks.paint = { on: true, min: 4, max: 8 };
+  f.teach = 'paint';
+  assert.deepEqual(checkGenerateForm(f), []);
+  assert.deepEqual(checkGenerateInput(buildGenerateBody(f, 1)), []);
+  const both = form();
+  both.gimmicks.paint = { on: true, min: 4, max: 4 };
+  both.teach = 'paint';
+  assert.ok(checkGenerateForm(both).length > 0);
+  // water とだけ併用できる（#531 段2）。items を足すと NG
+  const pw = form();
+  pw.gimmicks.items.on = false;
+  pw.gimmicks.paint = { on: true, min: 4, max: 6 };
+  pw.gimmicks.water = { on: true, min: 2, max: 4 };
+  pw.teach = 'paint';
+  assert.deepEqual(checkGenerateForm(pw), []);
+  assert.deepEqual(checkGenerateInput(buildGenerateBody(pw, 1)), []);
+  pw.gimmicks.items.on = true;
+  assert.ok(checkGenerateForm(pw).length > 0);
+  const over = form();
+  over.gimmicks.items.on = false;
+  over.gimmicks.paint = { on: true, min: 3, max: 8 };
+  over.teach = 'paint';
+  assert.ok(checkGenerateForm(over).length > 0);
+});
+
+test('水（#494）: 単独なら通り、サーバーの入力検査も通る。併用・範囲外は通さない', () => {
+  const f = form();
+  f.gimmicks.items.on = false;
+  f.gimmicks.water = { on: true, min: 2, max: 8 };
+  f.teach = 'water';
+  assert.deepEqual(checkGenerateForm(f), []);
+  assert.deepEqual(checkGenerateInput(buildGenerateBody(f, 1)), []);
+  const both = form();
+  both.gimmicks.water = { on: true, min: 2, max: 4 };
+  both.teach = 'water';
+  assert.deepEqual(checkGenerateForm(both), []); // items との併用は通る（#531）
+  assert.deepEqual(checkGenerateInput(buildGenerateBody(both, 1)), []);
+  const over = form();
+  over.gimmicks.items.on = false;
+  over.gimmicks.water = { on: true, min: 1, max: 8 };
+  over.teach = 'water';
+  assert.ok(checkGenerateForm(over).length > 0);
+});
+
+test('クッション・スイッチ（#492）: 単独で通り、サーバーの入力検査も通る。併用の禁止を送信前に止める', () => {
+  const sw = form();
+  sw.gimmicks.items.on = false;
+  sw.gimmicks.switches = { on: true, min: 1, max: 2 };
+  sw.teach = 'switches';
+  assert.deepEqual(checkGenerateForm(sw), []);
+  assert.deepEqual(checkGenerateInput(buildGenerateBody(sw, 1)), []);
+  const swKey = structuredClone(sw);
+  swKey.gimmicks.keys.on = true;
+  assert.ok(checkGenerateForm(swKey).length > 0);
+  const cu = form();
+  cu.gimmicks.ice.on = true;
+  cu.gimmicks.cushion = { on: true, min: 1, max: 1 };
+  cu.teach = 'cushion';
+  assert.deepEqual(checkGenerateForm(cu), []);
+  assert.deepEqual(checkGenerateInput(buildGenerateBody(cu, 1)), []);
+  cu.gimmicks.ice.on = false;
+  assert.ok(checkGenerateForm(cu).length > 0);
+});
+
+test('土台（#631）: OFF の本文は従来と同じ。ON は base を送り grid・water・paint を送らず、サーバーの検査を通る', () => {
+  const off = form();
+  assert.deepEqual(buildGenerateBody({ ...off, base: null, baseDirty: false }, 3), buildGenerateBody(off, 3));
+  const spec = { grid: { cols: 6, rows: 6 }, start: { x: 0, y: 0 }, water: [{ x: 3, y: 0 }, { x: 3, y: 1 }, { x: 3, y: 2 }, { x: 3, y: 3 }, { x: 3, y: 5 }], bridge: [{ x: 3, y: 4 }], walls: [] };
+  const base = baseFromSpec(spec);
+  assert.deepEqual(Object.keys(base), ['grid', 'water', 'bridge']);
+  const on = form();
+  on.base = base;
+  on.baseDirty = false;
+  on.gimmicks.water = { on: true, min: 2, max: 2 };
+  on.gimmicks.paint = { on: true, min: 4, max: 4 };
+  on.cols = { min: NaN, max: NaN };
+  assert.deepEqual(checkGenerateForm(on), []);
+  const body = buildGenerateBody(on, 1);
+  assert.equal('grid' in body.stageGen, false);
+  assert.deepEqual(body.stageGen.base, base);
+  assert.deepEqual(Object.keys(body.stageGen.gimmicks), ['items']);
+  assert.deepEqual(checkGenerateInput(body), []);
+});
+
+test('土台（#631）: 未置換は問題、土台に水があるとワープ・周期ドアは問題', () => {
+  const f = form();
+  f.base = { grid: { cols: 6, rows: 6 }, water: [{ x: 3, y: 0 }] };
+  f.baseDirty = true;
+  assert.deepEqual(checkGenerateForm(f), ['土台にするには、盤を置き換えてから']);
+  f.baseDirty = false;
+  f.gimmicks.warps = { on: true, min: 1, max: 1 };
+  assert.equal(checkGenerateForm(f).length, 1);
+  f.base = { grid: { cols: 6, rows: 6 } };
+  assert.deepEqual(checkGenerateForm(f), []);
 });

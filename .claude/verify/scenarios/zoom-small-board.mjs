@@ -1,5 +1,5 @@
-// 24px以上の盤（6×6）では拡大の3項目を出さず、歯車は保護者リンクのみ。touch-action にも触らない（Issue #389 段B）。
-export const name = '24px以上の盤では拡大の3項目が出ない（歯車は保護者リンクのみ）(Issue #389)';
+// 24px以上の盤（6×6）では拡大の3項目を出さない。レッスン内の歯車に保護者リンクは出ない（Issue #552）。touch-action にも触らない（Issue #389 段B）。
+export const name = '24px以上の盤では拡大の3項目が出ない（レッスン内の歯車に保護者リンクも出ない）(Issue #389・#552)';
 import { routeLesson, enterPlay } from '../helpers.mjs';
 
 const LESSON = {
@@ -33,9 +33,10 @@ export default async function run({ page, check }) {
 
   await check('マスは24px以上', () => page.$eval('.grid-cell', (c) => c.getBoundingClientRect().width >= 24), true);
   await check('すき間4px・余白4pxのまま', () => page.$eval('.grid-board', (b) => `${b.style.gap}/${b.style.padding}`), '4px/4px');
-  await page.click('#gear-btn');
-  await check('拡大の3項目は表示されない（0個）', () => page.$$eval('#menu-zoom button', (bs) => bs.filter((b) => b.offsetParent !== null).length), 0);
-  await check('保護者リンクは出る', () => page.isVisible('#menu-guardian'), true);
+  await page.click('[data-action="menu"]');
+  await check('「がめん」（拡大の入口）は表示されない', () => page.isVisible('#menu-zoom-open'), false);
+  await check('ズームバーも開いていない', () => page.$eval('#zoom-bar', (b) => b.hidden), true);
+  await check('保護者リンクは出ない（レッスン内。Issue #552）', () => page.isVisible('#menu-guardian'), false);
   await check('盤面エリアの touch-action は指定なし・倍率の印もなし', () =>
     page.$eval('[data-sk-screen="board"]', (a) => `${a.style.touchAction}|${a.dataset.zoom}`), '|');
   await page.click('#menu-close');

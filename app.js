@@ -11,12 +11,15 @@ import { initSteps, refreshHeader } from './js/ui-step.js';
 import { push } from './js/sync.js';
 import { registerServiceWorker } from './js/register-sw.js';
 import { renderUnitMap } from './js/ui-picker.js';
-import { unitsOf, tracksOf } from './js/index-units.js';
+import { unitsOf, tracksOf, trackOfLesson } from './js/index-units.js';
 import { renderTrackSelect, playableTrackCount } from './js/ui-tracks.js';
 import { renderTitle } from './js/ui-title.js';
 import { ensureDailyGate } from './js/ui-parental-gate.js';
 import { IS_DEV } from './js/dev-mode.js';
 import { initMenu } from './js/ui-menu.js';
+import { initBgm, setScene } from './js/bgm.js';
+import { initClickSfx } from './js/sfx.js';
+import { sceneFor } from './js/config.js';
 import { isTrial, composeTrialLesson, readTrialStage, TRIAL_MISSING_MESSAGE } from './js/trial-lesson.js';
 
 function showError() {
@@ -41,6 +44,7 @@ async function loadUnitInfo(lessonId) {
 
 async function startLesson(lessonId) {
   try {
+    setScene(sceneFor('play'));
     const lesson = await loadLesson(lessonId);
     initState(lesson);
     initSteps();
@@ -79,6 +83,7 @@ async function loadUnits() {
 // 大項目が2つ以上遊べる時は、下ボタンを「もどる」にして大項目選択へ戻す（Issue #375）。dev=1 は従来どおり。
 async function renderPicker() {
   const stage = document.getElementById('stage');
+  setScene(sceneFor('unitMap'));
 
   const index = await loadIndex();
   if (!index) {
@@ -87,15 +92,20 @@ async function renderPicker() {
     return;
   }
 
-  const onBack = !IS_DEV && playableTrackCount(tracksOf(index)) >= 2
+  const multiTrack = !IS_DEV && playableTrackCount(tracksOf(index)) >= 2;
+  const onBack = multiTrack
     ? () => { location.href = './index.html?view=tracks'; }
     : undefined;
-  await renderUnitMap(stage, unitsOf(index), startLesson, onBack);
+  // from=<lessonId> があれば、そのレッスンの大項目の単元だけを出す（Issue #616）。不明・条件外は全単元。
+  const from = new URLSearchParams(location.search).get('from');
+  const trackUnits = multiTrack && from ? trackOfLesson(index, from) : null;
+  await renderUnitMap(stage, trackUnits ?? unitsOf(index), startLesson, onBack);
 }
 
 // 大項目選択（Issue #375）。遊べる大項目が1つ以下・dev=1 は従来どおり単元マップへ。
 async function showTrackSelect() {
   const stage = document.getElementById('stage');
+  setScene(sceneFor('trackSelect'));
   const index = await loadIndex();
   if (!index) {
     stage.innerHTML = '';
@@ -116,8 +126,10 @@ async function showTrackSelect() {
 }
 
 // タイトル→スロット選択→（名前入力→導入ストーリー→先頭レッスン｜単元マップ）（Issue #218）。
+// スロット選択・導入ストーリーはタイトル画面の入口のためBGMはタイトルのまま（Issue #378 段2）。
 async function showSlotSelect(mode) {
   const stage = document.getElementById('stage');
+  setScene(sceneFor('slotSelect'));
   const units = await loadUnits();
   if (!units) {
     stage.innerHTML = '';
@@ -161,6 +173,7 @@ async function findTitleHint(occupied) {
 
 async function showTitle() {
   const { occupied } = loadSlots();
+  setScene(sceneFor('title'));
   const hintId = await findTitleHint(occupied);
   renderTitle(document.getElementById('stage'), {
     canContinue: occupied.some(Boolean),
@@ -178,6 +191,8 @@ async function showTitle() {
 }
 
 initMenu();
+initBgm();
+initClickSfx();
 
 // ?lesson=直リンクを含む全起動経路で、その日初回のみ保護者の合言葉を求める（Issue #217）。
 await ensureDailyGate();
@@ -185,6 +200,7 @@ await ensureDailyGate();
 // エディタの試し遊び（Issue #403）。dev=1&trial=1 のときだけ。記録するスロットは作らない。
 function startTrial() {
   try {
+    setScene(sceneFor('trial'));
     initState(composeTrialLesson(readTrialStage(sessionStorage)));
   } catch {
     const p = document.createElement('p');

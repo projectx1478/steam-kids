@@ -7,12 +7,14 @@ import { simulate, boardSpec, isRunCleared } from './engine-grid.js';
 import { splitMaxCell } from './ui-grid.js';
 import { fitCellSize, drawBoard as drawBoardUi, observeBoard } from './ui-board.js';
 import { createZoom } from './ui-zoom.js';
+import { openMenu } from './ui-menu.js';
 import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, COMMAND_LABELS, vibrate } from './ui-commands.js';
-import { play as playSfx } from './sfx.js';
+import { play as playSfx, skipClickSfx } from './sfx.js';
 import { renderInto } from './text-render.js';
 import { showHandHint } from './ui-hand.js';
 import { goToStep, createPrimaryButton, playAnimation, setActiveHandHint } from './ui-step.js';
 import { showClearToast } from './ui-clear.js';
+import { registerKeys } from './ui-keys.js';
 import { IS_DEV } from './dev-mode.js';
 
 const GUIDE_GLOW_CLASSES = ['ring-4', 'ring-amber-400', 'ring-offset-2', 'motion-safe:animate-pulse'];
@@ -290,7 +292,7 @@ export function renderTutorial(root, step) {
   function applyGuide() {
     const entry = guideEntry();
     const target = entry?.tap ?? null;
-    paletteEl.querySelectorAll('button').forEach((b) => {
+    paletteEl.querySelectorAll('button:not([data-action="menu"])').forEach((b) => {
       setGuideBtn(b, b === boxBtn ? target === 'box' : b.dataset.command === target);
     });
     setGuideBtn(runBtn, target === 'run');
@@ -352,11 +354,16 @@ export function renderTutorial(root, step) {
     setActiveHandHint(btn ? showHandHint({ from: btn, to: queueEl, mode: 'drag' }) : null);
   }
 
-  renderCommandPalette(paletteEl, {
+  const palette = renderCommandPalette(paletteEl, {
+    onMenu: openMenu,
     dropTarget: () => queueEl.getBoundingClientRect(),
     onDragOver: (active) => toggleGhostSlot(queueEl, active),
+    // チュートリアルは案内順に末尾へ積む（dropGapを渡さないので index は来ない。差し込みは play のみ。#545）。
     onAdd: (dir, { via } = {}) => {
-      if (local.running || dir !== guideTarget()) return;
+      if (local.running || dir !== guideTarget()) {
+        skipClickSfx();
+        return;
+      }
       if (local.boxOpen >= 0) {
         local.commands[local.boxOpen].box.push(dir);
         playSfx(via === 'drag' ? 'snap' : 'tap');
@@ -402,9 +409,11 @@ export function renderTutorial(root, step) {
       'command-btn btn-tactile flex flex-col items-center justify-center gap-1 px-3 py-2 bg-amber-500 text-white disabled:opacity-40';
     boxBtn.innerHTML = '<span class="text-xl leading-none" aria-hidden="true">🔁</span><span class="text-sm whitespace-nowrap">はこ</span>';
     boxBtn.addEventListener('click', () => {
-      if (local.running || guideTarget() !== 'box') return;
+      if (local.running || guideTarget() !== 'box') {
+        skipClickSfx();
+        return;
+      }
       vibrate();
-      playSfx('tap');
       local.commands.push({ box: [], times: 2 });
       local.boxOpen = local.commands.length - 1;
       local.guideIndex += 1;
@@ -418,9 +427,11 @@ export function renderTutorial(root, step) {
     paletteEl.appendChild(boxBtn);
   }
   timesBtn.addEventListener('click', () => {
-    if (local.running || guideTarget() !== 'times' || local.boxOpen < 0) return;
+    if (local.running || guideTarget() !== 'times' || local.boxOpen < 0) {
+      skipClickSfx();
+      return;
+    }
     vibrate();
-    playSfx('tap');
     const box = local.commands[local.boxOpen];
     box.times = box.times >= 4 ? 2 : box.times + 1;
     timesBtn.textContent = `かいすう ×${box.times}`;
@@ -430,9 +441,11 @@ export function renderTutorial(root, step) {
     applyGuide();
   });
   closeBtn.addEventListener('click', () => {
-    if (local.running || guideTarget() !== 'close' || local.boxOpen < 0) return;
+    if (local.running || guideTarget() !== 'close' || local.boxOpen < 0) {
+      skipClickSfx();
+      return;
+    }
     vibrate();
-    playSfx('tap');
     local.boxOpen = -1;
     local.guideIndex += 1;
     drawQueueRow();
@@ -528,4 +541,32 @@ export function renderTutorial(root, step) {
   drawBoard();
   drawQueue();
   applyGuide();
+
+  // キー操作（Issue #380）：矢印＝命令を足す、Enter＝じっこう。経路はタップと同じ（onAdd・runBtn の guideTarget 判定を通る）。
+  // ガイド対象でないボタンは applyGuide が disabled にするので、ui-keys の事前判定でも弾かれる。Backspace は無視（tutorial に消すボタンは無い）。
+  // registerKeys は1画面分だけ持つ（再登録で前を解除）。画面が外れたら（root から panel が消えたら）解除する。
+  const menuOpen = () =>
+    ['gear-menu', 'menu-overlay'].some((id) => document.getElementById(id)?.hidden === false) || !!document.querySelector('[role="dialog"]');
+  const offKeys = registerKeys({
+    add: (dir) => palette.tapDir(dir),
+    run: () => {
+      if (runBtn.isConnected) runBtn.click();
+    },
+    removeLast: () => {},
+    isBlocked: () => local.running || menuOpen() || !!panel.querySelector('.tutorial-divider'),
+    getButtons: () => ({
+      up: paletteEl.querySelector('[data-command="up"]'),
+      down: paletteEl.querySelector('[data-command="down"]'),
+      left: paletteEl.querySelector('[data-command="left"]'),
+      right: paletteEl.querySelector('[data-command="right"]'),
+      run: runBtn.isConnected ? runBtn : { disabled: true },
+      removeLast: { disabled: true },
+    }),
+  });
+  const keyLeaveWatcher = new MutationObserver(() => {
+    if (panel.isConnected) return;
+    offKeys();
+    keyLeaveWatcher.disconnect();
+  });
+  keyLeaveWatcher.observe(root, { childList: true });
 }

@@ -77,6 +77,7 @@ export default async function run({ page, check }) {
     await page.setViewportSize(vp);
     for (const id of LESSONS) await runLesson(page, check, id, `${vp.width}x${vp.height}`);
   }
+  await checkBoardAreaSize(page, check); // 文字サイズ拡大の前（rem 基準の寸法が変わるため）
   // 端末の文字サイズ拡大（Android等の文字倍率）を想定
   await setFontScale(page, 1.25);
   for (const vp of VIEWPORTS.slice(0, 3)) {
@@ -84,9 +85,63 @@ export default async function run({ page, check }) {
     for (const id of LESSONS) await runLesson(page, check, id, `${vp.width}x${vp.height}@125%`);
   }
   await checkQueueOverflow(page, check);
+  await checkKeyAdd(page, check);
 }
 
-// 命令をmaxCommandsまで積んだ時、命令列が横スクロールで最新チップを隠さないこと（Issue #102）。
+// キー操作（Issue #380）：矢印でチップを足した後も盤面・ロボットが盤面エリア内に収まる。
+async function checkKeyAdd(page, check) {
+  await page.setViewportSize({ width: 360, height: 640 });
+  // 直前の節が保存した下書き（steamkids.draft.*）が復元されないよう、先に消してから入る。
+  await page.goto('/index.html');
+  await page.evaluate(() => {
+    for (const k of Object.keys(localStorage)) if (k.includes('draft.')) localStorage.removeItem(k);
+  });
+  await enterPlay(page, 'cmd-01-susumu');
+  await page.waitForSelector('[data-sk-screen="frame"] .grid-board');
+  for (const k of ['ArrowUp', 'ArrowRight', 'ArrowDown']) await page.keyboard.press(k);
+  await check('キー: 矢印でチップを3つ足した後も盤面が収まる', async () => {
+    const n = (await page.$$('.command-chip')).length;
+    return n === 3 ? await boardFits(page) : `chips=${n}`;
+  }, 'ok');
+}
+
+// 問い文の行を撤去して盤面を広げた寸法（Issue #497 段B）。のこり表示・塗りの見本・鍵トレイの補助行が無い cmd-01 の play で、
+// 盤面エリアが 縦(360x640)=344x260・横(844x390)=500x300 以上（吹き出し欄 64px を盤面の上に足した縮み後の値。Issue #544 の承認済み）であること（1px の丸め誤差は許容）。
+async function checkBoardAreaSize(page, check) {
+  const areaSize = () =>
+    page.evaluate(() => {
+      const r = document.querySelector('[data-sk-screen="board"]').getBoundingClientRect();
+      return { w: Math.round(r.width), h: Math.round(r.height) };
+    });
+  for (const [vp, minW, minH] of [
+    [{ width: 360, height: 640 }, 343, 259],
+    [{ width: 844, height: 390 }, 499, 299],
+  ]) {
+    await page.setViewportSize(vp);
+    await page.goto('/index.html?lesson=cmd-01-susumu');
+    await resetTutorialFlags(page);
+    await enterPlay(page, 'cmd-01-susumu');
+    await page.waitForSelector('[data-sk-screen="frame"] .grid-board');
+    // 失敗時に実測が分かるよう、メッセージへ実測の幅x高さと周辺の高さを埋める（期待値は変えない）。
+    const info = async () => {
+      const s = await areaSize();
+      const d = await page.evaluate(() => {
+        const h = (el) => (el ? Math.round(el.getBoundingClientRect().height) : -1);
+        const q = document.querySelector('[data-sk-screen="question"]');
+        return { frame: h(document.querySelector('[data-sk-screen="frame"]')), q: h(q), qd: getComputedStyle(q).display, panel: h(document.querySelector('[data-sk-screen="panel"]')), stage: h(document.getElementById('stage')) };
+      });
+      return `実測 ${s.w}x${s.h} frame=${d.frame} 問い文行=${d.q}(${d.qd}) 操作パネル=${d.panel} stage=${d.stage}`;
+    };
+    await check(`${vp.width}x${vp.height} play: 盤面エリアが ${minW + 1}x${minH + 1} 以上（問い文の行を撤去。${await info()}）`, async () => {
+      const s = await areaSize();
+      return s.w >= minW && s.h >= minH;
+    });
+    await check(`${vp.width}x${vp.height} play: 問い文の行は出ない`, () =>
+      page.evaluate(() => getComputedStyle(document.querySelector('[data-sk-screen="question"]')).display), 'none');
+  }
+}
+
+// 命令をmaxCommands(8)を超えて積んだ時も、命令列が最新チップを隠さないこと（Issue #102、#615 で折り返し・上限なしに追従）。
 async function queueKeepsLatestVisible(page) {
   return page.evaluate(() => {
     const queue = [...document.querySelectorAll('.command-queue')].find((e) => e.offsetParent !== null);
@@ -96,7 +151,8 @@ async function queueKeepsLatestVisible(page) {
     if (!last) return 'no-chip';
     const q = queue.getBoundingClientRect();
     const l = last.getBoundingClientRect();
-    return l.right <= q.right + 1 && l.left >= q.left - 1 ? 'ok' : 'hidden';
+    // #615：列は折り返す（縦スクロール）ので、横に加えて縦も列の内側に収まることを見る。
+    return l.right <= q.right + 1 && l.left >= q.left - 1 && l.bottom <= q.bottom + 1 && l.top >= q.top - 1 ? 'ok' : 'hidden';
   });
 }
 
@@ -108,7 +164,7 @@ async function checkQueueOverflow(page, check) {
   await enterPlay(page, 'donguri-02-mawarimichi');
   // よそう（predict）はIssue #104で全廃。introの「はじめる」から直接play(p1)へ入る。
   await page.waitForSelector('[data-sk-screen="frame"] .grid-board');
-  for (let i = 0; i < 9; i += 1) {
+  for (let i = 0; i < 11; i += 1) {
     const btn = await page.$('[data-command]:not(:disabled)');
     if (!btn) break;
     await btn.click();

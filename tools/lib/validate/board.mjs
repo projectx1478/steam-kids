@@ -22,7 +22,6 @@ function checkGroupSwitches(board, add, label) {
     else counts.set(s.group, (counts.get(s.group) ?? 0) + 1);
     if (s.targets !== undefined) bad(`switches[${i}] が group と targets を併用している`);
     if (s.color === undefined) bad(`switches[${i}] の group にはcolorの明示が必要`);
-    if (s.mode === 'close' || s.mode === 'toggle') bad(`switches[${i}] の group は mode=${JSON.stringify(s.mode)} と併用できない`);
   });
   counts.forEach((n, g) => {
     if (n > 1) bad(`group=${JSON.stringify(g)} のスイッチが${n}個ある（1つだけ）`);
@@ -62,6 +61,56 @@ function checkGroupSwitches(board, add, label) {
     seen.add(k);
   });
   return ng;
+}
+
+// ワープ（Issue #64）の形式検査。キーは warps のみ（単数形 warp は受け付けない）。
+// x は 0..cols-1・y は 0..rows-1 の整数、pair は 1 か 2、各 pair はちょうど2個、組は最大2。
+// 壁・start・goal・他ギミックのマスと重ならず、ice・paint・periodic とは併用できない。
+function checkWarps(board, add, label) {
+  const bad = (msg) => add('盤面の妥当性', `${label}${msg}`);
+  if (board.warp !== undefined) bad('warp は廃止（キーは warps）');
+  if (board.warps === undefined) return;
+  if (!Array.isArray(board.warps)) {
+    bad(`warps=${JSON.stringify(board.warps)} が配列でない`);
+    return;
+  }
+  const grid = board.grid || {};
+  const list = (v) => (Array.isArray(v) ? v : []);
+  const keyOf = (p) => `${p.x},${p.y}`;
+  const isInt2 = (p) => p && Number.isInteger(p.x) && Number.isInteger(p.y);
+  const counts = new Map();
+  const seen = new Set();
+  const cellSets = [
+    ['壁', list(board.walls)],
+    ['start', board.start ? [board.start] : []],
+    ['goal', board.goal ? [board.goal] : []],
+    ['items', list(board.items)],
+    ['ice', list(board.ice)],
+    ['cushion', list(board.cushion)],
+    ['water', list(board.water)],
+    ['bridge', list(board.bridge)],
+    ['keys', list(board.keys)],
+    ['doors', list(board.doors)],
+    ['switches', list(board.switches)],
+    ['switchesのtargets', list(board.switches).flatMap((s) => list(s?.targets))],
+    ['groupWalls', list(board.groupWalls)],
+    ['periodic', list(board.periodic)],
+  ].map(([name, pts]) => [name, new Set(pts.filter(isInt2).map(keyOf))]);
+  board.warps.forEach((w, i) => {
+    if (!isInt2(w) || !inGrid(grid, w)) {
+      bad(`warps[${i}]=${JSON.stringify(w)} が盤外か整数でない`);
+    } else {
+      const k = keyOf(w);
+      if (seen.has(k)) bad(`warps[${i}] が他のwarpsと同じマス`);
+      seen.add(k);
+      for (const [name, set] of cellSets) if (set.has(k)) bad(`warps[${i}] が${name}と重なる`);
+    }
+    if (w?.pair !== 1 && w?.pair !== 2) bad(`warps[${i}].pair=${JSON.stringify(w?.pair)} が1か2でない`);
+    else counts.set(w.pair, (counts.get(w.pair) ?? 0) + 1);
+  });
+  counts.forEach((n, pair) => {
+    if (n !== 2) bad(`warps の pair=${pair} が${n}個ある（ちょうど2個）`);
+  });
 }
 
 // play/tutorialに共通の盤面検証（allowedCommands・座標範囲・start/goal・壁重なり・item重複）。
@@ -124,6 +173,7 @@ export function checkBoard(board, add, label) {
     if (wallKeySet.has(`${board.goal.x},${board.goal.y}`)) add('盤面の妥当性', `${label}goal が壁と重なる`);
   }
 
+  checkWarps(board, add, label);
   for (const g of GIMMICKS) g.validate(board, add, label);
   return groupNg;
 }
@@ -137,7 +187,32 @@ export function checkSwitchMatters(rawPlay, dist, add, label) {
   // closeは罠：スイッチを無効化（踏んでも壁が出ない=スイッチ無し）した盤の最短より、実際の最短が長くなければ罠が無意味
   // （最短経路がスイッチを通らない、または出た壁が経路に効かない）。出現後の到達不能は上のゴール到達可能性で検出する。
   const toggleSwitches = Array.isArray(play.switches) && play.switches.length > 0 && play.switches.every((s) => s?.mode === 'toggle');
-  if (dist !== null && closeSwitches) {
+  // mode が混在した盤（Issue #530）：スイッチごとに「自分だけ外した盤」で、そのスイッチの mode の既存検査を当てる。均質盤は下の既存分岐のまま。
+  const modeOf = (s) => s?.mode ?? 'open';
+  const mixedSwitches = Array.isArray(play.switches) && play.switches.length > 0 && play.switches.some((s) => modeOf(s) !== modeOf(play.switches[0]));
+  const distOf = (b) => (play.groupRepeats ? shortestChips(b) : shortestSteps(b));
+  const targetsOf = (s) => (Array.isArray(s.targets) ? s.targets : []);
+  if (dist !== null && mixedSwitches) {
+    play.switches.forEach((s, i) => {
+      const rest = play.switches.filter((_, j) => j !== i);
+      const mode = modeOf(s);
+      if (mode === 'close') {
+        const withoutDist = distOf(boardSpec({ ...play, switches: rest }));
+        if (!(dist > withoutDist)) add('スイッチの罠の意味', `${label}switches[${i}] を外した盤の最短(${withoutDist})より最短(${dist})が長くない（出る壁が経路に効かない）`);
+        return;
+      }
+      const closed = mode === 'toggle' ? targetsOf(s).filter((t) => t?.initial !== 'open') : targetsOf(s);
+      const noStepDist = distOf(boardSpec({ ...play, walls: [...(play.walls || []), ...closed], switches: rest }));
+      if (noStepDist <= play.maxCommands) {
+        add('スイッチの必須性', `${label}switches[${i}] を踏まずに想定の手数（maxCommands=${play.maxCommands}）の内でゴールできる（最短${noStepDist}）`);
+      }
+      if (mode === 'toggle' && dist !== Infinity) {
+        const asOpen = boardSpec({ ...play, switches: play.switches.map((o, j) => (j === i ? { ...o, mode: 'open', targets: closed.map(({ x, y }) => ({ x, y })) } : o)) });
+        const asOpenDist = distOf(asOpen);
+        if (!(dist > asOpenDist)) add('トグルの意味', `${label}switches[${i}] をopenに置き換えた盤の最短(${asOpenDist})より最短(${dist})が長くない（もう一度踏む・戻る手が要らず、toggleが飾り）`);
+      }
+    });
+  } else if (dist !== null && closeSwitches) {
     const disabled = boardSpec({ ...play, switches: [] });
     const disabledDist = play.groupRepeats ? shortestChips(disabled) : shortestSteps(disabled);
     if (!(dist > disabledDist)) {
@@ -149,7 +224,7 @@ export function checkSwitchMatters(rawPlay, dist, add, label) {
     const noStep = boardSpec({ ...play, walls: [...(play.walls || []), ...play.switches.flatMap(closedOf)], switches: [] });
     const noStepDist = play.groupRepeats ? shortestChips(noStep) : shortestSteps(noStep);
     if (noStepDist <= play.maxCommands) {
-      add('スイッチの必須性', `${label}スイッチを踏まずにmaxCommands=${play.maxCommands}以内でゴールできる（最短${noStepDist}）`);
+      add('スイッチの必須性', `${label}スイッチを踏まずに想定の手数（maxCommands=${play.maxCommands}）の内でゴールできる（最短${noStepDist}）`);
     }
     // トグルの意味：closedの壁をmode:"open"、openの壁を常時床にした盤の最短より、toggleの最短が厳密に長いこと（導入盤の免除なし）。
     if (dist !== Infinity) {
@@ -164,7 +239,7 @@ export function checkSwitchMatters(rawPlay, dist, add, label) {
     const noSwitch = boardSpec({ ...play, walls: [...(play.walls || []), ...targets], switches: [] });
     const noSwitchDist = play.groupRepeats ? shortestChips(noSwitch) : shortestSteps(noSwitch);
     if (noSwitchDist <= play.maxCommands) {
-      add('スイッチの必須性', `${label}スイッチを踏まずにmaxCommands=${play.maxCommands}以内でゴールできる（最短${noSwitchDist}）`);
+      add('スイッチの必須性', `${label}スイッチを踏まずに想定の手数（maxCommands=${play.maxCommands}）の内でゴールできる（最短${noSwitchDist}）`);
     }
   }
   // スイッチ→鍵の順序：スイッチが無効（対象は壁のまま）でも鍵に届くなら、順序が強制されていない。
@@ -177,7 +252,8 @@ export function checkSwitchMatters(rawPlay, dist, add, label) {
     Array.isArray(play.keys) &&
     play.keys.length === 1
   ) {
-    const targets = play.switches.flatMap((s) => (Array.isArray(s.targets) ? s.targets : []));
+    // 混在盤ではcloseの対象（初期は床）を壁にしない。
+    const targets = play.switches.filter((s) => !mixedSwitches || modeOf(s) !== 'close').flatMap((s) => (Array.isArray(s.targets) ? s.targets : []));
     const toKey = boardSpec({
       ...play,
       walls: [...(play.walls || []), ...targets],
@@ -187,7 +263,7 @@ export function checkSwitchMatters(rawPlay, dist, add, label) {
     });
     const toKeyDist = play.groupRepeats ? shortestChips(toKey) : shortestSteps(toKey);
     if (toKeyDist <= play.maxCommands) {
-      add('スイッチ→かぎの順序', `${label}スイッチを踏まずにmaxCommands=${play.maxCommands}以内でかぎに届く（最短${toKeyDist}）`);
+      add('スイッチ→かぎの順序', `${label}スイッチを踏まずに想定の手数（maxCommands=${play.maxCommands}）の内でかぎに届く（最短${toKeyDist}）`);
     }
   }
 }

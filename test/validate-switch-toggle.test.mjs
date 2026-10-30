@@ -76,9 +76,10 @@ test('validate-lessons: NG検出: トグルの意味（最短4手 = open置換4�
   assert.equal(r.out.includes('スイッチの必須性'), false, '踏まなくてもは届かない（必須性では落ちない）');
 });
 
-test('validate-lessons: NG検出: toggleとcloseの併用', () => {
+test('validate-lessons: toggleとcloseの併用は mode では落ちない（#530）。対象の共有は落ちる', () => {
   const r = validate(BOARDS['fail-toggle-mixed']);
-  assert.equal(ng(r, '他のmode（open・close）と併用できない'), true, r.out);
+  assert.equal(r.out.includes('他のmode（open・close）と併用できない'), false, r.out);
+  assert.equal(ng(r, '対象を共有できない'), true, r.out); // この盤は同じマス(3,1)を共有している
 });
 
 test('validate-lessons: NG検出: 全部open（踏まずに届く）', () => {

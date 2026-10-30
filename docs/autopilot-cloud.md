@@ -25,7 +25,9 @@
 ## クラウド → 手元
 1. クラウドの停止時に `finish` が実行されていることを確認する（実行されていなければ、クラウドで `node tools/autopilot-state.mjs finish`）。
 2. 手元で `git fetch origin main` し、必要なら `.worktrees/<N>` を更新する。
-3. 手元の `review/` に、クラウドへ出していない編集があれば、先に `node tools/autopilot-state.mjs push`（`start` は手元の `review/` を state の内容で上書きする）。
+3. 手元の `review/` に、クラウドへ出していない編集があれば、先に `node tools/autopilot-state.mjs push`（`start` は、`queue.md`・`log.md`・`decisions/inbox.md` に未同期の編集があれば上書きせず `STOP`（終了コード3）。`queue-inbox.md` は追記マージ）。
+   - 終了コード3で止まったときの復帰：手元の該当ファイルの編集を別名に退避 → `start` で state を pull → 退避分を手で反映し直す。
+   - キューへの追加は `review/autopilot/queue-inbox.md` に書く（`queue.md` を直接編集しない。`start` が末尾へ取り込む）。
 4. `/run-issues 週間 ○% 5時間 ○%` を起動する（`start local` が pull する）。
 
 ## 予算不足で止まったとき

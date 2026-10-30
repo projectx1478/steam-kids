@@ -41,15 +41,16 @@ export default async function run({ page, check }) {
   await page.setViewportSize({ width: 360, height: 640 });
   await enterPlay(page, 'zoom-follow-smoke');
 
-  // 3倍にする
-  for (let i = 0; i < 3; i += 1) {
-    await page.click('#gear-btn');
-    await page.click('#zoom-in');
-  }
+  // 3倍にする：⚙ → メニューの「がめん」→ ズームバーで おおきく ×3（バーは倍率を変えても閉じない。Issue #467）。
+  await page.click('[data-action="menu"]');
+  await page.click('#menu-zoom-open');
+  for (let i = 0; i < 3; i += 1) await page.click('#zoom-in');
+  // じっこう・１コマはズームバーに重なるため、もどるでバーを閉じてから押す。
+  await page.click('#zoom-back');
   await check('3倍になっている', () => page.$eval('[data-sk-screen="board"]', (a) => a.dataset.zoom), '3');
 
   // メニューが開いている間は、じっこうボタンを受けない（覆いが受ける）
-  await page.click('#gear-btn');
+  await page.click('[data-action="menu"]');
   await check('メニュー中、じっこうボタンの位置は覆いが受ける', () =>
     page.evaluate(() => {
       const r = document.querySelector('[data-action="run"]').getBoundingClientRect();

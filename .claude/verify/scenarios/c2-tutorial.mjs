@@ -25,7 +25,7 @@ export default async function run({ page, check }) {
 
   await check('tutorialステップに入る', async () => page.getAttribute('#stage', 'data-step'), 'tutorial');
   await check('見出しが「れんしゅう」', async () => page.textContent('.tutorial-screen h2'), 'れんしゅう');
-  await check('ステップドットが6個（intro/tutorial/p1/p2/p3/summary）', async () => (await page.$$('.step-dot')).length, 6);
+  await check('ステップドットが6個（intro/tutorial/p1/p2/p3/summary）', async () => (await page.$$('#menu-stage .step-dot')).length, 6);
   await check('横スクロールが発生しない', async () => noScrollX(page));
   await check('指示文<p>が無い（cmd-01は文字を読ませない）', async () => (await page.$$('.tutorial-prompt')).length, 0);
   await check('お手本列の要素数が5個（script長と一致）', async () => (await page.$$('.guide-row [data-guide-index]')).length, 5);
@@ -77,8 +77,10 @@ export default async function run({ page, check }) {
   await check('スキップ済みは強調されない', async () => page.getAttribute('[data-action="how-to"]', 'data-highlight'), null);
   await page.click('[data-action="start"]');
   await check('はじめるはplay(p1)へ(tutorialを飛ばす)', async () => page.getAttribute('#stage', 'data-step'), 'play');
-  await page.click('#back-btn');
-  await check('p1から← もどるはintroへ(tutorialを飛ばす)', async () => page.getAttribute('#stage', 'data-step'), 'intro');
+  // ⚙の「まえ」は廃止（Issue #542）。端末の戻る＋確認の「もどる」で1ステップ戻す。
+  await page.goBack();
+  await page.click('[data-action="leave-ok"]');
+  await check('p1から端末の戻る＋確認でintroへ(tutorialを飛ばす)', async () => page.getAttribute('#stage', 'data-step'), 'intro');
 
   // --- 「そうさほうほう」で明示的に入り直し、実行完了→区切り画面まで確認 ---
   await page.goto('/index.html?lesson=cmd-01-susumu');
