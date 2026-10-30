@@ -102,6 +102,48 @@ export default async function run({ page, check, shot }) {
     await check('#save-ng に「文字数」が出る', async () => (await ngText()).includes('文字数'), true);
     await check('文字数 NG のときファイルは変わらない', () => raw() === okBytes2, true);
 
+    // 6b. 元に戻す／やり直し（#628）：tutorial の文面・手順も一緒に戻る
+    await p.click('#undo');
+    await check('文面入力のあと元に戻すと #tut-text が前の値', () => p.inputValue('#tut-text'), 'ここを おす');
+    await p.click('#tut-cmd-right');
+    await check('手順を足すとチップが5つ', () => chipTexts(), ['→', '↓', '↓', '↓', '→']);
+    await p.click('#undo');
+    await check('元に戻すでチップが4つに減る', () => chipTexts(), ['→', '↓', '↓', '↓']);
+    await p.click('#redo');
+    await check('やり直しでチップが復活する', () => chipTexts(), ['→', '↓', '↓', '↓', '→']);
+    await p.click('#undo');
+    await check('もう一度戻すとチップが4つ', () => chipTexts(), ['→', '↓', '↓', '↓']);
+
+    // 別の面へ切り替えても「捨てますか」の確認が出ない（戻した結果が面と一致している）
+    let dialogSeen = false;
+    const onDialog = (d) => { dialogSeen = true; d.dismiss(); };
+    p.on('dialog', onDialog);
+    await p.click('#step-list .st[data-index="2"]');
+    await p.waitForFunction(() => document.getElementById('tut-ctl').hidden);
+    p.off('dialog', onDialog);
+    await check('undo 後の面切替で confirm が出ない', () => dialogSeen, false);
+
+    // play 面で元に戻す：tutorial 欄は隠れたまま、保存ボタンの disabled は変わらない
+    const saveDisBefore = await p.isDisabled('#lesson-save');
+    const pausesBefore = await p.inputValue('#max-pauses');
+    await p.fill('#max-pauses', '1');
+    await p.press('#max-pauses', 'Tab');
+    await check('play 面で「とめる回数」を変えると元に戻すが有効', () => p.isDisabled('#undo'), false);
+    await p.click('#undo');
+    await check('play 面の元に戻すで値が戻る', () => p.inputValue('#max-pauses'), pausesBefore);
+    await check('play 面の元に戻すで #tut-ctl は隠れたまま', () => p.isHidden('#tut-ctl'), true);
+    await check('play 面の元に戻すで保存ボタンの disabled は変わらない', () => p.isDisabled('#lesson-save'), saveDisBefore);
+
+    // tutorial 面へ戻り、#tut-text で Ctrl+Z を押しても盤は戻らない（#512）
+    await p.click('#step-list .st[data-index="1"]');
+    await p.waitForFunction(() => !document.getElementById('tut-ctl').hidden);
+    await p.click('#tut-cmd-right');
+    await check('Ctrl+Z の前：やり直しは無効', () => p.isDisabled('#redo'), true);
+    await p.focus('#tut-text');
+    await p.keyboard.press('Control+z');
+    await check('#tut-text で Ctrl+Z を押しても盤は戻らない（やり直しは無効のまま）', () => p.isDisabled('#redo'), true);
+    await check('#tut-text で Ctrl+Z を押しても手順のチップは戻らない', () => chipTexts(), ['→', '↓', '↓', '↓', '→']);
+
     // 7. この面を消す → 保存
     p.once('dialog', (d) => d.accept());
     await p.click('#tut-del');
