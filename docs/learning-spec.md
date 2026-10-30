@@ -33,7 +33,7 @@
 - 重さ＝ロボットの数、距離＝支点からの刻み数。トルク＝Σ(robots×pos)を整数で比較する（`js/engine-seesaw.js`）
 - 失敗は「こっちが おもいよ」＋矢印のヒントと、試した位置の足あと（うすい印）。点数・✕は出さない。「ためしなおす」で右のロボットはstartへ戻る
 - 描画は`js/ui-seesaw.js`。ロボット・表情・紙ふぶき・トースト・指ガイドは既存部品を再利用する（新キャラなし）
-- playは2〜4個（`p1`〜）。難易度＝左のおもさ合計が非減少。1ステージの解はちょうど1つ、startではつりあわない（`tools/validate-lessons.mjs`が検証）
+- playは2〜4個（`p1`〜）。難易度＝左のおもさ合計が非減少。1ステージの解は1つ以上、startではつりあわない（`tools/validate-lessons.mjs`が検証）
 - イベントは既存の`run`（payload `{ pos }`）・`retry`・`stage_clear`・`clear`を使い、新種別は作らない
 
 ## grid-runtime 仕様

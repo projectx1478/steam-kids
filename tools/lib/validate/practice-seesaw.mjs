@@ -3,7 +3,7 @@
 import { generateMap, SHAPE_PRESETS } from '../../../js/engine-generate.js';
 import { isValidCode, codeToSeed } from '../../../js/seed-code.js';
 import { simulate, boardSpec } from '../../../js/engine-grid.js';
-import { balance, solutions, difficulty } from '../../../js/engine-seesaw.js';
+import { balance, solutionPairs, difficulty } from '../../../js/engine-seesaw.js';
 import { KEY_MODES } from '../../../js/gimmicks/keys.js';
 import { MIN_PLAY, MAX_PLAY, UNIT_GIMMICKS, isObj } from './common.mjs';
 
@@ -81,7 +81,15 @@ function validatePractice(steps, add) {
 }
 
 // predict-slider（シーソー）：playは2〜4個、座標が範囲内、solutionでつりあいstartでは傾く、
-// 解がちょうど1つ、難易度（左のおもさ合計）が非減少（Issue #150）。
+// 解が1つ以上、難易度（左のおもさ合計）が非減少（Issue #150）。
+// 面の種類で solution の形が変わる（Issue #612）：位置だけ＝整数（位置）／重さだけ（fixedPos あり）＝整数（重さ）／両方＝[pos, robots]。
+function solutionPair(play, spec) {
+  const { fixedPos, maxRobots } = spec.mover;
+  const s = play.solution;
+  if (fixedPos !== undefined) return Number.isInteger(s) ? { pos: fixedPos, robots: s } : null;
+  if (maxRobots !== undefined) return Array.isArray(s) && s.length === 2 && s.every(Number.isInteger) ? { pos: s[0], robots: s[1] } : null;
+  return Number.isInteger(s) ? { pos: s, robots: spec.mover.robots } : null;
+}
 function validateSeesaw(playSteps, add, maxPlay = MAX_PLAY) {
   if (playSteps.length < MIN_PLAY || playSteps.length > maxPlay) {
     add('盤面の必須', `kind="play" が${playSteps.length}個（${MIN_PLAY}〜${maxPlay}個である必要がある）`);
@@ -101,13 +109,21 @@ function validateSeesaw(playSteps, add, maxPlay = MAX_PLAY) {
       isInt(spec.mover.robots) &&
       isInt(spec.mover.start) &&
       spec.mover.start <= spec.notches;
-    if (!ok) {
-      add('seesaw', `${label} のseesaw（notches・left・mover）が不正（robots・pos・startは1〜notchesの整数）`);
+    const { maxRobots, fixedPos } = ok ? spec.mover : {};
+    const newOk =
+      ok &&
+      (maxRobots === undefined || (Number.isInteger(maxRobots) && maxRobots >= 2 && maxRobots <= 3 && spec.mover.robots <= maxRobots)) &&
+      (fixedPos === undefined || (maxRobots !== undefined && isInt(fixedPos) && fixedPos <= spec.notches && fixedPos === spec.mover.start));
+    if (!newOk) {
+      add('seesaw', `${label} のseesaw（notches・left・mover）が不正（robots・pos・startは1〜notchesの整数、maxRobotsは2〜3でrobots以上、fixedPosはmaxRobotsがあるときだけでstartと同じ）`);
       continue;
     }
-    const found = solutions(spec);
-    if (found.length !== 1) add('解の個数', `${label} のつりあう位置が${found.length}個（ちょうど1つである必要がある）`);
-    if (play.solution !== found[0]) add('solution', `${label} のsolution=${play.solution} がつりあう位置と一致しない`);
+    const found = solutionPairs(spec);
+    if (found.length === 0) add('解の個数', `${label} のつりあう組が0個（1つ以上必要）`);
+    const given = solutionPair(play, spec);
+    if (!given || !found.some((f) => f.pos === given.pos && f.robots === given.robots)) {
+      add('solution', `${label} のsolution=${JSON.stringify(play.solution)} がつりあう組と一致しない（面の種類に合う形か）`);
+    }
     if (balance(spec, spec.mover.start).tilt === 0) add('start', `${label} がstartの時点でつりあっている`);
     const d = difficulty(spec);
     if (d < prevDifficulty) add('難易度', `${label} の左のおもさ合計(${d})が前のステージ(${prevDifficulty})より小さい`);
