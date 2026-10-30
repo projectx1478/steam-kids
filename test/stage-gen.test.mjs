@@ -5,6 +5,7 @@ import { generateBoard, canonicalKey, metrics, itemsMustMatter, GEN_VERSION, GEN
 import { simulate, isRunCleared, shortestSteps } from '../js/engine-grid.js';
 import { mattersFor } from '../js/gimmicks/index.js';
 import { iceMustMatter, keysMustMatter, warpsMustMatter, periodicMustMatter, paintMustMatter, waterMustMatter } from '../tools/lib/must-matter.mjs';
+import { checkBoard } from '../tools/lib/validate/board.mjs';
 import { checkStageGen } from '../tools/lib/validate/stagegen.mjs';
 
 const base = {
@@ -378,4 +379,72 @@ test('stage-gen: paint×water の seed 掃引で成功率が半分以上', () =>
   let ok = 0;
   for (let seed = 0; seed < 40; seed += 1) if (generateBoard(sg, seed)) ok += 1;
   assert.ok(ok >= 20, `成功 ${ok}/40`);
+});
+
+// ---- #631 段1: base（土台の盤）。base なしの既存 seed の盤は変えず、base ありは水・橋・壁を固定して陸だけに置く ----
+const BASE_STRIP = {
+  grid: { cols: 6, rows: 6 },
+  water: [{ x: 3, y: 0 }, { x: 3, y: 1 }, { x: 3, y: 2 }, { x: 3, y: 3 }, { x: 3, y: 5 }, { x: 0, y: 5 }, { x: 5, y: 5 }],
+  bridge: [{ x: 3, y: 4 }],
+  walls: [],
+};
+
+test('stage-gen: base なしは seed 固定で従来と同じ盤（#631）', () => {
+  const sg = { ...base, gimmicks: { items: { min: 1, max: 3 }, ice: { min: 1, max: 2 }, switches: { min: 1, max: 2 } }, teach: 'items' };
+  assert.deepEqual(generateBoard(sg, 3), {
+    grid: { cols: 6, rows: 4 }, start: { x: 5, y: 0 }, goal: { x: 2, y: 2 },
+    walls: [{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 1 }],
+    items: [{ x: 2, y: 3 }, { x: 5, y: 2 }, { x: 2, y: 0 }], ice: [{ x: 0, y: 2 }, { x: 3, y: 2 }],
+    switches: [{ x: 1, y: 2, targets: [{ x: 5, y: 1 }] }],
+    allowedCommands: ['up', 'down', 'left', 'right'],
+    solution: ['left', 'left', 'left', 'right', 'down', 'down', 'left', 'up', 'right', 'right', 'left', 'left'],
+    maxCommands: 12,
+  });
+});
+
+test('stage-gen: base-strip を土台にすると水・橋が一致し、ギミックは制約①〜③を満たす（#631）', () => {
+  const key = (p) => `${p.x},${p.y}`;
+  const DIRS4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const water = new Set(BASE_STRIP.water.map(key));
+  const bridge = BASE_STRIP.bridge[0];
+  const isLand = (p) => p.x >= 0 && p.y >= 0 && p.x < 6 && p.y < 6 && !water.has(key(p));
+  const around = (p) => DIRS4.map(([dx, dy]) => ({ x: p.x + dx, y: p.y + dy }));
+  const cases2 = [
+    ['items', { items: { min: 1, max: 2 }, ice: { min: 1, max: 1 } }],
+    ['switches', { switches: { min: 1, max: 1 } }],
+    ['keys', { keys: { min: 1, max: 1 } }],
+    ['cushion', { ice: { min: 1, max: 1 }, cushion: { min: 1, max: 1 } }],
+  ];
+  for (const [teach, gimmicks] of cases2) {
+    const sg = { base: BASE_STRIP, walls: { min: 0, max: 2 }, shortestPath: { min: 8, max: 30 }, gimmicks, teach };
+    let found = 0;
+    for (let seed = 0; seed < 6; seed += 1) {
+      const b = generateBoard(sg, seed);
+      if (!b || b === GEN_ABORTED) continue;
+      found += 1;
+      assert.deepEqual(b.water, BASE_STRIP.water);
+      assert.deepEqual(b.bridge, BASE_STRIP.bridge);
+      assert.equal(b.waterMode, 'cushion');
+      assert.deepEqual(b.grid, { cols: 6, rows: 6 });
+      assert.ok(isRunCleared(simulate(b.solution, b)));
+      b.walls.forEach((p) => assert.ok(key(p) !== key(bridge) && !around(p).some((q) => key(q) === key(bridge)), `${teach} seed=${seed} 壁 ${key(p)} が橋のそば`));
+      const ngs = [];
+      checkBoard(b, (cat, msg) => ngs.push(`${cat}: ${msg}`), `${teach} seed=${seed} `);
+      assert.deepEqual(ngs, [], `${teach} seed=${seed} 盤検査`);
+      const placed = (kind, list) => list.forEach((p) => {
+        const tag = `${teach} seed=${seed} ${kind} ${key(p)}`;
+        assert.ok(!water.has(key(p)), tag);
+        assert.ok(key(p) !== key(bridge) && !around(p).some((q) => key(q) === key(bridge)), `${tag}: 橋のそば`);
+        if (kind === 'ice' || kind === 'switch' || kind === 'door') assert.ok(around(p).filter(isLand).length >= 2, `${tag}: 陸が2未満`);
+        if (kind === 'ice' || kind === 'cushion' || kind === 'switch') assert.ok(!around(p).some((q) => water.has(key(q))), `${tag}: 水のそば`);
+      });
+      placed('item', b.items ?? []);
+      placed('ice', b.ice ?? []);
+      placed('cushion', b.cushion ?? []);
+      placed('switch', (b.switches ?? []).map(({ x, y }) => ({ x, y })));
+      placed('door', b.doors ?? []);
+      placed('key', b.keys ?? []);
+    }
+    assert.ok(found > 0, `${teach}: 候補が出ない`);
+  }
 });

@@ -199,8 +199,75 @@ export const GENERATE_COUNT_MAX = 6;
 const GENERATE_WORKER_FILE = path.join(EDITOR_DIR, 'generate-worker.mjs');
 const GENERATE_BODY_KEYS = ['stageGen', 'count', 'seed'];
 // エディタが受け取る stageGen のキー・ギミック（ver・stages・keepHandwritten・keyMode は受け取らない）
-const GENERATE_SG_KEYS = ['grid', 'walls', 'gimmicks', 'teach', 'shortestPath', 'minTurns', 'allowedCommands', 'seedBase'];
+const GENERATE_SG_KEYS = ['grid', 'walls', 'gimmicks', 'teach', 'shortestPath', 'minTurns', 'allowedCommands', 'seedBase', 'base'];
 const GENERATE_GIMMICKS = ['items', 'ice', 'keys', 'cushion', 'switches', 'warps', 'periodic', 'paint', 'water'];
+
+// stageGen.base（土台の盤。/api/generate の要求専用でレッスン JSON には書かない）の入力検査。問題があれば messages（空なら OK）。
+// 形：{grid:{cols,rows}（3〜20 の整数）, water?, bridge?, walls?（{x,y} の配列）}。stageGen は base 以外のキーとの併用検査用。
+const BASE_KEYS = ['grid', 'water', 'bridge', 'walls'];
+export function checkGenerateBase(base, stageGen = {}) {
+  const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
+  if (!isObj(base)) return ['stageGen.base はオブジェクトにしてください'];
+  const out = [];
+  for (const k of Object.keys(base)) if (!BASE_KEYS.includes(k)) out.push(`stageGen.base の ${k} は受け付けません`);
+  const dim = (v) => Number.isInteger(v) && v >= 3 && v <= 20;
+  if (!isObj(base.grid) || !dim(base.grid.cols) || !dim(base.grid.rows)
+    || Object.keys(base.grid).some((k) => k !== 'cols' && k !== 'rows')) {
+    out.push('stageGen.base.grid は {cols, rows}（どちらも 3〜20 の整数）にしてください');
+    return out;
+  }
+  if ('grid' in stageGen) out.push('stageGen.base と stageGen.grid は同時に指定できません（盤の大きさは base.grid で決まります）');
+  const gim = isObj(stageGen.gimmicks) ? stageGen.gimmicks : {};
+  for (const k of ['water', 'paint']) if (k in gim) out.push(`stageGen.base と gimmicks.${k} は同時に指定できません`);
+  const { cols, rows } = base.grid;
+  const lists = {};
+  const seen = new Map();
+  let shapeOk = true;
+  for (const k of ['water', 'bridge', 'walls']) {
+    const v = base[k] ?? [];
+    if (!Array.isArray(v)) { out.push(`stageGen.base.${k} は {x,y} の配列にしてください`); shapeOk = false; continue; }
+    lists[k] = v;
+    const own = new Set();
+    for (const p of v) {
+      if (!isObj(p) || !Number.isInteger(p.x) || !Number.isInteger(p.y) || p.x < 0 || p.y < 0 || p.x >= cols || p.y >= rows) {
+        out.push(`stageGen.base.${k} に盤の外か形の誤りの座標があります: ${JSON.stringify(p)}`);
+        shapeOk = false;
+        continue;
+      }
+      const key = `${p.x},${p.y}`;
+      if (own.has(key)) out.push(`stageGen.base.${k} に重複の座標があります: ${key}`);
+      else if (seen.has(key)) out.push(`stageGen.base の ${seen.get(key)} と ${k} が同じマスに重なっています: ${key}`);
+      own.add(key);
+      if (!seen.has(key)) seen.set(key, k);
+    }
+  }
+  if (!shapeOk) return out;
+  const water = new Set(lists.water.map((p) => `${p.x},${p.y}`));
+  if (water.size > 0) {
+    if ('warps' in gim) out.push('土台に水があるときは gimmicks.warps と併用できません');
+    if ('periodic' in gim) out.push('土台に水があるときは gimmicks.periodic と併用できません');
+  }
+  for (const p of lists.bridge) {
+    const near = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => water.has(`${p.x + dx},${p.y + dy}`));
+    if (!near) out.push(`stageGen.base.bridge の ${p.x},${p.y} の上下左右に水がありません`);
+  }
+  const blocked = new Set([...water, ...lists.walls.map((p) => `${p.x},${p.y}`)]);
+  const land = [];
+  for (let y = 0; y < rows; y += 1) for (let x = 0; x < cols; x += 1) if (!blocked.has(`${x},${y}`)) land.push(`${x},${y}`);
+  if (land.length < 2) { out.push('土台の陸が少ない（陸は2マス以上必要です）'); return out; }
+  const landSet = new Set(land);
+  const reached = new Set([land[0]]);
+  const stack = [land[0]];
+  while (stack.length > 0) {
+    const [x, y] = stack.pop().split(',').map(Number);
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const k = `${x + dx},${y + dy}`;
+      if (landSet.has(k) && !reached.has(k)) { reached.add(k); stack.push(k); }
+    }
+  }
+  if (reached.size !== land.length) out.push('土台の陸がつながっていない');
+  return out;
+}
 
 // 生成 API の入力検査。範囲は tools/lib/validate/stagegen.mjs の checkStageGen をそのまま呼んで揃える
 // （ver・stages は検査を通すための仮値を足す）。問題があれば messages（空なら OK）。
@@ -220,7 +287,16 @@ export function checkGenerateInput(body) {
     }
   }
   if (out.length === 0) {
-    checkStageGen({ stageGen: { ...stageGen, ver: 1, stages: 2 } }, [], (rule, detail) => out.push(`${rule}: ${detail}`));
+    let checked = stageGen;
+    if ('base' in stageGen) {
+      // base は serve 側で検査し、checkStageGen には base を外して grid（min＝max）に変換した写しを渡す（validate 側は無変更）
+      const { base, ...rest } = stageGen;
+      const baseProblems = checkGenerateBase(base, stageGen);
+      out.push(...baseProblems);
+      const g = base && base.grid;
+      checked = baseProblems.length === 0 ? { ...rest, grid: { cols: { min: g.cols, max: g.cols }, rows: { min: g.rows, max: g.rows } } } : null;
+    }
+    if (checked) checkStageGen({ stageGen: { ...checked, ver: 1, stages: 2 } }, [], (rule, detail) => out.push(`${rule}: ${detail}`));
   }
   if (count !== undefined && !(Number.isInteger(count) && count >= 1 && count <= GENERATE_COUNT_MAX)) out.push(`count は 1〜${GENERATE_COUNT_MAX} の整数にしてください`);
   if (seed !== undefined && !(Number.isInteger(seed) && seed >= 0)) out.push('seed は 0 以上の整数にしてください');
