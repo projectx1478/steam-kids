@@ -89,13 +89,13 @@ export function canonicalKey(board) {
 
 // かぎとドアの配置（engine-generate の placeKeys と同じ考え方）。ドアは現盤の最短経路上の1マス、
 // かぎはドアを壁扱いにして届く空きマス。ドアを壁にすると最短が伸びるマスを最大4回選び直す。
-function placeKeys(rng, pairCount, spec, free) {
+function placeKeys(rng, pairCount, spec, free, can = () => true) {
   const keys = [];
   const doors = [];
   const used = new Set(
     [spec.start, spec.goal, ...spec.walls, ...(spec.items ?? []), ...(spec.ice ?? [])].map(keyOf)
   );
-  const pool = free.filter((p) => !used.has(keyOf(p)));
+  const pool = free.filter((p) => !used.has(keyOf(p)) && can('key', p));
   const plain = (extraWalls, goal) => ({
     grid: spec.grid, start: spec.start, goal: goal ?? spec.goal, walls: [...spec.walls, ...extraWalls],
   });
@@ -104,7 +104,7 @@ function placeKeys(rng, pairCount, spec, free) {
     const cmds = shortestPath(cur);
     if (!cmds) return null;
     const path = simulate(cmds, cur).path;
-    const candidates = path.filter((p, i) => i > 0 && i < path.length - 1 && !used.has(keyOf(p)));
+    const candidates = path.filter((p, i) => i > 0 && i < path.length - 1 && !used.has(keyOf(p)) && can('door', p));
     if (candidates.length === 0) return null;
     const baseSteps = shortestSteps(plain([]));
     let door = null;
@@ -128,19 +128,19 @@ function placeKeys(rng, pairCount, spec, free) {
 
 // スイッチ（open・1組＝スイッチ1＋対象1）の配置。対象は現盤の最短経路上の1マス（壁になる）、スイッチは
 // 対象を壁扱いにしても盤が解ける空きマス。見つからなければ null。
-function placeSwitches(rng, pairCount, spec, free) {
+function placeSwitches(rng, pairCount, spec, free, can = () => true) {
   const switches = [];
   const used = new Set(
     [spec.start, spec.goal, ...spec.walls, ...(spec.items ?? []), ...(spec.ice ?? []), ...(spec.cushion ?? []),
       ...(spec.keys ?? []), ...(spec.doors ?? [])].map(keyOf)
   );
-  const pool = free.filter((p) => !used.has(keyOf(p)));
+  const pool = free.filter((p) => !used.has(keyOf(p)) && can('switch', p));
   for (let n = 0; n < pairCount; n += 1) {
     const cur = { ...spec, switches };
     const cmds = shortestPath(cur);
     if (!cmds) return null;
     const path = simulate(cmds, cur).path;
-    const candidates = path.filter((p, i) => i > 0 && i < path.length - 1 && !used.has(keyOf(p)));
+    const candidates = path.filter((p, i) => i > 0 && i < path.length - 1 && !used.has(keyOf(p)) && can('target', p));
     if (candidates.length === 0) return null;
     const target = candidates[Math.floor(rng() * candidates.length)];
     const sw = pool.find((p) => !used.has(keyOf(p)) && keyOf(p) !== keyOf(target)
@@ -344,6 +344,29 @@ function placeBridge(spec, cmds) {
   return found ? [{ x: found.x, y: found.y }] : null;
 }
 
+// base（土台）から陸のマス集合と、配置の制約①〜③の述語 can(kind, p) を作る。kind は item・ice・key・door・cushion・switch・target。
+function baseLayout(base) {
+  const water = new Set(base.water.map(keyOf));
+  const wall = new Set(base.walls.map(keyOf));
+  const bridge = new Set(base.bridge.map(keyOf));
+  const land = [];
+  for (let y = 0; y < base.grid.rows; y += 1) {
+    for (let x = 0; x < base.grid.cols; x += 1) if (!water.has(`${x},${y}`) && !wall.has(`${x},${y}`)) land.push({ x, y });
+  }
+  const isLand = new Set(land.map(keyOf));
+  const around = (p) => DIRS.map(([dx, dy]) => ({ x: p.x + dx, y: p.y + dy }));
+  const nearBridge = (p) => bridge.has(keyOf(p)) || around(p).some((q) => bridge.has(keyOf(q)));
+  const nearWater = (p) => around(p).some((q) => water.has(keyOf(q)));
+  const thin = (p) => around(p).filter((q) => isLand.has(keyOf(q))).length < 2;
+  const can = (kind, p) => {
+    if (nearBridge(p)) return false;
+    if ((kind === 'ice' || kind === 'switch' || kind === 'door') && thin(p)) return false;
+    if ((kind === 'ice' || kind === 'cushion' || kind === 'switch') && nearWater(p)) return false;
+    return true;
+  };
+  return { land, can };
+}
+
 // teach のギミックの必須性
 function teachMatters(teach, board) {
   const dist = board.solution.length;
@@ -361,26 +384,50 @@ function teachMatters(teach, board) {
 }
 
 // generateBoard(stageGen, seed) -> 盤 {grid,start,goal,walls,items,[ice],[keys,doors],allowedCommands,solution,maxCommands}。
+// stageGen.base（{grid:{cols,rows},water,bridge,walls}。エディタの /api/generate 専用）があれば、土台の水・橋・壁・大きさを固定し、
+// 陸（水・壁以外。橋は陸）だけに start・goal・壁・ギミックを置く。grid は base.grid で決まる（stageGen.grid は見ない）。
+// base のときだけ配置の制約①橋と橋の両端の陸に置かない②陸が上下左右に2未満のマスに ice・switch・door を置かない
+// ③水に隣り合う陸に ice・cushion・switch を置かない、を候補の述語にする（base なしの盤は変えない）。
 // 400回の再試行で受理できなければ null（予備盤は作らない）。探索量が maxWork を超えたら GEN_ABORTED（盤は採用しない）。
 export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts = MAX_ATTEMPTS } = {}) {
   const rng = mulberry32(seed);
   const gim = stageGen.gimmicks ?? {};
   const allowed = stageGen.allowedCommands ?? ALLOWED;
   let work = 0;
+  const base = stageGen.base
+    ? { grid: stageGen.base.grid, water: stageGen.base.water ?? [], bridge: stageGen.base.bridge ?? [], walls: stageGen.base.walls ?? [] }
+    : null;
+  const baseInfo = base ? baseLayout(base) : null;
+  const can = baseInfo ? baseInfo.can : () => true;
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     if (work > maxWork) return GEN_ABORTED;
-    const grid = {
+    const grid = base ? { cols: base.grid.cols, rows: base.grid.rows } : {
       cols: randInt(rng, stageGen.grid.cols.min, stageGen.grid.cols.max),
       rows: randInt(rng, stageGen.grid.rows.min, stageGen.grid.rows.max),
     };
     const cells = [];
-    for (let y = 0; y < grid.rows; y += 1) for (let x = 0; x < grid.cols; x += 1) cells.push({ x, y });
+    if (baseInfo) cells.push(...baseInfo.land);
+    else for (let y = 0; y < grid.rows; y += 1) for (let x = 0; x < grid.cols; x += 1) cells.push({ x, y });
     const order = shuffle(rng, cells);
     const wallCount = Math.min(countOf(rng, stageGen.walls), cells.length - 2);
     let spec = { grid, start: order[0], goal: order[1], walls: order.slice(2, 2 + wallCount), items: [] };
+    if (base) {
+      spec = { ...spec, walls: [...base.walls.map((p) => ({ x: p.x, y: p.y })), ...spec.walls] };
+      if (base.water.length > 0) {
+        spec = { ...spec, water: base.water.map((p) => ({ x: p.x, y: p.y })), waterMode: 'cushion' };
+        if (base.bridge.length > 0) spec = { ...spec, bridge: base.bridge.map((p) => ({ x: p.x, y: p.y })) };
+      }
+    }
     let free = order.slice(2 + wallCount);
     let cursor = 0;
-    const take = (n) => {
+    const take = (n, kind) => {
+      if (baseInfo) {
+        const got = free.filter((p) => can(kind, p)).slice(0, n);
+        if (got.length < n) return null;
+        const gone = new Set(got.map(keyOf));
+        free = free.filter((p) => !gone.has(keyOf(p)));
+        return got;
+      }
       if (cursor + n > free.length) return null;
       const got = free.slice(cursor, cursor + n);
       cursor += n;
@@ -388,13 +435,13 @@ export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts 
     };
     const itemCount = countOf(rng, gim.items);
     if (itemCount > 0) {
-      const got = take(itemCount);
+      const got = take(itemCount, 'item');
       if (!got) continue;
       spec = { ...spec, items: got };
     }
     const iceCount = countOf(rng, gim.ice);
     if (iceCount > 0) {
-      const got = take(iceCount);
+      const got = take(iceCount, 'ice');
       if (!got) continue;
       spec = { ...spec, ice: got };
     }
@@ -402,7 +449,7 @@ export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts 
     const pairCount = countOf(rng, gim.keys);
     if (pairCount > 0) {
       work += cells.length * 2 ** (itemCount + pairCount);
-      const placed = placeKeys(rng, pairCount, spec, free);
+      const placed = placeKeys(rng, pairCount, spec, free, can);
       if (!placed) continue;
       spec = { ...spec, keys: placed.keys, doors: placed.doors };
       // keyMode（Issue #391）は指定されたときだけ盤へ付ける（乱数は引かない。無指定＝carry）
@@ -414,14 +461,14 @@ export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts 
       const taken = new Set(
         [...(spec.keys ?? []), ...(spec.doors ?? [])].map(keyOf)
       );
-      const got = free.filter((p) => !taken.has(keyOf(p))).slice(0, cushionCount);
+      const got = free.filter((p) => !taken.has(keyOf(p)) && can('cushion', p)).slice(0, cushionCount);
       if (got.length < cushionCount) continue;
       spec = { ...spec, cushion: got };
     }
     const switchCount = gim.switches ? countOf(rng, gim.switches) : 0;
     if (switchCount > 0) {
       work += cells.length * 2 ** (itemCount + switchCount);
-      const placed = placeSwitches(rng, switchCount, spec, free);
+      const placed = placeSwitches(rng, switchCount, spec, free, can);
       if (!placed) continue;
       spec = { ...spec, switches: placed };
     }
@@ -469,7 +516,7 @@ export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts 
     if (countTurns(cmds) < (stageGen.minTurns ?? 0)) continue;
     if (cmds.some((c) => !allowed.includes(c))) continue;
     // 橋は最短が確定してから置く（置けなければ橋なし）。
-    if (spec.water) {
+    if (spec.water && !base) {
       const bridge = placeBridge(spec, cmds);
       if (bridge) spec = { ...spec, bridge };
     }
@@ -480,7 +527,7 @@ export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts 
     const paintWater = board.paint?.length > 0 && board.water?.length > 0;
     if (paintWater && !board.bridge) continue;
     if (stageGen.teach) {
-      const mixed = ['warps', 'periodic', 'water'].find((k) => board[k]?.length > 0 && k !== stageGen.teach);
+      const mixed = ['warps', 'periodic', 'water'].find((k) => board[k]?.length > 0 && k !== stageGen.teach && !(base && k === 'water'));
       if (!(paintWater && stageGen.teach === 'water') && !teachMatters(stageGen.teach, board)) continue;
       if (mixed && !(paintWater && mixed === 'water') && !teachMatters(mixed, board)) continue;
     }
