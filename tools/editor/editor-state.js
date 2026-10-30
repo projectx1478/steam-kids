@@ -2,6 +2,7 @@
 // 開発者用・手元専用。子ども向け画面（APP_SHELL）には載せない。
 // 状態 { spec, history: spec[], cursor, cellPx }。spec は既存の盤面 JSON 全体を形を変えずに持つ。
 // 元に戻すはスナップショット方式。各関数は state を直接更新し、{ ok: true } か { ok: false, reason } を返す（拒否時は state を変えない）。
+import { simulate, isRunCleared } from '../../js/engine-grid.js';
 import { EDITOR_MAX_SIZE, CELL_PX_MIN, CELL_PX_MAX, CELL_PX_DEFAULT, switchModeOptions, switchGroupOptions } from './editor-view.js';
 
 export const HISTORY_MAX = 100; // 超えたら先頭（古いもの）から捨てる
@@ -640,6 +641,43 @@ export function addTutorialStep(ls, spec) {
   ls.steps.splice(introIdx + 1, 0, next);
   ls.selected = introIdx + 1;
   return ok();
+}
+
+// おてほん手順（script）を設定する。script は命令（{tap:'up|down|left|right'}）の並び。run が混ざっていても捨て、末尾に {tap:'run'} を1つ足して入れる
+// （state の script は常に末尾 run 付き。作者は run を入れない）。tap は allowedCommands の範囲だけ。検査（到達可能性）は保存時の validateLesson。
+export function setTutorialScript(state, script) {
+  if (state.spec.kind !== 'tutorial') return ng('チュートリアルの面ではない');
+  if (!Array.isArray(script)) return ng('手順は配列のみ');
+  const allowed = Array.isArray(state.spec.allowedCommands) ? state.spec.allowedCommands : [];
+  const taps = [];
+  for (const e of script) {
+    const tap = e && typeof e === 'object' ? e.tap : undefined;
+    if (tap === 'run') continue;
+    if (typeof tap !== 'string' || !allowed.includes(tap)) return ng('使えない命令がある');
+    taps.push({ tap });
+  }
+  const full = taps.concat([{ tap: 'run' }]);
+  if (JSON.stringify(full) === JSON.stringify(state.spec.script)) return ok();
+  const next = clone(state.spec);
+  next.script = full;
+  return commit(state, next);
+}
+
+// 手順欄の表示用：spec の script（方向の tap のみ）を simulate で再生し、ゴール到達＋全回収かを返す。保存の可否にはしない（保存検査は validateLesson）。
+// initialCommands・groupRepeats は lesson.mjs の再生と同じ。方向以外の tap（remove・box 等）は扱わず null。
+export function tutorialReach(spec) {
+  if (!hasBoard(spec) || !Array.isArray(spec.script)) return null;
+  const initial = Array.isArray(spec.initialCommands) ? spec.initialCommands : [];
+  const chips = initial.map((dir) => ({ dir, times: 1 }));
+  for (const e of spec.script) {
+    const tap = e && e.tap;
+    if (tap === 'run') break;
+    if (!['up', 'down', 'left', 'right'].includes(tap)) return null;
+    const last = chips.at(-1);
+    if (spec.groupRepeats && last && last.dir === tap) last.times += 1;
+    else chips.push({ dir: tap, times: 1 });
+  }
+  return isRunCleared(simulate(chips, spec));
 }
 
 // 保存 NG の文言を「自分の面（placedIds）が原因か」で分ける。検査名（「検査名: 文言」の頭）・stepId・数値は文言のまま出す。

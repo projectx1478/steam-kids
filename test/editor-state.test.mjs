@@ -1,7 +1,7 @@
 // #397 段4: 盤面エディタの状態管理（置く・消す・動かす・元に戻す・やり直し、拒否値）。実行: npm run test:unit
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { occupants, createState, setCellPx, setGrid, place, erase, move, undo, redo, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, COMPLEX_KEYS, HISTORY_MAX, setKeyColor, setDoorColor, setKeyMode, setPeriodicPeriod, setWaterMode, togglePaint, canUndo as canUndoState, addTutorialStep, setStepText } from '../tools/editor/editor-state.js';
+import { occupants, createState, setCellPx, setGrid, place, erase, move, undo, redo, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, COMPLEX_KEYS, HISTORY_MAX, setKeyColor, setDoorColor, setKeyMode, setPeriodicPeriod, setWaterMode, togglePaint, canUndo as canUndoState, addTutorialStep, setStepText, setTutorialScript, tutorialReach } from '../tools/editor/editor-state.js';
 import { SAMPLE_SPEC, EDITOR_MAX_SIZE, pendingSwitches, switchModeOptions, switchGroupOptions, pendingGroupSwitches, pendingKeys, pendingBridges } from '../tools/editor/editor-view.js';
 import { analyzeSpec } from '../tools/editor/validate-worker.mjs';
 
@@ -886,4 +886,30 @@ test('editor-state(tutorial): setStepText は文字列のみ。空は text を�
   assert.equal('text' in s.spec, false);
   undo(s);
   assert.equal(s.spec.text, 'ここを おす');
+});
+
+test('editor-state(tutorial): setTutorialScript は末尾に run を足して入れる。run は捨てる・範囲外の命令は拒否・元に戻せる', () => {
+  const play = { stepId: 'p1', kind: 'play', grid: { cols: 3, rows: 1 }, start: { x: 0, y: 0 }, goal: { x: 2, y: 0 }, allowedCommands: ['right', 'down'] };
+  const ls = createLessonState('x', [{ stepId: 's1', kind: 'intro' }, play]);
+  assert.equal(addTutorialStep(ls, play).ok, true);
+  const s = createState(ls.steps[ls.selected]);
+  assert.equal(setTutorialScript(s, [{ tap: 'right' }, { tap: 'run' }, { tap: 'right' }]).ok, true);
+  assert.deepEqual(s.spec.script, [{ tap: 'right' }, { tap: 'right' }, { tap: 'run' }]);
+  assert.equal(setTutorialScript(s, [{ tap: 'up' }]).ok, false, 'allowedCommands の範囲外');
+  assert.equal(setTutorialScript(s, 'right').ok, false);
+  assert.deepEqual(s.spec.script.length, 3, '拒否時は変えない');
+  assert.equal(setTutorialScript(s, []).ok, true);
+  assert.deepEqual(s.spec.script, [{ tap: 'run' }]);
+  undo(s);
+  assert.equal(s.spec.script.length, 3);
+  assert.equal(setTutorialScript(fresh(), [{ tap: 'right' }]).ok, false, 'tutorial の面ではない');
+});
+
+test('editor-state(tutorial): tutorialReach はゴールに着く手順だけ true。方向以外の tap は null', () => {
+  const t = { stepId: 't', kind: 'tutorial', grid: { cols: 3, rows: 1 }, start: { x: 0, y: 0 }, goal: { x: 2, y: 0 }, allowedCommands: ['right'] };
+  assert.equal(tutorialReach({ ...t, script: [{ tap: 'right' }, { tap: 'right' }, { tap: 'run' }] }), true);
+  assert.equal(tutorialReach({ ...t, script: [{ tap: 'right' }, { tap: 'run' }] }), false);
+  assert.equal(tutorialReach({ ...t, script: [{ tap: 'run' }] }), false);
+  assert.equal(tutorialReach({ ...t, script: [{ tap: 'remove', index: 0 }, { tap: 'run' }] }), null);
+  assert.equal(tutorialReach({ stepId: 'z' }), null);
 });

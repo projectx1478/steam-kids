@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
-import { createLessonState, addTutorialStep, setStepText, createState } from '../tools/editor/editor-state.js';
+import { createLessonState, addTutorialStep, setStepText, setTutorialScript, createState } from '../tools/editor/editor-state.js';
 import { startEditorServer, checkLessonId, backupLesson, backupStamp, BACKUP_KEEP } from '../tools/editor/serve.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -194,7 +194,7 @@ test('PUT: { steps, keepHandwritten } は stageGen.keepHandwritten を保存す�
 });
 
 // #617 段1: tutorial 付きの steps（エディタの addTutorialStep が作る形）を PUT する。題材は tutorial の無い ice-02-kabe。
-function tutorialSteps(lessonsDir, text) {
+function tutorialSteps(lessonsDir, text, taps = ['right', 'down', 'down', 'down']) {
   const steps = JSON.parse(fs.readFileSync(path.join(lessonsDir, 'ice-02-kabe.json'), 'utf8')).steps;
   const ls = createLessonState('ice-02-kabe', steps);
   const p1 = steps.find((s) => s.stepId === 'p1');
@@ -202,7 +202,8 @@ function tutorialSteps(lessonsDir, text) {
   const state = createState(ls.steps[ls.selected]);
   assert.equal(setStepText(state, text).ok, true);
   ls.steps[ls.selected] = state.spec;
-  ls.steps[ls.selected].script = ['right', 'down', 'down', 'down'].map((tap) => ({ tap })).concat([{ tap: 'run' }]);
+  assert.equal(setTutorialScript(state, taps.map((tap) => ({ tap }))).ok, true);
+  ls.steps[ls.selected] = state.spec;
   return ls.steps;
 }
 
@@ -229,6 +230,20 @@ test('PUT(tutorial): 文言違反（20字超）は 400 で書かない', async (
       const r = await call(port, 'PUT', '/api/lessons/ice-02-kabe', tutorialSteps(lessonsDir, 'あ'.repeat(25)));
       assert.equal(r.status, 400);
       assert.ok(r.json.messages.some((m) => m.includes('文字数')), JSON.stringify(r.json.messages));
+      assert.equal(fs.readFileSync(file, 'utf8'), before);
+    });
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('PUT(tutorial): ゴールに着かない手順は 400（チュートリアルの到達可能性）で書かない', async () => {
+  const { tmp, lessonsDir, backupsDir } = setup();
+  try {
+    await withServer({ lessonsDir, backupsDir }, async (port) => {
+      const file = path.join(lessonsDir, 'ice-02-kabe.json');
+      const before = fs.readFileSync(file, 'utf8');
+      const r = await call(port, 'PUT', '/api/lessons/ice-02-kabe', tutorialSteps(lessonsDir, 'ここを おす', ['right', 'down', 'down']));
+      assert.equal(r.status, 400);
+      assert.ok(r.json.messages.some((m) => m.includes('チュートリアルの到達可能性')), JSON.stringify(r.json.messages));
       assert.equal(fs.readFileSync(file, 'utf8'), before);
     });
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }

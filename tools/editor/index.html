@@ -56,6 +56,19 @@
       <div class="tut-hd"><span>チュートリアル</span><button type="button" class="btn sm" id="tut-del">この面を消す</button></div>
       <label class="tut-lbl" for="tut-text">文面</label>
       <input type="text" id="tut-text" maxlength="60" autocomplete="off">
+      <div id="tut-script">
+        <span class="tut-lbl">おてほん手順</span>
+        <div id="tut-chips"></div>
+        <span class="tut-lbl">命令を追加</span>
+        <div class="tut-cmds">
+          <button type="button" class="btn sm" id="tut-cmd-up" data-tap="up" aria-label="うえ">↑</button>
+          <button type="button" class="btn sm" id="tut-cmd-down" data-tap="down" aria-label="した">↓</button>
+          <button type="button" class="btn sm" id="tut-cmd-left" data-tap="left" aria-label="ひだり">←</button>
+          <button type="button" class="btn sm" id="tut-cmd-right" data-tap="right" aria-label="みぎ">→</button>
+          <button type="button" class="btn sm" id="tut-back">1つ戻す</button>
+        </div>
+        <div id="tut-reach"></div>
+      </div>
     </div>
     <div id="step-warn"></div>
     <div id="save-ng"></div>
