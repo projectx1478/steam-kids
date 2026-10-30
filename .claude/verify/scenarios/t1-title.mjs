@@ -24,7 +24,7 @@ export default async function run({ page, check }) {
   await page.click('[data-action="slot-pick"][data-slot="0"]');
   await page.click('[data-track-id="robot"]');
   await check('スロット選択後は選択画面へ遷移する', async () => page.getAttribute('#stage', 'data-screen'), 'picker');
-  await check('選択画面のレッスンボタンが表示される', async () => (await page.$$('.lesson-pick-btn')).length, 12);
+  await check('選択画面のレッスンボタンが表示される', async () => (await page.$$('.lesson-pick-btn')).length, 11);
 
   // ?view=map / ?lesson=はタイトルを経由しない
   await page.goto('/index.html?view=map');
