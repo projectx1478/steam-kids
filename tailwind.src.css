@@ -900,6 +900,27 @@ dialog.result-row {
   }
 }
 
+/* ボタン行の修飾 sk-screen-actions--two-row（シーソーの重さも位置も動く面。Issue #612）：1行目 ◀ ▶ ｜ − ＋（溝16px）、2行目に主ボタン全幅。
+   − ＋ は丸角の水色（robots-btn）。向きによらず同じ配置。 */
+.sk-screen-panel > .sk-screen-actions.sk-screen-actions--two-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  column-gap: 0.5rem;
+  row-gap: 0.5rem;
+}
+.sk-screen-actions--two-row > [data-action='robots-minus'] {
+  margin-left: 0.5rem;
+}
+.sk-screen-actions--two-row > [data-action='run'],
+.sk-screen-actions--two-row > [data-action='retry'] {
+  grid-column: 1 / -1;
+}
+.robots-btn {
+  background-color: #bae6fd;
+  color: #0c4a6e;
+  border-radius: 9999px;
+}
+
 /* predict（Issue #355）：命令の行（predict-command-row）を問い文と盤面の間に置き、ボタン行 sk-screen-actions--predict は
    縦向きは nowrap の1行、横向きは1列に縦積みにする。 */
 .sk-screen-actions--predict {
