@@ -41,6 +41,7 @@
         <button type="button" class="btn sm" id="step-pin" disabled>固定する</button>
         <button type="button" class="btn sm" id="step-add" disabled>この盤面を面として追加</button>
         <button type="button" class="btn sm" id="step-del" disabled>削除</button>
+        <button type="button" class="btn sm" id="tut-add" disabled>チュートリアルを足す</button>
         <button type="button" class="btn sm" id="lesson-save" disabled>保存</button>
       </div>
     </div>
@@ -51,6 +52,11 @@
       <button type="button" class="btn sm" id="draft-load" disabled>読み込む</button>
     </div>
     <div id="step-list"></div>
+    <div id="tut-ctl" hidden>
+      <div class="tut-hd"><span>チュートリアル</span><button type="button" class="btn sm" id="tut-del">この面を消す</button></div>
+      <label class="tut-lbl" for="tut-text">文面</label>
+      <input type="text" id="tut-text" maxlength="60" autocomplete="off">
+    </div>
     <div id="step-warn"></div>
     <div id="save-ng"></div>
   </aside>

@@ -108,6 +108,16 @@ export function setMaxPauses(state, value) {
   return commit(state, next);
 }
 
+// 文面（text）を設定する。文字列のみ。空は text を持たない。検査（ルビ・20字・否定語）は保存時の validateLesson。
+export function setStepText(state, text) {
+  if (typeof text !== 'string') return ng('文面は文字列のみ');
+  if (text === (typeof state.spec.text === 'string' ? state.spec.text : '')) return ok();
+  const next = clone(state.spec);
+  if (text === '') delete next.text;
+  else next.text = text;
+  return commit(state, next);
+}
+
 // 盤面サイズを変える。EDITOR_MAX_SIZE 超過・1 未満・非整数、要素が盤外になる場合は拒否。
 export function setGrid(state, cols, rows) {
   if (!Number.isInteger(cols) || !Number.isInteger(rows) || cols < 1 || rows < 1) return ng('盤面サイズは1以上の整数');
@@ -606,6 +616,29 @@ export function addDraftStep(ls, spec, baseId, index = null) {
   delete next.gen;
   ls.steps.splice(at, 0, next);
   ls.selected = at;
+  return ok();
+}
+
+// チュートリアル（tutorial）の面を intro の直後に足す。盤面・allowedCommands は spec（編集中の元の面）から引き継ぎ、
+// maxCommands・solution・gen は持たない。script は [{ tap: 'run' }]（命令0個）で始める。0〜1個・直前が intro・最初の play より前（lesson.mjs と同じ）。追加した面を選ぶ。
+export function addTutorialStep(ls, spec) {
+  if (!hasBoard(spec)) return ng('盤面（grid・start・goal）が無い');
+  if (ls.steps.some((s) => s.kind === 'tutorial')) return ng('チュートリアルは1つだけ');
+  const introIdx = ls.steps.findIndex((s) => s.kind === 'intro');
+  if (introIdx === -1) return ng('チュートリアルは intro の直後に置く（intro が無い）');
+  const firstPlay = ls.steps.findIndex((s) => s.kind === 'play');
+  if (firstPlay !== -1 && firstPlay <= introIdx) return ng('チュートリアルは最初の play より前に置く');
+  const next = clone(spec);
+  const ids = new Set(ls.steps.map((s) => s.stepId));
+  let id = 'tutorial';
+  for (let n = 2; ids.has(id); n++) id = `tutorial${n}`;
+  next.stepId = id;
+  next.kind = 'tutorial';
+  delete next.text; // 元の面の文面は引き継がない（作者が入れる）
+  next.script = [{ tap: 'run' }];
+  for (const k of ['maxCommands', 'solution', 'gen']) delete next[k];
+  ls.steps.splice(introIdx + 1, 0, next);
+  ls.selected = introIdx + 1;
   return ok();
 }
 

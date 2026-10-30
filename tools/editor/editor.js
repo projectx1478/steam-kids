@@ -6,7 +6,7 @@ import { GIMMICKS } from '/js/gimmicks/index.js';
 import { markGatePassedToday } from '/js/gate-date.js';
 import { openLayoutPanel } from './layout-panel.js';
 import { buildPalette, iconSpec } from './palette.js';
-import { createState, setCellPx as setStateCellPx, setGrid, place, erase, move, toggleTarget, togglePaint, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, setKeyColor, setDoorColor, setKeyMode, setWaterMode, setPeriodicPeriod, PERIODIC_PERIODS, WATER_MODES, SWITCH_COLORS, KEY_COLORS, KEY_MODES, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard, addDraftStep, explainSaveNg } from './editor-state.js';
+import { createState, setCellPx as setStateCellPx, setGrid, place, erase, move, toggleTarget, togglePaint, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, setKeyColor, setDoorColor, setKeyMode, setWaterMode, setPeriodicPeriod, PERIODIC_PERIODS, WATER_MODES, SWITCH_COLORS, KEY_COLORS, KEY_MODES, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard, addDraftStep, explainSaveNg, addTutorialStep, setStepText } from './editor-state.js';
 
 const state = createState(EMPTY_SPEC, CELL_PX_DEFAULT);
 state.selected = 'wall';
@@ -440,6 +440,11 @@ function renderSteps() {
   stepBtn('step-pin').disabled = !has || !('gen' in lesson.steps[sel]);
   stepBtn('lesson-save').disabled = !lesson || !lessonDirty;
   stepBtn('step-add').disabled = !lesson;
+  // チュートリアル：足せるのは「面を選んでいて、足せる並び」のときだけ。欄は tutorial の面を選んでいるときに出す。
+  const tut = has && lesson.steps[sel].kind === 'tutorial';
+  stepBtn('tut-add').disabled = !has || !addTutorialStep({ steps: lesson.steps.map((x) => x), selected: null }, state.spec).ok;
+  stepBtn('tut-ctl').hidden = !tut;
+  if (tut && stepBtn('tut-text').value !== (lesson.steps[sel].text || '')) stepBtn('tut-text').value = lesson.steps[sel].text || '';
 }
 
 function lessonResult(result) {
@@ -539,6 +544,23 @@ stepBtn('step-del').addEventListener('click', () => {
   lessonResult(removeStep(lesson, lesson.selected));
 });
 stepBtn('lesson-save').addEventListener('click', saveLesson);
+stepBtn('tut-add').addEventListener('click', () => {
+  const r = addTutorialStep(lesson, state.spec);
+  if (r.ok) { placedIds.add(lesson.steps[lesson.selected].stepId); loadSpec(state, lesson.steps[lesson.selected]); scheduleAnalyze(); }
+  lessonResult(r);
+});
+stepBtn('tut-del').addEventListener('click', () => {
+  if (!window.confirm('このチュートリアルの面を消しますか？（保存するまでファイルは変わりません）')) return;
+  lessonResult(removeStep(lesson, lesson.selected));
+});
+stepBtn('tut-text').addEventListener('input', () => {
+  const r = setStepText(state, stepBtn('tut-text').value);
+  if (r.ok) { // 面にもすぐ書く（盤面の「置き換え」を待たない。boardDirty も揺らさない）
+    const step = lesson.steps[lesson.selected];
+    if (state.spec.text === undefined) delete step.text; else step.text = state.spec.text;
+  }
+  lessonResult(r);
+});
 
 loadLessonList();
 renderPalette();

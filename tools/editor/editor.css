@@ -54,6 +54,11 @@
 .st.sel { border-color: #7c3aed; background: #ede9fe; }
 .st.nob { color: #94a3b8; cursor: default; }
 .st .tag { margin-left: auto; color: #b45309; }
+#tut-ctl { padding: 6px 8px; border-top: 1px solid #e2e8f0; font-size: 12px; }
+#tut-ctl[hidden] { display: none; }
+.tut-hd { display: flex; align-items: center; justify-content: space-between; gap: 4px; font-weight: bold; }
+.tut-lbl { display: block; margin-top: 6px; }
+#tut-text { width: 100%; box-sizing: border-box; font-size: 12px; }
 #step-warn { padding: 6px 8px; font-size: 12px; color: #b45309; border-top: 1px solid #e2e8f0; }
 #step-warn:empty { display: none; }
 .drafts-ctl { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 8px; border-top: 1px solid #e2e8f0; }
