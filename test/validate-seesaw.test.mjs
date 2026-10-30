@@ -104,3 +104,38 @@ for (const [name, expected, mutate] of boards) {
     assert.equal(r.code, expected.length === 0 ? 0 : 1, r.out);
   });
 }
+
+// シーソーのれんしゅう（teko-06。Issue #611）：本物の teko-06 を基準に、合格1・不合格（出る rule）を確かめる。
+const practice = JSON.parse(readFileSync('lessons/teko-06-practice.json', 'utf-8'));
+function validatePractice(mutate) {
+  const lesson = JSON.parse(JSON.stringify(practice));
+  mutate(lesson);
+  const dir = mkdtempSync(path.join(tmpdir(), 'vsp-'));
+  writeFileSync(path.join(dir, `${lesson.lessonId}.json`), JSON.stringify(lesson));
+  writeFileSync(
+    path.join(dir, 'index.json'),
+    JSON.stringify({ units: [{ unitId: 'teko', title: 'つりあい', lessonIds: [lesson.lessonId] }] })
+  );
+  const r = spawnSync('node', ['tools/validate-lessons.mjs'], { env: { ...process.env, LESSONS_DIR: dir }, encoding: 'utf-8' });
+  return { code: r.status, out: r.stdout };
+}
+const stageOf = (l, id) => l.steps.find((s) => s.stepId === id);
+
+test('validate-lessons: シーソーのれんしゅう(teko-06)は検証を通る', () => {
+  const r = validatePractice(() => {});
+  assert.equal(r.code, 0, r.out);
+});
+
+const practiceCases = [
+  ['段の並びが違う', 'generator', (l) => (stageOf(l, 'p2').generator.seesawStage = 'B')],
+  ['未知の段', 'generator', (l) => (stageOf(l, 'p5').generator.seesawStage = 'D')],
+  ['generatorに余計なキー', 'generator', (l) => (stageOf(l, 'p1').generator.shape = 'round')],
+  ['seesawを書いている', 'generator', (l) => (stageOf(l, 'p1').seesaw = { notches: 3, left: [{ robots: 1, pos: 1 }], mover: { robots: 1, start: 2 } })],
+  ['playが4個', 'れんしゅうの構成', (l) => (l.steps = l.steps.filter((s) => s.stepId !== 'p5'))],
+];
+for (const [label, rule, mutate] of practiceCases) {
+  test(`validate-lessons: れんしゅうのNG検出: ${label}`, () => {
+    const r = validatePractice(mutate);
+    assert.equal(r.code === 1 && r.out.includes(rule), true, `NG検出: ${label}\n${r.out}`);
+  });
+}
