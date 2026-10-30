@@ -29,7 +29,7 @@ npm run verify:fast -- --with-generate
 
 ## 盤面エディタ（npm run editor）
 - 開発者用。`npm run editor` で `127.0.0.1:5173` に起動（`EDITOR_PORT` で変更）。子ども画面（js/）には含まれない。
-- 使い方のヘルプ：`tools/editor/help.html`（`help.css`）。エディタのヘッダーの「つかいかた」から別タブで開く。操作の手順（置き方・ギミック別・Shift 移動・元に戻す・拡大縮小・下書き・たたき台・ためしあそび）を図つきで載せる。エディタの操作を変えたら help.html も同じ Issue・PR で直す（#510）。
+- 使い方のヘルプ：`tools/editor/help.html`（`help.css`）。エディタのヘッダーの「つかいかた」から別タブで開く。操作の手順（置き方・ギミック別・Shift 移動・元に戻す・拡大縮小・チュートリアルの面（tutorial の足す・文面・命令ボタンの手順・消す）・下書き・たたき台・ためしあそび）を図つきで載せる。エディタの操作を変えたら help.html も同じ Issue・PR で直す（#510）。
 - 盤面の大きさ：1×1〜20×20（`EDITOR_MAX_SIZE`＝20。レッスンJSON の上限検査と同じ）。見た目の拡大縮小は2つあり、`cellPx`（マスの px。ホイール。8〜128）がエディタの表示倍率で、子ども画面の拡大縮小（`js/ui-zoom.js`）とは別。20×20 の編集では `cellPx` を小さくして全体を見る。
 - 判定：編集が止まって約300ms後に `POST /api/analyze`（クリア可否・最短手数・曲がる回数の一例・各ギミックの必須）。20×20 まで。判定は `worker_threads` で実行し10秒で打ち切る（打ち切りは「未判定」で、OK には見せない）。面の前後との勾配（最短手数の非減少）に反すると警告するが、保存は止めない。
 - 保存：`PUT /api/lessons/:id` が `validateLesson`・`validateIndex` をメモリ上で通し、エラー0件のときだけ `lessons/<id>.json` に書く（10秒で打ち切り、時間切れは保存不可）。書く前に `tools/editor/backups/<id>-<YYYYMMDD-HHmmss>.json`（同一秒は連番付き）へ退避し、レッスンごとに直近10件を残す。

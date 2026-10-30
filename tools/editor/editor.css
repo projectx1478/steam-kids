@@ -54,6 +54,17 @@
 .st.sel { border-color: #7c3aed; background: #ede9fe; }
 .st.nob { color: #94a3b8; cursor: default; }
 .st .tag { margin-left: auto; color: #b45309; }
+#tut-ctl { padding: 6px 8px; border-top: 1px solid #e2e8f0; font-size: 12px; }
+#tut-ctl[hidden] { display: none; }
+.tut-hd { display: flex; align-items: center; justify-content: space-between; gap: 4px; font-weight: bold; }
+.tut-lbl { display: block; margin-top: 6px; }
+#tut-text { width: 100%; box-sizing: border-box; font-size: 12px; }
+#tut-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.tut-chip { display: inline-flex; align-items: center; gap: 2px; padding: 2px 4px 2px 8px; border: 1px solid #94a3b8; border-radius: 12px; background: #f8fafc; }
+.tut-chip.run { padding-right: 8px; background: #ede9fe; border-color: #7c3aed; }
+.tut-chip button { border: 0; background: transparent; cursor: pointer; font-size: 12px; padding: 0 2px; }
+.tut-cmds { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+#tut-reach { margin-top: 4px; color: #475569; }
 #step-warn { padding: 6px 8px; font-size: 12px; color: #b45309; border-top: 1px solid #e2e8f0; }
 #step-warn:empty { display: none; }
 .drafts-ctl { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 8px; border-top: 1px solid #e2e8f0; }
