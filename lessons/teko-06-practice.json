@@ -1,0 +1,48 @@
+{
+  "lessonId": "teko-06-practice",
+  "unitId": "teko",
+  "title": "シーソー れんしゅう",
+  "type": "predict-slider",
+  "estimatedMinutes": 5,
+  "steps": [
+    {
+      "stepId": "s1",
+      "kind": "seedPick",
+      "text": "ばんごうを 3つ いれよう"
+    },
+    {
+      "stepId": "p1",
+      "kind": "play",
+      "text": "つりあう ところに おこう",
+      "generator": { "seesawStage": "A" }
+    },
+    {
+      "stepId": "p2",
+      "kind": "play",
+      "text": "つりあう ところに おこう",
+      "generator": { "seesawStage": "A" }
+    },
+    {
+      "stepId": "p3",
+      "kind": "play",
+      "text": "つりあう ところに おこう",
+      "generator": { "seesawStage": "B" }
+    },
+    {
+      "stepId": "p4",
+      "kind": "play",
+      "text": "つりあう ところに おこう",
+      "generator": { "seesawStage": "B" }
+    },
+    {
+      "stepId": "p5",
+      "kind": "play",
+      "text": "つりあう ところに おこう",
+      "generator": { "seesawStage": "C" }
+    },
+    {
+      "stepId": "s2",
+      "kind": "summary"
+    }
+  ]
+}

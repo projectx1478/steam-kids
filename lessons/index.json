@@ -47,7 +47,7 @@
           "unitId": "teko",
           "title": "つりあい",
           "lessonIds": ["teko-01-tsuriai"],
-          "devOnlyIds": ["teko-02-tsuriai2", "teko-03-tsuriai3", "teko-04-omosa", "teko-05-ryouhou"]
+          "devOnlyIds": ["teko-02-tsuriai2", "teko-03-tsuriai3", "teko-04-omosa", "teko-05-ryouhou", "teko-06-practice"]
         }
       ]
     }
