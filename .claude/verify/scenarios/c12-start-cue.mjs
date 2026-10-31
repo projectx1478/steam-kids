@@ -140,17 +140,14 @@ async function runDismiss({ page, check }) {
   await page.keyboard.press('ArrowRight');
   await checkDismissed(page, check, 'play(矢印キー)');
 
-  // 命令0個では updateControls (ui-play.js) が removeLastBtn・runBtn を disabled にし、registerKeys (ui-keys.js) の
-  // disabledOf が真だと removeLast()・run() を呼ばない（dismissStartCue は removeLast 内）。1キーずつ別々に確かめる。
+  // CI で、命令0個でも Backspace・Enter で消えることを確認（設計：キーも盤面の操作）。1キーずつ別々に確かめる。
   await enterPlay(page, 'start-cue-smoke');
   await page.keyboard.press('Backspace');
-  await page.waitForTimeout(300);
-  await check('play: 命令0個のBackspaceでは消えない', () => cueFlag(page), true);
+  await checkDismissed(page, check, 'play(Backspace)');
 
   await enterPlay(page, 'start-cue-smoke');
   await page.keyboard.press('Enter');
-  await page.waitForTimeout(300);
-  await check('play: 命令0個のEnterでは消えない', () => cueFlag(page), true);
+  await checkDismissed(page, check, 'play(Enter)');
 
   await enterPlay(page, 'start-cue-smoke');
   const box = await page.locator('[data-sk-screen="board"]').boundingBox();
