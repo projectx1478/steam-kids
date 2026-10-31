@@ -143,8 +143,8 @@ async function runDismiss({ page, check }) {
   // 開始直後は run が有効なので、Enter は registerKeys の run → runBtn.click() となり、frame の click で消える。
   // 命令0個では removeLast が disabled のため、Backspace は何もしない（操作にならない）。
   // 2秒タイマーの自然消滅と区別できるよう、前提確認・keydown送信・結果読みを同一 evaluate で行う（待たない）。
-  // 各 check は別の enterPlay で独立に行う。
-  for (const key of ['Enter', 'Backspace']) {
+  // 各 check は別の enterPlay で独立に行う。run を実行する Enter は最後に置く（後続の check に状態を持ち越さない。#635）。
+  for (const key of ['Backspace', 'Enter']) {
     await enterPlay(page, 'start-cue-smoke');
     const result = await page.evaluate((k) => {
       if (!document.querySelector('[data-start-cue]')) return 'no-precondition';
