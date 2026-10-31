@@ -142,11 +142,13 @@ async function runDismiss({ page, check }) {
 
   // 命令0個では updateControls（js/ui-play.js の runBtn.disabled・removeLastBtn.disabled の設定行）が
   // run・remove-last を無効にするため、Enter も Backspace も何もせず「スタート！」は消えない。
-  // ただし読み込み直後は最初の updateControls が走る前でボタンが初期状態（有効）のため、
-  // そのタイミングの keydown は通って消えてしまう（レース）。両ボタンが無効（settled）になるまで待ってから確かめる。
+  // ただし直前の check の命令が下書き（steamkids.draft.<lessonId>）として次の読み込みに復元されると、
+  // run・removeLast が有効になって keydown が通ってしまう。これを防ぐため、各 check の前に下書きを消す。
+  // そのうえで両ボタンが無効（settled）になるまで待ってから確かめる。
   // 2秒タイマーの自然消滅と区別できるよう、前提確認・keydown送信・結果読みは同一 evaluate で行う（待たない）。
   // 各 check は別の enterPlay で独立に行う（後続の check に状態を持ち越さない。#635）。
   for (const key of ['Backspace', 'Enter']) {
+    await page.evaluate(() => localStorage.removeItem('steamkids.draft.start-cue-smoke'));
     await enterPlay(page, 'start-cue-smoke');
     await page.waitForFunction(
       () => document.querySelector('[data-action="run"]')?.disabled === true
