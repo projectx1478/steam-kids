@@ -135,18 +135,17 @@ async function runDismiss({ page, check }) {
   await page.click('[data-action="menu"]');
   await check('play: ⚙のタップでは消えない', () => cueFlag(page), true);
 
-  // play：矢印キー・Backspace・Enter・盤面ドラッグ
+  // play：矢印キー・盤面ドラッグ
   await enterPlay(page, 'start-cue-smoke');
   await page.keyboard.press('ArrowRight');
   await checkDismissed(page, check, 'play(矢印キー)');
 
+  // 命令0個では run・removeLast が disabled。disabled のとき registerKeys は何もしないので Backspace・Enter は操作にならず消えない
   await enterPlay(page, 'start-cue-smoke');
   await page.keyboard.press('Backspace');
-  await checkDismissed(page, check, 'play(Backspace)');
-
-  await enterPlay(page, 'start-cue-smoke');
   await page.keyboard.press('Enter');
-  await checkDismissed(page, check, 'play(Enter)');
+  await page.waitForTimeout(300);
+  await check('play: 命令0個のBackspace・Enterでは消えない', () => cueFlag(page), true);
 
   await enterPlay(page, 'start-cue-smoke');
   const box = await page.locator('[data-sk-screen="board"]').boundingBox();
