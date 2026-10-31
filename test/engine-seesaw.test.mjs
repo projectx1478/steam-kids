@@ -1,6 +1,7 @@
 // predict-slider（シーソー）のてこ計算。おもさ×きょりの符号・解の個数・難易度（Issue #150）。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { balance, solutions, solutionPairs, difficulty } from '../js/engine-seesaw.js';
 
 const spec = { notches: 4, left: [{ robots: 2, pos: 2 }], mover: { robots: 1, start: 1 } };
@@ -47,4 +48,15 @@ test('engine-seesaw: solutionPairsは fixedPos・maxRobots の組み合わせで
   assert.deepEqual(solutionPairs({ notches: 3, left: [{ robots: 1, pos: 3 }, { robots: 1, pos: 2 }], mover: { robots: 1, maxRobots: 2, fixedPos: 2, start: 2 } }), []);
   // solutions の返り値は変わらない（重さは mover.robots 固定）
   assert.deepEqual(solutions({ notches: 2, left, mover: { robots: 1, maxRobots: 3, start: 1 } }), [2]);
+});
+
+test('teko-05: p3・p4 は位置だけ・重さだけでは解けない', () => {
+  const lesson = JSON.parse(readFileSync(new URL('../lessons/teko-05-ryouhou.json', import.meta.url), 'utf8'));
+  for (const id of ['p3', 'p4']) {
+    const { seesaw } = lesson.steps.find((s) => s.stepId === id);
+    const pairs = solutionPairs(seesaw);
+    assert.ok(pairs.length > 0, `${id}: 解がある`);
+    assert.equal(pairs.filter((p) => p.robots === seesaw.mover.robots).length, 0, `${id}: 位置だけで解ける`);
+    assert.equal(pairs.filter((p) => p.pos === seesaw.mover.start).length, 0, `${id}: 重さだけで解ける`);
+  }
 });
