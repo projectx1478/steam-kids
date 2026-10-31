@@ -140,21 +140,27 @@ async function runDismiss({ page, check }) {
   await page.keyboard.press('ArrowRight');
   await checkDismissed(page, check, 'play(矢印キー)');
 
-  // 開始直後は run が有効なので、Enter は registerKeys の run → runBtn.click() となり、frame の click で消える。
-  // 命令0個では removeLast が disabled のため、Backspace は何もしない（操作にならない）。
-  // 2秒タイマーの自然消滅と区別できるよう、前提確認・keydown送信・結果読みを同一 evaluate で行う（待たない）。
-  // 各 check は別の enterPlay で独立に行う。run を実行する Enter は最後に置く（後続の check に状態を持ち越さない。#635）。
+  // 命令0個では updateControls（js/ui-play.js の runBtn.disabled・removeLastBtn.disabled の設定行）が
+  // run・remove-last を無効にするため、Enter も Backspace も何もせず「スタート！」は消えない。
+  // ただし読み込み直後は最初の updateControls が走る前でボタンが初期状態（有効）のため、
+  // そのタイミングの keydown は通って消えてしまう（レース）。両ボタンが無効（settled）になるまで待ってから確かめる。
+  // 2秒タイマーの自然消滅と区別できるよう、前提確認・keydown送信・結果読みは同一 evaluate で行う（待たない）。
+  // 各 check は別の enterPlay で独立に行う（後続の check に状態を持ち越さない。#635）。
   for (const key of ['Backspace', 'Enter']) {
     await enterPlay(page, 'start-cue-smoke');
+    await page.waitForFunction(
+      () => document.querySelector('[data-action="run"]')?.disabled === true
+        && document.querySelector('[data-action="remove-last"]')?.disabled === true,
+    );
     const result = await page.evaluate((k) => {
       if (!document.querySelector('[data-start-cue]')) return 'no-precondition';
       document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
       return document.querySelector('[data-start-cue]') ? 'kept' : 'gone';
     }, key);
     if (key === 'Enter') {
-      await check('play: Enterは run のクリックとして「スタート！」が消える（run は開始直後から有効）', () => result, 'gone');
+      await check('play: 命令0個のEnterでは消えない（run が無効）', () => result, 'kept');
     } else {
-      await check('play: 命令0個のBackspaceでは消えない（removeLast が無効＝操作にならない）', () => result, 'kept');
+      await check('play: 命令0個のBackspaceでは消えない（removeLast が無効）', () => result, 'kept');
     }
   }
 
