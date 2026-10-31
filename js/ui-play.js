@@ -121,7 +121,7 @@ export function renderPlay(root, step) {
   // 実行結果もここへ数秒だけトースト表示する（Issue #97）。
   const screen = createOpScreen({ root, question: step.text ?? defaultText, stepKey: `${S.lesson.lessonId}:${step.stepId}`, gear: (btn) => { vibrate(); openMenu(btn); } });
   const { frame: opScreen, questionEl: statusBar, boardArea, panel: controls, actions: actionsEl, bird, gearBtn } = screen;
-  // 下段の順・間隔は sk-screen-actions--play（tailwind.src.css）：ぜんぶけす・１つけす｜32px｜1コマ・じっこう（Issue #549）。
+  // 下段の順・間隔は sk-screen-actions--play（tailwind.src.css）：ぜんぶけす・１つけす｜32px｜1コマ・じっこう（Issue #549）。1行4ボタンは 32px。ただし高さ479px以下の横向きは 16px（#635）。
   actionsEl.classList.add('sk-screen-actions--play');
   bindStartCueDismiss(opScreen, boardArea); // 盤面の最初の操作で「スタート！」を消す（Issue #635）
   // 顔アイコンのタップのヒント（Issue #468 段2）。「とめる」のあるステージは「とめる」、失敗後は汎用ヒント。paint盤は汎用ヒントを出さない（#468-14d）。
