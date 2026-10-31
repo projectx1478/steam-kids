@@ -105,4 +105,79 @@ export default async function run({ page, check }) {
   await page.click('[data-action="next-stage"]');
   await page.waitForSelector('[data-action="pos-right"]');
   await check('seesaw: 次のステージでも開始時に出る', () => cueCount(page), 1);
+
+  await runDismiss({ page, check });
+}
+
+// --- 最初の盤面操作で「スタート！」が消える（Issue #635 段A）。開始直後（2秒以内）に操作する ---
+const cueGone = (page) => page.waitForFunction(() => !document.querySelector('[data-start-cue]'), null, { timeout: 1500 });
+
+async function checkDismissed(page, check, label) {
+  await cueGone(page);
+  await check(`${label}: 操作で「スタート！」が消える`, () => cueCount(page), 0);
+  await check(`${label}: 消えたら data-start-cue も外れる`, () => cueFlag(page), false);
+  await page.waitForFunction(() => {
+    const b = document.querySelector('[data-sk-bird="bubble"]');
+    return b && !b.hidden && b.dataset.question === 'true';
+  }, null, { timeout: 1500 });
+  await check(`${label}: 消えたあと問い文の吹き出しが出る`, () => bubbleShown(page), true);
+}
+
+async function runDismiss({ page, check }) {
+  // play：命令ボタン1つ
+  await enterPlay(page, 'start-cue-smoke');
+  await check('play: 開始直後に出ている', () => cueCount(page), 1);
+  await page.click('[data-command="right"]');
+  await checkDismissed(page, check, 'play(命令ボタン)');
+
+  // play：⚙ のタップでは消えない
+  await enterPlay(page, 'start-cue-smoke');
+  await page.click('[data-action="menu"]');
+  await check('play: ⚙のタップでは消えない', () => cueFlag(page), true);
+
+  // play：矢印キー・盤面ドラッグ
+  await enterPlay(page, 'start-cue-smoke');
+  await page.keyboard.press('ArrowRight');
+  await checkDismissed(page, check, 'play(矢印キー)');
+
+  // 命令0個では updateControls（js/ui-play.js の runBtn.disabled・removeLastBtn.disabled の設定行）が
+  // run・remove-last を無効にするため、Enter も Backspace も何もせず「スタート！」は消えない。
+  // ただし直前の check の命令が下書き（steamkids.draft.<lessonId>）として次の読み込みに復元されると、
+  // run・removeLast が有効になって keydown が通ってしまう。これを防ぐため、各 check の前に下書きを消す。
+  // そのうえで両ボタンが無効（settled）になるまで待ってから確かめる。
+  // 2秒タイマーの自然消滅と区別できるよう、前提確認・keydown送信・結果読みは同一 evaluate で行う（待たない）。
+  // 各 check は別の enterPlay で独立に行う（後続の check に状態を持ち越さない。#635）。
+  for (const key of ['Backspace', 'Enter']) {
+    await page.evaluate(() => localStorage.removeItem('steamkids.draft.start-cue-smoke'));
+    await enterPlay(page, 'start-cue-smoke');
+    await page.waitForFunction(
+      () => document.querySelector('[data-action="run"]')?.disabled === true
+        && document.querySelector('[data-action="remove-last"]')?.disabled === true,
+    );
+    const result = await page.evaluate((k) => {
+      if (!document.querySelector('[data-start-cue]')) return 'no-precondition';
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
+      return document.querySelector('[data-start-cue]') ? 'kept' : 'gone';
+    }, key);
+    if (key === 'Enter') {
+      await check('play: 命令0個のEnterでは消えない（run が無効）', () => result, 'kept');
+    } else {
+      await check('play: 命令0個のBackspaceでは消えない（removeLast が無効）', () => result, 'kept');
+    }
+  }
+
+  await enterPlay(page, 'start-cue-smoke');
+  const box = await page.locator('[data-sk-screen="board"]').boundingBox();
+  await page.mouse.move(box.x + 6, box.y + 6);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 30, box.y + 20, { steps: 3 });
+  await page.mouse.up();
+  await checkDismissed(page, check, 'play(盤面ドラッグ)');
+
+  // seesaw：▶1回
+  await enterPlay(page, 'teko-01-tsuriai');
+  await check('seesaw: 開始直後に出ている', () => cueCount(page), 1);
+  await page.click('[data-action="pos-right"]');
+  await checkDismissed(page, check, 'seesaw(▶)');
+
 }

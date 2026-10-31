@@ -32,7 +32,7 @@ import { isTrial, closeTrialTab } from './trial-lesson.js';
 import { paintMiniBoard } from './gimmicks/paint.js';
 import { renderKeyTray, resetKeyTray } from './gimmicks/keys.js';
 import { readDraft, writeDraft, clearDraft } from './storage.js';
-import { setRetryButton, createRetryChoice, shakeBoard, showStartCue } from './ui-retry.js';
+import { setRetryButton, createRetryChoice, shakeBoard, showStartCue, dismissStartCue, bindStartCueDismiss } from './ui-retry.js';
 
 // diagnose()の原因ごとの文言（20字以内・否定語なし。Issue #91）。
 const HINT_MESSAGE = {
@@ -121,8 +121,9 @@ export function renderPlay(root, step) {
   // 実行結果もここへ数秒だけトースト表示する（Issue #97）。
   const screen = createOpScreen({ root, question: step.text ?? defaultText, stepKey: `${S.lesson.lessonId}:${step.stepId}`, gear: (btn) => { vibrate(); openMenu(btn); } });
   const { frame: opScreen, questionEl: statusBar, boardArea, panel: controls, actions: actionsEl, bird, gearBtn } = screen;
-  // 下段の順・間隔は sk-screen-actions--play（tailwind.src.css）：ぜんぶけす・１つけす｜32px｜1コマ・じっこう（Issue #549）。
+  // 下段の順・間隔は sk-screen-actions--play（tailwind.src.css）：ぜんぶけす・１つけす｜32px｜1コマ・じっこう（Issue #549）。1行4ボタンは 32px。ただし高さ479px以下の横向きは 16px（#635）。
   actionsEl.classList.add('sk-screen-actions--play');
+  bindStartCueDismiss(opScreen, boardArea); // 盤面の最初の操作で「スタート！」を消す（Issue #635）
   // 顔アイコンのタップのヒント（Issue #468 段2）。「とめる」のあるステージは「とめる」、失敗後は汎用ヒント。paint盤は汎用ヒントを出さない（#468-14d）。
   const facts = boardFacts(step);
   screen.setHintProvider(() => nextTapHint({ maxPauses, fails: spec.paint ? 0 : FAIL_COUNTS.get(S.lesson.lessonId) ?? 0, facts }));
@@ -1096,11 +1097,15 @@ export function renderPlay(root, step) {
   const menuOpen = () =>
     ['gear-menu', 'menu-overlay'].some((id) => document.getElementById(id)?.hidden === false) || !!document.querySelector('[role="dialog"]');
   const offKeys = registerKeys({
-    add: (dir) => palette.tapDir(dir),
+    add: (dir) => {
+      dismissStartCue(boardArea); // 矢印キーは frame のイベントを通らない（Issue #635）
+      palette.tapDir(dir);
+    },
     run: () => {
       if (runBtn.isConnected) runBtn.click();
     },
     removeLast: () => {
+      dismissStartCue(boardArea);
       if (removeLastBtn.isConnected) removeLastBtn.click();
     },
     isBlocked: () => local.running || local.stepping || !!clearSequence || menuOpen(),

@@ -13,7 +13,7 @@ import { isLessonCleared } from './ui-picker.js';
 import { goToStep, setBackDisabled, setActiveHandHint, setActiveAnimation } from './ui-step.js';
 import { showHint, clearResultBubble } from './ui-reaction.js';
 import { showClearSequence, recordClear } from './ui-clear.js';
-import { setRetryButton, shakeBoard, showStartCue } from './ui-retry.js';
+import { setRetryButton, shakeBoard, showStartCue, bindStartCueDismiss } from './ui-retry.js';
 
 const UNIT = 40; // 1刻みの幅（viewBox単位）
 const BOARD_H = 260;
@@ -54,6 +54,7 @@ export function renderSeesaw(root, step) {
   // 画面の枠は共通部品（js/ui-screen.js。Issue #343）。
   const screen = createOpScreen({ root, question: step.text ?? 'つりあう ところに おこう', stepKey: `${S.lesson.lessonId}:${step.stepId}` });
   const { frame: opScreen, boardArea, actions: actionsEl, bird } = screen;
+  bindStartCueDismiss(opScreen, boardArea); // 盤面の最初の操作で「スタート！」を消す（Issue #635）
   actionsEl.classList.add(maxRobots && !posFixed ? 'sk-screen-actions--two-row' : 'sk-screen-actions--one-row');
   function renderQuestion() {
     screen.renderQuestion();
