@@ -105,4 +105,61 @@ export default async function run({ page, check }) {
   await page.click('[data-action="next-stage"]');
   await page.waitForSelector('[data-action="pos-right"]');
   await check('seesaw: 次のステージでも開始時に出る', () => cueCount(page), 1);
+
+  await runDismiss({ page, check });
+}
+
+// --- 最初の盤面操作で「スタート！」が消える（Issue #635 段A）。開始直後（2秒以内）に操作する ---
+const cueGone = (page) => page.waitForFunction(() => !document.querySelector('[data-start-cue]'), null, { timeout: 1500 });
+
+async function checkDismissed(page, check, label) {
+  await cueGone(page);
+  await check(`${label}: 操作で「スタート！」が消える`, () => cueCount(page), 0);
+  await check(`${label}: 消えたら data-start-cue も外れる`, () => cueFlag(page), false);
+  await page.waitForFunction(() => {
+    const b = document.querySelector('[data-sk-bird="bubble"]');
+    return b && !b.hidden && b.dataset.question === 'true';
+  }, null, { timeout: 1500 });
+  await check(`${label}: 消えたあと問い文の吹き出しが出る`, () => bubbleShown(page), true);
+}
+
+async function runDismiss({ page, check }) {
+  // play：命令ボタン1つ
+  await enterPlay(page, 'start-cue-smoke');
+  await check('play: 開始直後に出ている', () => cueCount(page), 1);
+  await page.click('[data-command="right"]');
+  await checkDismissed(page, check, 'play(命令ボタン)');
+
+  // play：⚙ のタップでは消えない
+  await enterPlay(page, 'start-cue-smoke');
+  await page.click('[data-action="menu"]');
+  await check('play: ⚙のタップでは消えない', () => cueFlag(page), true);
+
+  // play：矢印キー・Backspace・Enter・盤面ドラッグ
+  await enterPlay(page, 'start-cue-smoke');
+  await page.keyboard.press('ArrowRight');
+  await checkDismissed(page, check, 'play(矢印キー)');
+
+  await enterPlay(page, 'start-cue-smoke');
+  await page.keyboard.press('Backspace');
+  await checkDismissed(page, check, 'play(Backspace)');
+
+  await enterPlay(page, 'start-cue-smoke');
+  await page.keyboard.press('Enter');
+  await checkDismissed(page, check, 'play(Enter)');
+
+  await enterPlay(page, 'start-cue-smoke');
+  const box = await page.locator('[data-sk-screen="board"]').boundingBox();
+  await page.mouse.move(box.x + 6, box.y + 6);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 30, box.y + 20, { steps: 3 });
+  await page.mouse.up();
+  await checkDismissed(page, check, 'play(盤面ドラッグ)');
+
+  // seesaw：▶1回
+  await enterPlay(page, 'teko-01-tsuriai');
+  await check('seesaw: 開始直後に出ている', () => cueCount(page), 1);
+  await page.click('[data-action="pos-right"]');
+  await checkDismissed(page, check, 'seesaw(▶)');
+
 }
