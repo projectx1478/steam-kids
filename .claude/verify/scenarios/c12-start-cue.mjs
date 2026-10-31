@@ -140,8 +140,10 @@ async function runDismiss({ page, check }) {
   await page.keyboard.press('ArrowRight');
   await checkDismissed(page, check, 'play(矢印キー)');
 
-  // 命令0個の開始直後は run・removeLast が disabled で、js/ui-keys.js の registerKeys は何もしない（操作にならない）。
+  // 開始直後は run が有効なので、Enter は registerKeys の run → runBtn.click() となり、frame の click で消える。
+  // 命令0個では removeLast が disabled のため、Backspace は何もしない（操作にならない）。
   // 2秒タイマーの自然消滅と区別できるよう、前提確認・keydown送信・結果読みを同一 evaluate で行う（待たない）。
+  // 各 check は別の enterPlay で独立に行う。
   for (const key of ['Enter', 'Backspace']) {
     await enterPlay(page, 'start-cue-smoke');
     const result = await page.evaluate((k) => {
@@ -149,7 +151,11 @@ async function runDismiss({ page, check }) {
       document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
       return document.querySelector('[data-start-cue]') ? 'kept' : 'gone';
     }, key);
-    await check(`play: 命令0個の${key}では消えない（${key === 'Enter' ? 'run' : 'removeLast'} が無効＝操作にならない）`, () => result, 'kept');
+    if (key === 'Enter') {
+      await check('play: Enterは run のクリックとして「スタート！」が消える（run は開始直後から有効）', () => result, 'gone');
+    } else {
+      await check('play: 命令0個のBackspaceでは消えない（removeLast が無効＝操作にならない）', () => result, 'kept');
+    }
   }
 
   await enterPlay(page, 'start-cue-smoke');
