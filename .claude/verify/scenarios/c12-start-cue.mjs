@@ -140,14 +140,17 @@ async function runDismiss({ page, check }) {
   await page.keyboard.press('ArrowRight');
   await checkDismissed(page, check, 'play(矢印キー)');
 
-  // CI で、命令0個でも Backspace・Enter で消えることを確認（設計：キーも盤面の操作）。1キーずつ別々に確かめる。
-  await enterPlay(page, 'start-cue-smoke');
-  await page.keyboard.press('Backspace');
-  await checkDismissed(page, check, 'play(Backspace)');
-
-  await enterPlay(page, 'start-cue-smoke');
-  await page.keyboard.press('Enter');
-  await checkDismissed(page, check, 'play(Enter)');
+  // 命令0個の開始直後は run・removeLast が disabled で、js/ui-keys.js の registerKeys は何もしない（操作にならない）。
+  // 2秒タイマーの自然消滅と区別できるよう、前提確認・keydown送信・結果読みを同一 evaluate で行う（待たない）。
+  for (const key of ['Enter', 'Backspace']) {
+    await enterPlay(page, 'start-cue-smoke');
+    const result = await page.evaluate((k) => {
+      if (!document.querySelector('[data-start-cue]')) return 'no-precondition';
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
+      return document.querySelector('[data-start-cue]') ? 'kept' : 'gone';
+    }, key);
+    await check(`play: 命令0個の${key}では消えない（${key === 'Enter' ? 'run' : 'removeLast'} が無効＝操作にならない）`, () => result, 'kept');
+  }
 
   await enterPlay(page, 'start-cue-smoke');
   const box = await page.locator('[data-sk-screen="board"]').boundingBox();
