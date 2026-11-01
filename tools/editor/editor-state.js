@@ -292,6 +292,11 @@ function overwriteBase(spec, kind, x, y, pair) {
   if (here.length === 0) return { next };
   if (here.some((o) => !SIMPLE_LISTS.includes(o.kind) && !SWITCH_KINDS.includes(o.kind) && o.kind !== GROUP_WALLS && o.kind !== 'warps' && o.kind !== 'periodic' && o.kind !== 'bridge' && !KEY_LISTS.includes(o.kind))) return ng('消せない要素');
   eraseCell(next, here, x, y);
+  // スイッチ本体と氷が同じマスなら、別タイルの上書きで氷も消す（「別タイル＋氷」を作らない。#647-3A）。erase 本体は氷を残す
+  if (kind !== 'ice' && here.some((o) => o.kind === 'switches') && here.some((o) => o.kind === 'ice')) {
+    next.ice = list(next.ice).filter((c) => !(c.x === x && c.y === y));
+    if (next.ice.length === 0) delete next.ice;
+  }
   if (KEY_LISTS.includes(kind) && spec.keyMode !== undefined) next.keyMode = spec.keyMode;
   return { next };
 }

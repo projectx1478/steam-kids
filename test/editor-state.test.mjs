@@ -507,6 +507,20 @@ test('editor-state: open 同士は壁を共有できる（最大2）。氷の上
   assert.equal(s.spec.switches.length, 2);
 });
 
+test('editor-state: スイッチ本体＋氷のマスは、別タイルの上書きで氷も消え1手で戻る（#647）', () => {
+  const s = createState({ grid: { cols: 5, rows: 2 }, start: { x: 0, y: 0 }, goal: { x: 4, y: 1 }, walls: [], ice: [{ x: 0, y: 1 }] });
+  place(s, 'switches', 0, 1);
+  const before = snap(s.spec);
+  assert.equal(place(s, 'wall', 0, 1).ok, true);
+  assert.equal(hasAt(s.spec.ice, 0, 1), false);
+  assert.equal(hasAt(s.spec.switches, 0, 1), false);
+  assert.equal(hasAt(s.spec.walls, 0, 1), true);
+  assert.equal(undo(s).ok, true); // 1手で戻る
+  assert.deepEqual(snap(s.spec), before);
+  assert.equal(place(s, 'ice', 0, 1).ok, true); // 氷を置く操作は従来どおり（同種なので何もしない）
+  assert.deepEqual(snap(s.spec), before);
+});
+
 test('editor-state: スイッチと対象を動かす／消す', () => {
   const s = row();
   place(s, 'switches', 1, 0);
