@@ -148,3 +148,34 @@
 - こおりを持つplayステージは、こおりを壁扱いにしてもmaxCommands以内に届かないこと（`validate:lessons`が検証。Issue #134）
 - playステージに`solution`（正解手順）を必ず書く。`clearLesson`が読み、検証ツールがクリアを確認する
 - 設計Issueの引継ぎには「読むファイル（行範囲）／読まなくてよいファイル」を書く（実装者の探索を減らす）
+
+## 併用禁止の棚卸し（#649 段2）
+
+stageGen（たたき台）と盤の検証にある併用禁止を3つに分けた。行番号は段1（4d2b455）時点。(3) の撤廃と実測は段3で行う。
+
+### (1) 技術的に不可能・(2) ルール上不可能（撤廃しない）
+
+| 区分 | 禁止 | 理由 | 場所 |
+|---|---|---|---|
+| (1) | stageGen は `repeatBox`・`groupRepeats` を生成しない | 生成器が箱・まとめ繰り返しの命令列を扱わない（最短・別解の数え方が違う） | `docs/gimmicks.md:59,100,132` |
+| (1) | `periodic`×`repeatBox` | 箱の展開が手番の周期をまたぐため | `js/gimmicks/periodic.js:177-179` |
+| (2) | 同じマスに複数のギミックを置く（ワープ・壁・start・goal ほか） | 1マスに置けるギミックは1つ | `tools/lib/validate/board.mjs:83-106` |
+| (2) | 土台（`base`）×`water` | 水を土台と `gimmicks.water` の二重に定義することになる | `tools/editor/serve.mjs:221`（`checkGenerateBase`） |
+| (2) | `group`×`targets`（同じスイッチ） | 連動のキーが二重になる（どちらか一方） | `tools/editor/editor-view.js:132` |
+
+### (3) 撤廃（段3で撤廃）
+
+- `warps`・`periodic`・`water` の1種制限（`SG_ONE_OF_GIMMICKS`）: `tools/lib/validate/stagegen.mjs:14,86`、`tools/editor/editor-view.js:176`、`tools/editor/index.html:97,99`
+- 土台の水×`warps`・`periodic`: `tools/editor/serve.mjs:255-256`、`tools/editor/editor-view.js:255`
+- `paint` 単独（`SG_SOLO_GIMMICKS`・`SG_SOLO_EXCEPT`）: `tools/lib/validate/stagegen.mjs:10-12`、`tools/editor/editor-view.js:172-174,251`。盤の規則は併用を許す（上の `## paint`・`## warps`）
+
+### 実測待ち（理由の記述が無く、実測して必須性が100%なら撤廃する）
+
+- `cushion` を `teach` にするとき `ice` が要る規則（`tools/lib/validate/stagegen.mjs:87`）
+- `switches`×`keys`（`tools/lib/validate/stagegen.mjs:79`）
+- `warps`×`paint` の検証NG（`## warps` の数値条件。`## paint` は別マスなら併用できると書いており記述が食い違う）
+- 土台×`paint`（`tools/editor/serve.mjs:221`）
+
+### 生成しない・撤廃対象外・理由未確認
+
+- `repeatBox`×`groupRepeats`（`tools/lib/validate/lesson.mjs:152-153`）。実測しても生成しないので撤廃の対象外。禁止の理由は未確認
