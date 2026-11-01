@@ -18,7 +18,7 @@
 4. 最初の依頼文：
    ```
    add_repo で projectx1478/steam-kids-state を access: push で追加して。
-   そのあと /run-issues クラウド 週間 ○% を実行して。
+   そのあと /run-issues クラウド [週間 ○%] を実行して。（週間は省略可。7日に1回は入れる）
    ```
    週間の値は `/usage` の最新値（省略可。週間は7日に1回は入れる。7日以上入れていないと `STOP（起動値の不備）` になる）。`steam-kids-state` を付けないと clone できない（`could not read Username`）。
 
