@@ -39,3 +39,25 @@ html { background: #f1f5f9; }
 .icon-cell.off { opacity: 0.6; }
 .help-body h4 { font-size: 14px; margin: 16px 0 4px; color: #4c1d95; }
 .icon-cell > div { width: 48px; height: 48px; overflow: hidden; line-height: 0; }
+/* 目次・早見表・戻るリンク（#641）。広い窓（幅641px以上かつ高さ501px以上）は左固定、それ以外は上部の折りたたみ */
+.help-body { max-width: 1100px; }
+.help-layout { display: block; }
+.help-main { min-width: 0; }
+.help-body h2, .help-body h3 { scroll-margin-top: 12px; }
+.help-toc { margin: 12px 0; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; line-height: 1.5; }
+.help-toc > summary { cursor: pointer; padding: 8px 12px; font-weight: 700; color: #4c1d95; }
+.help-toc nav { padding: 0 12px 10px; max-height: 60vh; overflow-y: auto; }
+.help-toc ul { list-style: none; margin: 0; padding: 0; }
+.help-toc ul ul { padding-left: 14px; }
+.help-toc li { margin: 2px 0; }
+.help-toc a { color: #4c1d95; text-decoration: none; }
+.help-toc a:hover { text-decoration: underline; }
+.help-body .back { float: right; font-size: 12px; font-weight: 400; margin-left: 8px; }
+.help-body .back a { color: #6d28d9; }
+.quick td:first-child { width: 55%; }
+@media (min-width: 641px) and (min-height: 501px) {
+  .help-layout { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 20px; align-items: start; }
+  .help-toc { position: sticky; top: 12px; margin: 0; }
+  .help-toc > summary { display: none; }
+  .help-toc nav { padding: 10px 12px; max-height: calc(100vh - 24px); }
+}
