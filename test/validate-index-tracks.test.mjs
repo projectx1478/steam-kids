@@ -85,7 +85,43 @@ cases.push(
   ['C5: color が配列→unitのcolor', 'unitのcolor', (p) => (unitOf(p, 'commands').color = ['amber'])]
 );
 
+// 大項目の intro（Issue #644 段2）。demo は intro.demo と同形、text は短い文字列。
+const goodDemo = () => ({
+  grid: { cols: 3, rows: 1 },
+  start: { x: 0, y: 0 },
+  goal: { x: 2, y: 0 },
+  walls: [],
+  commands: ['right', 'right'],
+});
+cases.push(
+  ['T1: intro.text が数→tracksのintro', 'tracksのintro', (p) => (p.tracks[0].intro = { demo: goodDemo(), text: 3 })],
+  [
+    'T2: intro.demo に grid が無い→tracksのintro',
+    'tracksのintro',
+    (p) => {
+      const demo = goodDemo();
+      delete demo.grid;
+      p.tracks[0].intro = { demo, text: 'ゴールまで すすもう' };
+    },
+  ],
+  ['T3: intro が配列→tracksのintro', 'tracksのintro', (p) => (p.tracks[0].intro = [])],
+  ['T4: intro.demo が無い→tracksのintro', 'tracksのintro', (p) => (p.tracks[0].intro = { text: 'あ' })],
+  [
+    'T5: intro.demo の commands が壁にぶつかる→tracksのintro',
+    'tracksのintro',
+    (p) => {
+      const demo = goodDemo();
+      demo.walls = [{ x: 1, y: 0 }];
+      p.tracks[0].intro = { demo, text: 'あ' };
+    },
+  ],
+  ['T6: intro.text が長すぎる→tracksのintro', 'tracksのintro', (p) => (p.tracks[0].intro = { demo: goodDemo(), text: 'あ'.repeat(61) })]
+);
+
 const okCases = [
+  ['T7: intro（demo + text）は OK', (p) => (p.tracks[0].intro = { demo: goodDemo(), text: 'ゴールまで すすもう' })],
+  ['T8: intro.text 空文字は OK（文を出さない）', (p) => (p.tracks[0].intro = { demo: goodDemo(), text: '' })],
+  ['T9: intro.text 省略は OK', (p) => (p.tracks[0].intro = { demo: goodDemo() })],
   ['I5: icon・color 全省略は OK', () => {}],
   ['I6: icon "none" は OK', (p) => (unitOf(p, 'ice').icon = 'none')],
   [

@@ -70,4 +70,43 @@ export default async function run({ page, check }) {
   await page.waitForSelector('[data-lesson-id]');
   await check('1大項目だけなら単元マップへ飛ぶ', () => page.getAttribute('#stage', 'data-screen'), 'picker');
   await check('飛んだ時は大項目カードが無い', async () => (await page.$$('[data-track-id]')).length, 0);
+
+  // 大項目の紹介画面（Issue #644）。robot にだけ intro を付けた index に差し替える（body は intro なし）。
+  await page.unroute('**/lessons/index.json');
+  await page.route('**/lessons/index.json', async (route) => {
+    const j = JSON.parse(await (await route.fetch()).text());
+    j.tracks.find((t) => t.trackId === 'robot').intro = {
+      demo: { grid: { cols: 3, rows: 1 }, start: { x: 0, y: 0 }, goal: { x: 2, y: 0 }, walls: [], commands: ['right', 'right'] },
+      text: 'ゴールまで すすもう',
+    };
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify(j) });
+  });
+  for (const [w, h] of [[360, 640], [844, 390]]) {
+    await page.setViewportSize({ width: w, height: h });
+    await page.goto('/index.html?view=tracks');
+    await page.waitForSelector('[data-track-id]');
+    await page.click('[data-track-id="robot"]');
+    await page.waitForSelector('[data-action="track-intro-start"]');
+    const tag = `${w}x${h}`;
+    await check(`${tag}: intro のある大項目は紹介画面が出る`, () => page.getAttribute('#stage', 'data-screen'), 'track-intro');
+    await check(`${tag}: 紹介に大項目名・おてほん・短文が出る`, () => page.evaluate(() => [
+      document.querySelector('#stage .track-q')?.textContent,
+      !!document.querySelector('#stage [data-demo="goal"]'),
+      document.querySelector('[data-role="track-intro-text"]')?.textContent,
+    ]), ['ロボットを うごかす', true, 'ゴールまで すすもう']);
+    await check(`${tag}: はじめる・もどるは48px以上`, async () => (await boxes(page, '[data-action="track-intro-start"],[data-action="track-intro-back"]')).every((b) => b.h >= 48 && b.w >= 48));
+    await check(`${tag}: 紹介は縦横スクロールが無い`, () => noScroll(page));
+  }
+  await page.click('[data-action="track-intro-back"]');
+  await check('紹介のもどるで大項目選択へ', () => page.getAttribute('#stage', 'data-screen'), 'tracks');
+  await page.click('[data-track-id="robot"]');
+  await page.waitForSelector('[data-action="track-intro-start"]');
+  await page.click('[data-action="track-intro-start"]');
+  await page.waitForSelector('[data-lesson-id]');
+  await check('紹介のはじめるで単元マップへ', () => page.getAttribute('#stage', 'data-screen'), 'picker');
+  await page.click('[data-action="map-back"]');
+  await check('単元マップのもどるは紹介でなく大項目選択へ', () => page.getAttribute('#stage', 'data-screen'), 'tracks');
+  await page.click('[data-track-id="body"]');
+  await page.waitForSelector('[data-lesson-id]');
+  await check('intro の無い大項目は紹介を挟まず単元マップへ直行', () => page.getAttribute('#stage', 'data-screen'), 'picker');
 }

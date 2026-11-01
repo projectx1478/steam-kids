@@ -13,6 +13,7 @@ import { registerServiceWorker } from './js/register-sw.js';
 import { renderUnitMap } from './js/ui-picker.js';
 import { unitsOf, tracksOf, trackOfLesson } from './js/index-units.js';
 import { renderTrackSelect, playableTrackCount } from './js/ui-tracks.js';
+import { renderTrackIntro } from './js/ui-track-intro.js';
 import { renderTitle } from './js/ui-title.js';
 import { ensureDailyGate } from './js/ui-parental-gate.js';
 import { IS_DEV } from './js/dev-mode.js';
@@ -120,7 +121,12 @@ async function showTrackSelect() {
   const { lessons: lessonStatus } = summarize(getEvents(), Date.now());
   await renderTrackSelect(stage, tracks, {
     lessonStatus,
-    onPick: (track) => renderUnitMap(stage, track.units, startLesson, () => showTrackSelect()),
+    onPick: (track) => {
+      const toMap = () => renderUnitMap(stage, track.units, startLesson, () => showTrackSelect());
+      // intro がある大項目だけ、単元マップの前に紹介画面を挟む（Issue #644）。
+      if (track.intro) renderTrackIntro(stage, track, { onStart: toMap, onBack: () => showTrackSelect() });
+      else toMap();
+    },
     onBack: showTitle,
   });
 }

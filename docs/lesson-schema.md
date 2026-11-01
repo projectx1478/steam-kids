@@ -206,6 +206,14 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 - 両方省略すると従来どおり`unitId`の既存表（上の6単元）、無ければ水色・アイコン無し。`color`だけ指定すると、アイコンは`unitId`の既存表のまま色だけ替わる。
 - 名前→クラス名の表は`js/ui-picker.js`の`COLOR_BG`（Tailwindスキャン用にリテラル）。許可値は`tools/lib/validate/index-check.mjs`の`UNIT_ICONS`・`UNIT_COLORS`と揃える。
 
+### 大項目の`intro`（Issue #644。省略可）
+
+`tracks[].intro`＝`{ "demo": <intro.demo と同形>, "text": "<短い文字列>" }`。あると、大項目選択でその大項目を選んだ直後・単元マップの前に紹介画面（`js/ui-track-intro.js`）を毎回出す。省略した大項目は今までどおり単元マップへ直行。
+
+- `demo`（必須）：レッスンの`intro.demo`と同じ形（`grid`は`{cols, rows}`、`start`・`goal`・`walls`・`commands`ほか）。`commands`でゴール到達・全item回収になること。`validate-lessons`が`intro.demo`と同じ検査をする（本番`play`との同一性比較だけは無い）。
+- `text`（任意）：60字以内の文字列。空文字・省略なら文を出さない。数など文字列以外は拒否。
+- 紹介の「もどる」は大項目選択へ、「はじめる」は単元マップへ。単元マップの「もどる」は大項目選択へ戻る（紹介へは戻らない）。
+
 ## `generator`（シード生成の制約。Issue #68）
 
 `js/engine-generate.js`の`generateMap(generator, seed)`へ渡す制約。同じシードなら同じ盤面。れんしゅう（Issue #69）は`steps`が`seedPick`（`text`のみ）→`generator`付き`play`（盤面フィールドを持たない）→`summary`で、

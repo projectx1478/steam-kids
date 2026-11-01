@@ -70,6 +70,13 @@ export function setActiveAnimation(anim) {
   activeAnimation = anim;
 }
 
+// cancelActiveAnimation(): 登録中の実行アニメーションを止めて登録を外す（renderStep冒頭と同じ処理）。
+// renderStepを通らない画面遷移（大項目の紹介画面→単元マップ等。Issue #644）で使う。
+export function cancelActiveAnimation() {
+  activeAnimation?.cancel();
+  activeAnimation = null;
+}
+
 export function markLessonCleared() {
   lessonCleared = true;
 }
