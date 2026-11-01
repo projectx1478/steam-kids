@@ -144,7 +144,7 @@ export default async function run({ page, check, shot }) {
     await page.check('#gen-base-on');
     mode = 'ok';
     await page.click('#gen-run');
-    await check('土台 ON の本文に base（grid・water・bridge）があり grid が無い', () => { const b = bodies[bodies.length - 1].stageGen; return [Object.keys(b.base), 'grid' in b, 'gimmicks' in b && 'water' in b.gimmicks]; }, [['grid', 'water', 'bridge'], false, false]);
+    await check('土台 ON の本文に base（grid・water・bridge・start）があり grid が無い', () => { const b = bodies[bodies.length - 1].stageGen; return [Object.keys(b.base), 'grid' in b, 'gimmicks' in b && 'water' in b.gimmicks]; }, [['grid', 'water', 'bridge', 'start'], false, false]);
     await check('土台 ON で土台で決まる欄が無効', () => page.evaluate(() => ['#gen-cols-min', '#gen-water-on', '#gen-paint-on'].map((s) => document.querySelector(s).disabled)), [true, true, true]);
     await check('土台 ON で縮小図が出る', () => page.evaluate(() => document.querySelectorAll('#gen-base-view .grid-cell').length), 16);
     await page.evaluate(() => document.querySelector('#board .grid-cell[data-x="0"][data-y="3"]').click()); // 盤を1マス書き換える（未置換にする）

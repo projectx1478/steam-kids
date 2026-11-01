@@ -28,7 +28,7 @@ export default async function run({ page, check }) {
     await page.check('#gen-paint-on');
     await page.fill('#gen-paint-min', '4');
     await page.selectOption('#gen-teach', 'paint');
-    await check('どんぐりと いっしょだと「つくる」は無効', () => disabled('#gen-run'), true);
+    await check('どんぐりと いっしょでも「つくる」は有効（併用可）', () => disabled('#gen-run'), false);
     await page.uncheck('#gen-items-on');
     await check('色ぬりだけなら「つくる」が有効', () => disabled('#gen-run'), false);
     await page.fill('#gen-paint-max', '9');
