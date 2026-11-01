@@ -116,6 +116,8 @@
 #layout-ng { color: #b91c1c; font-size: 12px; }
 #layout-ng:empty { display: none; }
 #layout-ng.ok { color: #15803d; }
+#layout-note { background: #fef3c7; color: #92400e; border: 1px solid #f59e0b; border-radius: 4px; padding: 4px 8px; font-size: 12px; margin-top: 4px; }
+#layout-note[hidden] { display: none; }
 .lay-track { margin-top: 10px; font-weight: 700; font-size: 14px; border-bottom: 2px solid #cbd5e1; }
 .lay-unit { margin: 6px 0 0 8px; font-size: 13px; font-weight: 700; color: #334155; }
 .lay-row { display: flex; align-items: center; gap: 4px; margin: 2px 0 2px 20px; font-size: 12px; font-weight: 400; }
