@@ -14,18 +14,22 @@ const run = (gimmicks, solo) => {
   return errs;
 };
 
-test('単独集合は paint、1種までの集合は warps・periodic・water（フォーム側も同じ。#531）', () => {
-  assert.deepEqual(SG_SOLO_GIMMICKS, ['paint']);
-  assert.deepEqual(GEN_SOLO_GIMMICKS, ['paint']);
-  assert.deepEqual(SG_ONE_OF_GIMMICKS, ['warps', 'periodic', 'water']);
-  assert.deepEqual(GEN_ONE_OF_GIMMICKS, ['warps', 'periodic', 'water']);
+test('単独集合・1種までの集合は空（paint の単独制限と warps・periodic・water の1種制限は #649 で撤廃。フォーム側も同じ）', () => {
+  assert.deepEqual(SG_SOLO_GIMMICKS, []);
+  assert.deepEqual(GEN_SOLO_GIMMICKS, []);
+  assert.deepEqual(SG_ONE_OF_GIMMICKS, []);
+  assert.deepEqual(GEN_ONE_OF_GIMMICKS, []);
 });
 
-test('1種までの集合：2種以上は新文言でNG、items などとの併用は通る', () => {
+test('撤廃した併用：warps+periodic・水+warps+periodic・paint+items/keys/warps/periodic・keys+switches は検査を通る', () => {
   const one = { min: 1, max: 2 };
+  const water = { min: 2, max: 4 };
+  const paint = { min: 4, max: 6 };
   assert.deepEqual(run({ warps: one, items: one }), []);
-  assert.deepEqual(run({ warps: one, periodic: one }), ['stageGen: warps・periodic は同時に指定できない（warps・periodic・water は1種まで）']);
-  assert.deepEqual(run({ warps: one, periodic: one, water: { min: 2, max: 4 } }), ['stageGen: warps・periodic・water は同時に指定できない（warps・periodic・water は1種まで）']);
+  assert.deepEqual(run({ warps: one, periodic: one }), []);
+  assert.deepEqual(run({ warps: one, periodic: one, water }), []);
+  for (const k of ['items', 'keys', 'warps', 'periodic']) assert.deepEqual(run({ paint, [k]: one }), [], k);
+  assert.deepEqual(run({ keys: one, switches: one }), []);
 });
 
 test('集合に仮の要素を渡すと、その要素との併用がNGになる', () => {

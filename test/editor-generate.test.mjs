@@ -57,14 +57,14 @@ test('checkGenerateInput: 範囲外・形の誤り・受け付けないキーは
   bad({ stageGen: { ...SG, keyMode: 'carry' } });
   bad({ stageGen: { ...SG, foo: 1 } });
   bad({ stageGen: { ...SG, gimmicks: { cushion: { min: 1, max: 1 } }, teach: 'cushion' } });
-  bad({ stageGen: { ...SG, gimmicks: { switches: { min: 1, max: 1 }, keys: { min: 1, max: 1 } }, teach: 'switches' } }); // switches は #492 で受け付けるが keys とは併用不可
+  assert.deepEqual(checkGenerateInput({ stageGen: { ...SG, gimmicks: { switches: { min: 1, max: 1 }, keys: { min: 1, max: 1 } }, teach: 'switches' } }), []); // switches と keys の併用は撤廃（#649）
   assert.deepEqual(checkGenerateInput({ stageGen: { ...SG, gimmicks: { periodic: { min: 1, max: 2 } }, teach: 'periodic' } }), []);
   bad({ stageGen: { ...SG, gimmicks: { periodic: { min: 1, max: 3 } }, teach: 'periodic' } }); // 周期ドアは1〜2
   assert.deepEqual(checkGenerateInput({ stageGen: { ...SG, gimmicks: { periodic: { min: 1, max: 1 }, items: { min: 1, max: 1 } }, teach: 'periodic' } }), []); // items との併用は通る（#531）
-  bad({ stageGen: { ...SG, gimmicks: { periodic: { min: 1, max: 1 }, water: { min: 2, max: 4 } }, teach: 'periodic' } }); // warps・periodic・water は1種まで
+  assert.deepEqual(checkGenerateInput({ stageGen: { ...SG, gimmicks: { periodic: { min: 1, max: 1 }, water: { min: 2, max: 4 } }, teach: 'periodic' } }), []); // 1種制限は撤廃（#649）
   assert.deepEqual(checkGenerateInput({ stageGen: { ...SG, gimmicks: { paint: { min: 4, max: 8 } }, teach: 'paint' } }), []);
   bad({ stageGen: { ...SG, gimmicks: { paint: { min: 3, max: 8 } }, teach: 'paint' } }); // 色ぬりは4〜8
-  bad({ stageGen: { ...SG, gimmicks: { paint: { min: 4, max: 4 }, items: { min: 1, max: 1 } }, teach: 'paint' } }); // 単独（water とだけ併用可）
+  assert.deepEqual(checkGenerateInput({ stageGen: { ...SG, gimmicks: { paint: { min: 4, max: 4 }, items: { min: 1, max: 1 } }, teach: 'paint' } }), []); // 単独制限は撤廃（#649）
   assert.deepEqual(checkGenerateInput({ stageGen: { ...SG, gimmicks: { paint: { min: 4, max: 4 }, water: { min: 2, max: 4 } }, teach: 'paint' } }), []); // 混在（#531 段2）
   assert.deepEqual(checkGenerateInput({ stageGen: { ...SG, gimmicks: { water: { min: 2, max: 8 } }, teach: 'water' } }), []);
   bad({ stageGen: { ...SG, gimmicks: { water: { min: 1, max: 8 } }, teach: 'water' } }); // 水は2〜8
@@ -168,9 +168,50 @@ test('checkGenerateInput: base-strip の水・橋を base にした要求は通�
   assert.deepEqual(checkGenerateBase(BASE, {}), []);
 });
 
-test('checkGenerateInput: base-ng-split（陸が2島・橋なし）は messages を返す', () => {
-  const ms = checkGenerateInput(NG_BODY());
-  assert.ok(ms.some((m) => m.includes('つながっていない')), ms.join('|'));
+test('checkGenerateInput: base-ng-split（陸が2島・橋なし）は通る（片方の島で候補が出る。#649）', () => {
+  assert.deepEqual(checkGenerateInput(NG_BODY()), []);
+});
+
+// ---- #649 段1: 孤立した陸 ----
+const placed = (b) => [b.start, b.goal, ...(b.walls || []), ...(b.items || [])];
+
+test('孤立した陸がある土台で候補が出て、置いた要素（start・goal・生成の壁・items）は全て主の島にある', async () => {
+  // 3列目が水。左の島は 2列×5行＝10、右の島は 2列×5行＝10（同数）→先に見つかる左の島
+  const r = await runGenerate({ stageGen: { base: NG_SPLIT, shortestPath: { min: 3, max: 8 }, walls: { min: 0, max: 2 }, gimmicks: { items: { min: 1, max: 2 } }, teach: 'items' }, count: 3, seed: 1 });
+  assert.equal(r.status, 'ok');
+  assert.ok(r.candidates.length > 0);
+  for (const c of r.candidates) for (const p of placed(c.board)) assert.ok(p.x < 2, `主の島の外: ${JSON.stringify(p)}`);
+});
+
+// 4×4：x=1 の列が水。左は 1列×4＝4マス、右は 2列×4＝8マス
+const UNEVEN = { grid: { cols: 4, rows: 4 }, water: [0, 1, 2, 3].map((y) => ({ x: 1, y })), bridge: [] };
+const unevenSg = (start) => ({ base: start ? { ...UNEVEN, start } : UNEVEN, shortestPath: { min: 2, max: 5 }, walls: { min: 0, max: 0 } });
+
+test('主の島：start が無ければいちばん大きい島、start のある島（2マス以上）を優先、start が水の上なら最大の島', async () => {
+  const side = async (start) => {
+    const r = await runGenerate({ stageGen: unevenSg(start), count: 3, seed: 2 });
+    assert.equal(r.status, 'ok');
+    assert.ok(r.candidates.length > 0);
+    return r.candidates.every((c) => placed(c.board).every((p) => p.x === 0)) ? 'left' : r.candidates.every((c) => placed(c.board).every((p) => p.x >= 2)) ? 'right' : 'mixed';
+  };
+  assert.equal(await side(undefined), 'right');
+  assert.equal(await side({ x: 0, y: 1 }), 'left');
+  assert.equal(await side({ x: 3, y: 1 }), 'right');
+  assert.equal(await side({ x: 1, y: 1 }), 'right'); // 水の上
+});
+
+test('主の島が2マス未満なら 400（土台の陸が少ない）。start が盤外・形の誤りも 400', async () => {
+  const lone = { grid: { cols: 3, rows: 3 }, walls: [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: 2, y: 1 }, { x: 1, y: 2 }, { x: 1, y: 1 }] };
+  const ms = checkGenerateInput({ stageGen: { base: lone, shortestPath: { min: 2, max: 5 } } });
+  assert.ok(ms.some((m) => m.includes('土台の陸が少ない')), ms.join('|'));
+  await withServer({}, async (port) => {
+    const r = await post(port, { stageGen: { base: lone, shortestPath: { min: 2, max: 5 } } });
+    assert.equal(r.status, 400);
+  });
+  for (const start of [{ x: 9, y: 0 }, { x: 0 }, { x: 0.5, y: 0 }, 3]) {
+    const m2 = checkGenerateInput({ stageGen: { base: { ...UNEVEN, start }, shortestPath: { min: 2, max: 5 } } });
+    assert.ok(m2.some((m) => m.includes('base.start')), JSON.stringify(start));
+  }
 });
 
 test('checkGenerateInput: base と grid／water／paint／warps／periodic の同時指定、不正な base は messages', () => {
@@ -181,8 +222,6 @@ test('checkGenerateInput: base と grid／water／paint／warps／periodic の�
   bad({ ...BASE_SG, grid: SG.grid }, 'grid');
   bad({ ...BASE_SG, gimmicks: { water: { min: 2, max: 3 } }, teach: 'water' }, 'water');
   bad({ ...BASE_SG, gimmicks: { paint: { min: 4, max: 5 } }, teach: 'paint' }, 'paint');
-  bad({ ...BASE_SG, gimmicks: { warps: { min: 1, max: 1 } }, teach: 'warps' }, 'warps');
-  bad({ ...BASE_SG, gimmicks: { periodic: { min: 1, max: 1 } }, teach: 'periodic' }, 'periodic');
   bad({ ...BASE_SG, base: { ...BASE, foo: 1 } }, 'foo');
   bad({ ...BASE_SG, base: { ...BASE, grid: { cols: 2, rows: 6 } } }, 'grid');
   bad({ ...BASE_SG, base: { ...BASE, water: [...BASE.water, { x: 9, y: 9 }] } }, '盤の外');
@@ -191,7 +230,9 @@ test('checkGenerateInput: base と grid／water／paint／warps／periodic の�
   bad({ ...BASE_SG, base: { ...BASE, bridge: [{ x: 1, y: 1 }] } }, '水がありません');
   const row = [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }, { x: 2, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }];
   bad({ ...BASE_SG, base: { grid: { cols: 3, rows: 3 }, walls: row } }, '少ない');
-  // 土台に水が無ければ warps は併用できる
+  // 土台に水があっても warps・periodic は併用できる（#649。土台の水×ワープ・周期ドアの禁止は撤廃）
+  assert.deepEqual(checkGenerateInput({ stageGen: { ...BASE_SG, gimmicks: { warps: { min: 1, max: 1 } }, teach: 'warps' } }), []);
+  assert.deepEqual(checkGenerateInput({ stageGen: { ...BASE_SG, gimmicks: { periodic: { min: 1, max: 1 } }, teach: 'periodic' } }), []);
   assert.deepEqual(checkGenerateInput({ stageGen: { base: { grid: { cols: 5, rows: 5 } }, shortestPath: { min: 3, max: 8 }, gimmicks: { warps: { min: 1, max: 1 } }, teach: 'warps' } }), []);
 });
 
@@ -212,10 +253,10 @@ test('runGenerate: base-strip の水・橋を土台にすると候補が出て�
   }
 });
 
-test('POST /api/generate: base-ng-split は 400', async () => {
+test('POST /api/generate: base-ng-split（孤立した陸）は 200 で候補が出る', async () => {
   await withServer({}, async (port) => {
     const r = await post(port, NG_BODY());
-    assert.equal(r.status, 400);
-    assert.ok(r.json.messages.length > 0);
+    assert.equal(r.status, 200);
+    assert.ok(r.json.candidates.length > 0);
   });
 });

@@ -30,9 +30,9 @@ export default async function run({ page, check }) {
     await page.selectOption('#gen-teach', 'water');
     await check('どんぐりと いっしょでも「つくる」は有効（1種まで）', () => disabled('#gen-run'), false);
     await page.check('#gen-periodic-on');
-    await check('水と周期ドアの同時指定は「つくる」が無効', () => disabled('#gen-run'), true);
+    await check('水と周期ドアの同時指定でも「つくる」は有効（併用可）', () => disabled('#gen-run'), false);
     await page.uncheck('#gen-periodic-on');
-    await check('周期ドアを外すと「つくる」が有効に戻る', () => disabled('#gen-run'), false);
+    await check('周期ドアを外しても「つくる」は有効', () => disabled('#gen-run'), false);
     await page.uncheck('#gen-items-on');
     await check('水だけなら「つくる」が有効', () => disabled('#gen-run'), false);
     await page.fill('#gen-water-max', '9');
