@@ -251,10 +251,6 @@ export function checkGenerateBase(base, stageGen = {}) {
   }
   if (!shapeOk) return out;
   const water = new Set(lists.water.map((p) => `${p.x},${p.y}`));
-  if (water.size > 0) {
-    if ('warps' in gim) out.push('土台に水があるときは gimmicks.warps と併用できません');
-    if ('periodic' in gim) out.push('土台に水があるときは gimmicks.periodic と併用できません');
-  }
   for (const p of lists.bridge) {
     const near = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => water.has(`${p.x + dx},${p.y + dy}`));
     if (!near) out.push(`stageGen.base.bridge の ${p.x},${p.y} の上下左右に水がありません`);

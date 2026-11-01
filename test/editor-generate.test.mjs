@@ -57,14 +57,14 @@ test('checkGenerateInput: 範囲外・形の誤り・受け付けないキーは
   bad({ stageGen: { ...SG, keyMode: 'carry' } });
   bad({ stageGen: { ...SG, foo: 1 } });
   bad({ stageGen: { ...SG, gimmicks: { cushion: { min: 1, max: 1 } }, teach: 'cushion' } });
-  bad({ stageGen: { ...SG, gimmicks: { switches: { min: 1, max: 1 }, keys: { min: 1, max: 1 } }, teach: 'switches' } }); // switches は #492 で受け付けるが keys とは併用不可
+  assert.deepEqual(checkGenerateInput({ stageGen: { ...SG, gimmicks: { switches: { min: 1, max: 1 }, keys: { min: 1, max: 1 } }, teach: 'switches' } }), []); // switches と keys の併用は撤廃（#649）
   assert.deepEqual(checkGenerateInput({ stageGen: { ...SG, gimmicks: { periodic: { min: 1, max: 2 } }, teach: 'periodic' } }), []);
   bad({ stageGen: { ...SG, gimmicks: { periodic: { min: 1, max: 3 } }, teach: 'periodic' } }); // 周期ドアは1〜2
   assert.deepEqual(checkGenerateInput({ stageGen: { ...SG, gimmicks: { periodic: { min: 1, max: 1 }, items: { min: 1, max: 1 } }, teach: 'periodic' } }), []); // items との併用は通る（#531）
-  bad({ stageGen: { ...SG, gimmicks: { periodic: { min: 1, max: 1 }, water: { min: 2, max: 4 } }, teach: 'periodic' } }); // warps・periodic・water は1種まで
+  assert.deepEqual(checkGenerateInput({ stageGen: { ...SG, gimmicks: { periodic: { min: 1, max: 1 }, water: { min: 2, max: 4 } }, teach: 'periodic' } }), []); // 1種制限は撤廃（#649）
   assert.deepEqual(checkGenerateInput({ stageGen: { ...SG, gimmicks: { paint: { min: 4, max: 8 } }, teach: 'paint' } }), []);
   bad({ stageGen: { ...SG, gimmicks: { paint: { min: 3, max: 8 } }, teach: 'paint' } }); // 色ぬりは4〜8
-  bad({ stageGen: { ...SG, gimmicks: { paint: { min: 4, max: 4 }, items: { min: 1, max: 1 } }, teach: 'paint' } }); // 単独（water とだけ併用可）
+  assert.deepEqual(checkGenerateInput({ stageGen: { ...SG, gimmicks: { paint: { min: 4, max: 4 }, items: { min: 1, max: 1 } }, teach: 'paint' } }), []); // 単独制限は撤廃（#649）
   assert.deepEqual(checkGenerateInput({ stageGen: { ...SG, gimmicks: { paint: { min: 4, max: 4 }, water: { min: 2, max: 4 } }, teach: 'paint' } }), []); // 混在（#531 段2）
   assert.deepEqual(checkGenerateInput({ stageGen: { ...SG, gimmicks: { water: { min: 2, max: 8 } }, teach: 'water' } }), []);
   bad({ stageGen: { ...SG, gimmicks: { water: { min: 1, max: 8 } }, teach: 'water' } }); // 水は2〜8
@@ -222,8 +222,6 @@ test('checkGenerateInput: base と grid／water／paint／warps／periodic の�
   bad({ ...BASE_SG, grid: SG.grid }, 'grid');
   bad({ ...BASE_SG, gimmicks: { water: { min: 2, max: 3 } }, teach: 'water' }, 'water');
   bad({ ...BASE_SG, gimmicks: { paint: { min: 4, max: 5 } }, teach: 'paint' }, 'paint');
-  bad({ ...BASE_SG, gimmicks: { warps: { min: 1, max: 1 } }, teach: 'warps' }, 'warps');
-  bad({ ...BASE_SG, gimmicks: { periodic: { min: 1, max: 1 } }, teach: 'periodic' }, 'periodic');
   bad({ ...BASE_SG, base: { ...BASE, foo: 1 } }, 'foo');
   bad({ ...BASE_SG, base: { ...BASE, grid: { cols: 2, rows: 6 } } }, 'grid');
   bad({ ...BASE_SG, base: { ...BASE, water: [...BASE.water, { x: 9, y: 9 }] } }, '盤の外');
@@ -232,7 +230,9 @@ test('checkGenerateInput: base と grid／water／paint／warps／periodic の�
   bad({ ...BASE_SG, base: { ...BASE, bridge: [{ x: 1, y: 1 }] } }, '水がありません');
   const row = [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }, { x: 2, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 }];
   bad({ ...BASE_SG, base: { grid: { cols: 3, rows: 3 }, walls: row } }, '少ない');
-  // 土台に水が無ければ warps は併用できる
+  // 土台に水があっても warps・periodic は併用できる（#649。土台の水×ワープ・周期ドアの禁止は撤廃）
+  assert.deepEqual(checkGenerateInput({ stageGen: { ...BASE_SG, gimmicks: { warps: { min: 1, max: 1 } }, teach: 'warps' } }), []);
+  assert.deepEqual(checkGenerateInput({ stageGen: { ...BASE_SG, gimmicks: { periodic: { min: 1, max: 1 } }, teach: 'periodic' } }), []);
   assert.deepEqual(checkGenerateInput({ stageGen: { base: { grid: { cols: 5, rows: 5 } }, shortestPath: { min: 3, max: 8 }, gimmicks: { warps: { min: 1, max: 1 } }, teach: 'warps' } }), []);
 });
 

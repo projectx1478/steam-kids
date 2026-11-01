@@ -157,7 +157,8 @@ function placeSwitches(rng, pairCount, spec, free, can = () => true) {
 // warps・periodic・water の配置が避けるマスを1か所に集める（Issue #531）。
 function occupied(spec) {
   const cells = [spec.start, spec.goal, ...spec.walls, ...(spec.items ?? []), ...(spec.ice ?? []), ...(spec.cushion ?? []),
-    ...(spec.keys ?? []), ...(spec.doors ?? []), ...(spec.warps ?? []), ...(spec.periodic ?? []), ...(spec.water ?? [])];
+    ...(spec.keys ?? []), ...(spec.doors ?? []), ...(spec.warps ?? []), ...(spec.periodic ?? []), ...(spec.water ?? []),
+    ...(spec.bridge ?? [])]; // 橋の上にワープ・周期ドアなどを重ねない（#649。盤の検証が NG にする）
   for (const s of spec.switches ?? []) cells.push(s, ...(s.targets ?? []));
   return new Set(cells.map(keyOf));
 }
@@ -336,7 +337,8 @@ function placeWater(rng, waterCount, spec, detour = true) {
 // 橋は最短確定後に置く。最短経路の中間マスのうち、反対側の2辺（左右か上下）がどちらも水のマス。なければ null（橋なし）。
 function placeBridge(spec, cmds) {
   const water = new Set(spec.water.map(keyOf));
-  const used = new Set([spec.start, spec.goal, ...spec.walls, ...spec.water].map(keyOf));
+  // ワープ・周期ドアの上にも置かない（#649。水と併用できるため）。従来の組み合わせの出力は変えない。
+  const used = new Set([spec.start, spec.goal, ...spec.walls, ...spec.water, ...(spec.warps ?? []), ...(spec.periodic ?? [])].map(keyOf));
   const path = simulate(cmds, spec).path;
   const at = (p, dx, dy) => water.has(`${p.x + dx},${p.y + dy}`);
   const found = path.find((p, i) => i > 0 && i < path.length - 1 && !used.has(keyOf(p))
@@ -514,7 +516,7 @@ export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts 
       if (!placed) continue;
       spec = { ...spec, warps: placed };
     }
-    // water は warps の後ろ（順序：水→色ぬり→周期ドア。warps・periodic・water は1種までなので同時には来ない。色ぬりは水とだけ併用）。範囲未指定なら乱数を引かない。
+    // water は warps の後ろ（順序：ワープ→水→周期ドア→色ぬり。#649 で併用できるようにした）。範囲未指定なら乱数を引かない。
     // 水は状態を増やさないので、見積りは 水なし・水ありの探索 2 回分（マス数 × 4）。waterMode は cushion 固定。
     const waterCount = gim.water ? countOf(rng, gim.water) : 0;
     if (waterCount > 0) {
@@ -559,6 +561,20 @@ export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts 
     const paintWater = board.paint?.length > 0 && board.water?.length > 0;
     if (paintWater && !board.bridge) continue;
     if (stageGen.teach) {
+      // 新しく許した組み合わせ（warps・periodic・水の2種以上／土台の水とワープ・周期ドア／色ぬりと他／かぎとスイッチ）は、
+      // 入っている全ギミックの必須性を求める（#649。個別に外すと最短が伸びる）。従来の組み合わせは下の判定のまま（seed の出力を変えない）。
+      const spread = ['warps', 'periodic', 'water'].filter((k) => board[k]?.length > 0 && !(base && k === 'water'));
+      const baseWaterMix = Boolean(base && board.water?.length > 0 && (board.warps?.length > 0 || board.periodic?.length > 0));
+      const paintMix = board.paint?.length > 0 && ['items', 'ice', 'keys', 'cushion', 'switches', 'warps', 'periodic'].some((k) => k in gim);
+      if (spread.length > 1 || baseWaterMix || paintMix || (gim.keys && gim.switches)) {
+        const present = {
+          items: board.items?.length > 0, ice: board.ice?.length > 0, keys: board.doors?.length > 0, switches: board.switches?.length > 0,
+          cushion: board.cushion?.length > 0, warps: board.warps?.length > 0, periodic: board.periodic?.length > 0,
+          water: board.water?.length > 0 && !base && !paintWater, paint: board.paint?.length > 0,
+        };
+        if (Object.keys(present).some((k) => present[k] && !teachMatters(k, board))) continue;
+        return board;
+      }
       const mixed = ['warps', 'periodic', 'water'].find((k) => board[k]?.length > 0 && k !== stageGen.teach && !(base && k === 'water'));
       if (!(paintWater && stageGen.teach === 'water') && !teachMatters(stageGen.teach, board)) continue;
       if (mixed && !(paintWater && mixed === 'water') && !teachMatters(mixed, board)) continue;

@@ -194,7 +194,7 @@ test('stage-gen: periodic を指定しない盤は periodic キーを持たず�
   assert.ok(/\|q:/.test(canonicalKey(w)));
 });
 
-// boards の断片（review/design/488/boards・531/boards）。warps は items・ice 等と併用できる。warps・periodic・water は同時に1種まで（#531）。stageGen の検査に通した結果を確かめる。
+// boards の断片（review/design/488/boards・531/boards）。warps は items・ice 等と併用できる。warps・periodic・water の1種制限は #649 で撤廃。stageGen の検査に通した結果を確かめる。
 const specOf = (gimmicks) => ({
   ver: 1, stages: 4, grid: { cols: { min: 4, max: 6 }, rows: { min: 4, max: 6 } }, walls: { min: 1, max: 4 },
   gimmicks, teach: 'warps', shortestPath: { min: 4, max: 12 },
@@ -206,17 +206,18 @@ const errorsOf = (gimmicks) => {
 };
 const one = { min: 1, max: 1 };
 
-test('stage-gen: stagegen 検査 warps は items・ice 等と併用できる。periodic・water・paint・groupRepeats との併用は NG', () => {
+test('stage-gen: stagegen 検査 warps は items・ice 等・periodic・water・paint と併用できる。groupRepeats との併用は NG', () => {
   assert.deepEqual(errorsOf({ warps: { min: 1, max: 2 } }), []);
   assert.deepEqual(errorsOf({ warps: one }), []);
-  for (const other of ['ice', 'keys', 'switches', 'cushion', 'items']) {
+  for (const other of ['ice', 'keys', 'switches', 'cushion', 'items', 'periodic']) {
     assert.deepEqual(errorsOf({ warps: one, [other]: one }), [], `${other} との併用が OK でない`);
   }
-  for (const other of ['groupRepeats', 'paint', 'periodic', 'water']) {
+  for (const other of ['groupRepeats']) {
     assert.ok(errorsOf({ warps: one, [other]: one }).length > 0, `${other} との併用が NG でない`);
   }
-  assert.ok(errorsOf({ warps: one, water: one }).some((e) => e === 'stageGen: warps・water は同時に指定できない（warps・periodic・water は1種まで）'));
-  assert.ok(errorsOf({ warps: one, periodic: one, water: one }).some((e) => e.includes('warps・periodic・water は同時に指定できない')));
+  assert.deepEqual(errorsOf({ warps: one, paint: { min: 4, max: 4 } }), []);
+  assert.deepEqual(errorsOf({ warps: one, water: { min: 2, max: 2 } }), []);
+  assert.deepEqual(errorsOf({ warps: one, periodic: one, water: { min: 2, max: 2 } }), []);
 });
 
 test('stage-gen: stagegen 検査 warps の個数は 1〜2 の整数。単数形 warp は NG', () => {
@@ -265,17 +266,17 @@ const paintErrors = (gimmicks, teach = 'paint') => {
   return errs;
 };
 
-test('stage-gen: stagegen 検査 paint は単独・4〜8 の整数なら OK。他ギミック併用・範囲外・非整数・別名は NG（各1理由）', () => {
+test('stage-gen: stagegen 検査 paint は 4〜8 の整数なら OK（他ギミックとの併用も OK。#649）。範囲外・非整数・別名は NG（各1理由）', () => {
   assert.deepEqual(paintErrors({ paint: { min: 4, max: 6 } }), []);
   assert.deepEqual(paintErrors({ paint: { min: 4, max: 8 } }), []);
   for (const other of ['items', 'ice', 'keys', 'switches', 'cushion', 'warps', 'periodic']) {
     const e = paintErrors({ paint: { min: 4, max: 6 }, [other]: one });
-    assert.ok(e.some((m) => m.includes('paint は単独')), `${other} との併用`);
+    assert.deepEqual(e, [], `${other} との併用`); // 単独制限は撤廃（#649）
   }
-  // water とだけ併用できる（#531 段2）。water に別のギミックを足すと、そちらの名前で NG
+  // water との併用（#531 段2）。items を足しても OK（#649）
   assert.deepEqual(paintErrors({ paint: { min: 4, max: 6 }, water: { min: 2, max: 4 } }), []);
   assert.deepEqual(paintErrors({ paint: { min: 4, max: 6 }, water: { min: 2, max: 4 } }, 'water'), []);
-  assert.deepEqual(paintErrors({ paint: { min: 4, max: 6 }, water: { min: 2, max: 4 }, items: one }), ['stageGen: paint は単独で指定する（items と併用できない）']);
+  assert.deepEqual(paintErrors({ paint: { min: 4, max: 6 }, water: { min: 2, max: 4 }, items: one }), []);
   // groupRepeats・repeatBox は gimmicks の未対応キー（併用すると未対応で NG）
   for (const other of ['groupRepeats', 'repeatBox']) {
     assert.ok(paintErrors({ paint: { min: 4, max: 6 }, [other]: one }).length > 0, other);
@@ -323,15 +324,14 @@ const waterErrors = (gimmicks, teach = 'water', extra = {}) => {
   return errs;
 };
 
-test('stage-gen: stagegen 検査 water は 2〜8 の整数なら OK（items・ice・paint 等との併用も OK）。warps・periodic 併用・範囲外・非整数・別名・waterMode は NG', () => {
+test('stage-gen: stagegen 検査 water は 2〜8 の整数なら OK（items・ice・paint 等との併用も OK）。範囲外・非整数・別名・waterMode は NG', () => {
   assert.deepEqual(waterErrors({ water: { min: 2, max: 4 } }), []);
   assert.deepEqual(waterErrors({ water: { min: 2, max: 8 } }), []);
   for (const other of ['items', 'ice', 'keys', 'switches', 'cushion']) {
     assert.deepEqual(waterErrors({ water: { min: 2, max: 4 }, [other]: one }), [], `${other} との併用`);
   }
   for (const other of ['warps', 'periodic']) {
-    const e = waterErrors({ water: { min: 2, max: 4 }, [other]: one });
-    assert.ok(e.some((m) => m.includes('は同時に指定できない（warps・periodic・water は1種まで）')), `${other} との併用`);
+    assert.deepEqual(waterErrors({ water: { min: 2, max: 4 }, [other]: one }), [], `${other} との併用`); // 1種制限は撤廃（#649）
   }
   assert.deepEqual(waterErrors({ water: { min: 2, max: 4 }, paint: { min: 4, max: 6 } }), []); // paint とは併用できる（#531 段2）
   // groupRepeats・repeatBox は gimmicks の未対応キー（併用すると未対応で NG）
@@ -447,4 +447,59 @@ test('stage-gen: base-strip を土台にすると水・橋が一致し、ギミ�
     }
     assert.ok(found > 0, `${teach}: 候補が出ない`);
   }
+});
+
+// ---- #649 段3: 撤廃した併用。返った盤は盤検査に通り、入っている全ギミックが必須（個別に外すと最短が伸びる） ----
+const allMatter = (b) => {
+  const d = b.solution.length;
+  const play = { ...b, maxCommands: d };
+  const bad = [];
+  if (b.items?.length && !mattersFor('items', b, d)) bad.push('items');
+  if (b.doors?.length && !keysMustMatter(play).matters) bad.push('keys');
+  if (b.switches?.length && !mattersFor('switches', b, d)) bad.push('switches');
+  if (b.warps?.length && !warpsMustMatter(play).matters) bad.push('warps');
+  if (b.periodic?.length && !periodicMustMatter(play, d).matters) bad.push('periodic');
+  if (b.paint?.length && !paintMustMatter(play, d).matters) bad.push('paint');
+  return bad;
+};
+const mixCases = {
+  'warps+periodic': { ...base, gimmicks: { warps: { min: 1, max: 1 }, periodic: { min: 1, max: 1 } }, teach: 'warps' },
+  'keys+switches': { ...base, gimmicks: { keys: { min: 1, max: 1 }, switches: { min: 1, max: 1 } }, teach: 'keys' },
+  'water+warps+periodic': { ...base, gimmicks: { water: { min: 2, max: 3 }, warps: { min: 1, max: 1 }, periodic: { min: 1, max: 1 } }, teach: 'warps' },
+};
+
+test('stage-gen: 撤廃した併用（warps+periodic・keys+switches・水+warps+periodic）は盤検査に通り、全ギミックが必須', () => {
+  for (const [name, sg] of Object.entries(mixCases)) {
+    let found = 0;
+    for (let seed = 1; seed <= 40; seed += 1) {
+      const b = generateBoard(sg, seed);
+      if (!b || b === GEN_ABORTED) continue;
+      found += 1;
+      assert.ok(isRunCleared(simulate(b.solution, b)), `${name} seed=${seed}`);
+      assert.deepEqual(allMatter(b), [], `${name} seed=${seed}: 必須でないギミック`);
+      const ngs = [];
+      checkBoard(b, (cat, msg) => ngs.push(`${cat}: ${msg}`), `${name} seed=${seed} `);
+      assert.deepEqual(ngs, [], `${name} seed=${seed} 盤検査`);
+    }
+    assert.ok(found > 0, `${name}: 候補が出ない`);
+  }
+});
+
+test('stage-gen: 土台の水（橋あり）にワープ・周期ドアを足しても、橋の上に置かず盤検査に通る', () => {
+  const baseSpec = { grid: { cols: 7, rows: 6 }, water: [1, 2, 4, 5].map((x) => ({ x, y: 3 })).concat([{ x: 0, y: 3 }]), bridge: [{ x: 3, y: 3 }] };
+  const sg = { ver: 1, base: baseSpec, walls: { min: 0, max: 2 }, shortestPath: { min: 3, max: 14 }, minTurns: 0,
+    gimmicks: { warps: { min: 1, max: 1 }, periodic: { min: 1, max: 1 } }, teach: 'warps' };
+  let found = 0;
+  for (let seed = 1; seed <= 40; seed += 1) {
+    const b = generateBoard(sg, seed);
+    if (!b || b === GEN_ABORTED) continue;
+    found += 1;
+    const onBridge = [...(b.warps ?? []), ...(b.periodic ?? [])].filter((p) => p.x === 3 && p.y === 3);
+    assert.deepEqual(onBridge, [], `seed=${seed}: 橋の上に置いた`);
+    assert.deepEqual(allMatter(b), [], `seed=${seed}`);
+    const ngs = [];
+    checkBoard(b, (cat, msg) => ngs.push(`${cat}: ${msg}`), `seed=${seed} `);
+    assert.deepEqual(ngs, [], `seed=${seed} 盤検査`);
+  }
+  assert.ok(found > 0, '候補が出ない');
 });

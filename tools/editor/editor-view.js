@@ -169,11 +169,11 @@ export const GEN_COUNT = 4; // 1回に出す候補の数（2×2）。「もう4�
 export const GEN_LIMITS = { grid: [3, 20], walls: [0, 60], shortestPath: [2, 60], minTurns: [0, 8], items: [1, 4], ice: [1, 4], keys: [1, 2], cushion: [1, 4], switches: [1, 2], warps: [1, 2], periodic: [1, 2], paint: [4, 8], water: [2, 8] };
 export const GEN_GIMMICKS = [['items', 'どんぐり'], ['ice', 'こおり'], ['keys', 'かぎ'], ['cushion', 'クッション'], ['switches', 'スイッチ'], ['warps', 'ワープ'], ['periodic', '周期ドア'], ['paint', '色ぬり'], ['water', '水']];
 // 他のギミックと併用できない（単独で使う）ギミック。要素を足せば checkGenerateForm の同じ検査が働く。
-export const GEN_SOLO_GIMMICKS = ['paint'];
-// 単独集合の要素ごとの例外（併用してよい相手）。paint は water とだけ併用できる（#531 段2）。
-export const GEN_SOLO_EXCEPT = { paint: ['water'] };
-// 同時に1種までのギミック（他のギミックとは併用できる。#531）。
-export const GEN_ONE_OF_GIMMICKS = ['warps', 'periodic', 'water'];
+export const GEN_SOLO_GIMMICKS = []; // 今は空（paint の単独制限は #649 で撤廃）
+// 単独集合の要素ごとの例外（併用してよい相手）。
+export const GEN_SOLO_EXCEPT = {};
+// 同時に1種までのギミック。今は空（warps・periodic・water の1種制限は #649 で撤廃）。
+export const GEN_ONE_OF_GIMMICKS = [];
 const isInteger = (v) => Number.isInteger(v);
 
 // 土台にするとき、土台で決まるので送らない（フォームの欄は disabled にする）ギミック（#631）。
@@ -245,14 +245,12 @@ export function checkGenerateForm(form) {
   const on = GEN_GIMMICKS.filter(([k]) => form.gimmicks && form.gimmicks[k] && form.gimmicks[k].on && !(baseOn && GEN_BASE_FIXED_GIMMICKS.includes(k)));
   for (const [k, label] of on) range(label, form.gimmicks[k], GEN_LIMITS[k]);
   const isOn = (k) => on.some(([name]) => name === k);
-  if (isOn('switches') && isOn('keys')) out.push('スイッチと かぎは いっしょに 使えません');
   if (form.teach === 'cushion' && on.length > 0 && !isOn('ice')) out.push('おしえる物が クッションのときは こおりも オンにしてください');
   for (const [k, label] of on) {
     if (GEN_SOLO_GIMMICKS.includes(k) && on.some(([o]) => o !== k && !(GEN_SOLO_EXCEPT[k] ?? []).includes(o))) out.push(`${label}は ほかのギミックと いっしょに 使えません（${label}だけ オンにしてください）`);
   }
   const oneOfOn = GEN_ONE_OF_GIMMICKS.filter((k) => isOn(k));
   if (oneOfOn.length > 1) out.push(`${oneOfOn.join('・')} は同時に指定できない（${GEN_ONE_OF_GIMMICKS.join('・')} は1種まで）`);
-  if (baseOn && (form.base.water || []).length > 0 && (isOn('warps') || isOn('periodic'))) out.push('土台に水があるときは、ワープ・周期ドアは使えません');
   if (on.length > 0 && !on.some(([k]) => k === form.teach)) out.push('おしえる物 は 使うギミックから選んでください');
   return out;
 }
