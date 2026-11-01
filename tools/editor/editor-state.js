@@ -68,6 +68,64 @@ export function redo(state) {
   return ok();
 }
 
+// ---- ドラッグ連続配置（#647 段4）。履歴は spec 全体のスナップショットなので、ドラッグ中の commit を最後の1つに畳む。----
+// ドラッグで置く・消すを担う key（wall・SIMPLE_LISTS・bridge・eraser）。それ以外は従来の click のみ。
+export const isDragKey = (key) => key === 'eraser' || key === 'wall' || key === 'bridge' || SIMPLE_LISTS.includes(key);
+
+// (x0,y0) から (x1,y1) までの通るマス（両端含む）。Bresenham。
+export function lineCells(x0, y0, x1, y1) {
+  const out = [];
+  const dx = Math.abs(x1 - x0);
+  const dy = -Math.abs(y1 - y0);
+  const sx = x0 < x1 ? 1 : -1;
+  const sy = y0 < y1 ? 1 : -1;
+  let err = dx + dy;
+  let x = x0;
+  let y = y0;
+  for (;;) {
+    out.push({ x, y });
+    if (x === x1 && y === y1) break;
+    const e2 = 2 * err;
+    if (e2 >= dy) { err += dy; x += sx; }
+    if (e2 <= dx) { err += dx; y += sy; }
+  }
+  return out;
+}
+
+// ドラッグ1回の操作。begin → paint（マスごと）→ end（確定）／cancel（破棄）。
+export function dragBegin(state, key) {
+  return { key, commits: 0, placed: 0 };
+}
+
+// そのマスへ key を置く（eraser は消す）。盤外は何もしない。commit が積まれたときだけ数える。
+export function dragStep(state, drag, x, y) {
+  if (!inGrid(state.spec, x, y)) return ng('盤外');
+  const before = state.history[state.cursor];
+  const r = drag.key === 'eraser' ? erase(state, x, y) : place(state, drag.key, x, y);
+  if (r.ok && state.history[state.cursor] !== before) { drag.commits += 1; drag.placed += 1; }
+  return r;
+}
+
+// ここまでを1手に畳む（途中の commit を捨て、最後の1つを残す）。置いた数を返す。
+export function dragEnd(state, drag) {
+  const n = Math.min(drag.commits, state.history.length);
+  if (n > 1) {
+    state.history.splice(state.history.length - n, n - 1);
+    state.cursor = state.history.length - 1;
+  }
+  return drag.placed;
+}
+
+// ここまでを破棄する（履歴に積まない＝開始時の状態に戻す）。
+export function dragCancel(state, drag) {
+  const n = Math.min(drag.commits, state.history.length - 1);
+  if (n > 0) {
+    state.history.splice(state.history.length - n, n);
+    state.cursor = state.history.length - 1;
+    state.spec = clone(state.history[state.cursor]);
+  }
+}
+
 function inGrid(spec, x, y) {
   return Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < spec.grid.cols && y < spec.grid.rows;
 }

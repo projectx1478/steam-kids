@@ -147,6 +147,14 @@ export function pendingKeys(spec) {
   return out;
 }
 
+// ---- ドラッグ連続配置（#647 段4）。通ったマスに薄い枠を付ける。描き直しで消えるので、描いたあとに呼ぶ。----
+export function markTrail(boardWrap, cells) {
+  for (const c of cells) {
+    const el = boardWrap.querySelector(`.grid-cell[data-x="${c.x}"][data-y="${c.y}"]`);
+    if (el) el.classList.add('ed-trail');
+  }
+}
+
 // ---- 水の橋（#523 段3）----
 // 上下左右に水が無い橋（接続待ち）。[{ index, x, y }]。基準は validate の water.js（「bridge の上下左右に水が無い」）と同じ。
 export function pendingBridges(spec) {

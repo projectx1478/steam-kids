@@ -1,12 +1,12 @@
 // 盤面エディタ（開発者用）の画面。盤面は js/ui-board.js の drawBoard 経由で描く。
 import { drawBoard } from '/js/ui-board.js';
-import { EMPTY_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clampCellPx, wheelCellPx, zoomPercent, formatMetrics, pendingSwitches, pendingGroupSwitches, pendingKeys, pendingBridges, pendingPaint, selectionHint, switchModeOptions, switchGroupOptions, GEN_COUNT, GEN_GIMMICKS, GEN_BASE_FIXED_GIMMICKS, baseFromSpec, checkGenerateForm, buildGenerateBody, generateStatusText } from './editor-view.js';
+import { EMPTY_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clampCellPx, wheelCellPx, zoomPercent, formatMetrics, pendingSwitches, pendingGroupSwitches, pendingKeys, pendingBridges, pendingPaint, markTrail, selectionHint, switchModeOptions, switchGroupOptions, GEN_COUNT, GEN_GIMMICKS, GEN_BASE_FIXED_GIMMICKS, baseFromSpec, checkGenerateForm, buildGenerateBody, generateStatusText } from './editor-view.js';
 
 import { GIMMICKS } from '/js/gimmicks/index.js';
 import { markGatePassedToday } from '/js/gate-date.js';
 import { openLayoutPanel } from './layout-panel.js';
 import { buildPalette, iconSpec } from './palette.js';
-import { createState, setCellPx as setStateCellPx, setGrid, shrinkLoss, place, erase, move, toggleTarget, togglePaint, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, setKeyColor, setDoorColor, setKeyMode, setWaterMode, setPeriodicPeriod, PERIODIC_PERIODS, WATER_MODES, SWITCH_COLORS, KEY_COLORS, KEY_MODES, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard, addDraftStep, explainSaveNg, addTutorialStep, setStepText, setTutorialScript, tutorialReach } from './editor-state.js';
+import { isDragKey, lineCells, dragBegin, dragStep, dragEnd, dragCancel, createState, setCellPx as setStateCellPx, setGrid, shrinkLoss, place, erase, move, toggleTarget, togglePaint, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, setKeyColor, setDoorColor, setKeyMode, setWaterMode, setPeriodicPeriod, PERIODIC_PERIODS, WATER_MODES, SWITCH_COLORS, KEY_COLORS, KEY_MODES, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard, addDraftStep, explainSaveNg, addTutorialStep, setStepText, setTutorialScript, tutorialReach } from './editor-state.js';
 
 const state = createState(EMPTY_SPEC, CELL_PX_DEFAULT);
 state.selected = 'wall';
@@ -378,8 +378,87 @@ function syncTutFromSpec() {
   render();
 }
 
+// ---- ドラッグ連続配置（#647 段4）。単純タイル（isDragKey）と消しゴムだけ。2マス以上動いたときだけ pointer が担い、
+// 単発（動かさない押して放す）は下の click に任せる。ドラッグ直後に出る click は無視する。----
+let dragPending = null; // 押下中（まだ別のマスへ動いていない）{ start, last, trail }
+let dragging = null; // ドラッグ中 { drag, last, trail, label }
+let suppressClick = false;
+
+const cellAtPoint = (e) => {
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  const cell = el && el.closest ? el.closest('.grid-cell') : null;
+  return cell && boardWrap.contains(cell) ? { x: Number(cell.dataset.x), y: Number(cell.dataset.y) } : null;
+};
+
+function dragListen(on) {
+  const f = on ? 'addEventListener' : 'removeEventListener';
+  document[f]('pointermove', onDragMove);
+  document[f]('pointerup', onDragUp);
+  document[f]('pointercancel', onDragCancel);
+}
+
+function dragEndCleanup() {
+  dragListen(false);
+  dragPending = null;
+  dragging = null;
+  boardWrap.classList.remove('ed-dragging');
+}
+
+boardWrap.addEventListener('pointerdown', (e) => {
+  if (!e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return;
+  if (e.shiftKey || moveFrom || !isDragKey(state.selected)) return;
+  const c = cellAtPoint(e);
+  if (!c) return;
+  dragEndCleanup();
+  dragPending = { start: c, last: c, trail: [c] };
+  dragListen(true);
+});
+
+function onDragMove(e) {
+  if (!dragPending && !dragging) return;
+  const c = cellAtPoint(e);
+  const cur = dragging || dragPending;
+  if (!c) { cur.last = null; return; } // 盤外では置かず、盤内へ戻ったマスから再開
+  if (cur.last && cur.last.x === c.x && cur.last.y === c.y) return;
+  if (!dragging) {
+    dragging = { drag: dragBegin(state, state.selected), last: dragPending.last, trail: [dragPending.start], label: state.selected === 'eraser' ? '消した' : '置いた' };
+    dragPending = null;
+    boardWrap.classList.add('ed-dragging');
+    dragStep(state, dragging.drag, dragging.trail[0].x, dragging.trail[0].y);
+  }
+  const from = dragging.last;
+  const cells = from ? lineCells(from.x, from.y, c.x, c.y).slice(1) : [c];
+  for (const p of cells) { dragStep(state, dragging.drag, p.x, p.y); dragging.trail.push(p); }
+  dragging.last = c;
+  apply({ ok: true });
+  markTrail(boardWrap, dragging.trail);
+}
+
+function onDragUp() {
+  const d = dragging;
+  dragEndCleanup();
+  if (!d) return; // 動かさなかった＝従来の click に任せる
+  suppressClick = true;
+  setTimeout(() => { suppressClick = false; }, 0);
+  const n = dragEnd(state, d.drag);
+  apply({ ok: true });
+  notice = n > 0 ? `${n}マス${d.label}` : '';
+  render();
+}
+
+function onDragCancel() {
+  const d = dragging;
+  dragEndCleanup();
+  if (!d) return;
+  dragCancel(state, d.drag);
+  apply({ ok: true });
+  notice = 'ドラッグを取り消した';
+  render();
+}
+
 // マスのクリック。Shift+クリック＝動かす元を選ぶ → 次のクリックが行き先。それ以外はパレットの選択どおり置く／消す。
 boardWrap.addEventListener('click', (e) => {
+  if (suppressClick) { suppressClick = false; return; } // ドラッグ直後の click
   const cell = e.target.closest('.grid-cell');
   if (!cell) return;
   const x = Number(cell.dataset.x);
@@ -412,6 +491,7 @@ document.addEventListener('keydown', (e) => {
   const t = e.target;
   if (t && t.closest && t.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return;
   if (!(e.ctrlKey || e.metaKey)) return;
+  if (dragging) return; // ドラッグ中の Ctrl+Z／Y は無視（履歴の畳みを壊さない）
   const k = e.key.toLowerCase();
   if (k === 'z' && !e.shiftKey) { e.preventDefault(); doUndo(); }
   else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); doRedo(); }
