@@ -154,6 +154,24 @@ export function renameTrack(index, trackId, title) {
   return withTrack(index, trackAt(index, trackId), (t) => ({ ...t, title }));
 }
 
+// ---- 単元の見た目（#644）：icon・color。未指定のときはキーごと書かない ----
+export const UNIT_ICONS = ['commands', 'donguri', 'ice', 'keys', 'switches', 'teko'];
+export const UNIT_COLORS = ['emerald', 'amber', 'sky', 'purple', 'rose', 'teal'];
+
+function setUnitField(index, unitId, key, value, allowed) {
+  if (value !== undefined && !allowed.includes(value)) return index;
+  return { ...index, tracks: index.tracks.map((t) => ({ ...t, units: t.units.map((u) => {
+    if (u.unitId !== unitId) return u;
+    const next = { ...u };
+    if (value === undefined) delete next[key]; else next[key] = value;
+    return next;
+  }) })) };
+}
+
+// icon は 6種か 'none'（既定の水色・アイコン無し）。undefined で未指定（キーを消す）。
+export const setUnitIcon = (index, unitId, icon) => setUnitField(index, unitId, 'icon', icon, [...UNIT_ICONS, 'none']);
+export const setUnitColor = (index, unitId, color) => setUnitField(index, unitId, 'color', color, UNIT_COLORS);
+
 // 保存できない状態の説明（空の単元・空の大項目）。サーバー側の検査と同じ内容を、保存前に画面で見せる。
 export function layoutProblems(index) {
   const out = [];

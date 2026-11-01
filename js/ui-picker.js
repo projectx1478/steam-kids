@@ -18,6 +18,24 @@ const UNIT_STYLE = {
   teko: { bg: 'bg-teal-400', icon: () => seesawIconSvg() },
 };
 const DEFAULT_UNIT_STYLE = { bg: 'bg-sky-400', icon: null };
+// index.json の units[].color の名前→クラス名（Issue #644）。Tailwindスキャン用にリテラルで書く。
+// 許可する名前は tools/lib/validate/index-check.mjs の UNIT_COLORS と揃える。
+const COLOR_BG = {
+  emerald: 'bg-emerald-400',
+  amber: 'bg-amber-400',
+  sky: 'bg-sky-400',
+  purple: 'bg-purple-400',
+  rose: 'bg-rose-400',
+  teal: 'bg-teal-400',
+};
+
+// 単元の見た目。units[].icon（UNIT_STYLEのキー or 'none'）と color があればそれを使い、
+// 省略時はunitIdの既存表→無ければ既定（水色・アイコン無し）。iconだけ指定なら色はそのiconの既定色。
+function unitStyleOf(unit) {
+  const base = (unit.icon === undefined ? UNIT_STYLE[unit.unitId] : UNIT_STYLE[unit.icon]) ?? DEFAULT_UNIT_STYLE;
+  const bg = COLOR_BG[unit.color] ?? base.bg;
+  return { bg, icon: base.icon };
+}
 
 function isCleared(lessonStatus, lessonId) {
   return lessonStatus[lessonId]?.status === 'cleared';
@@ -131,7 +149,7 @@ function iconSpan(svg, cls) {
 // opts: { unit, number（単元内番号。れんしゅうはnull）, locked, pending（次に遊ぶ最前線）, cleared, practice }
 async function createLessonStop(lessonId, opts, onPick) {
   const { unit, number, locked, pending, cleared, practice } = opts;
-  const style = UNIT_STYLE[unit.unitId] ?? DEFAULT_UNIT_STYLE;
+  const style = unitStyleOf(unit);
   const wrap = document.createElement('div');
   wrap.className = 'relative inline-block';
 
@@ -207,7 +225,7 @@ async function createUnitIsland(unit, lessonStatus, ctx, onPick) {
 
   const header = document.createElement('div');
   header.className = 'flex items-center justify-center gap-2 mb-3';
-  const typeIcon = UNIT_STYLE[unit.unitId]?.icon;
+  const typeIcon = unitStyleOf(unit).icon;
   if (typeIcon) header.appendChild(iconSpan(typeIcon(), 'unit-type-icon w-6 h-6'));
   const title = document.createElement('p');
   title.className = 'text-lg font-bold text-emerald-800';

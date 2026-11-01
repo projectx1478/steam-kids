@@ -15,6 +15,8 @@ export function tracksOf(index) {
       trackId: t?.trackId,
       title: typeof t?.title === 'string' ? t.title : '',
       units: Array.isArray(t?.units) ? t.units : [],
+      // 紹介画面（Issue #644）。あるときだけ持ち回す（無い大項目の形は変えない）。
+      ...(t?.intro && typeof t.intro === 'object' && !Array.isArray(t.intro) && t.intro.demo ? { intro: t.intro } : {}),
     }));
   }
   if (Array.isArray(index?.units)) return [{ trackId: 'all', title: '', units: index.units }];
