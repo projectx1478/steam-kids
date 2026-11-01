@@ -170,6 +170,7 @@ function showNg(messages, ok = false) {
   const el = $('layout-ng');
   el.className = ok ? 'ok' : '';
   el.replaceChildren(...messages.map((m) => { const d = document.createElement('div'); d.textContent = m; return d; }));
+  $('layout-note').hidden = !ok;
 }
 
 export async function saveLayout() {
