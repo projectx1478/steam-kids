@@ -6,7 +6,7 @@ import { GIMMICKS } from '/js/gimmicks/index.js';
 import { markGatePassedToday } from '/js/gate-date.js';
 import { openLayoutPanel } from './layout-panel.js';
 import { buildPalette, iconSpec } from './palette.js';
-import { createState, setCellPx as setStateCellPx, setGrid, place, erase, move, toggleTarget, togglePaint, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, setKeyColor, setDoorColor, setKeyMode, setWaterMode, setPeriodicPeriod, PERIODIC_PERIODS, WATER_MODES, SWITCH_COLORS, KEY_COLORS, KEY_MODES, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard, addDraftStep, explainSaveNg, addTutorialStep, setStepText, setTutorialScript, tutorialReach } from './editor-state.js';
+import { createState, setCellPx as setStateCellPx, setGrid, shrinkLoss, place, erase, move, toggleTarget, togglePaint, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, setKeyColor, setDoorColor, setKeyMode, setWaterMode, setPeriodicPeriod, PERIODIC_PERIODS, WATER_MODES, SWITCH_COLORS, KEY_COLORS, KEY_MODES, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard, addDraftStep, explainSaveNg, addTutorialStep, setStepText, setTutorialScript, tutorialReach } from './editor-state.js';
 
 const state = createState(EMPTY_SPEC, CELL_PX_DEFAULT);
 state.selected = 'wall';
@@ -354,7 +354,11 @@ maxPausesEl.addEventListener('change', () => {
 // 盤の大きさ：空欄・小数・範囲外・はみ出す縮小は setGrid が ng を返す。拒否時は render が入力を現在値へ戻す。
 function applyGrid() {
   const num = (el) => (el.value.trim() === '' ? NaN : Number(el.value));
-  apply(setGrid(state, num(gridWEl), num(gridHEl)));
+  const cols = num(gridWEl);
+  const rows = num(gridHEl);
+  const loss = shrinkLoss(state, cols, rows);
+  if (loss.ok && loss.count > 0 && !confirm(`盤外の${loss.count}個の要素を消して縮小します`)) { render(); return; } // キャンセルは何もしない（入力欄は現在値へ戻す）
+  apply(setGrid(state, cols, rows));
 }
 document.getElementById('grid-apply').addEventListener('click', applyGrid);
 

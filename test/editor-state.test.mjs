@@ -1,7 +1,7 @@
 // #397 段4: 盤面エディタの状態管理（置く・消す・動かす・元に戻す・やり直し、拒否値）。実行: npm run test:unit
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { occupants, createState, setCellPx, setGrid, place, erase, move, undo, redo, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, COMPLEX_KEYS, HISTORY_MAX, setKeyColor, setDoorColor, setKeyMode, setPeriodicPeriod, setWaterMode, togglePaint, canUndo as canUndoState, addTutorialStep, setStepText, setTutorialScript, tutorialReach } from '../tools/editor/editor-state.js';
+import { occupants, createState, setCellPx, setGrid, shrinkLoss, place, erase, move, undo, redo, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, COMPLEX_KEYS, HISTORY_MAX, setKeyColor, setDoorColor, setKeyMode, setPeriodicPeriod, setWaterMode, togglePaint, canUndo as canUndoState, addTutorialStep, setStepText, setTutorialScript, tutorialReach } from '../tools/editor/editor-state.js';
 import { SAMPLE_SPEC, EDITOR_MAX_SIZE, pendingSwitches, switchModeOptions, switchGroupOptions, pendingGroupSwitches, pendingKeys, pendingBridges } from '../tools/editor/editor-view.js';
 import { analyzeSpec } from '../tools/editor/validate-worker.mjs';
 
@@ -228,6 +228,74 @@ test('editor-state: 5×5→7×6→元に戻す→5×5、はみ出す縮小は拒
   assert.ok(r.reason);
   assert.deepEqual(s.spec.grid, { cols: 5, rows: 5 });
   assert.equal(s.history.length, len);
+});
+
+// ---- #647 段3: 縮小で盤外の要素を消す ----
+const big = (extra) => createState({ grid: { cols: 6, rows: 6 }, start: { x: 0, y: 0 }, goal: { x: 1, y: 0 }, ...extra });
+
+test('editor-state: 縮小 盤外の各要素が消えて1手で戻る（件数はドライランで数える）', () => {
+  const extra = {
+    walls: [{ x: 5, y: 0 }, { x: 1, y: 1 }],
+    items: [{ x: 4, y: 4 }],
+    ice: [{ x: 0, y: 5 }],
+    cushion: [{ x: 5, y: 5 }],
+    water: [{ x: 4, y: 1 }],
+    bridge: [{ x: 5, y: 1 }],
+    warps: [{ x: 4, y: 2, pair: 'a' }, { x: 1, y: 2, pair: 'a' }],
+    keys: [{ x: 4, y: 3, color: 'red' }],
+    doors: [{ x: 1, y: 3, color: 'red' }],
+    keyMode: 'consume',
+    periodic: [{ x: 5, y: 2, period: 2 }],
+    switches: [{ x: 5, y: 3, group: 'g', targets: [{ x: 2, y: 2 }] }],
+    groupWalls: [{ x: 4, y: 5, group: 'g' }],
+    paint: [{ x: 5, y: 4 }],
+  };
+  const s = big(extra);
+  const before = snap(s.spec);
+  const len = s.history.length;
+  const loss = shrinkLoss(s, 4, 4);
+  assert.deepEqual(snap(s.spec), before); // ドライランは state 不変
+  assert.equal(s.history.length, len);
+  assert.equal(loss.ok, true);
+  assert.equal(loss.count, 12);
+  assert.equal(setGrid(s, 4, 4).ok, true);
+  assert.equal(s.history.length, len + 1); // commit は1回
+  assert.deepEqual(s.spec.grid, { cols: 4, rows: 4 });
+  for (let y = 0; y < 6; y++) for (let x = 0; x < 6; x++) {
+    if ((x >= 4 || y >= 4)) assert.equal(occupants(s.spec, x, y).length, 0, `${x},${y}`);
+  }
+  // 盤内は残る（ワープ・鍵ドアの片方、盤内の壁）
+  assert.deepEqual(s.spec.walls, [{ x: 1, y: 1 }]);
+  assert.deepEqual(s.spec.warps, [{ x: 1, y: 2, pair: 'a' }]);
+  assert.deepEqual(s.spec.doors, [{ x: 1, y: 3, color: 'red' }]);
+  assert.equal(s.spec.keys, undefined);
+  assert.equal(s.spec.paint, undefined);
+  assert.equal(undo(s).ok, true);
+  assert.deepEqual(snap(s.spec), before);
+});
+
+test('editor-state: 縮小 同居（壁＋目標マス・氷＋スイッチ対象）も盤外から消える', () => {
+  const s = big({ walls: [{ x: 5, y: 5 }], paint: [{ x: 5, y: 5 }], ice: [{ x: 4, y: 0 }], switches: [{ x: 0, y: 2, targets: [{ x: 4, y: 0 }] }] });
+  assert.equal(shrinkLoss(s, 4, 4).count, 4);
+  assert.equal(setGrid(s, 4, 4).ok, true);
+  assert.equal(s.spec.ice, undefined);
+  assert.deepEqual(s.spec.switches[0].targets, []);
+  assert.equal(s.spec.paint, undefined);
+  assert.deepEqual(s.spec.walls, []);
+});
+
+test('editor-state: 縮小 start・goal が盤外なら拒否して state 不変、盤外が空なら件数0で拡大は不変', () => {
+  const s = big({ walls: [{ x: 5, y: 5 }], goal: { x: 5, y: 0 } });
+  const before = snap(s.spec);
+  const len = s.history.length;
+  assert.equal(shrinkLoss(s, 4, 4).ok, false);
+  assert.equal(setGrid(s, 4, 4).ok, false);
+  assert.deepEqual(snap(s.spec), before);
+  assert.equal(s.history.length, len);
+  const t = big({});
+  assert.equal(shrinkLoss(t, 4, 4).count, 0);
+  assert.equal(shrinkLoss(t, 8, 8).count, 0);
+  assert.equal(setGrid(t, 8, 8).ok, true);
 });
 
 // ---- #402 段2: レッスンの面の一覧・並べ替え・固定 ----

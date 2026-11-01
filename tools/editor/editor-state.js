@@ -119,18 +119,52 @@ export function setStepText(state, text) {
   return commit(state, next);
 }
 
-// 盤面サイズを変える。EDITOR_MAX_SIZE 超過・1 未満・非整数、要素が盤外になる場合は拒否。
-export function setGrid(state, cols, rows) {
+// 盤面サイズの入力検査。通れば null、拒否なら ng。
+function gridInputError(cols, rows) {
   if (!Number.isInteger(cols) || !Number.isInteger(rows) || cols < 1 || rows < 1) return ng('盤面サイズは1以上の整数');
   if (cols > EDITOR_MAX_SIZE || rows > EDITOR_MAX_SIZE) return ng(`盤面サイズの上限は ${EDITOR_MAX_SIZE}×${EDITOR_MAX_SIZE}`);
-  if (state.spec.grid.cols === cols && state.spec.grid.rows === rows) return ok();
-  const next = clone(state.spec);
-  next.grid = { cols, rows };
-  for (let y = 0; y < Math.max(state.spec.grid.rows, rows); y++) {
-    for (let x = 0; x < Math.max(state.spec.grid.cols, cols); x++) {
-      if ((x >= cols || y >= rows) && occupants(next, x, y).length) return ng('盤外になるマスに要素がある');
+  return null;
+}
+
+// 縮小で盤外になるマスのうち要素のあるものを (x,y,here) で返す。盤外は元の盤の範囲内のマスのみ（拡大では空）。
+function outsideCells(spec, cols, rows) {
+  const out = [];
+  for (let y = 0; y < spec.grid.rows; y++) {
+    for (let x = 0; x < spec.grid.cols; x++) {
+      if (x < cols && y < rows) continue;
+      const here = occupants(spec, x, y);
+      if (here.length) out.push({ x, y, here });
     }
   }
+  return out;
+}
+
+// 縮小の確認用ドライラン（state は変えない）。盤外に start・goal があれば拒否。それ以外は { ok: true, count: 盤外の要素の個数 }。
+export function shrinkLoss(state, cols, rows) {
+  const bad = gridInputError(cols, rows);
+  if (bad) return bad;
+  const cells = outsideCells(state.spec, cols, rows);
+  if (cells.some((c) => c.here.some((o) => SINGLE.includes(o.kind)))) return ng('盤外になるマスにスタート・ゴールがある');
+  return { ok: true, count: cells.reduce((n, c) => n + c.here.length, 0) };
+}
+
+// 盤面サイズを変える。EDITOR_MAX_SIZE 超過・1 未満・非整数、start・goal が盤外になる場合は拒否。
+// 盤外になるそれ以外の要素は erase の後始末で消し、commit は1回（確認は呼び出し側。件数は shrinkLoss）。
+export function setGrid(state, cols, rows) {
+  const loss = shrinkLoss(state, cols, rows);
+  if (!loss.ok) return loss;
+  if (state.spec.grid.cols === cols && state.spec.grid.rows === rows) return ok();
+  const next = clone(state.spec);
+  for (const c of outsideCells(state.spec, cols, rows)) {
+    for (let guard = 0; guard < 20; guard++) {
+      const here = occupants(next, c.x, c.y);
+      if (here.length === 0) break;
+      eraseCell(next, here, c.x, c.y);
+      // 氷などと同居する switches.targets は eraseCell が触らないので直接外す
+      for (const sw of list(next.switches)) if (Array.isArray(sw.targets)) sw.targets = sw.targets.filter((t) => !(t.x === c.x && t.y === c.y));
+    }
+  }
+  next.grid = { cols, rows };
   return commit(state, next);
 }
 
