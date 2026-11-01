@@ -115,12 +115,13 @@ cases.push(
       p.tracks[0].intro = { demo, text: 'あ' };
     },
   ],
-  ['T6: intro.text が長すぎる→tracksのintro', 'tracksのintro', (p) => (p.tracks[0].intro = { demo: goodDemo(), text: 'あ'.repeat(61) })]
+  ['T6: intro.text が長すぎる→tracksのintro', 'tracksのintro', (p) => (p.tracks[0].intro = { demo: goodDemo(), text: 'あ'.repeat(31) })]
 );
 
 const okCases = [
   ['T7: intro（demo + text）は OK', (p) => (p.tracks[0].intro = { demo: goodDemo(), text: 'ゴールまで すすもう' })],
   ['T8: intro.text 空文字は OK（文を出さない）', (p) => (p.tracks[0].intro = { demo: goodDemo(), text: '' })],
+  ['T10: intro.text 上限ちょうど（30字）は OK', (p) => (p.tracks[0].intro = { demo: goodDemo(), text: 'あ'.repeat(30) })],
   ['T9: intro.text 省略は OK', (p) => (p.tracks[0].intro = { demo: goodDemo() })],
   ['I5: icon・color 全省略は OK', () => {}],
   ['I6: icon "none" は OK', (p) => (unitOf(p, 'ice').icon = 'none')],

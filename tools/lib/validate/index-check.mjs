@@ -10,7 +10,7 @@ const UNIT_COLORS = ['emerald', 'amber', 'sky', 'purple', 'rose', 'teal'];
 
 // 大項目の紹介 tracks[].intro＝{ demo, text? }（Issue #644）。demo は lessons の intro.demo と同形
 // （検査は checkDemo をそのまま使う。本番 play との比較は無いので playSteps は空）、text は短い文字列（空は可）。
-const INTRO_TEXT_MAX = 60;
+const INTRO_TEXT_MAX = 30;
 function checkTrackIntro(intro, i, add) {
   const label = `tracks[${i}].intro`;
   const bad = (detail) => add('tracksのintro', `${label} ${detail}`);
