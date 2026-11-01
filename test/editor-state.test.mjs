@@ -1,7 +1,7 @@
 // #397 段4: 盤面エディタの状態管理（置く・消す・動かす・元に戻す・やり直し、拒否値）。実行: npm run test:unit
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { occupants, createState, setCellPx, setGrid, place, erase, move, undo, redo, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, COMPLEX_KEYS, HISTORY_MAX, setKeyColor, setDoorColor, setKeyMode, setPeriodicPeriod, setWaterMode, togglePaint, canUndo as canUndoState, addTutorialStep, setStepText, setTutorialScript, tutorialReach } from '../tools/editor/editor-state.js';
+import { occupants, createState, setCellPx, setGrid, shrinkLoss, place, erase, move, undo, redo, toggleTarget, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, COMPLEX_KEYS, HISTORY_MAX, setKeyColor, setDoorColor, setKeyMode, setPeriodicPeriod, setWaterMode, togglePaint, canUndo as canUndoState, addTutorialStep, setStepText, setTutorialScript, tutorialReach } from '../tools/editor/editor-state.js';
 import { SAMPLE_SPEC, EDITOR_MAX_SIZE, pendingSwitches, switchModeOptions, switchGroupOptions, pendingGroupSwitches, pendingKeys, pendingBridges } from '../tools/editor/editor-view.js';
 import { analyzeSpec } from '../tools/editor/validate-worker.mjs';
 
@@ -23,14 +23,19 @@ test('editor-state: 置く→消す→元に戻す で元の spec と一致', ()
   assert.ok(s.spec.walls.some((c) => c.x === 2 && c.y === 1));
 });
 
-test('editor-state: 重なりの拒否（状態は変わらない）', () => {
+test('editor-state: 重なりの拒否（状態は変わらない）。同種は何もしない、別種は上書き（#647）', () => {
   const s = fresh();
   const before = snap(s);
-  assert.equal(place(s, 'wall', 1, 0).ok, false); // 壁の上に壁
-  assert.equal(place(s, 'items', 1, 0).ok, false); // 壁の上にアイテム
+  assert.equal(place(s, 'wall', 1, 0).ok, true); // 壁の上に壁＝同種は何もしない
+  assert.deepEqual(s, before); // 履歴にも積まない
   assert.equal(place(s, 'start', 4, 4).ok, false); // ゴールの上
+  assert.equal(place(s, 'wall', 4, 4).ok, false); // ゴールの上へは上書き不可
+  assert.equal(place(s, 'start', 1, 0).ok, false); // start・goal を置く側は壁の上に置けない
   assert.equal(place(s, 'wall', 9, 9).ok, false); // 盤外
   assert.deepEqual(s, before);
+  assert.equal(place(s, 'items', 1, 0).ok, true); // 壁の上にアイテム＝壁を消して置く
+  assert.ok(!s.spec.walls.some((c) => c.x === 1 && c.y === 0));
+  assert.ok(s.spec.items.some((c) => c.x === 1 && c.y === 0));
 });
 
 test('editor-state: スタート・ゴールは各1個（置くと移る）、消せない', () => {
@@ -64,7 +69,8 @@ test('editor-state: COMPLEX_KEYS は空（paint も置ける。#523 段4）', ()
 test('editor-state: 周期ドア（置く・period 変更・消す・動かす・undo/redo）', () => {
   const s = fresh();
   const original = snap(s.spec); // SAMPLE_SPEC は (4,2) に period 3 を持つ
-  assert.equal(place(s, 'periodic', 4, 2).ok, false); // 重なり
+  assert.equal(place(s, 'periodic', 4, 2).ok, true); // 同種は何もしない
+  assert.deepEqual(s.spec, original);
   assert.equal(place(s, 'periodic', 9, 9).ok, false); // 盤外
   assert.equal(place(s, 'periodic', 2, 1).ok, true);
   assert.deepEqual(s.spec.periodic.at(-1), { x: 2, y: 1, period: 3 }); // 既定 3・初期位相なし
@@ -99,8 +105,11 @@ test('editor-state: ワープ（warps1/warps2）は1個ずつ置く・同マス�
   assert.equal(s.spec.warps, undefined);
   assert.equal(place(s, 'warps1', a.x, a.y).ok, true);
   assert.deepEqual(s.spec.warps, [{ x: a.x, y: a.y, pair: 1 }]);
-  assert.equal(place(s, 'warps2', a.x, a.y).ok, false); // 同マスは NG
-  assert.equal(place(s, 'wall', a.x, a.y).ok, false);
+  assert.equal(place(s, 'warps1', a.x, a.y).ok, true); // 同じ穴は何もしない
+  assert.deepEqual(s.spec.warps, [{ x: a.x, y: a.y, pair: 1 }]);
+  assert.equal(place(s, 'warps2', a.x, a.y).ok, true); // 同マスの別の組は上書き
+  assert.deepEqual(s.spec.warps, [{ x: a.x, y: a.y, pair: 2 }]);
+  assert.equal(place(s, 'warps1', a.x, a.y).ok, true); // 元の組に戻す
   assert.equal(place(s, 'warps1', b.x, b.y).ok, true);
   assert.equal(place(s, 'warps2', c.x, c.y).ok, true);
   assert.equal(place(s, 'warps2', d.x, d.y).ok, true);
@@ -219,6 +228,74 @@ test('editor-state: 5×5→7×6→元に戻す→5×5、はみ出す縮小は拒
   assert.ok(r.reason);
   assert.deepEqual(s.spec.grid, { cols: 5, rows: 5 });
   assert.equal(s.history.length, len);
+});
+
+// ---- #647 段3: 縮小で盤外の要素を消す ----
+const big = (extra) => createState({ grid: { cols: 6, rows: 6 }, start: { x: 0, y: 0 }, goal: { x: 1, y: 0 }, ...extra });
+
+test('editor-state: 縮小 盤外の各要素が消えて1手で戻る（件数はドライランで数える）', () => {
+  const extra = {
+    walls: [{ x: 5, y: 0 }, { x: 1, y: 1 }],
+    items: [{ x: 4, y: 4 }],
+    ice: [{ x: 0, y: 5 }],
+    cushion: [{ x: 5, y: 5 }],
+    water: [{ x: 4, y: 1 }],
+    bridge: [{ x: 5, y: 1 }],
+    warps: [{ x: 4, y: 2, pair: 'a' }, { x: 1, y: 2, pair: 'a' }],
+    keys: [{ x: 4, y: 3, color: 'red' }],
+    doors: [{ x: 1, y: 3, color: 'red' }],
+    keyMode: 'consume',
+    periodic: [{ x: 5, y: 2, period: 2 }],
+    switches: [{ x: 5, y: 3, group: 'g', targets: [{ x: 2, y: 2 }] }],
+    groupWalls: [{ x: 4, y: 5, group: 'g' }],
+    paint: [{ x: 5, y: 4 }],
+  };
+  const s = big(extra);
+  const before = snap(s.spec);
+  const len = s.history.length;
+  const loss = shrinkLoss(s, 4, 4);
+  assert.deepEqual(snap(s.spec), before); // ドライランは state 不変
+  assert.equal(s.history.length, len);
+  assert.equal(loss.ok, true);
+  assert.equal(loss.count, 12);
+  assert.equal(setGrid(s, 4, 4).ok, true);
+  assert.equal(s.history.length, len + 1); // commit は1回
+  assert.deepEqual(s.spec.grid, { cols: 4, rows: 4 });
+  for (let y = 0; y < 6; y++) for (let x = 0; x < 6; x++) {
+    if ((x >= 4 || y >= 4)) assert.equal(occupants(s.spec, x, y).length, 0, `${x},${y}`);
+  }
+  // 盤内は残る（ワープ・鍵ドアの片方、盤内の壁）
+  assert.deepEqual(s.spec.walls, [{ x: 1, y: 1 }]);
+  assert.deepEqual(s.spec.warps, [{ x: 1, y: 2, pair: 'a' }]);
+  assert.deepEqual(s.spec.doors, [{ x: 1, y: 3, color: 'red' }]);
+  assert.equal(s.spec.keys, undefined);
+  assert.equal(s.spec.paint, undefined);
+  assert.equal(undo(s).ok, true);
+  assert.deepEqual(snap(s.spec), before);
+});
+
+test('editor-state: 縮小 同居（壁＋目標マス・氷＋スイッチ対象）も盤外から消える', () => {
+  const s = big({ walls: [{ x: 5, y: 5 }], paint: [{ x: 5, y: 5 }], ice: [{ x: 4, y: 0 }], switches: [{ x: 0, y: 2, targets: [{ x: 4, y: 0 }] }] });
+  assert.equal(shrinkLoss(s, 4, 4).count, 4);
+  assert.equal(setGrid(s, 4, 4).ok, true);
+  assert.equal(s.spec.ice, undefined);
+  assert.deepEqual(s.spec.switches[0].targets, []);
+  assert.equal(s.spec.paint, undefined);
+  assert.deepEqual(s.spec.walls, []);
+});
+
+test('editor-state: 縮小 start・goal が盤外なら拒否して state 不変、盤外が空なら件数0で拡大は不変', () => {
+  const s = big({ walls: [{ x: 5, y: 5 }], goal: { x: 5, y: 0 } });
+  const before = snap(s.spec);
+  const len = s.history.length;
+  assert.equal(shrinkLoss(s, 4, 4).ok, false);
+  assert.equal(setGrid(s, 4, 4).ok, false);
+  assert.deepEqual(snap(s.spec), before);
+  assert.equal(s.history.length, len);
+  const t = big({});
+  assert.equal(shrinkLoss(t, 4, 4).count, 0);
+  assert.equal(shrinkLoss(t, 8, 8).count, 0);
+  assert.equal(setGrid(t, 8, 8).ok, true);
 });
 
 // ---- #402 段2: レッスンの面の一覧・並べ替え・固定 ----
@@ -428,6 +505,20 @@ test('editor-state: open 同士は壁を共有できる（最大2）。氷の上
   assert.equal(erase(s, 0, 1).ok, true); // スイッチだけ消え、氷は残る
   assert.deepEqual(s.spec.ice, [{ x: 0, y: 1 }]);
   assert.equal(s.spec.switches.length, 2);
+});
+
+test('editor-state: スイッチ本体＋氷のマスは、別タイルの上書きで氷も消え1手で戻る（#647）', () => {
+  const s = createState({ grid: { cols: 5, rows: 2 }, start: { x: 0, y: 0 }, goal: { x: 4, y: 1 }, walls: [], ice: [{ x: 0, y: 1 }] });
+  place(s, 'switches', 0, 1);
+  const before = snap(s.spec);
+  assert.equal(place(s, 'wall', 0, 1).ok, true);
+  assert.equal(hasAt(s.spec.ice, 0, 1), false);
+  assert.equal(hasAt(s.spec.switches, 0, 1), false);
+  assert.equal(hasAt(s.spec.walls, 0, 1), true);
+  assert.equal(undo(s).ok, true); // 1手で戻る
+  assert.deepEqual(snap(s.spec), before);
+  assert.equal(place(s, 'ice', 0, 1).ok, true); // 氷を置く操作は従来どおり（同種なので何もしない）
+  assert.deepEqual(snap(s.spec), before);
 });
 
 test('editor-state: スイッチと対象を動かす／消す', () => {
@@ -650,8 +741,11 @@ test('editor-state(keys): かぎ・ドアを置く（既定 red）→ 判定を�
   assert.deepEqual(pendingKeys(s.spec), []);
   assert.deepEqual(line(s.spec).messages, []);
   assert.equal(line(s.spec).clearable, true);
-  assert.equal(place(s, 'keys', 2, 0).ok, false); // ドアの上
-  assert.equal(place(s, 'doors', 1, 0).ok, false); // かぎの上
+  assert.equal(place(s, 'keys', 1, 0).ok, true); // かぎの上にかぎ＝何もしない
+  assert.deepEqual(s.spec.keys, [{ x: 1, y: 0, color: 'red' }]);
+  assert.equal(place(s, 'keys', 2, 0).ok, true); // ドアの上にかぎ＝ドアを消して置く
+  assert.equal(s.spec.doors, undefined);
+  assert.deepEqual(s.spec.keys.map((k) => k.x), [1, 2]);
   assert.equal(place(s, 'keys', 0, 0).ok, false); // start の上
   assert.equal(place(s, 'doors', 9, 0).ok, false); // 盤外
 });
@@ -748,7 +842,8 @@ test('editor-state(bridge): 置く・消す・動かす。水が無くても置�
   assert.equal(place(s, 'bridge', 2, 1).ok, true);
   assert.deepEqual(s.spec.bridge, [{ x: 2, y: 1 }]);
   assert.deepEqual(pendingBridges(s.spec), [{ index: 0, x: 2, y: 1 }]);
-  assert.equal(place(s, 'bridge', 2, 1).ok, false); // 重なり
+  assert.equal(place(s, 'bridge', 2, 1).ok, true); // 同種は何もしない
+  assert.deepEqual(s.spec.bridge, [{ x: 2, y: 1 }]);
   assert.equal(place(s, 'bridge', 0, 0).ok, false); // start の上
   assert.equal(place(s, 'bridge', 9, 9).ok, false); // 盤外
   assert.equal(place(s, 'water', 3, 1).ok, true);
@@ -912,4 +1007,224 @@ test('editor-state(tutorial): tutorialReach はゴールに着く手順だけ tr
   assert.equal(tutorialReach({ ...t, script: [{ tap: 'run' }] }), false);
   assert.equal(tutorialReach({ ...t, script: [{ tap: 'remove', index: 0 }, { tap: 'run' }] }), null);
   assert.equal(tutorialReach({ stepId: 'z' }), null);
+});
+
+// ---- 上書き（#647）：既存要素の上へ別のタイルを置くと、erase 相当で消してから置く。1手。 ----
+const ow = (extra = {}) => createState({ grid: { cols: 6, rows: 4 }, start: { x: 0, y: 0 }, goal: { x: 5, y: 3 }, ...extra });
+const hasAt = (arr, x, y) => (arr || []).some((c) => c.x === x && c.y === y);
+
+test('editor-state(上書き): 壁・SIMPLE_LISTS の上へ別タイル。1手で元に戻る', () => {
+  const s = ow({ walls: [{ x: 2, y: 1 }], items: [{ x: 3, y: 1 }], ice: [{ x: 4, y: 1 }] });
+  const original = snap(s.spec);
+  assert.equal(place(s, 'items', 2, 1).ok, true);
+  assert.equal(hasAt(s.spec.walls, 2, 1), false);
+  assert.equal(hasAt(s.spec.items, 2, 1), true);
+  assert.equal(s.history.length, 2);
+  assert.equal(place(s, 'wall', 3, 1).ok, true); // items → wall
+  assert.equal(s.spec.items.some((c) => c.x === 3), false);
+  assert.equal(place(s, 'cushion', 4, 1).ok, true); // ice → cushion
+  assert.equal(s.spec.ice, undefined);
+  assert.equal(undo(s).ok, true);
+  assert.equal(undo(s).ok, true);
+  assert.equal(undo(s).ok, true);
+  assert.deepEqual(s.spec, original);
+});
+
+test('editor-state(上書き): 水を消すと隣の橋も消える・水0件で waterMode も消える・同じ1手', () => {
+  const s = ow({ water: [{ x: 2, y: 1 }], bridge: [{ x: 3, y: 1 }], waterMode: 'bump' });
+  const original = snap(s.spec);
+  assert.equal(place(s, 'wall', 2, 1).ok, true);
+  assert.equal(s.spec.water, undefined);
+  assert.equal(s.spec.waterMode, undefined);
+  assert.equal(s.spec.bridge, undefined); // 水の無くなった橋
+  assert.ok(hasAt(s.spec.walls, 2, 1));
+  assert.equal(undo(s).ok, true);
+  assert.deepEqual(s.spec, original);
+  // 水が残るなら橋は残る
+  const t = ow({ water: [{ x: 2, y: 1 }, { x: 4, y: 1 }], bridge: [{ x: 3, y: 1 }], waterMode: 'bump' });
+  assert.equal(place(t, 'wall', 2, 1).ok, true);
+  assert.deepEqual(t.spec.bridge, [{ x: 3, y: 1 }]);
+  assert.equal(t.spec.waterMode, 'bump');
+});
+
+test('editor-state(上書き): bridge・周期ドア・切替壁の上へ別タイル', () => {
+  const s = ow({ bridge: [{ x: 1, y: 1 }], periodic: [{ x: 2, y: 1, period: 3 }], switches: [{ x: 1, y: 3, color: 'blue', group: 'a' }], groupWalls: [{ x: 3, y: 1, group: 'a' }] });
+  assert.equal(place(s, 'items', 1, 1).ok, true);
+  assert.equal(s.spec.bridge, undefined);
+  assert.equal(place(s, 'items', 2, 1).ok, true);
+  assert.equal(s.spec.periodic, undefined);
+  assert.equal(place(s, 'items', 3, 1).ok, true);
+  assert.equal(s.spec.groupWalls, undefined);
+  assert.equal(s.spec.items.length, 3);
+});
+
+test('editor-state(上書き): ワープはそのマスの分だけ消す（相手は残る）。別の組なら置き換わる', () => {
+  const s = ow({ warps: [{ x: 1, y: 1, pair: 1 }, { x: 3, y: 1, pair: 1 }] });
+  assert.equal(place(s, 'wall', 1, 1).ok, true);
+  assert.deepEqual(s.spec.warps, [{ x: 3, y: 1, pair: 1 }]);
+  assert.equal(place(s, 'warps2', 3, 1).ok, true);
+  assert.deepEqual(s.spec.warps, [{ x: 3, y: 1, pair: 2 }]);
+  assert.equal(place(s, 'wall', 3, 1).ok, true);
+  assert.equal(s.spec.warps, undefined);
+});
+
+test('editor-state(上書き): スイッチ本体を上書きすると group の壁が床に戻る。対象マスは targets だけ外れる', () => {
+  const s = ow({ switches: [{ x: 1, y: 3, color: 'blue', group: 'a' }], groupWalls: [{ x: 3, y: 1, group: 'a' }] });
+  assert.equal(place(s, 'items', 1, 3).ok, true);
+  assert.equal(s.spec.switches, undefined);
+  assert.equal(s.spec.groupWalls, undefined); // 床に戻る
+  assert.ok(hasAt(s.spec.items, 1, 3));
+  // targets のみ（壁なし）
+  const t = ow({ switches: [{ x: 1, y: 3, color: 'red', targets: [{ x: 2, y: 2 }] }] });
+  assert.equal(place(t, 'items', 2, 2).ok, true);
+  assert.deepEqual(t.spec.switches[0].targets, []);
+  assert.ok(hasAt(t.spec.items, 2, 2));
+  // targets＋壁の同居：壁だけ消えて置く。targets は残る
+  const u = ow({ walls: [{ x: 2, y: 2 }], switches: [{ x: 1, y: 3, color: 'red', targets: [{ x: 2, y: 2 }] }] });
+  assert.equal(place(u, 'items', 2, 2).ok, true);
+  assert.equal(hasAt(u.spec.walls, 2, 2), false);
+  assert.deepEqual(u.spec.switches[0].targets, [{ x: 2, y: 2 }]);
+  assert.ok(hasAt(u.spec.items, 2, 2));
+});
+
+test('editor-state(上書き): 鍵・ドアはそのマスの分だけ。0件で keyMode が消える。鍵↔ドアの置き換えでは keyMode を残す', () => {
+  const s = ow({ keys: [{ x: 1, y: 1, color: 'red' }], doors: [{ x: 2, y: 1, color: 'red' }], keyMode: 'remote' });
+  assert.equal(place(s, 'wall', 1, 1).ok, true);
+  assert.equal(s.spec.keys, undefined);
+  assert.deepEqual(s.spec.doors, [{ x: 2, y: 1, color: 'red' }]); // 相手は残る
+  assert.equal(s.spec.keyMode, 'remote');
+  assert.equal(place(s, 'wall', 2, 1).ok, true);
+  assert.equal(s.spec.doors, undefined);
+  assert.equal(s.spec.keyMode, undefined);
+  const t = ow({ keys: [{ x: 1, y: 1, color: 'red' }], keyMode: 'remote' });
+  assert.equal(place(t, 'doors', 1, 1).ok, true); // 鍵→ドア
+  assert.equal(t.spec.keys, undefined);
+  assert.deepEqual(t.spec.doors, [{ x: 1, y: 1, color: 'red' }]);
+  assert.equal(t.spec.keyMode, 'remote');
+});
+
+test('editor-state(上書き): paint は残して置く。壁＋paint は paint 以外を消して置き paint を残す', () => {
+  const s = ow({ paint: [{ x: 2, y: 1 }] });
+  assert.equal(place(s, 'wall', 2, 1).ok, true); // paint のみ → paint を残して壁を置く（壁＋paint ができる）
+  assert.ok(hasAt(s.spec.walls, 2, 1));
+  assert.ok(hasAt(s.spec.paint, 2, 1));
+  assert.equal(place(s, 'items', 2, 1).ok, true); // 壁＋paint → 壁を消して置く、paint は残る
+  assert.equal(hasAt(s.spec.walls, 2, 1), false);
+  assert.ok(hasAt(s.spec.items, 2, 1));
+  assert.ok(hasAt(s.spec.paint, 2, 1));
+  assert.equal(place(s, 'items', 2, 1).ok, true); // 同種（paint が重なっていても）は何もしない
+  assert.equal(s.history.length, 3);
+  // togglePaint が壁に置けない挙動は変わらない
+  const t = ow({ walls: [{ x: 2, y: 1 }] });
+  assert.equal(togglePaint(t, 2, 1).ok, false);
+});
+
+test('editor-state(上書き): start・goal は上書きできない。同種は履歴に積まない。盤外は拒否', () => {
+  const s = ow({ walls: [{ x: 2, y: 1 }] });
+  const before = snap(s);
+  assert.equal(place(s, 'wall', 0, 0).ok, false);
+  assert.equal(place(s, 'items', 5, 3).ok, false);
+  assert.equal(place(s, 'goal', 2, 1).ok, false); // 置く側は壁の上に置けない
+  assert.equal(place(s, 'wall', 6, 0).ok, false);
+  assert.equal(place(s, 'wall', 0, -1).ok, false);
+  assert.deepEqual(s, before);
+  assert.equal(place(s, 'wall', 2, 1).ok, true);
+  assert.equal(canUndoState(s), false);
+  assert.equal(s.history.length, 1);
+  assert.deepEqual(s, before);
+});
+
+// ---- #647 段4: ドラッグ連続配置 ----
+import { isDragKey, lineCells, dragBegin, dragStep, dragEnd, dragCancel } from '../tools/editor/editor-state.js';
+
+const emptyState = () => createState({ grid: { cols: 6, rows: 6 }, start: { x: 0, y: 0 }, goal: { x: 5, y: 5 }, walls: [] });
+const dragLine = (s, key, cells) => { const d = dragBegin(s, key); for (const c of cells) dragStep(s, d, c.x, c.y); return d; };
+
+test('lineCells: 斜め・飛びを Bresenham で埋める（両端含む）', () => {
+  assert.deepEqual(lineCells(0, 0, 3, 0), [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }, { x: 3, y: 0 }]);
+  assert.deepEqual(lineCells(2, 2, 2, 2), [{ x: 2, y: 2 }]);
+  assert.deepEqual(lineCells(3, 1, 0, 1).map((c) => c.x), [3, 2, 1, 0]);
+  const diag = lineCells(0, 0, 3, 3);
+  assert.equal(diag.length, 4);
+  assert.deepEqual(diag[3], { x: 3, y: 3 });
+});
+
+test('isDragKey: 単純タイルと消しゴムだけ', () => {
+  for (const k of ['wall', 'walls', 'items', 'ice', 'cushion', 'water', 'bridge', 'eraser']) assert.equal(isDragKey(k), true, k);
+  for (const k of ['start', 'goal', 'switches', 'keys', 'doors', 'periodic', 'paint', 'warps1', 'groupWalls']) assert.equal(isDragKey(k), false, k);
+});
+
+test('ドラッグで置く: 3マスを1手に畳み、1回の undo で戻る', () => {
+  const s = emptyState();
+  const before = snap(s.spec);
+  const d = dragLine(s, 'wall', lineCells(1, 2, 3, 2));
+  assert.equal(dragEnd(s, d), 3);
+  assert.equal(s.spec.walls.length, 3);
+  assert.equal(s.history.length, 2);
+  assert.equal(undo(s).ok, true);
+  assert.deepEqual(s.spec, before);
+  assert.equal(redo(s).ok, true);
+  assert.equal(s.spec.walls.length, 3);
+});
+
+test('ドラッグ: 既存の履歴を残し、盤外は置かず戻ったマスから続く', () => {
+  const s = emptyState();
+  place(s, 'wall', 4, 4);
+  const d = dragBegin(s, 'ice');
+  for (const [x, y] of [[0, 1], [-1, 1], [7, 1], [1, 1], [2, 1]]) dragStep(s, d, x, y);
+  assert.equal(dragEnd(s, d), 3);
+  assert.deepEqual(s.spec.ice.map((c) => c.x), [0, 1, 2]);
+  assert.equal(s.history.length, 3);
+  undo(s);
+  assert.equal(s.spec.ice, undefined);
+  assert.equal(s.spec.walls.length, 1);
+});
+
+test('ドラッグ: 消しゴムで連続して消せる・1手で戻る', () => {
+  const s = emptyState();
+  for (const x of [1, 2, 3]) place(s, 'wall', x, 2);
+  const n = s.history.length;
+  const d = dragLine(s, 'eraser', lineCells(1, 2, 3, 2));
+  assert.equal(dragEnd(s, d), 3);
+  assert.equal((s.spec.walls || []).length, 0);
+  assert.equal(s.history.length, n + 1);
+  undo(s);
+  assert.equal(s.spec.walls.length, 3);
+});
+
+test('ドラッグ: 同種の上は数えず、スタートの上は置けない', () => {
+  const s = emptyState();
+  place(s, 'wall', 1, 1);
+  const n = s.history.length;
+  const d = dragLine(s, 'wall', [{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 1 }]);
+  assert.equal(dragEnd(s, d), 1);
+  assert.equal(s.spec.walls.length, 2);
+  assert.equal(s.history.length, n + 1);
+});
+
+test('ドラッグ: 何も置けなければ履歴は増えない', () => {
+  const s = emptyState();
+  const d = dragLine(s, 'wall', [{ x: 9, y: 9 }]);
+  assert.equal(dragEnd(s, d), 0);
+  assert.equal(s.history.length, 1);
+});
+
+test('ドラッグ: cancel は開始時の状態に戻し履歴に積まない', () => {
+  const s = emptyState();
+  place(s, 'wall', 4, 4);
+  const before = snap(s);
+  const d = dragLine(s, 'wall', lineCells(0, 2, 3, 2));
+  assert.equal(s.spec.walls.length, 5);
+  dragCancel(s, d);
+  assert.deepEqual(s, before);
+});
+
+test('ドラッグ: 100手を超えても畳みで履歴の上限を守る', () => {
+  const s = emptyState();
+  for (let i = 0; i < HISTORY_MAX + 5; i += 1) { place(s, 'wall', i % 2 ? 2 : 3, 2); erase(s, i % 2 ? 2 : 3, 2); }
+  const d = dragLine(s, 'water', lineCells(0, 1, 5, 1));
+  dragEnd(s, d);
+  assert.ok(s.history.length <= HISTORY_MAX);
+  assert.equal(s.cursor, s.history.length - 1);
+  assert.equal(s.spec.water.length, 6);
 });
