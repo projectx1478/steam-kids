@@ -56,7 +56,7 @@
 - 移動規則：水は通行不可のマス（`blocks`）。`waterMode`が`"cushion"`なら`soft`になり、当たったら手前で止まり失敗にしない（`## cushion`と同じ。命令1つは無駄）。`"bump"`なら壁と同じ失敗（`blockedAt`・`bumped`）。壁・盤外は従来どおり失敗。BFS（最短手数）は動けない手を採らない
 - 描画：水のセルに波のSVGを重ね`data-water="true"`、橋のセルに板橋のSVGを重ね`data-bridge="true"`・`data-bridge-dir`（`h`横／`v`縦。上下に水があれば横、左右に水があれば縦、それ以外は横）を付ける。隣り合うタイルは各辺2pxずつ広げて枠の色を見せずにつなげる。水で止まると`view.bounce(dir, 'water')`（水しぶき＋困り顔）と効果音`splash`
 - 数値条件：水は盤内・重複不可で、壁・start・goal・items・ice・cushion・keys・doors・switches（targetsを含む）・paint・periodicと重ならない（併用自体は可）。橋は盤内・重複不可で、water・壁・cushion・doors・switches.targetsと重ならず、上下左右に水が1つ以上ある。`waterMode`は`"cushion"`/`"bump"`以外はNG、`water`が空のときの指定もNG
-- stageGen：`water`は`warps`・`periodic`と同時に指定できない（この3つは1種まで）。どんぐり・こおり・かぎ・クッション・スイッチとは併用できる。`paint`とは併用できる（`## paint`のstageGen参照）。壁`walls`は従来どおり併用可。`groupRepeats`・`repeatBox`とは併用不可。水マス数は2〜8。`waterMode`は入力にせず、`"cushion"`固定で出力する。水は連続した帯＋1マスの隙間（隙間が橋＝最短経路上）。橋は最短確定後、最短経路上で置けるときのみ置く（置けなければ橋なし）。`repeatBox`・`groupRepeats`は生成しない。`teach`は`gimmicks`に含めたギミックの1つを指定する（検査は`gimmicks`にあるかだけを見る）。`paint`と併用するときは`teach`に`water`も`paint`も指定できる。
+- stageGen：`water`は`warps`・`periodic`と併用できる（#649。1種制限は撤廃）。どんぐり・こおり・かぎ・クッション・スイッチとも併用できる。`paint`とも併用できる（`## paint`のstageGen参照）。壁`walls`は従来どおり併用可。`groupRepeats`・`repeatBox`とは併用不可。水マス数は2〜8。`waterMode`は入力にせず、`"cushion"`固定で出力する。水は連続した帯＋1マスの隙間（隙間が橋＝最短経路上）。橋は最短確定後、最短経路上で置けるときのみ置く（置けなければ橋なし）。`repeatBox`・`groupRepeats`は生成しない。`teach`は`gimmicks`に含めたギミックの1つを指定する（検査は`gimmicks`にあるかだけを見る）。`paint`と併用するときは`teach`に`water`も`paint`も指定できる。
 
 ## keys（かぎとドア）
 
@@ -97,14 +97,14 @@
 - 移動規則：通ったマス（startを含む）が塗られる。クリアは「ゴール到達かつ最後の塗り＝目標」（塗り残しも目標外を塗るのも失敗。同じマスの再通過は変化なし）。`simulate`の`unmet`に`'paint'`、`paintOver`に目標外のマスが入る。BFSは塗り集合を状態に含み、目標外を塗った状態は`dead`で捨てる
 - 描画：塗ったマスに黄（amber-300）の全面＋白い丸のSVGを重ね`.grid-paint`（0.3秒でフェードイン。reduced-motion時は即時）。補助行に目標を同じ色・図形で小さく見せる「みほん」ミニ盤（`data-paint-sample`）。クリア時は「みほんと おなじ！」。失敗時は目標外のマスに枠を出すだけで、文言のヒントは出さない
 - 数値条件：盤面の大きさは盤面共通の20×20以内。他のギミック・repeatBox・groupRepeatsと併用できる（#529。併用盤はエディタ限定でレッスンには出さない）。目標は盤内・壁・水・氷と重ならず重複なし・start/goalを含む（目標×氷の同じマスは検証NG）。目標を外した（塗り無し）最短より塗りありの最短が長いこと、`maxCommands`＝最短ちょうど。必須性の判定で、ドア・ワープの穴など壁にして外すマスは、ぬりの目標から除いて再判定する（目標に残すと外した盤が解けず「必須」と誤判定するため）
-- stageGen：`paint`は単独で指定する。ただし`water`とだけ併用できる（目標は水マスに置かず、橋の1マスを通る。items・ice・keys・cushion・switches・warps・periodicとは併用できない。壁`walls`は従来どおり併用可。`groupRepeats`・`repeatBox`とは併用不可）。目標マス数は4〜8。目標はstartからの細い経路型（2×2などの塊は作らず、末端をgoalにする）。`repeatBox`・`groupRepeats`は生成しない。`teach`の規則は`## water`のstageGenのとおり。
+- stageGen：`paint`は他のギミックと併用できる（#649。単独制限は撤廃）。`water`との併用では、目標は水マスに置かず橋の1マスを通る。items・ice・keys・cushion・switches・warps・periodicとの併用では、目標は他のギミックのマスを踏まず、塗りを外すと最短が縮む経路にする。壁`walls`は従来どおり併用可。`groupRepeats`・`repeatBox`とは併用不可。併用では成功率が下がることがある（実測は`## 併用の実測`）。目標マス数は4〜8。目標はstartからの細い経路型（2×2などの塊は作らず、末端をgoalにする）。`repeatBox`・`groupRepeats`は生成しない。`teach`の規則は`## water`のstageGenのとおり。
 
 ## warps（ワープ）
 
 - JSONフィールド：`warps`（任意・`{x, y, pair}`の配列・既定`[]`）。`pair`は1か2。同じ`pair`の穴がちょうど2個で1組。組は最大2。`play`・`tutorial`・`intro.demo`で使える
 - 移動規則：穴のマスへ入ると、同じ`pair`のもう一方の穴へ移って止まる（向きは変えない）。同じ手の中では出口から再ワープしない。後の手で出口へ入ると、逆向き（元の入口）へワープする。ワープ自体は手数に数えない（`## 何を1手と数えるか`）。状態を持たず、クリア条件は変えない（`redirect`フックの`end: true`）
 - 描画：穴のセルにうずまきのSVGを重ね`data-warp`（組の番号 1|2）・`data-mark`（`star`＝1組目・`square`＝2組目）を付ける。色は組ごとに紫・橙で、形（★■）でも見分けがつく
-- 数値条件：盤面の大きさは盤面共通の20×20以内。穴は盤内・整数で、壁・start・goal・items・cushion・water・bridge・keys・doors・switches（targetsを含む）・groupWalls・穴同士・ice・periodicと重ならない（同じマスの重なりは検証NG）。ice・paint・periodicとは別のマスなら併用できる（#529。併用盤はエディタ限定でレッスンには出さない）。ぬりの目標が穴に当たる盤は、必須性の判定で穴を目標から除いて再判定する。stageGenでは`warps`は`periodic`・`water`と同時に指定できず（この3つは1種まで）、どんぐり・こおり・かぎ・クッション・スイッチ・壁`walls`とは併用できる。`paint`・`groupRepeats`・`repeatBox`とは併用不可（検証NG）
+- 数値条件：盤面の大きさは盤面共通の20×20以内。穴は盤内・整数で、壁・start・goal・items・cushion・water・bridge・keys・doors・switches（targetsを含む）・groupWalls・穴同士・ice・periodicと重ならない（同じマスの重なりは検証NG）。ice・paint・periodicとは別のマスなら併用できる（#529。併用盤はエディタ限定でレッスンには出さない）。ぬりの目標が穴に当たる盤は、必須性の判定で穴を目標から除いて再判定する。stageGenでは`warps`は`periodic`・`water`・`paint`・どんぐり・こおり・かぎ・クッション・スイッチ・壁`walls`と併用できる（#649。1種制限・paint の併用不可は撤廃）。入口・出口は土台の橋の上に置かない。`groupRepeats`・`repeatBox`とは併用不可（検証NG）
 
 ## 何を1手と数えるか
 - 1手＝コマ1つ分の移動。
@@ -129,7 +129,7 @@
 - 必須性：ドアを常に開とみなした最短手数より、実際の最短手数が長くなければ不合格。
 - 周期ドアのある盤面でrepeatBoxは使えない（箱の展開が手番の周期をまたぐため。検証NGのまま）。groupRepeatsとは併用できる（#529。併用盤はエディタ限定）。ワープ・氷など他のマスと同じマスには置けない（重なりは検証NG。ワープとの重なりも含む）。
 - 盤面の大きさは盤面共通の20×20以内。
-- stageGen：`periodic`は`warps`・`water`と同時に指定できない（この3つは1種まで）。どんぐり・こおり・かぎ・クッション・スイッチ・壁`walls`とは併用できる。`paint`・`groupRepeats`・`repeatBox`とは併用不可。ドア数は1〜2、生成する`period`は3・4のみ（2は生成しない）。
+- stageGen：`periodic`は`warps`・`water`・`paint`・どんぐり・こおり・かぎ・クッション・スイッチ・壁`walls`と併用できる（#649。1種制限・paint の併用不可は撤廃）。周期ドアは土台の橋の上に置かない。`groupRepeats`・`repeatBox`とは併用不可。ドア数は1〜2、生成する`period`は3・4のみ（2は生成しない）。
 - 見せ方：ドアの下端に、周期の数だけドットを横一列に並べ、開閉のタイミングを示す。左から手番0。色は周期2＝青・赤、周期3＝青・黄・赤、周期4＝青・青・黄・赤（青＝開、黄・赤＝閉）。青は#0072B2、黄は#F0E442（濃い縁つき）、赤は#D55E00。現在の手番は黒の太縁で示す。色だけに頼らず形でも区別する（青は塗りの丸●、黄は塗りの三角▲、赤は塗りの四角■）。半開きアニメ・音は保留（実機確認後に決める）。
 
 ## エディタ自動判定の見込み（#400 向け・#389 の測定）
@@ -151,7 +151,7 @@
 
 ## 併用禁止の棚卸し（#649 段2）
 
-stageGen（たたき台）と盤の検証にある併用禁止を3つに分けた。行番号は段1（4d2b455）時点。(3) の撤廃と実測は段3で行う。
+stageGen（たたき台）と盤の検証にある併用禁止を3つに分けた。行番号は段1（4d2b455）時点。(3) は段3（#649）で撤廃した。
 
 ### (1) 技術的に不可能・(2) ルール上不可能（撤廃しない）
 
@@ -163,19 +163,49 @@ stageGen（たたき台）と盤の検証にある併用禁止を3つに分け�
 | (2) | 土台（`base`）×`water` | 水を土台と `gimmicks.water` の二重に定義することになる | `tools/editor/serve.mjs:221`（`checkGenerateBase`） |
 | (2) | `group`×`targets`（同じスイッチ） | 連動のキーが二重になる（どちらか一方） | `tools/editor/editor-view.js:132` |
 
-### (3) 撤廃（段3で撤廃）
+### (3) 撤廃（段3で撤廃済み）
 
 - `warps`・`periodic`・`water` の1種制限（`SG_ONE_OF_GIMMICKS`）: `tools/lib/validate/stagegen.mjs:14,86`、`tools/editor/editor-view.js:176`、`tools/editor/index.html:97,99`
 - 土台の水×`warps`・`periodic`: `tools/editor/serve.mjs:255-256`、`tools/editor/editor-view.js:255`
 - `paint` 単独（`SG_SOLO_GIMMICKS`・`SG_SOLO_EXCEPT`）: `tools/lib/validate/stagegen.mjs:10-12`、`tools/editor/editor-view.js:172-174,251`。盤の規則は併用を許す（上の `## paint`・`## warps`）
 
-### 実測待ち（理由の記述が無く、実測して必須性が100%なら撤廃する）
+### 実測した結果（理由の記述が無かったもの）
 
-- `cushion` を `teach` にするとき `ice` が要る規則（`tools/lib/validate/stagegen.mjs:87`）
-- `switches`×`keys`（`tools/lib/validate/stagegen.mjs:79`）
-- `warps`×`paint` の検証NG（`## warps` の数値条件。`## paint` は別マスなら併用できると書いており記述が食い違う）
-- 土台×`paint`（`tools/editor/serve.mjs:221`）
+- `switches`×`keys`: 撤廃した（実測は下の表。返った盤は全て必須）
+- `warps`×`paint` の検証NG（`## warps` の数値条件）: 記述を直した（盤の規則は別マスなら併用でき、stageGen も併用を許す）
+- `cushion` を `teach` にするとき `ice` が要る規則（`tools/lib/validate/stagegen.mjs`）: 撤廃しない。氷を足さない盤（6×6・seed 1〜200）でもクッションの必須性は200/200で成り立つので技術的には外せるが、設計（#649 の検査例 N4）で「クッションを教える盤には氷を併用する」を残すと決めた。外すかは別の判断
+- 土台×`paint`（`tools/editor/serve.mjs` の `checkGenerateBase`）: 撤廃しない。実測の対象外で、土台で決まる欄（水・色ぬり）は選べない仕様のまま（#631）
 
 ### 生成しない・撤廃対象外・理由未確認
 
 - `repeatBox`×`groupRepeats`（`tools/lib/validate/lesson.mjs:152-153`）。実測しても生成しないので撤廃の対象外。禁止の理由は未確認
+
+## 併用の実測（#649 段3）
+
+撤廃した併用を stageGen（`generateBoard`）で seed 1 から最大200まで回した目安。成功＝盤が返った／無＝候補なし（400回の再試行で受理できず）／中止＝探索量の上限（`GEN_ABORTED`）。必須＝返った全盤で、入っている全ギミック（`items`・`ice`・`keys`・`switches`・`cushion`・`warps`・`periodic`・`paint`・土台でない`water`）を個別に外すと最短が伸びる割合と、盤検査（`checkBoard`）に通る割合。成功率・時間は撤廃の可否に使わず、目安として残す。
+
+- 条件：最短手数 6×6=4〜12・10×10=6〜25・20×20=10〜50、かべ 6×6=1〜4・10×10=3〜10・20×20=10〜30、曲がる回数の下限1。ギミック数は warps 1〜2（土台水+warps のみ。ほかは1）・periodic 1・paint 4〜6・items 1〜2・keys 1・switches 1。「items4+keys2+switches2+warps2」は各個数固定。土台の水は盤の中段を横切る川（隙間が1か所。橋あり＝その隙間に橋、なし＝橋なし）。
+- 時間：1シードの時間の最大。1組み合わせあたり30秒を超えたら打ち切り、その時点の seed 数を「n seed」と書いた（20×20 と重い組み合わせは200に届かない）。
+- 必須の判定は生成側の判定と同じ関数（`tools/lib/must-matter.mjs`・`mattersFor`）を使う。生成器が通した盤を同じ物差しで再確認したもので、別の物差しではない。
+
+| 組み合わせ | 6×6 | 10×10 | 20×20 |
+|---|---|---|---|
+| base-water+warps | 200 seed: 成功100%/無0%/中止0%、最大0.0s、必須100% | 200 seed: 成功100%/無0%/中止0%、最大0.1s、必須100% | 200 seed: 成功100%/無0%/中止0%、最大0.6s、必須100% |
+| base-water+warps-nobridge | 200 seed: 成功100%/無0%/中止0%、最大0.0s、必須100% | 200 seed: 成功100%/無0%/中止0%、最大0.1s、必須100% | 196 seed: 成功100%/無0%/中止0%、最大0.9s、必須100% |
+| base-water+periodic | 200 seed: 成功100%/無0%/中止0%、最大0.0s、必須100% | 200 seed: 成功100%/無0%/中止0%、最大0.0s、必須100% | 122 seed: 成功100%/無0%/中止0%、最大1.1s、必須100% |
+| base-water+periodic-nobridge | 200 seed: 成功100%/無0%/中止0%、最大0.0s、必須100% | 200 seed: 成功100%/無0%/中止0%、最大0.0s、必須100% | 200 seed: 成功100%/無0%/中止0%、最大0.9s、必須100% |
+| base-water+warps+periodic | 200 seed: 成功100%/無0%/中止0%、最大0.0s、必須100% | 200 seed: 成功100%/無0%/中止0%、最大0.1s、必須100% | 159 seed: 成功100%/無0%/中止0%、最大1.2s、必須100% |
+| warps+periodic | 200 seed: 成功100%/無0%/中止0%、最大0.0s、必須100% | 200 seed: 成功100%/無0%/中止0%、最大0.3s、必須100% | 115 seed: 成功100%/無0%/中止0%、最大1.2s、必須100% |
+| paint+items | 8 seed: 成功0%/無100%/中止0%、最大4.7s、必須— | 2 seed: 成功0%/無0%/中止100%、最大16.3s、必須— | 1 seed: 成功0%/無0%/中止100%、最大30.8s、必須— |
+| paint+keys | 80 seed: 成功0%/無100%/中止0%、最大0.5s、必須— | 25 seed: 成功0%/無100%/中止0%、最大2.0s、必須— | 9 seed: 成功0%/無0%/中止100%、最大5.0s、必須— |
+| paint+warps | 46 seed: 成功0%/無100%/中止0%、最大0.9s、必須— | 23 seed: 成功0%/無0%/中止100%、最大2.1s、必須— | 31 seed: 成功0%/無0%/中止100%、最大1.5s、必須— |
+| paint+periodic | 69 seed: 成功0%/無100%/中止0%、最大0.6s、必須— | 58 seed: 成功0%/無0%/中止100%、最大1.0s、必須— | 85 seed: 成功0%/無0%/中止100%、最大0.7s、必須— |
+| keys+switches | 200 seed: 成功100%/無0%/中止0%、最大0.5s、必須100% | 32 seed: 成功88%/無13%/中止0%、最大2.7s、必須100% | 5 seed: 成功0%/無100%/中止0%、最大8.6s、必須— |
+| items4+keys2+switches2+warps2 | 7 seed: 成功0%/無0%/中止100%、最大6.2s、必須— | 4 seed: 成功0%/無0%/中止100%、最大12.4s、必須— | 4 seed: 成功0%/無0%/中止100%、最大10.8s、必須— |
+
+読み取り：
+- 土台の水+warps／periodic、warps+periodic、水+warps+periodic は、20×20 まで成功率100%・最大約1.2秒。返った盤は全て必須で、盤検査にも通る。
+- keys+switches は 6×6 で100%、10×10 で約9割。20×20 は5 seed で成功なし（最大8.6秒）。
+- 色ぬり+items／keys／warps／periodic、items4+keys2+switches2+warps2 は、この条件では盤が返らない（0%）。色ぬりは目標の末端が goal に置き換わるため、先に置いたギミックが必須でなくなる（main でも paint+keys は返った200盤の全てで keys が必須でなかった）。必須性を落として通すことはしない。探索が重い組み合わせは 10×10 で1シード十数秒、20×20 で30秒かかり、エディタでは「重すぎて途中で止めた」または「条件に合う盤が出なかった」になる。
+- 撤廃しなかったもの：`cushion` の teach に `ice`（上の棚卸しの理由）、土台×`paint`、`repeatBox`×`groupRepeats`。
+- 実行時間（`test:unit:core`・`test:unit:generate`、main と交互に測定）：generate 段は main 比 約1.03（114.4秒→117.8秒。3回の中央値）、core 段は約1.04（2回。1回目の main は土台のファイルが不足で無効）。合計は約1.03。許容（generate 段 ≤1.25・合計 ≤1.15）の内。generate 段のテストは `tools/gen/stage-gen.mjs` を通らないため、差は誤差の範囲。
