@@ -113,6 +113,31 @@ export default async function run({ page, check, shot }) {
     await save();
     await check('大項目が保存される', () => readIndex().tracks.some((t) => t.trackId === 'tr2' && t.units.some((u) => u.unitId === 'u2')), true);
 
+    // 5b. 単元のアイコン・色（#644）と変更の破棄
+    const styleBtn = (unitId, key, v) => page.locator(`#layout-body .lay-style[data-unit-id="${unitId}"] button[data-${key}="${v}"]`);
+    await check('変更なしのとき変更の破棄は無効', () => page.isDisabled('#layout-discard'), true);
+    await check('アイコンは6種＋なしの7ボタン', () => page.locator('#layout-body .lay-style[data-unit-id="commands"] .lay-style-icon button').count(), 7);
+    await check('色は6ボタン', () => page.locator('#layout-body .lay-style[data-unit-id="commands"] .lay-style-color button').count(), 6);
+    await styleBtn('commands', 'icon', 'donguri').click();
+    await check('icon を選ぶと保存が有効になる', () => page.isDisabled('#layout-save'), false);
+    await check('icon を選ぶと変更の破棄が有効になる', () => page.isDisabled('#layout-discard'), false);
+    await styleBtn('commands', 'color', 'rose').click();
+    await save();
+    await check('保存した index.json に icon が入る', () => unitOf(readIndex(), 'commands').icon, 'donguri');
+    await check('保存した index.json に color が入る', () => unitOf(readIndex(), 'commands').color, 'rose');
+    await check('未指定の単元には icon を書かない', () => Object.hasOwn(unitOf(readIndex(), 'ice'), 'icon'), false);
+    await check('未指定の単元には color を書かない', () => Object.hasOwn(unitOf(readIndex(), 'ice'), 'color'), false);
+    await styleBtn('commands', 'icon', 'donguri').click();
+    await check('変更の破棄の前は保存が有効', () => page.isDisabled('#layout-save'), false);
+    await page.click('#layout-discard');
+    await check('変更の破棄で保存が無効に戻る', () => page.isDisabled('#layout-save'), true);
+    await check('変更の破棄で icon の選択が元に戻る', () => styleBtn('commands', 'icon', 'donguri').getAttribute('aria-pressed'), 'true');
+    await styleBtn('commands', 'icon', 'donguri').click();
+    await styleBtn('commands', 'color', 'rose').click();
+    await save();
+    await check('未指定に戻して保存すると icon のキーが消える', () => Object.hasOwn(unitOf(readIndex(), 'commands'), 'icon'), false);
+    await check('未指定に戻して保存すると color のキーが消える', () => Object.hasOwn(unitOf(readIndex(), 'commands'), 'color'), false);
+
     // 6. 保存前検査の失敗
     const bytesBefore = fs.readFileSync(idxPath, 'utf8');
     const b1 = backupCount();

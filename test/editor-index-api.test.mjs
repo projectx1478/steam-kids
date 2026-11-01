@@ -7,7 +7,7 @@ import path from 'node:path';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { startEditorServer } from '../tools/editor/serve.mjs';
-import { setDevOnly, moveLesson, moveLessonToUnit, addUnit, removeUnit, renameUnit, addTrack, removeTrack, renameTrack } from '../tools/editor/layout-state.js';
+import { setUnitIcon, setUnitColor, setDevOnly, moveLesson, moveLessonToUnit, addUnit, removeUnit, renameUnit, addTrack, removeTrack, renameTrack } from '../tools/editor/layout-state.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -178,4 +178,26 @@ test('段2: 追加・削除の後の index は validateIndex が通る', async (
   const lessonById = new Map();
   for (const f of fs.readdirSync(s.lessonsDir)) if (f.endsWith('.json') && f !== 'index.json') lessonById.set(f.slice(0, -5), JSON.parse(fs.readFileSync(path.join(s.lessonsDir, f), 'utf8')));
   assert.deepEqual(validateIndex(readIndex(s), lessonById, new Set(lessonById.keys())), []);
+});
+
+test('#644 段3: icon・color 付き保存が往復し、未指定に戻すとキーが消える', async () => {
+  const s = setup();
+  await withServer(s, async (port) => {
+    const idx = (await call(port, 'GET', '/api/index')).json;
+    const unitId = idx.tracks[0].units[0].unitId;
+    const other = idx.tracks.flatMap((t) => t.units).find((u) => u.unitId !== unitId);
+    const next = setUnitColor(setUnitIcon(idx, unitId, 'donguri'), unitId, 'rose');
+    assert.equal(setUnitIcon(idx, unitId, 'star'), idx); // 未知の値は無効（同じ index）
+    const r = await call(port, 'PUT', '/api/index', next);
+    assert.equal(r.status, 200, JSON.stringify(r.json));
+    const saved = unitOf(readIndex(s), unitId);
+    assert.equal(saved.icon, 'donguri');
+    assert.equal(saved.color, 'rose');
+    assert.equal(Object.hasOwn(unitOf(readIndex(s), other.unitId), 'icon'), Object.hasOwn(other, 'icon')); // 触っていない単元に icon を足さない
+    assert.deepEqual((await call(port, 'GET', '/api/index')).json, next);
+    const back = setUnitColor(setUnitIcon(next, unitId, undefined), unitId, undefined);
+    assert.equal((await call(port, 'PUT', '/api/index', back)).status, 200);
+    assert.equal(Object.hasOwn(unitOf(readIndex(s), unitId), 'icon'), false);
+    assert.equal(Object.hasOwn(unitOf(readIndex(s), unitId), 'color'), false);
+  });
 });

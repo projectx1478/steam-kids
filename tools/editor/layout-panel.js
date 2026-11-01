@@ -1,6 +1,6 @@
 // 配置パネル（#618 段1・段2）。GET/PUT /api/index で lessons/index.json を読み書きする。編集は layout-state.js の純関数。
 import { canSetDevOnly, canMoveLesson, canMoveLessonToUnit, setDevOnly, moveLesson, moveLessonToUnit, isLayoutDirty,
-  checkNewId, addUnit, removeUnit, renameUnit, addTrack, removeTrack, renameTrack, canRemoveUnit, canRemoveTrack, layoutProblems } from './layout-state.js';
+  checkNewId, UNIT_ICONS, UNIT_COLORS, setUnitIcon, setUnitColor, addUnit, removeUnit, renameUnit, addTrack, removeTrack, renameTrack, canRemoveUnit, canRemoveTrack, layoutProblems } from './layout-state.js';
 
 const $ = (id) => document.getElementById(id);
 const KIND_LABEL = { lessonIds: '公開', practiceIds: 'れんしゅう', devOnlyIds: '開発者だけ' };
@@ -94,6 +94,34 @@ function addForm(label, kind, onAdd) {
   return f;
 }
 
+const ICON_LABEL = { commands: 'はた', donguri: 'どんぐり', ice: 'こおり', keys: 'かぎ', switches: 'スイッチ', teko: 'シーソー', none: 'なし' };
+const COLOR_LABEL = { emerald: 'みどり', amber: 'きいろ', sky: 'みずいろ', purple: 'むらさき', rose: 'ばら', teal: 'あおみどり' };
+
+// 単元のアイコンと色の選択。選んでいるボタンをもう一度押すと未指定（キーを書かない）に戻る。
+function styleRow(u) {
+  const row = document.createElement('div');
+  row.className = 'lay-style';
+  row.dataset.unitId = u.unitId;
+  const group = (label, cls, key, names, labels, set) => {
+    const g = document.createElement('span');
+    g.className = `lay-style-${cls}`;
+    g.append(label);
+    for (const n of names) {
+      const b = button(labels[n], () => edit((i) => set(i, u.unitId, u[key] === n ? undefined : n)), saving);
+      b.dataset[key] = n;
+      b.setAttribute('aria-pressed', String(u[key] === n));
+      if (u[key] === n) b.classList.add('on');
+      g.append(b);
+    }
+    return g;
+  };
+  row.append(
+    group('アイコン ', 'icon', 'icon', [...UNIT_ICONS, 'none'], ICON_LABEL, setUnitIcon),
+    group(' 色 ', 'color', 'color', UNIT_COLORS, COLOR_LABEL, setUnitColor),
+  );
+  return row;
+}
+
 export function renderLayout() {
   const body = $('layout-body');
   body.replaceChildren();
@@ -120,12 +148,22 @@ export function renderLayout() {
       ub.className += ' lay-del-unit';
       uh.append(titleInput(u.title, (v) => edit((i) => renameUnit(i, u.unitId, v))), ub);
       body.append(uh);
+      body.append(styleRow(u));
       for (const kind of ['lessonIds', 'practiceIds', 'devOnlyIds']) for (const id of u[kind] || []) body.append(renderRow(id, u.unitId, kind));
     }
     body.append(addForm('単元を追加', 'unit', (id, title) => edit((i) => addUnit(i, t.trackId, id, title))));
   }
   body.append(addForm('大項目を追加', 'track', (id, title) => edit((i) => addTrack(i, id, title))));
   $('layout-save').disabled = saving || !dirty() || problems.length > 0;
+  $('layout-discard').disabled = saving || !dirty();
+}
+
+// 保存前の変更を捨てて、最後に読んだ／保存した配置に戻す（履歴は持たない）
+export function discardLayout() {
+  if (saving || !dirty()) return;
+  current = saved;
+  showNg([]);
+  renderLayout();
 }
 
 function showNg(messages, ok = false) {
@@ -179,4 +217,5 @@ export function closeLayoutPanel() {
 }
 
 $('layout-save').addEventListener('click', saveLayout);
+$('layout-discard').addEventListener('click', discardLayout);
 $('layout-close').addEventListener('click', closeLayoutPanel);
