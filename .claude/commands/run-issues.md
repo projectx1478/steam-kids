@@ -57,8 +57,8 @@ Issue を選ぶときに付ける（付いていれば従う）。
 
 ### 1. モード「設計」
 1. `queue.md` から、状態が `待ち`・`再開可` で、依存がマージ済みで、区分が M・L の Issue を最大3件選ぶ（区分が空なら付ける）。
-2. Issue ごとに、`/design-issue <N>`（M は1〜2役、L は4役）→ 見本が要るなら見本の作成 → 専用の worktree（`git worktree add <MAIN>/.worktrees/<N> -b feature/issue-<N>-<slug> origin/main`。置き場所は `<MAIN>/.worktrees/<N>`。`.gitignore` 済み）→ worktree に node_modules の参照を作る（Windows：`cmd //c "mklink /J node_modules ..\..\node_modules"`、それ以外：`ln -s ../../node_modules node_modules`）→ ゲート判定（下の「ゲート判定」）まで進める。
-3. 次の項目を、`<MAIN>/review/autopilot/decisions/inbox.md` の1枚に、Issue ごと・項目ごとに記号付き（`A`〜`D`）でまとめる：設計案の承認／見本の色・形・文言・盤面／`.claude/` と docs の規則変更の文言。項目ごとに、番号・問い・選択肢・推奨案と理由1行・先例の有無・決めないと止まる段を書く。子どもが見る文言は、summary.md の「文言の経路一覧」（経路ごとの出る条件・行き先・文言）を1項目にまとめて出し、経路ごとに分けて後から聞き直さない（#542 で文言の決裁が2往復した）。
+2. Issue ごとに、**先に**専用の worktree（`git worktree add <MAIN>/.worktrees/<N> -b feature/issue-<N>-<slug> origin/main`。置き場所は `<MAIN>/.worktrees/<N>`。`.gitignore` 済み）と node_modules の参照（Windows：`cmd //c "mklink /J node_modules ..\..\node_modules"`、それ以外：`ln -s ../../node_modules node_modules`）を作り（設計の file:行 を origin/main 起点で取るため）、そのあと `/design-issue <N>`（M は1〜2役、L は4役。見本・事前点検・案ごとの事前ゲートを含む）まで進める。
+3. `<MAIN>/review/autopilot/decisions/inbox.md` の1枚に、Issue ごとに**案の選択を1項目**で積む（記号は案の名前 `A`〜`C`）。項目には summary.md の「案の比較表」（案ごとの要点・効果・コスト・事前ゲートの結果・止まりうる点と対処・悠さんに残る確認）と、推奨と理由1行を書く。見本の色・形・文言・盤面と、`.claude/`・docs の規則の文言は、各案の中に具体的な値で入れ、別の項目に分けない。子どもが見る文言は、summary.md の「文言の経路一覧」をその案の中にまとめて出す（#542 で文言の決裁が2往復した）。案と独立に決められる項目があるときだけ、別の項目にする。
 4. 状態を `設計承認待ち` にして、手順3（記録）へ。
 
 ### 2. モード「実装」
@@ -73,7 +73,8 @@ Issue を選ぶときに付ける（付いていれば従う）。
 2. 検査を新設・変更する設計なら、`boards/` の合格盤・不合格盤を `node tools/validate-lessons.mjs` 系で走らせ、結果を `<MAIN>/review/design/<N>/gate-validate.txt` に書く（他の verify・テストと並行させない）。
 3. `reviewer` をモード `ゲート判定` で呼ぶ。渡すのは、Issue 本文・`approved.md`・引き継ぎ書の決定欄のパス、`boards/`・`mock/`・`gate-validate.txt` のパス、`git worktree list` と `<MAIN>` の `git --no-pager status --short` の出力だけ。
 4. reviewer の返信を `<MAIN>/review/design/<N>/gate.md` に、日付を付けてそのまま保存する。
-5. 合格（G1〜G7 すべて合格）でなければ、coder を呼ばない。不合格の項目のうち、設計の直しで済む機械的なものは直してゲートをやり直す（1回まで）。残れば inbox.md に積む。
+5. 合格（G1〜G7 すべて合格）でなければ、coder を呼ばない。不合格の項目のうち、設計の直しで済む機械的なものは直してゲートをやり直す（1回まで）。やり直しでは reviewer に `再判定` と前回の gate.md のパスを渡し、前回の重大と「未確認」の項目だけを見させる。残れば inbox.md に積む。
+6. **承認後のゲート**：事前ゲートに通った案を選んだ承認なら、ゲートは `reviewer`（`model: sonnet`）をモード `確認ゲート` で呼ぶ（選んだ `plans/<案>.md`・`plans/<案>-gate.md`・approved.md のパスを渡す）。approved.md が案と違うのは悠さんの指示の分だけで、その節が書き直されていれば合格。不合格なら、上の5と同じに扱う。事前ゲートを経ていない approved.md（この手順より前の設計）は、従来どおり1〜5で判定する。
 
 ### 3. 記録
 各 Issue の終わりに、次を更新する。
