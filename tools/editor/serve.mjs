@@ -204,7 +204,7 @@ const GENERATE_GIMMICKS = ['items', 'ice', 'keys', 'cushion', 'switches', 'warps
 
 // stageGen.base（土台の盤。/api/generate の要求専用でレッスン JSON には書かない）の入力検査。問題があれば messages（空なら OK）。
 // 形：{grid:{cols,rows}（3〜20 の整数）, water?, bridge?, walls?（{x,y} の配列）}。stageGen は base 以外のキーとの併用検査用。
-const BASE_KEYS = ['grid', 'water', 'bridge', 'walls'];
+const BASE_KEYS = ['grid', 'water', 'bridge', 'walls', 'start'];
 export function checkGenerateBase(base, stageGen = {}) {
   const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
   if (!isObj(base)) return ['stageGen.base はオブジェクトにしてください'];
@@ -241,6 +241,14 @@ export function checkGenerateBase(base, stageGen = {}) {
       if (!seen.has(key)) seen.set(key, k);
     }
   }
+  if ('start' in base) {
+    const s = base.start;
+    if (!isObj(s) || !Number.isInteger(s.x) || !Number.isInteger(s.y) || s.x < 0 || s.y < 0 || s.x >= cols || s.y >= rows
+      || Object.keys(s).some((k) => k !== 'x' && k !== 'y')) {
+      out.push(`stageGen.base.start は盤の中の {x, y}（整数）にしてください: ${JSON.stringify(s)}`);
+      shapeOk = false;
+    }
+  }
   if (!shapeOk) return out;
   const water = new Set(lists.water.map((p) => `${p.x},${p.y}`));
   if (water.size > 0) {
@@ -255,17 +263,26 @@ export function checkGenerateBase(base, stageGen = {}) {
   const land = [];
   for (let y = 0; y < rows; y += 1) for (let x = 0; x < cols; x += 1) if (!blocked.has(`${x},${y}`)) land.push(`${x},${y}`);
   if (land.length < 2) { out.push('土台の陸が少ない（陸は2マス以上必要です）'); return out; }
+  // 孤立した陸があってもよい（生成は主の島＝陸のいちばん大きいつながりに置く。#649）。主の島が2マス未満のときだけ断る
   const landSet = new Set(land);
-  const reached = new Set([land[0]]);
-  const stack = [land[0]];
-  while (stack.length > 0) {
-    const [x, y] = stack.pop().split(',').map(Number);
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      const k = `${x + dx},${y + dy}`;
-      if (landSet.has(k) && !reached.has(k)) { reached.add(k); stack.push(k); }
+  const done = new Set();
+  let biggest = 0;
+  for (const first of land) {
+    if (done.has(first)) continue;
+    let size = 0;
+    done.add(first);
+    const stack = [first];
+    while (stack.length > 0) {
+      const [x, y] = stack.pop().split(',').map(Number);
+      size += 1;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const k = `${x + dx},${y + dy}`;
+        if (landSet.has(k) && !done.has(k)) { done.add(k); stack.push(k); }
+      }
     }
+    biggest = Math.max(biggest, size);
   }
-  if (reached.size !== land.length) out.push('土台の陸がつながっていない');
+  if (biggest < 2) out.push('土台の陸が少ない（つながった陸が2マス以上必要です）');
   return out;
 }
 

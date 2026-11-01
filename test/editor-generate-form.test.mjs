@@ -166,7 +166,8 @@ test('土台（#631）: OFF の本文は従来と同じ。ON は base を送り 
   assert.deepEqual(buildGenerateBody({ ...off, base: null, baseDirty: false }, 3), buildGenerateBody(off, 3));
   const spec = { grid: { cols: 6, rows: 6 }, start: { x: 0, y: 0 }, water: [{ x: 3, y: 0 }, { x: 3, y: 1 }, { x: 3, y: 2 }, { x: 3, y: 3 }, { x: 3, y: 5 }], bridge: [{ x: 3, y: 4 }], walls: [] };
   const base = baseFromSpec(spec);
-  assert.deepEqual(Object.keys(base), ['grid', 'water', 'bridge']);
+  assert.deepEqual(Object.keys(base), ['grid', 'water', 'bridge', 'start']);
+  assert.deepEqual(base.start, { x: 0, y: 0 });
   const on = form();
   on.base = base;
   on.baseDirty = false;

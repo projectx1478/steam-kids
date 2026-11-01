@@ -184,7 +184,44 @@ export function baseFromSpec(spec) {
   const pts = (list) => (list || []).map((p) => ({ x: p.x, y: p.y }));
   const base = { grid: { cols: spec.grid.cols, rows: spec.grid.rows } };
   for (const k of ['water', 'bridge', 'walls']) if ((spec[k] || []).length > 0) base[k] = pts(spec[k]);
+  if (spec.start) base.start = { x: spec.start.x, y: spec.start.y };
   return base;
+}
+
+// 土台（baseFromSpec の形）の陸のうち、生成が使う主の島（生成器の baseLayout と同じ選び方）が全陸の半分未満なら注記（#649）。
+export const UNUSED_LAND_NOTE = 'つかえない りくが おおいよ';
+export function unusedLandNote(base) {
+  if (!base || !base.grid) return '';
+  const blocked = new Set([...(base.water || []), ...(base.walls || [])].map((p) => `${p.x},${p.y}`));
+  const total = [];
+  for (let y = 0; y < base.grid.rows; y += 1) for (let x = 0; x < base.grid.cols; x += 1) if (!blocked.has(`${x},${y}`)) total.push(`${x},${y}`);
+  const left = new Set(total);
+  const sizes = new Map();
+  for (const first of total) {
+    if (!left.has(first)) continue;
+    left.delete(first);
+    const members = [];
+    const stack = [first];
+    while (stack.length > 0) {
+      const k = stack.pop();
+      members.push(k);
+      const [x, y] = k.split(',').map(Number);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const n = `${x + dx},${y + dy}`;
+        if (left.has(n)) { left.delete(n); stack.push(n); }
+      }
+    }
+    sizes.set(members, members.length);
+  }
+  let used = 0;
+  for (const m of sizes.keys()) {
+    if (m.length > used) used = m.length;
+  }
+  if (base.start) {
+    const sk = `${base.start.x},${base.start.y}`;
+    for (const m of sizes.keys()) if (m.length >= 2 && m.includes(sk)) used = m.length;
+  }
+  return total.length > 0 && used * 2 < total.length ? UNUSED_LAND_NOTE : '';
 }
 
 // フォームの値 { cols:{min,max}, rows, walls, shortestPath, minTurns, seed, teach, gimmicks:{items:{on,min,max},ice,keys,cushion,switches,warps,periodic,paint,water}, base?, baseDirty? } を送る前に検査する。

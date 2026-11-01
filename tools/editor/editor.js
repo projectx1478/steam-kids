@@ -1,6 +1,6 @@
 // 盤面エディタ（開発者用）の画面。盤面は js/ui-board.js の drawBoard 経由で描く。
 import { drawBoard } from '/js/ui-board.js';
-import { EMPTY_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clampCellPx, wheelCellPx, zoomPercent, formatMetrics, pendingSwitches, pendingGroupSwitches, pendingKeys, pendingBridges, pendingPaint, selectionHint, switchModeOptions, switchGroupOptions, GEN_COUNT, GEN_GIMMICKS, GEN_BASE_FIXED_GIMMICKS, baseFromSpec, checkGenerateForm, buildGenerateBody, generateStatusText } from './editor-view.js';
+import { EMPTY_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clampCellPx, wheelCellPx, zoomPercent, formatMetrics, pendingSwitches, pendingGroupSwitches, pendingKeys, pendingBridges, pendingPaint, selectionHint, switchModeOptions, switchGroupOptions, GEN_COUNT, GEN_GIMMICKS, GEN_BASE_FIXED_GIMMICKS, baseFromSpec, checkGenerateForm, buildGenerateBody, generateStatusText, unusedLandNote } from './editor-view.js';
 
 import { GIMMICKS } from '/js/gimmicks/index.js';
 import { markGatePassedToday } from '/js/gate-date.js';
@@ -787,6 +787,8 @@ async function generateNow(seed) {
     else {
       renderCandidates(body.candidates || []);
       text = generateStatusText(body.status);
+      const note = unusedLandNote(form.base);
+      if (note && (body.candidates || []).length > 0) text = text ? `${text}（${note}）` : note;
       genNextSeed = seed + GEN_COUNT;
     }
   } catch (e) {

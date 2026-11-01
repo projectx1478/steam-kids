@@ -349,10 +349,38 @@ function baseLayout(base) {
   const water = new Set(base.water.map(keyOf));
   const wall = new Set(base.walls.map(keyOf));
   const bridge = new Set(base.bridge.map(keyOf));
-  const land = [];
+  const all = [];
   for (let y = 0; y < base.grid.rows; y += 1) {
-    for (let x = 0; x < base.grid.cols; x += 1) if (!water.has(`${x},${y}`) && !wall.has(`${x},${y}`)) land.push({ x, y });
+    for (let x = 0; x < base.grid.cols; x += 1) if (!water.has(`${x},${y}`) && !wall.has(`${x},${y}`)) all.push({ x, y });
   }
+  // 陸のつながり（島）を行優先の最初のマス順に求め、主の島を選ぶ（#649）。start・goal・壁・ギミックは主の島の中だけに置く。
+  // 選び方＝base.start がある島（2マス以上）→最大→同数なら先に見つかった島。島が1つなら all と同じ（順序も同じ）。
+  const inAll = new Set(all.map(keyOf));
+  const seenIsle = new Set();
+  const islands = [];
+  for (const p of all) {
+    if (seenIsle.has(keyOf(p))) continue;
+    const isle = [];
+    const stack = [p];
+    seenIsle.add(keyOf(p));
+    while (stack.length > 0) {
+      const q = stack.pop();
+      isle.push(q);
+      for (const [dx, dy] of DIRS) {
+        const n = { x: q.x + dx, y: q.y + dy };
+        if (inAll.has(keyOf(n)) && !seenIsle.has(keyOf(n))) { seenIsle.add(keyOf(n)); stack.push(n); }
+      }
+    }
+    isle.sort((a, b) => a.y - b.y || a.x - b.x);
+    islands.push(isle);
+  }
+  let main = islands.reduce((best, isle) => (!best || isle.length > best.length ? isle : best), null) ?? [];
+  if (base.start) {
+    const sk = keyOf(base.start);
+    const hit = islands.find((isle) => isle.length >= 2 && isle.some((p) => keyOf(p) === sk));
+    if (hit) main = hit;
+  }
+  const land = main;
   const isLand = new Set(land.map(keyOf));
   const around = (p) => DIRS.map(([dx, dy]) => ({ x: p.x + dx, y: p.y + dy }));
   const nearBridge = (p) => bridge.has(keyOf(p)) || around(p).some((q) => bridge.has(keyOf(q)));
@@ -395,7 +423,7 @@ export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts 
   const allowed = stageGen.allowedCommands ?? ALLOWED;
   let work = 0;
   const base = stageGen.base
-    ? { grid: stageGen.base.grid, water: stageGen.base.water ?? [], bridge: stageGen.base.bridge ?? [], walls: stageGen.base.walls ?? [] }
+    ? { grid: stageGen.base.grid, water: stageGen.base.water ?? [], bridge: stageGen.base.bridge ?? [], walls: stageGen.base.walls ?? [], start: stageGen.base.start }
     : null;
   const baseInfo = base ? baseLayout(base) : null;
   const can = baseInfo ? baseInfo.can : () => true;
