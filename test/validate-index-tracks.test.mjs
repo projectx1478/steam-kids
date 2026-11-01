@@ -71,6 +71,52 @@ const cases = [
     (p) => p.tracks.push({ trackId: 'empty', title: 'から', units: [] }),
   ],
 ];
+// 単元の icon・color（Issue #644）。未知の値・文字列でない値は拒否、省略と許可値は合格。
+const unitOf = (p, id) => p.tracks[0].units.find((u) => u.unitId === id);
+cases.push(
+  ['I1: 未知の icon "star"→unitのicon', 'unitのicon', (p) => (unitOf(p, 'commands').icon = 'star')],
+  ['I2: icon が空文字→unitのicon', 'unitのicon', (p) => (unitOf(p, 'commands').icon = '')],
+  ['I3: icon が null→unitのicon', 'unitのicon', (p) => (unitOf(p, 'commands').icon = null)],
+  ['I4: icon が数→unitのicon', 'unitのicon', (p) => (unitOf(p, 'commands').icon = 3)],
+  ['C1: 未知の color "red"→unitのcolor', 'unitのcolor', (p) => (unitOf(p, 'commands').color = 'red')],
+  ['C2: color "bg-emerald-400"→unitのcolor', 'unitのcolor', (p) => (unitOf(p, 'commands').color = 'bg-emerald-400')],
+  ['C3: color が空文字→unitのcolor', 'unitのcolor', (p) => (unitOf(p, 'commands').color = '')],
+  ['C4: color が null→unitのcolor', 'unitのcolor', (p) => (unitOf(p, 'commands').color = null)],
+  ['C5: color が配列→unitのcolor', 'unitのcolor', (p) => (unitOf(p, 'commands').color = ['amber'])]
+);
+
+const okCases = [
+  ['I5: icon・color 全省略は OK', () => {}],
+  ['I6: icon "none" は OK', (p) => (unitOf(p, 'ice').icon = 'none')],
+  [
+    'I7: icon + color 指定は OK',
+    (p) => {
+      unitOf(p, 'commands').icon = 'donguri';
+      unitOf(p, 'commands').color = 'amber';
+    },
+  ],
+  [
+    'I8: 許可する icon 7種・color 6色すべて OK',
+    (p) => {
+      const icons = ['commands', 'donguri', 'ice', 'keys', 'switches', 'teko', 'none'];
+      const colors = ['emerald', 'amber', 'sky', 'purple', 'rose', 'teal'];
+      p.tracks[0].units.forEach((u, i) => {
+        u.icon = icons[i % icons.length];
+        u.color = colors[i % colors.length];
+      });
+    },
+  ],
+];
+for (const [label, mutate] of okCases) {
+  test(label, () => {
+    const p = boardP();
+    mutate(p);
+    const r = validate(p);
+    assert.equal(r.code, 0, r.out);
+    assert.match(r.out, /^OK: /m);
+  });
+}
+
 for (const [label, rule, mutate] of cases) {
   test(label, () => {
     const p = boardP();

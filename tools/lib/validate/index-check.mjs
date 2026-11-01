@@ -3,6 +3,10 @@ import { unitsOf } from '../../../js/index-units.js';
 import { textKanjiMaxGrade } from '../../../js/text-render.js';
 import { UNIT_GIMMICKS } from './common.mjs';
 
+// 単元の icon・color の許可値（Issue #644）。js/ui-picker.js の UNIT_STYLE・COLOR_BG のキーと揃える。
+const UNIT_ICONS = ['commands', 'donguri', 'ice', 'keys', 'switches', 'teko', 'none'];
+const UNIT_COLORS = ['emerald', 'amber', 'sky', 'purple', 'rose', 'teal'];
+
 // index.jsonはレッスン選択画面（単元マップ）用の一覧ファイル。参照するlessonIdが実在し、
 // unitIdがレッスン本体のunitIdと一致していることを確認する（Issue #58）。
 export function validateIndex(data,lessonById, fileIds = new Set()) {
@@ -67,6 +71,12 @@ export function validateIndex(data,lessonById, fileIds = new Set()) {
             add('gimmicks', `unitId="${unit.unitId}" の gimmicks に未知の値 ${JSON.stringify(g)}（許可: ${UNIT_GIMMICKS.join('・')}）`);
           }
         }
+      }
+    }
+    // icon・color＝単元ボタンの見た目（Issue #644）。省略可。js/ui-picker.js の名前表と同じ一覧。
+    for (const [key, allowed] of [['icon', UNIT_ICONS], ['color', UNIT_COLORS]]) {
+      if (key in unit && !allowed.includes(unit[key])) {
+        add(`unitの${key}`, `unitId="${unit.unitId}" の ${key} が不正 ${JSON.stringify(unit[key])}（許可: ${allowed.join('・')}）`);
       }
     }
     if (!Array.isArray(unit.lessonIds)) continue;

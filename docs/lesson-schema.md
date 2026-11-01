@@ -196,6 +196,16 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 開発者画面は全レッスンが開き、学習記録（events・tutorialDone・同期）を残さない。`lessons/*.json`は`lessonIds`・`practiceIds`・`devOnlyIds`のどれかに載せる（`validate-lessons`が検証）。
 単元の`gimmicks`（省略可。`items`・`ice`・`keys`の配列）は、その単元のレッスンを1本でもクリアすると練習の`generator`の`gimmickMix`で混ぜてよくなるギミックの種類。`practiceIds`・`devOnlyIds`はクリア判定に数えない。
 
+### 単元の`icon`・`color`（Issue #644。省略可）
+
+単元マップの見た目を単元ごとに選ぶ。どちらも固定の名前で、未知の値・文字列でない値（`""`・`null`・`"bg-emerald-400"`・`"red"`・`"star"`）は`validate-lessons`が拒否する。
+
+- `icon`：`commands`（旗）・`donguri`・`ice`・`keys`・`switches`・`teko`（シーソー）・`none`（アイコン無し）。
+- `color`：`emerald`・`amber`・`sky`・`purple`・`rose`・`teal`（`bg-*-400`の`*`部分）。
+- `icon`だけ指定すると色はその`icon`の既定色（commands＝emerald／donguri＝amber／ice＝sky／keys＝purple／switches＝rose／teko＝teal／none＝sky）。
+- 両方省略すると従来どおり`unitId`の既存表（上の6単元）、無ければ水色・アイコン無し。`color`だけ指定すると、アイコンは`unitId`の既存表のまま色だけ替わる。
+- 名前→クラス名の表は`js/ui-picker.js`の`COLOR_BG`（Tailwindスキャン用にリテラル）。許可値は`tools/lib/validate/index-check.mjs`の`UNIT_ICONS`・`UNIT_COLORS`と揃える。
+
 ## `generator`（シード生成の制約。Issue #68）
 
 `js/engine-generate.js`の`generateMap(generator, seed)`へ渡す制約。同じシードなら同じ盤面。れんしゅう（Issue #69）は`steps`が`seedPick`（`text`のみ）→`generator`付き`play`（盤面フィールドを持たない）→`summary`で、
