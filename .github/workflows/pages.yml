@@ -44,7 +44,7 @@ jobs:
       # Secret 未設定・取得失敗時は警告のみで曲なし配信を続ける（失敗にはしない）。
       - name: SSH鍵を登録する（BGM音源取得用）
         if: ${{ env.STATE_KEY_SET == 'true' }}
-        uses: webfactory/ssh-agent@v0.9.0
+        uses: webfactory/ssh-agent@v0.10.0
         with:
           ssh-private-key: ${{ secrets.STATE_DEPLOY_KEY }}
 
@@ -62,11 +62,11 @@ jobs:
           fi
           ls -la _site/audio/
 
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
 
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
