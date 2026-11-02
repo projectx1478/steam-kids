@@ -1,10 +1,9 @@
 // validate-lessons: rollBalls・pits の入力検査と、必須性・詰みの検査（Issue #287）。リポジトリ直下で実行すること。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { validateLesson } from '../tools/lib/validate/lesson.mjs';
 
-const base = JSON.parse(readFileSync('lessons/roll-01-korogasu.json', 'utf-8'));
+const base = {"lessonId":"roll-01-korogasu","unitId":"donguri","title":"ころがして うめる","type":"grid-runtime","estimatedMinutes":5,"steps":[{"stepId":"s1","kind":"intro","text":"ころがすと うごく たまが あるよ"},{"stepId":"p1","kind":"play","text":"ころがして すすもう","grid":{"cols":6,"rows":3},"start":{"x":0,"y":1},"goal":{"x":5,"y":1},"walls":[{"x":2,"y":0},{"x":3,"y":0},{"x":2,"y":2},{"x":3,"y":2}],"rollBalls":[{"x":2,"y":1}],"pits":[{"x":3,"y":1}],"allowedCommands":["up","down","left","right"],"solution":["right","right","right","right","right"],"maxCommands":7},{"stepId":"p2","kind":"play","text":"どこから ころがす？","grid":{"cols":5,"rows":4},"start":{"x":0,"y":1},"goal":{"x":2,"y":3},"walls":[{"x":1,"y":1},{"x":3,"y":1},{"x":0,"y":2},{"x":1,"y":2},{"x":3,"y":2},{"x":4,"y":2}],"rollBalls":[{"x":2,"y":1}],"pits":[{"x":2,"y":2}],"allowedCommands":["up","down","left","right"],"solution":["up","right","right","down","down","down"],"maxCommands":8},{"stepId":"s2","kind":"summary","text":"ころがして あなを うめたね"}]};
 const FILE = 'roll-01-korogasu.json';
 const board4 = { grid: { cols: 5, rows: 4 }, start: { x: 0, y: 0 }, goal: { x: 2, y: 3 }, walls: [{ x: 0, y: 2 }, { x: 1, y: 2 }, { x: 3, y: 2 }, { x: 4, y: 2 }], rollBalls: [{ x: 2, y: 1 }], pits: [{ x: 2, y: 2 }], solution: ['right', 'right', 'down', 'down', 'down'], maxCommands: 7 };
 

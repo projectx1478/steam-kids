@@ -1,13 +1,11 @@
 // 転がす球（rollBalls・pits）のエンジン：転がす・埋まる・動かせない・stateKey・最短・詰みの検査（Issue #287）。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { simulate, shortestSteps, findDeadStates, boardSpec } from '../js/engine-grid.js';
 import { rollBalls } from '../js/gimmicks/rollballs.js';
 
-const lesson = JSON.parse(readFileSync('lessons/roll-01-korogasu.json', 'utf-8'));
-const board1 = lesson.steps.find((s) => s.stepId === 'p1');
-const board2 = lesson.steps.find((s) => s.stepId === 'p2');
+const board1 = {"stepId":"p1","kind":"play","text":"ころがして すすもう","grid":{"cols":6,"rows":3},"start":{"x":0,"y":1},"goal":{"x":5,"y":1},"walls":[{"x":2,"y":0},{"x":3,"y":0},{"x":2,"y":2},{"x":3,"y":2}],"rollBalls":[{"x":2,"y":1}],"pits":[{"x":3,"y":1}],"allowedCommands":["up","down","left","right"],"solution":["right","right","right","right","right"],"maxCommands":7};
+const board2 = {"stepId":"p2","kind":"play","text":"どこから ころがす？","grid":{"cols":5,"rows":4},"start":{"x":0,"y":1},"goal":{"x":2,"y":3},"walls":[{"x":1,"y":1},{"x":3,"y":1},{"x":0,"y":2},{"x":1,"y":2},{"x":3,"y":2},{"x":4,"y":2}],"rollBalls":[{"x":2,"y":1}],"pits":[{"x":2,"y":2}],"allowedCommands":["up","down","left","right"],"solution":["up","right","right","down","down","down"],"maxCommands":8};
 const board3 = {"grid":{"cols":6,"rows":5},"start":{"x":0,"y":1},"goal":{"x":4,"y":4},"walls":[{"x":1,"y":0},{"x":2,"y":0},{"x":1,"y":2},{"x":2,"y":2},{"x":3,"y":2},{"x":5,"y":2},{"x":0,"y":3},{"x":1,"y":3},{"x":2,"y":3},{"x":3,"y":3},{"x":5,"y":3}],"rollBalls":[{"x":1,"y":1},{"x":4,"y":2}],"pits":[{"x":2,"y":1},{"x":4,"y":3}],"allowedCommands":["up","down","left","right"],"maxCommands":9};
 const board4 = {"grid":{"cols":5,"rows":4},"start":{"x":0,"y":0},"goal":{"x":2,"y":3},"walls":[{"x":0,"y":2},{"x":1,"y":2},{"x":3,"y":2},{"x":4,"y":2}],"rollBalls":[{"x":2,"y":1}],"pits":[{"x":2,"y":2}],"allowedCommands":["up","down","left","right"],"maxCommands":7};
 
