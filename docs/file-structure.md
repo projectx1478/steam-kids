@@ -33,6 +33,10 @@ js/
   ui-board.js # 盤面の共通部品（マスの大きさ・描画・描き直しの観察）
   ui-commands.js # 命令パレット・命令列・個別削除・全消し
   ui-step.js # ステップ切替、ふりがなトグル
+  ui-play-tray.js # play画面のどんぐりトレイ・問い文の描画（ui-play.js から setupTray(ctx) で呼ぶ。Issue #663）
+  ui-play-queue.js # play画面の編集・命令キュー・取り消し札・箱のバー（setupQueue・bindEditButtons。Issue #663）
+  ui-play-fail.js # play画面の失敗演出・ためしなおす（setupFail。Issue #663）
+  ui-play-segment.js # play画面の実行区間・「とめる」・じっこう/1コマボタン（setupSegment・bindRunButtons。Issue #663）
   ui-title.js # タイトル画面（はじめから／つづきから。起動時のみ。Issue #107・#218）
   ui-slots.js # スロット選択・上書き確認・名前入力（Issue #218）
   ui-story.js # 導入ストーリー（Issue #218）
