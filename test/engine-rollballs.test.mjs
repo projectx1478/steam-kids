@@ -92,3 +92,11 @@ test('詰みの検査：盤①〜③は詰みなし、盤④は詰みに届く',
 test('詰みの検査：maxNodesで打ち切るとtruncated', () => {
   assert.equal(findDeadStates(board3, { maxNodes: 5 }).truncated, true);
 });
+
+test('items と併用した盤：詰みなし・最短4手', () => {
+  const b = open({ rollBalls: [{ x: 1, y: 1 }], pits: [{ x: 2, y: 1 }], items: [{ x: 3, y: 1 }] });
+  const r = findDeadStates(b);
+  assert.equal(r.dead, 0);
+  assert.equal(r.truncated, false);
+  assert.equal(shortestSteps(b), 4);
+});

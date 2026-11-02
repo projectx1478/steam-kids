@@ -111,7 +111,7 @@
 - JSONフィールド：`rollBalls`（任意・`{x, y}`の配列・既定`[]`。たまの初期位置）、`pits`（任意・`{x, y}`の配列・既定`[]`。おとし穴）。`play`だけで使える（`tutorial`・`intro.demo`は対象外）
 - 移動規則：ロボットが進む先にたまがあれば同じ向きへ1マス転がし、ロボットはそのマスへ入る（1手）。たまは1マスで止まる（こおりのように滑り続けない）。転がし先が埋まっていないおとし穴ならたまは穴に埋まって消え、穴は床と同じになる。転がし先が盤外・壁・他のたまなら動かせず、壁と同じ失敗（`blockedAt`・`bumped`）。1手で動かせるのは1つ。埋まっていないおとし穴へ入る手も壁と同じ失敗。クリア条件は変えない（穴を全部埋めなくてよい）。BFSはたまの位置と埋まった穴を状態に含む
 - 描画：たまは茶〜橙の球（影・縫い目の模様・ハイライト。壁より小さめ）で`data-roll-ball`（添字）。おとし穴は暗い楕円のくぼみで`data-pit`（添字）、埋まると`data-pit-filled="true"`（縁の中にたまの上半分が見える絵）。転がすとロボットと同じ時間でたまが1マス動きながら回転し（1マス180度。影とハイライトは回さない）、穴に入ると0.3秒で沈んで埋まった穴に替わる。動かせないとたまが小さく震え、ロボットは手前で止まる（`view.bounce(dir, 'ball')`。目回し星なし・文字なし）。音は`step`。reduced-motion時は回転・沈み・震えを省いて即時
-- 数値条件：盤面の大きさは盤面共通の20×20以内。たまは1〜2個、おとし穴は1個以上たまの数以下（片方だけはNG）。盤内・整数・重複なしで、壁・start・goal・互いと重ならない。初回は他のギミック（items・ice・cushion・water・bridge・keys・doors・switches・groupWalls・paint・periodic・warps）と同じ盤に置けない。`repeatBox`・`groupRepeats`とも併用不可。たまを外しおとし穴を壁にした盤で`maxCommands`以内に届くと検証NG（転がす球の必須性）。startから届く状態のうち、ゴールへ二度と着けない状態（詰み）が1つでもあると検証NG（詰みの検査。探索は5万状態で打ち切り、打ち切りもNG）。詰みを許す盤（罠盤）は作らない（別Issueで検討）
+- 数値条件：盤面の大きさは盤面共通の20×20以内。たまは1〜2個、おとし穴は1個以上たまの数以下（片方だけはNG）。盤内・整数・重複なしで、壁・start・goal・互いと重ならない。併用できるのはitems・cushion・bridge・paint・keys・doors・water・`repeatBox`・`groupRepeats`。ice（1手に同じたまを2回押す）・warps（出口でたまを押す・1手に2球動く）・switches・groupWalls・periodic（転がしたあとそのマスが壁になり、たまだけ動く）は同じ盤に置けない（検証NG）。たま・おとし穴をwater・doors・cushionのマスに重ねるとNG。たまを外しおとし穴を壁にした盤で`maxCommands`以内に届くと検証NG（転がす球の必須性）。startから届く状態のうち、ゴールへ二度と着けない状態（詰み）が1つでもあると検証NG（詰みの検査。探索は5万状態で打ち切り、打ち切りもNG）。詰みを許す盤（罠盤）は作らない（別Issueで検討）
 - stageGen：対象外（生成しない）
 
 ## 何を1手と数えるか
@@ -171,7 +171,7 @@ stageGen（たたき台）と盤の検証にある併用禁止を3つに分け�
 | (2) | 同じマスに複数のギミックを置く（ワープ・壁・start・goal ほか） | 1マスに置けるギミックは1つ | `tools/lib/validate/board.mjs:83-106` |
 | (2) | 土台（`base`）×`water` | 水を土台と `gimmicks.water` の二重に定義することになる | `tools/editor/serve.mjs:221`（`checkGenerateBase`） |
 | (2) | `group`×`targets`（同じスイッチ） | 連動のキーが二重になる（どちらか一方） | `tools/editor/editor-view.js:132` |
-| (2) | `rollBalls`・`pits`×他のすべてのギミック | 初回は併用を禁止（#287。後で1つずつ許可するかは別Issue） | `js/gimmicks/rollballs.js`（`validate`） |
+| (2) | `rollBalls`・`pits`×ice・warps・switches・groupWalls・periodic | ice・warps・switches・groupWalls・periodic は禁止（理由は検証NGの文言）。items・cushion・bridge・paint・keys・doors・water・repeatBox・groupRepeats は併用可（water・doors・cushion のマスには重ねない） | `js/gimmicks/rollballs.js`（`validate`） |
 
 ### (3) 撤廃（段3で撤廃済み）
 

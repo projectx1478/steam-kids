@@ -36,11 +36,27 @@ test('座標：盤外・整数でない・重複・重なり', () => {
   assert.ok(has(check((l, p) => { p.pits = [{ x: 2, y: 1 }]; }), '盤面の妥当性', 'pits[0] がrollBallsと重なる'));
 });
 
-test('併用禁止：他ギミック・repeatBox・groupRepeats', () => {
-  assert.ok(has(check((l, p) => { p.items = [{ x: 4, y: 1 }]; }), '盤面の妥当性', 'items は同じ盤に置けない'));
-  assert.ok(has(check((l, p) => { p.ice = [{ x: 4, y: 1 }]; }), '盤面の妥当性', 'ice は同じ盤に置けない'));
-  assert.ok(has(check((l, p) => { p.groupRepeats = true; }), '盤面の妥当性', 'groupRepeats'));
-  assert.ok(has(check((l, p) => { p.repeatBox = true; }), '盤面の妥当性', 'repeatBox'));
+test('併用禁止：ice・warps・switches・groupWalls・periodic（理由つき）', () => {
+  const pt = [{ x: 4, y: 1 }];
+  assert.ok(has(check((l, p) => { p.ice = pt; }), '盤面の妥当性', 'ice は同じ盤に置けない（1手に同じたまを2回押す）'));
+  assert.ok(has(check((l, p) => { p.warps = [{ a: { x: 4, y: 0 }, b: { x: 4, y: 2 } }]; }), '盤面の妥当性', 'warps は同じ盤に置けない（出口でたまを押す'));
+  assert.ok(has(check((l, p) => { p.switches = [{ x: 4, y: 1, targets: [{ x: 4, y: 0 }] }]; }), '盤面の妥当性', 'switches は同じ盤に置けない'));
+  assert.ok(has(check((l, p) => { p.groupWalls = [{ x: 4, y: 0 }]; }), '盤面の妥当性', 'groupWalls は同じ盤に置けない'));
+  assert.ok(has(check((l, p) => { p.periodic = [{ x: 4, y: 0, period: 3 }]; }), '盤面の妥当性', 'periodic は同じ盤に置けない'));
+});
+
+test('併用してよい：items・paint・repeatBox・groupRepeats は合格', () => {
+  const noRoll = (errs) => !errs.some((e) => e.includes('盤面の妥当性') && /rollBalls・pits/.test(e));
+  assert.ok(noRoll(check((l, p) => { p.items = [{ x: 4, y: 1 }]; })));
+  assert.ok(noRoll(check((l, p) => { p.paint = [{ x: 4, y: 1 }]; })));
+  assert.ok(noRoll(check((l, p) => { p.repeatBox = true; })));
+  assert.ok(noRoll(check((l, p) => { p.groupRepeats = true; })));
+});
+
+test('置き方：たま・おとし穴を water・doors・cushion のマスに重ねるとNG', () => {
+  assert.ok(has(check((l, p) => { p.water = [{ x: 3, y: 1 }]; }), '盤面の妥当性', 'pits[0] が water のマスと重なる'));
+  assert.ok(has(check((l, p) => { p.doors = [{ x: 2, y: 1, color: 'red' }]; }), '盤面の妥当性', 'rollBalls[0] が doors のマスと重なる'));
+  assert.ok(has(check((l, p) => { p.cushion = [{ x: 3, y: 1 }]; }), '盤面の妥当性', 'pits[0] が cushion のマスと重なる'));
 });
 
 test('置き場所：tutorial と intro.demo には書けない', () => {

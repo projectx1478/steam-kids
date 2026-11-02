@@ -31,7 +31,16 @@ const FILLED_SVG = svgLayer(`${PIT_BASE}
   <path d="M12 33 A20 16 0 0 1 52 33 A20 6 0 0 1 12 33 Z" fill="#c2701f" />
   <ellipse cx="32" cy="30" rx="14" ry="8" fill="#e08a2e" />
   <ellipse cx="26" cy="27" rx="6" ry="3" fill="#fde1b0" opacity="0.75" />`);
-const OTHERS = ['items', 'ice', 'cushion', 'water', 'bridge', 'keys', 'doors', 'switches', 'groupWalls', 'paint', 'periodic', 'warps'];
+// 併用禁止（理由つき）。items・cushion・bridge・paint・keys・doors・water・repeatBox・groupRepeats は併用してよい。
+const EXCLUDED = {
+  ice: '1手に同じたまを2回押す',
+  warps: '出口でたまを押す・1手に2球動く',
+  switches: '転がしたあとそのマスが壁になり、たまだけ動く',
+  groupWalls: '転がしたあとそのマスが壁になり、たまだけ動く',
+  periodic: '転がしたあとそのマスが壁になり、たまだけ動く',
+};
+// たま・おとし穴を重ねられないギミック（穴が埋まる矛盾・ドアにたまが閉じ込められる）。
+const NO_OVERLAP = ['water', 'doors', 'cushion'];
 
 export const rollBalls = {
   key: 'rollBalls',
@@ -230,11 +239,16 @@ export const rollBalls = {
     check('rollBalls', balls, set(pits), 'pits');
     check('pits', pits, set(balls), 'rollBalls');
 
-    for (const k of OTHERS) {
-      if (has(board[k])) add(NAME, `${label}rollBalls・pits と ${k} は同じ盤に置けない（併用禁止）`);
+    for (const [k, why] of Object.entries(EXCLUDED)) {
+      if (has(board[k])) add(NAME, `${label}rollBalls・pits と ${k} は同じ盤に置けない（${why}）`);
     }
-    for (const k of ['repeatBox', 'groupRepeats']) {
-      if (board[k] === true) add(NAME, `${label}rollBalls・pits と ${k} は併用できない`);
+    for (const k of NO_OVERLAP) {
+      const cells = set(board[k]);
+      for (const [kind, points] of [['rollBalls', balls], ['pits', pits]]) {
+        points.forEach((c, i) => {
+          if (isPoint(c) && cells.has(keyOf(c))) add(NAME, `${label}${kind}[${i}] が ${k} のマスと重なる`);
+        });
+      }
     }
   },
 };

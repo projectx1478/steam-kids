@@ -107,7 +107,7 @@ DOM判定用に箱チップへ`data-round`（0始まりの現在周。実行外�
 `maxCommands`はゴール到達と全item回収の両方を満たす最短経路の手数（`groupRepeats`時はチップ数）
 で判定される（Issue #60）。`maxCommands`は想定の手数（盤の最短手数以上の整数）で、子どもの画面の上限ではない。
 子どもの画面は手数を制限しない。ギミックを使わない遠回りの解は許す。ギミックは想定の最短（`maxCommands`）では必須（検査で確かめる）。命令の列が長くなっても、
-実行中は今のチップが列の中に追従して見える（Issue #393）。`rollBalls`（たま）・`pits`（おとし穴）は`play`だけで使え、他のギミックと同じ盤に置けない（仕様は`docs/gimmicks.md`）。
+実行中は今のチップが列の中に追従して見える（Issue #393）。`rollBalls`（たま）・`pits`（おとし穴）は`play`だけで使え、ice・warps・switches・groupWalls・periodic とは同じ盤に置けない（仕様は`docs/gimmicks.md`）。
 
 `play.text`（任意・文字列。他stepの`text`と同じくルビ記法・20字制限の検証対象）を指定すると、
 playステップの指示文になる。未指定時の既定文言は`items`の有無で決まる（`js/ui-step.js`）：
