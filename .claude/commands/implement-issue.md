@@ -56,6 +56,7 @@ Bの修正後に、静的な再照合は回さない。確かめるのはCIの�
 4. `gh issue view <N> --json number,title,body,labels` で本文を取得し、依存先がすべてクローズ済みであることを確認する。
 5. `git --no-pager log -5 --oneline` でコミットメッセージの書き方を確認する。
 6. `.github/workflows/e2e-pr.yml` を読み、PR本文の `E2E:` 行の書式（区切り・シナリオ名の形）を確認する。
+7. 着手宣言：ブランチ名を決め（run-issues 経由は用意済みの worktree のブランチ）、`node tools/parallel-check.mjs <N> --claim env=<local|cloud> branch=<ブランチ名>` を実行する。終了コード2（他の環境が着手中）または3（オープン PR と重なる）なら止まって報告する（`/run-issues` 経由では inbox に積む）。重なりが行の離れた追記だけなら、理由を報告に書いて続行してよい。
 
 ### 1. ブランチ
 `git switch -c feature/issue-<N>-<短い英語のslug>`（`main` から）。`/run-issues` 経由で専用の worktree（`<MAIN>/.worktrees/<N>`）とブランチが用意済みなら、切らずにその worktree で作業する（`review/design/<N>/` は main 作業ツリー側を絶対パスで読む）。クラウドセッションでは、設計で切ったブランチがその clone に無いので、`git fetch origin <branch>` で取ってから `git worktree add <MAIN>/.worktrees/<N> <branch>` で作業する（ブランチが未 push なら `origin/main` から新規に切る）。
@@ -88,6 +89,7 @@ Tailwind のクラスを足したのに、`style.css` が `git --no-pager diff -
 5. `git log -1 --format="%an <%ae>"` を実行する。noreply 形式（`...@users.noreply.github.com`）でなければ push せず、止まって報告する。
 
 ### 6. push と PR（新シナリオをCIで走らせる）
+PR 作成前に `node tools/parallel-check.mjs <N>` を実行し、終了コード3なら報告に重なりを書く。
 1. `git push -u origin <ブランチ>`。
 2. `gh pr create` で PR を作る（`/run-issues` 経由では `--draft` を付ける）。本文は次のとおり。
    - `Closes #<N>`

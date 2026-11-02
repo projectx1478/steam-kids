@@ -35,7 +35,7 @@ Issue #$ARGUMENTS を、軽い経路で実装する。サブエージェント�
 Issue本文の作業内容と完了条件に沿って変更する。
 - シナリオ（`.claude/verify/`）を書く場合：その前に、`.claude/verify/run.mjs` の `check()` の仕様と、似た既存シナリオ1本を読む。期待値は isEqual で比べるだけで、**正規表現は使えない**。セットアップは goto → evaluate の順で、`about:blank` のまま `localStorage` に書かない。
 - Tailwind のクラスを足したら `npm run build:css` を回し、`style.css` を変更ファイルに含める。
-- ファイルやモジュールを足したら、`service-worker.js` の `APP_SHELL` に加え、`CACHE_NAME` と `js/config.js` の `APP_VERSION` を同時に上げる。
+- ファイルやモジュールを足したら、`service-worker.js` の `APP_SHELL` を更新する。`CACHE_NAME`・`APP_VERSION` は触らない（`steam-kids-cache-dev` のまま。デプロイ時に自動付与される）。
 - 子ども向けの文言は、ひらがな中心にし、失敗や損失を感じさせる表現、連続記録・点数・比較を入れない。
 
 ### 3. 検証（差分に合わせる）
@@ -49,7 +49,7 @@ Issue本文の作業内容と完了条件に沿って変更する。
 1. `git --no-pager diff --stat` と `git --no-pager status -uall` で、変更が Issue の範囲のファイルだけである。
 2. 禁止ファイル、`review/`、画像、観察メモが含まれていない。
 3. Tailwind のクラスを足したなら、`style.css` が stat に出ている。
-4. ファイル・モジュールを足したなら、`APP_SHELL`・`CACHE_NAME`・`APP_VERSION` が揃っている。
+4. ファイル・モジュールを足したなら、`APP_SHELL` が揃っている。`CACHE_NAME`・`APP_VERSION` は `steam-kids-cache-dev` のまま。
 5. 子ども向けの文言・配置が三原則と48px以上の基準に合っている。
 
 ### 5. コミット・push・PR

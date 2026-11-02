@@ -23,7 +23,7 @@ model: sonnet
 ## 守ること
 - 設計に書いていない変更をしない。設計が曖昧・矛盾しているときは、推測で進めず、止まって質問を報告する。
 - 触らないもの：`.claude/`（`.claude/verify/` のシナリオの追加・修正は、設計に書かれている場合のみ可）、`PROJECT.md`、`CLAUDE.md`、`AGENTS.md`、凍結fixture（cmd-01・donguri-01）、`config.mjs`、`review/`。
-- ファイルやモジュールを足したら、`service-worker.js` の `APP_SHELL` に加え、`CACHE_NAME` と `js/config.js` の `APP_VERSION` を同時に上げる。
+- ファイルやモジュールを足したら、`service-worker.js` の `APP_SHELL` を更新する。`CACHE_NAME`・`APP_VERSION` は触らない（`steam-kids-cache-dev` のまま。デプロイ時に自動付与される）。
 - Windows の PowerShell で動く書き方にする。`git` の書き込み系コマンド（add・commit・push・switch など）は実行しない。読むときは `git --no-pager` を付ける。
 - E2E はローカルで実行しない（CIのみ）。
 

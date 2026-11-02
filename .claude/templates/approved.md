@@ -44,7 +44,7 @@ G1 にあって check-approved が見ない項目（人が見る）：コード�
 - 完了条件：`npm run verify:fast` pass ＋ <その段固有の確認>。generate を含む／含まない。予想 <秒>（実測／推定）。
 
 ## 実装時に守ること
-- 範囲：触るのは <ファイル>。触らない：`.claude/`・`PROJECT.md`・`CLAUDE.md`・`AGENTS.md`・`.claude/verify/config.mjs`・凍結 fixture（cmd-01・donguri-01）。`APP_VERSION`・`CACHE_NAME`・`APP_SHELL` はファイルやモジュールを足すとき更新してよい。
+- 範囲：触るのは <ファイル>。触らない：`.claude/`・`PROJECT.md`・`CLAUDE.md`・`AGENTS.md`・`.claude/verify/config.mjs`・凍結 fixture（cmd-01・donguri-01）。ファイルやモジュールを足すときの `APP_SHELL` の更新は、更新してよい。`APP_VERSION`・`CACHE_NAME` は触らない（自動付与。値を変えると CI が失敗する）。
 - 停止条件：<設計に固有のもの。`implement-issue.md` の停止の規則と重ねない>
 - 報告：標準どおり。
 - PR規則：標準どおり。

@@ -105,6 +105,16 @@ playステージは`maxPauses`（「とめる」ブロック数の上限。0以�
 
 影響範囲確認：レッスンJSONやDOM契約を変える時は`.claude/verify/scenarios/`をgrepして影響シナリオを列挙し、凍結fixture（cmd-01・donguri-01）の対象かも確認する。
 
+### 並行作業と版数
+
+- 版数：`APP_VERSION`・`CACHE_NAME` は `steam-kids-cache-dev` のまま。PRで上げない（CIが失敗）。デプロイ時に自動付与（`docs/caching.md`）。
+- 着手宣言：Issueラベル`agent:<tool>`＝ツール単位のロック（正本）。コメント`着手:`はその中の環境・ブランチ単位の補助。詳細は`docs/parallel-ops.md`。
+- 着手時とPR作成前に`node tools/parallel-check.mjs`を実行。終了コード2（他環境が着手中）・3（PRと重なり）は止まって報告する。
+- マージ順：後から出すPRは`git merge origin/main`→軽量チェック再実行→push。競合しやすいファイルの同時変更は先行PRを待つ。
+- PRのE2E行は12本が上限（超過分は走らない）。`VERIFY-ALL`の本数と照合し、残りは手動実行する。
+- `/run-issues`・`/implement-issue`はClaude Code専用の任意の自動化。規則の正本はPROJECT.md・`docs/parallel-ops.md`・スクリプト・CI。
+- 承認済み設計の正本はIssueの最新コメント「承認済み設計」。
+
 ### ギミックの追加手順・検証規則
 
 → `docs/gimmicks.md`「追加手順・検証規則」。コーディング規則・ラベル分類・コード再利用は `docs/dev-rules.md`。
@@ -133,6 +143,7 @@ P0〜P5のロードマップは `docs/roadmap.md`。**P0を実機で試すまで
 - `docs/dashboard.md` — ダッシュボード変更時に読む
 - `docs/design-sync.md` — 同期・ゲート変更時に読む
 - `docs/caching.md` — SW・キャッシュ変更時に読む
+- `docs/parallel-ops.md` — 並行作業の着手宣言・重複確認（`tools/parallel-check.mjs`）
 - `docs/file-structure.md` — ファイルの新設・移動時に読む
 - `docs/dev-rules.md` — コーディング規則・ラベル分類・コード再利用
 - `docs/roadmap.md` — フェーズ計画を検討する時に読む
