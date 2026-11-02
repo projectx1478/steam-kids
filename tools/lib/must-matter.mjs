@@ -74,6 +74,13 @@ export function cushionMustMatter(play, dist) {
   return { matters: noCushionDist !== dist, dist: noCushionDist };
 }
 
+// 転がす球を外し、おとし穴を壁にした盤で想定の手数（maxCommands）以内に届くなら、球が飾り（Issue #287。keysMustMatter と同形）。
+export function rollBallsMustMatter(play) {
+  if (!(Array.isArray(play.rollBalls) && play.rollBalls.length > 0)) return { matters: true, dist: null };
+  const dist = shortest(play, GIMMICKS.find((g) => g.key === 'rollBalls').strip(boardSpec(play)));
+  return { matters: !(dist <= play.maxCommands), dist };
+}
+
 // どんぐりの必須性：どんぐりを除いた盤の最短 < 実際の最短 (generateMap の itemsMustMatter と同じ向き)
 export function itemsMustMatter(spec, dist) {
   const strip = GIMMICKS.find((g) => g.key === 'items').strip(spec);

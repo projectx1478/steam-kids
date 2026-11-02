@@ -48,6 +48,8 @@ export function drawBoard({ boardWrap, spec, cellSize, gap, pad, playerPos, labe
     paint: spec.paint,
     periodic: spec.periodic,
     warps: spec.warps,
+    rollBalls: spec.rollBalls,
+    pits: spec.pits,
     playerPos,
     labels,
     cellSize,

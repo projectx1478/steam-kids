@@ -38,6 +38,7 @@
 - PR の分け方：1 PR・2段（段1＝部品＋play、段2＝tutorial・predict・禁止パターン・台帳）。
 - 状態：移行完了（`board 0`、`excluded` の `js/ui-demo.js` に 1）。
 - 水・橋（#338）：`drawBoard` は `spec.water`・`spec.waterMode`・`spec.bridge` を `renderGrid` に通す。描画は `js/gimmicks/water.js` の `render`（水＝`data-water`、橋＝`data-bridge`・`data-bridge-dir`〔h横/v縦〕。隣と2pxつなげる）。水で止まったときは `view.bounce(dir, 'water')`（水しぶき＋困り顔）と音 `splash`（`js/ui-step.js` が盤の `water` と進行方向で判定）。`generator.shape` は PR2。
+- たま・おとし穴（#287）：`drawBoard` は `spec.rollBalls`・`spec.pits` を `renderGrid` に通す。描画は `js/gimmicks/rollballs.js` の `render`（`data-roll-ball`・`data-pit`・`data-pit-filled`）。動かせないときは `view.bounce(dir, 'ball')`（`js/ui-step.js` が `simulate` の `rolls[i].stuck` で判定）。
 - 盤面エディタ（`tools/editor/`）は盤面を `drawBoard`（`js/ui-board.js`）経由で描き、`renderGrid(`・`computeCellSize(` を直呼びしない。
 - 盤面エディタのパレットは `GIMMICKS` の `key`・`label` から生成され、登録表に足せば自動で出る。
 

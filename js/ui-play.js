@@ -847,9 +847,14 @@ export function renderPlay(root, step) {
       if (info.reason === 'wall' || info.reason === 'periodic') {
         local.failMark = info.cmdIndex;
         applyFailMark();
-        local.view.markCell(info.cell, 'wall');
-        // 壁衝突は横に倒れる演出で気づかせ、1.2秒後に「ためしなおす」をパルスで強調する（Issue #214）。
-        local.view.fallOver();
+        // 動かせない球の手（最初にbumpedの手のrolls.stuck）は手前で止まるだけ。倒れも壁の印も出さない（#287。球の震えは ui-step.js）。
+        const firstBump = result.bumped.findIndex(Boolean);
+        const stuckBall = firstBump >= 0 && result.rolls?.[firstBump]?.stuck === true;
+        if (!stuckBall) {
+          local.view.markCell(info.cell, 'wall');
+          // 壁衝突は横に倒れる演出で気づかせ、1.2秒後に「ためしなおす」をパルスで強調する（Issue #214）。
+          local.view.fallOver();
+        }
         retryPulseTimer = setTimeout(pulseRetryButton, RETRY_PULSE_DELAY_MS);
       } else if (info.reason === 'paint') {
         // 塗りが目標と違う：画面は事実のみ（目標外を塗ったマスの枠。塗り残しは何も出さない。文言のヒントも出さない。Issue #286）。

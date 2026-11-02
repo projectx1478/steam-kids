@@ -23,8 +23,8 @@ test('editor-palette: GIMMICKS の key が全部（登録順で）パレット�
   const gim = p.filter((x) => x.kind === 'gimmick');
   // ワープだけは組ごとに「ワープ1」「ワープ2」の2項目（#488）
   // かぎ・ドアも別項目の2つ、水と橋も別項目（#523）
-  const expKeys = GIMMICKS.flatMap((g) => (g.key === 'warps' ? ['warps1', 'warps2'] : g.key === 'keys' ? ['keys', 'doors'] : g.key === 'water' ? ['water', 'bridge'] : [g.key]));
-  const expLabels = GIMMICKS.flatMap((g) => (g.key === 'warps' ? ['ワープ1', 'ワープ2'] : g.key === 'keys' ? ['かぎ', 'ドア'] : g.key === 'water' ? [g.label, '橋'] : [g.label]));
+  const expKeys = GIMMICKS.flatMap((g) => (g.key === 'warps' ? ['warps1', 'warps2'] : g.key === 'keys' ? ['keys', 'doors'] : g.key === 'water' ? ['water', 'bridge'] : g.key === 'rollBalls' ? ['rollBalls', 'pits'] : [g.key]));
+  const expLabels = GIMMICKS.flatMap((g) => (g.key === 'warps' ? ['ワープ1', 'ワープ2'] : g.key === 'keys' ? ['かぎ', 'ドア'] : g.key === 'water' ? [g.label, '橋'] : g.key === 'rollBalls' ? ['たま', 'おとし穴'] : [g.label]));
   assert.deepEqual(gim.map((x) => x.key), expKeys);
   assert.deepEqual(gim.map((x) => x.label), expLabels);
   assert.equal(p.length, 4 + expKeys.length);

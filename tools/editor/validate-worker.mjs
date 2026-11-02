@@ -2,11 +2,11 @@
 // 入力 workerData = { spec }。出力 postMessage({ clearable, shortest, matters, turns, messages })。
 // 検査は tools/validate-lessons.mjs（checkBoard・checkSwitchMatters）と tools/lib/must-matter.mjs の関数をそのまま呼ぶ。
 import { parentPort, workerData } from 'node:worker_threads';
-import { shortestSteps, shortestChips, shortestPath, boardSpec } from '../../js/engine-grid.js';
+import { shortestSteps, shortestChips, shortestPath, boardSpec, findDeadStates } from '../../js/engine-grid.js';
 import { checkBoard, checkSwitchMatters } from '../validate-lessons.mjs';
-import { iceMustMatter, keysMustMatter, periodicMustMatter, paintMustMatter, itemsMustMatter, warpsMustMatter, waterMustMatter, cushionMustMatter } from '../lib/must-matter.mjs';
+import { iceMustMatter, keysMustMatter, periodicMustMatter, paintMustMatter, itemsMustMatter, warpsMustMatter, waterMustMatter, cushionMustMatter, rollBallsMustMatter } from '../lib/must-matter.mjs';
 
-export const MATTER_KEYS = ['ice', 'keys', 'items', 'periodic', 'paint', 'switches', 'warps', 'water', 'cushion'];
+export const MATTER_KEYS = ['ice', 'keys', 'items', 'periodic', 'paint', 'switches', 'warps', 'water', 'cushion', 'rollBalls'];
 const DEFAULT_COMMANDS = ['up', 'down', 'left', 'right'];
 const nonEmpty = (v) => Array.isArray(v) && v.length > 0;
 
@@ -81,6 +81,14 @@ export function analyzeSpec(spec) {
   if (nonEmpty(play.cushion)) {
     matters.cushion = cushion.matters;
     if (!cushion.matters) add('クッションの必須性', `クッションを外しても最短${dist}手のまま`);
+  }
+  if (nonEmpty(play.rollBalls)) {
+    const roll = rollBallsMustMatter(play);
+    matters.rollBalls = roll.matters;
+    if (!roll.matters) add('転がす球の必須性', `転がす球を外しても想定の手数（maxCommands=${maxCommands}）の内でゴールできる（最短${roll.dist}）`);
+    const dead = findDeadStates(boardSpec(play));
+    if (dead.truncated) add('詰みの検査', '詰みの検査が上限（5万状態）で止まった。盤を小さくするかたまを減らす');
+    else if (dead.dead > 0) add('詰みの検査', `ゴールへ着けない状態に届く（詰み${dead.dead}状態・例 ${dead.sample[0]}）`);
   }
   const paint = paintMustMatter(play, dist);
   if (nonEmpty(play.paint)) {

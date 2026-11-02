@@ -221,3 +221,29 @@ test('デバウンスは約300ms／エディタは localStorage を使わない'
     assert.equal(/localStorage/.test(fs.readFileSync(path.join(ROOT, 'tools', 'editor', f), 'utf8')), false, f);
   }
 });
+
+// #287 段3：転がす球（インライン盤。review/design/287/boards の盤③④と同じ中身）
+const W = (...xs) => xs.map(([x, y]) => ({ x, y }));
+const ROLL3 = {
+  grid: { cols: 6, rows: 5 }, start: { x: 0, y: 1 }, goal: { x: 4, y: 4 },
+  walls: W([1, 0], [2, 0], [1, 2], [2, 2], [3, 2], [5, 2], [0, 3], [1, 3], [2, 3], [3, 3], [5, 3]),
+  rollBalls: W([1, 1], [4, 2]), pits: W([2, 1], [4, 3]), maxCommands: 9,
+};
+const ROLL4 = {
+  grid: { cols: 5, rows: 4 }, start: { x: 0, y: 0 }, goal: { x: 2, y: 3 },
+  walls: W([0, 2], [1, 2], [3, 2], [4, 2]), rollBalls: W([2, 1]), pits: W([2, 2]), maxCommands: 7,
+};
+
+test('analyzeSpec: 転がす球の盤③はクリアできる・最短7・たまの必須: 必須', () => {
+  const r = analyzeSpec(ROLL3);
+  assert.equal(r.clearable, true);
+  assert.equal(r.shortest, 7);
+  assert.equal(r.matters.rollBalls, true);
+  assert.deepEqual(r.messages, []);
+  assert.deepEqual(formatMetrics(r).slice(0, 3), ['クリア: できる', '最短手数: 7', 'たまの必須: 必須']);
+});
+
+test('analyzeSpec: 転がす球の盤④は「詰みの検査」NG', () => {
+  const r = analyzeSpec(ROLL4);
+  assert.ok(r.messages.some((m) => m.startsWith('詰みの検査')), r.messages.join('|'));
+});
