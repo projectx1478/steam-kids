@@ -4,7 +4,6 @@
 import { S } from './state.js';
 import { boardSpec, isRunCleared, judgeOptimal, shortestOfStep } from './engine-grid.js';
 import { logEvent } from './events.js';
-import { prefersReducedMotion } from './ui-grid.js';
 import { fitCellSize, drawBoard as drawBoardUi, observeBoard } from './ui-board.js';
 import { createZoom } from './ui-zoom.js';
 import { openMenu } from './ui-menu.js';
@@ -24,31 +23,19 @@ import {
   setActiveHandHint,
   setActiveAnimation,
 } from './ui-step.js';
-import { showHint, diagnose, clearResultBubble } from './ui-reaction.js';
-import { boardFacts, nextFailHint, nextTapHint, shorterPhrase } from './bird-phrases.js';
+import { clearResultBubble } from './ui-reaction.js';
+import { boardFacts, nextTapHint, shorterPhrase } from './bird-phrases.js';
 import { showClearSequence, recordClear } from './ui-clear.js';
 import { isTrial, closeTrialTab } from './trial-lesson.js';
 import { setupTray } from './ui-play-tray.js';
 import { setupQueue, bindEditButtons } from './ui-play-queue.js';
+import { setupFail } from './ui-play-fail.js';
 import { renderKeyTray, resetKeyTray } from './gimmicks/keys.js';
 import { readDraft, clearDraft } from './storage.js';
-import { setRetryButton, createRetryChoice, shakeBoard, showStartCue, dismissStartCue, bindStartCueDismiss } from './ui-retry.js';
+import { showStartCue, dismissStartCue, bindStartCueDismiss } from './ui-retry.js';
 
-// diagnose()の原因ごとの文言（20字以内・否定語なし。Issue #91）。
-const HINT_MESSAGE = {
-  wall: 'この めいれいで かべに ぶつかったよ',
-  items: 'どんぐりが まだ のこって いるよ',
-  goal: 'ゴールまで あと すこし',
-  periodic: 'ドアが しまって いたよ',
-};
 // 同じレッスンの失敗回数（メモリのみ。失敗2回目に1回だけ小鳥のヒントを自動で足す。Issue #468 段2・#468-20A）。
 const FAIL_COUNTS = new Map();
-const AUTO_HINT_AT = 2;
-const FAR_GOAL_MESSAGE = 'ほかの みちも ためして みよう';
-const NEAR_GOAL_DISTANCE = 2;
-// 壁衝突の失敗後、「ためしなおす」をパルスで強調するまでの待ち（Issue #214）。
-const RETRY_PULSE_DELAY_MS = 1200;
-const RUN_COOLDOWN_MS = 500;
 
 export function renderPlay(root, step) {
   const spec = boardSpec(step);
@@ -141,7 +128,7 @@ export function renderPlay(root, step) {
   const ctx = {
     step, spec, root, isFix, maxPauses, freshCommands, stageIndex, isFinalStage, facts, failCounts: FAIL_COUNTS, local,
     screen, statusBar, boardArea, controls, actionsEl, opScreen, bird, gearBtn, keyTrayEl,
-    mut: { remainingEl: null, undoSnap: null, undoTimer: null, clearSequence: null, boxBtn: null, boxActionsShown: false },
+    mut: { remainingEl: null, undoSnap: null, undoTimer: null, retryPulseTimer: null, runCooldownTimer: null, clearSequence: null, boxBtn: null, boxActionsShown: false },
     fn: {},
   };
   setupTray(ctx);
@@ -212,41 +199,10 @@ export function renderPlay(root, step) {
   setupQueue(ctx);
   const { saveDraft, resetToFresh, releaseFailLock, applyFailMark, scrollQueueToEnd, drawQueue, drawQueueFollowActive, updateControls, closeBox, showNormalActions, showResultActions } = ctx.fn;
 
-  // 実行が失敗したらrunBtn自体を橙色の「ためしなおす」に変える（目線を動かさずに押せる。Issue #91）。
-  // 他のボタンをロックする間、押せるのはこれだけなのでパルス枠で目立たせる（Issue #106）。
-  const RETRY_EMPHASIS_CLASSES = ['ring-4', 'ring-amber-300', 'ring-offset-2', 'motion-safe:animate-pulse'];
-  // 壁衝突で付ける「ためしなおす」のパルス強調（retry-pulse。scale 1→1.08→1を2回。tailwind.src.css
-  // 側はreduced-motionでは定義されない。Issue #214）。retry押下・モード遷移で未発火のタイマーは
-  // 止めてクラスも外す。
-  let retryPulseTimer = null;
-  function pulseRetryButton() {
-    retryPulseTimer = null;
-    if (prefersReducedMotion()) return;
-    if (runBtn.dataset.action !== 'retry') return;
-    runBtn.classList.remove('retry-pulse');
-    void runBtn.offsetWidth;
-    runBtn.classList.add('retry-pulse');
-    runBtn.addEventListener('animationend', () => runBtn.classList.remove('retry-pulse'), { once: true });
-  }
-  function setRunButtonMode(mode) {
-    setRetryButton(runBtn, mode, { runLabel: '▶\nじっこう', emphasis: RETRY_EMPHASIS_CLASSES });
-    // 「ためしなおす」は6字で、text-sm だと 360px 幅の列からはみ出すため、失敗時だけ text-xs にする。
-    runBtn.classList.toggle('text-xs', mode === 'retry');
-    runBtn.classList.toggle('text-sm', mode !== 'retry');
-  }
-
-  // triggerFailFeedback(): 不正解時の視覚・聴覚フィードバック。派手な✕・警告音ではなく、
-  // 盤面をやさしくゆらすアニメーションと効果音（未到達はtryAgain・取り残しはitemsLeft）で
-  // 気づかせる（Issue #106・#158）。
-  // reduced-motion時はゆらさず、盤面に0.5秒だけ枠を光らせて静止のまま気づけるようにする。
-  // あわせて盤面のマスだけを暗くし（view.dim）、失敗リザルト状態を再スタート状態と
-  // 見た目で区別する（ためしなおすのdrawBoard()が新しいview（dimは初期値=暗くなし）を
-  // 作り直すため、明示的なdim(false)呼び出しは不要。Issue #110）。
-  function triggerFailFeedback(reason) {
-    playSfx(reason === 'items' ? 'itemsLeft' : 'tryAgain');
-    local.view.dim(true);
-    shakeBoard(boardArea);
-  }
+  // 失敗演出・ためしなおす（ui-play-fail.js。Issue #663 段3）。clearResult・drawBoard・resumeFromPause は
+  // 関数宣言（巻き上げ）なので、ここで ctx.fn へ登録できる。
+  Object.assign(ctx.fn, { clearResult, drawBoard, resumeFromPause });
+  setupFail(ctx);
 
   // やりかた帯・無操作促しの対象を決める段階（Issue #89）。0=強調なし（実行中・結果表示中）、
   // 1=けす/おす、3=じっこう。なおす系は編集済みか否かのみで1↔3を決める（②は経由しない）。
@@ -269,18 +225,6 @@ export function renderPlay(root, step) {
     local.remaining = spec.items.length;
     ctx.fn.syncAcornTray();
     resetKeyTray(keyTrayEl);
-  }
-
-  // ためしなおす・replay の直後は約0.5秒じっこうを受け付けない（連打の取りこぼし防止。reduced-motion でも同じ。#545-8A）。
-  let runCooldownTimer = null;
-  function startRunCooldown() {
-    local.runCooldown = true;
-    clearTimeout(runCooldownTimer);
-    runCooldownTimer = setTimeout(() => {
-      runCooldownTimer = null;
-      local.runCooldown = false;
-      updateControls();
-    }, RUN_COOLDOWN_MS);
   }
 
   const palette = renderCommandPalette(paletteEl, {
@@ -367,48 +311,12 @@ export function renderPlay(root, step) {
     showNormalActions();
     clearResultBubble(bird);
     resetToFresh();
-    startRunCooldown();
+    ctx.fn.startRunCooldown();
     drawQueue();
     drawBoard(spec.start);
     local.view.popIn();
     updateControls();
     local.nudge?.poke();
-  }
-
-  // playRetryTransition(onDark, onDone): 失敗後のためしなおすで全画面の黒幕を挟む（Issue #136）。
-  // 暗い間にonDark（盤面の作り直し）を行い、明けてからonDone（スタート！）を呼ぶ。暗転中は
-  // 黒幕がタップを遮る。ステップ離脱時はsetActiveAnimation経由のcancelで黒幕ごと消す。
-  function playRetryTransition(onDark, onDone) {
-    if (prefersReducedMotion()) {
-      onDark();
-      onDone();
-      return;
-    }
-    const curtain = document.createElement('div');
-    curtain.dataset.transition = 'retry';
-    curtain.className = 'fixed inset-0 z-40 bg-slate-900 pointer-events-auto';
-    curtain.style.opacity = '0';
-    curtain.style.transition = 'opacity 250ms ease-in-out';
-    document.body.appendChild(curtain);
-    void curtain.offsetWidth;
-    curtain.style.opacity = '0.85';
-    const timers = [];
-    const later = (fn, ms) => timers.push(setTimeout(fn, ms));
-    later(() => onDark(), 250);
-    later(() => {
-      curtain.style.opacity = '0';
-    }, 400);
-    later(() => {
-      curtain.remove();
-      setActiveAnimation(null);
-      onDone();
-    }, 650);
-    setActiveAnimation({
-      cancel() {
-        timers.forEach(clearTimeout);
-        curtain.remove();
-      },
-    });
   }
 
   // finishRun(result): じっこう（自動実行）・1コマ実行のどちらが最後の手まで進めても同じ判定を通す
@@ -456,75 +364,12 @@ export function renderPlay(root, step) {
         setActiveAnimation,
       });
     } else {
-      // 「とめる」のあるステージは「ためしなおす」の代わりに2ボタン（とちゅうから／さいしょから。#395 段4）。
-      if (maxPauses > 0) showRetryChoice();
-      else setRunButtonMode('retry');
-      local.locked = true;
-      updateControls();
-      const info = diagnose(result, local.commands, spec);
-      triggerFailFeedback(info.reason);
-      const failKey = S.lesson.lessonId;
-      const fails = (FAIL_COUNTS.get(failKey) ?? 0) + 1;
-      FAIL_COUNTS.set(failKey, fails);
-      if (info.reason === 'wall' || info.reason === 'periodic') {
-        local.failMark = info.cmdIndex;
-        applyFailMark();
-        // 動かせない球の手（最初にbumpedの手のrolls.stuck）は手前で止まるだけ。倒れも壁の印も出さない（#287。球の震えは ui-step.js）。
-        const firstBump = result.bumped.findIndex(Boolean);
-        const stuckBall = firstBump >= 0 && result.rolls?.[firstBump]?.stuck === true;
-        if (!stuckBall) {
-          local.view.markCell(info.cell, 'wall');
-          // 壁衝突は横に倒れる演出で気づかせ、1.2秒後に「ためしなおす」をパルスで強調する（Issue #214）。
-          local.view.fallOver();
-        }
-        retryPulseTimer = setTimeout(pulseRetryButton, RETRY_PULSE_DELAY_MS);
-      } else if (info.reason === 'paint') {
-        // 塗りが目標と違う：画面は事実のみ（目標外を塗ったマスの枠。塗り残しは何も出さない。文言のヒントも出さない。Issue #286）。
-        info.over.forEach((c) => local.view.markCell(c, 'wall'));
-        local.resultShown = true;
-        local.view.shrug();
-        return;
-      } else if (info.reason === 'items') {
-        local.view.hintItems(info.remainingItems);
-      } else {
-        local.view.markCell(info.cell, 'stopped');
-        local.view.markCell(spec.goal, 'goal-hint');
-      }
-      // 壁衝突時は倒れの演出と重なるため首かしげはしない（Issue #214）。
-      if (info.reason !== 'wall' && info.reason !== 'periodic') local.view.shrug();
-      local.resultShown = true;
-      const far = info.reason === 'goal' && info.distance > NEAR_GOAL_DISTANCE;
-      showHint(null, { bird, kind: info.reason, message: far ? FAR_GOAL_MESSAGE : HINT_MESSAGE[info.reason], restore: clearResult, extra: fails === AUTO_HINT_AT && !spec.paint ? nextFailHint(facts) ?? undefined : undefined });
+      ctx.fn.showFailure(result);
     }
   }
 
   runBtn.addEventListener('click', () => {
-    if (runBtn.dataset.action === 'retry') {
-      if (retryPulseTimer) {
-        clearTimeout(retryPulseTimer);
-        retryPulseTimer = null;
-      }
-      runBtn.classList.remove('retry-pulse');
-      vibrate();
-      logEvent('retry', {});
-      playRetryTransition(
-        () => {
-          clearResultBubble(bird);
-          setRunButtonMode('run');
-          releaseFailLock();
-          local.runCooldown = true;
-          drawQueue();
-          drawBoard(spec.start);
-          updateControls();
-        },
-        () => {
-          startRunCooldown();
-          local.view.popIn();
-          local.nudge?.poke();
-        }
-      );
-      return;
-    }
+    if (ctx.fn.retryClick()) return;
     if (local.running) return;
     // 1コマ実行の途中でじっこうを押したら、進行中のstepperをそのまま残りだけ自動で進める（Issue #111）。
     if (local.stepping && local.stepper) {
@@ -622,54 +467,19 @@ export function renderPlay(root, step) {
   }
   local.restartFromStart = restartFromStart;
 
-  // showRetryChoice(): 失敗時の2ボタン。止まった地点(lockedCount>0)が無ければ「とちゅうから」はマスク。
-  function showRetryChoice() {
-    const { resumeBtn, restartBtn } = createRetryChoice({
-      canResume: local.lockedCount > 0,
-      onResume: resumeFromPause,
-      onRestart: restartAfterFail,
-    });
-    showResultActions([resumeBtn, restartBtn]);
-  }
-
-  // leaveFailState(): 失敗の表示（ロック・トースト・2ボタン）を片付けて通常のボタン行へ戻す。
-  function leaveFailState() {
-    clearResultBubble(bird);
-    local.locked = false;
-    local.resultShown = false;
-    showNormalActions();
-  }
-
   // resumeFromPause(): 失敗後、止まった地点まで盤面を再生し直して止まり、後ろの命令を直せる状態にする（#395-2A）。
   function resumeFromPause() {
     if (local.running || local.stepping || local.lockedCount <= 0) return;
     vibrate();
     const pauseIndex = local.lockedCount - 1;
     logEvent('pause_fix', { pauseIndex, commandCount: local.commands.length - local.lockedCount });
-    leaveFailState();
+    ctx.fn.leaveFailState();
     local.running = true;
     local.nudge?.stop();
     local.runStates = {};
     updateControls();
     const stepper = beginSegment(pauseIndex);
     autoAdvance(stepper, { onDone: () => endSegment(stepper) });
-  }
-
-  // restartAfterFail(): 失敗後、命令を残したまま盤面だけ最初に戻す（#395-8A）。
-  function restartAfterFail() {
-    if (local.running || local.stepping) return;
-    vibrate();
-    logEvent('retry', { mode: 'restart' });
-    playRetryTransition(
-      () => {
-        leaveFailState();
-        restartFromStart();
-      },
-      () => {
-        local.view.popIn();
-        local.nudge?.poke();
-      }
-    );
   }
 
   // stepBtn: 1コマずつ実行。タップごとにstepperを1手だけ進める。最初のタップでstepperを
