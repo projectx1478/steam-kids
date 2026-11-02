@@ -132,6 +132,8 @@ export const rollBalls = {
   onStep({ result, index }) {
     const move = result?.rolls?.[index];
     if (!move || !move.to) return;
+    const el = [...document.querySelectorAll('[data-roll-ball]')].find((e) => e.dataset.rollX === String(move.from.x) && e.dataset.rollY === String(move.from.y));
+    if (!el) return;
     const reduce = reduced();
     const dx = move.to.x - move.from.x;
     const dy = move.to.y - move.from.y;
