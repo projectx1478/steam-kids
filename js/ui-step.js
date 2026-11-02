@@ -501,9 +501,10 @@ export function createStepper(commands, spec, view, { onTick, onPickup, startInd
       const [ddx, ddy] = WATER_DELTA[dir] ?? [0, 0];
       const watered = cushioned && (spec.water ?? []).some((c) => c.x === from.x + ddx && c.y === from.y + ddy);
       const warped = !bumped && !cushioned && result.warped?.[i] === true;
-      playSfx(bumped ? 'bump' : watered ? 'splash' : cushioned ? 'cushion' : warped ? 'whoosh' : result.slid[i] ? 'slide' : 'step', { index: i });
+      const stuckBall = bumped && result.rolls?.[i]?.stuck === true;
+      playSfx(stuckBall ? 'step' : bumped ? 'bump' : watered ? 'splash' : cushioned ? 'cushion' : warped ? 'whoosh' : result.slid[i] ? 'slide' : 'step', { index: i });
       if (bumped || cushioned) {
-        view.bounce(dir, watered ? 'water' : cushioned ? 'cushion' : 'wall');
+        view.bounce(dir, stuckBall ? 'ball' : watered ? 'water' : cushioned ? 'cushion' : 'wall');
       } else if (warped) {
         // ワープ（Issue #64）：入口（from）に足あとを残し、滑らず出口へ移る
         view.footprint(from);
@@ -529,7 +530,7 @@ export function createStepper(commands, spec, view, { onTick, onPickup, startInd
       }
       if (bumped) {
         const target = { x: from.x + ddx, y: from.y + ddy };
-        for (const g of GIMMICKS) g.onBump?.({ target, spec, view, run: (runStates[g.key] ??= {}) });
+        for (const g of GIMMICKS) g.onBump?.({ target, spec, view, run: (runStates[g.key] ??= {}), result, index: i });
       }
       onTick(result.stepOwner[i], to, result.innerOwner[i], result.roundOwner[i]);
       // 壁・盤外にぶつかった手で実行を止める。残りの手は再生しない（Issue #136）。クッションは止まらない。
