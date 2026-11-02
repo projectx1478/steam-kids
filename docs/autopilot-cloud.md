@@ -6,6 +6,7 @@
 - 同期対象：`review/design/`・`review/autopilot/`（`runlogs/` と `lock.txt` を除く）・`review/handoff-*.md`。コピーは追加と上書きだけで、削除はしない。
 - 作業コピーは `<MAIN>/.worktrees/_state`。コミットは noreply・Co-Authored-By なし。
 - lock：`start` で取り、`finish` で外す。他方が12時間以内に lock 中なら終了コード2（`STOP（他方が実行中）`）。
+- 自動進行（`/run-issues`）は全体で1つだけ（lock は local/cloud 排他）。並行して進めるのは手動の `/implement-issue` のみ。
 - 手元は `start local`、クラウドは `start cloud`。`/run-issues` が起動時に `start`、どの停止でも `finish`（push してから unlock）を実行する。
 - クラウドは 5時間の判定をしない。週間 85％の判定と件数上限（実装2件・設計3件）は残る。
 

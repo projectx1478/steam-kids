@@ -70,6 +70,15 @@ jobs:
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
 
+      - name: 版数が steam-kids-cache-dev のままか
+        run: |
+          for f in service-worker.js js/config.js; do
+            if ! grep -q "steam-kids-cache-dev" "$f"; then
+              echo "::error::$f の版数が steam-kids-cache-dev ではありません。版数はデプロイ時に自動付与されます。PRでは戻してください（docs/caching.md）。"
+              exit 1
+            fi
+          done
+
       - name: 静的チェック
         run: npm run check:static
 
@@ -87,3 +96,33 @@ jobs:
             git diff --stat -- style.css
             exit 1
           fi
+
+  # 他PRとの変更ファイルの重なりを警告する（失敗にしない。行が離れた追記などの誤検知があるため）。
+  parallel-warn:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: 他PRとの重なりを確認する
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          node tools/parallel-check.mjs --pr ${{ github.event.pull_request.number }}
+          code=$?
+          if [ "$code" -eq 3 ]; then
+            echo "::warning::オープンPRと変更ファイルが重なっています（docs/parallel-ops.md）。行が離れた追記なら問題ありません。"
+            exit 0
+          fi
+          exit "$code"
