@@ -26,6 +26,7 @@
 - `redirect?(state, pos, dir, spec)`：（任意）posへ入った直後に続けて移動する先`{pos, dir}`かnull。返り先が盤内・非壁・非`blocks`なら1マスとして`path`へ積み（同一`stepOwner`。`simulate`の`slid[i]`が真）、再度問う。連鎖は`cols*rows`回で打ち切り（滑り・ワープ向け）
 - `onStep?({pos, spec, view, run})`：（任意）`createStepper`が1手進むたび（壁衝突を除く）に呼ぶUI更新用フック。`view.gimmickEls[key]`にrenderの戻り値が入る。`run`は実行1回ごとの作業領域。効果音名を返すと鳴らす（かぎ・ドアの開閉向け。Issue #62）
 - `dead?(state)`：（任意）真ならその状態から二度とクリアできない。BFS（shortestSteps/shortestChips/shortestPath）はその遷移を捨てる（枝刈りのみ。最短手数は変わらない。paint向け。Issue #286）
+- `roll?(state, pos, dir, spec, isOpen)`：（任意）ロボットが pos へ dir 向きで入る直前に呼ぶ。pos に動かせるものが無ければ null。動かせないなら `{ ok: false }`（壁と同じ失敗。`simulate` の `rolls[i]` に `{ from, stuck: true }`）。動かせたら `{ ok: true, state, move: { from, to, fill } }`（新しい状態でロボットが pos へ入る。`rolls[i]` に move）。1手で動かせるのは1つ（転がす球向け。Issue #287）
 - `validate(board, add, label)`：`tools/validate-lessons.mjs`のcheckBoardから呼ばれる盤面検証
 - `render(cellCtx)`：`js/ui-grid.js`のrenderGridから呼ばれる描画。`{board, pixelFor, CELL, shapeSvg, …}`を受け取る
 
@@ -106,10 +107,18 @@
 - 描画：穴のセルにうずまきのSVGを重ね`data-warp`（組の番号 1|2）・`data-mark`（`star`＝1組目・`square`＝2組目）を付ける。色は組ごとに紫・橙で、形（★■）でも見分けがつく
 - 数値条件：盤面の大きさは盤面共通の20×20以内。穴は盤内・整数で、壁・start・goal・items・cushion・water・bridge・keys・doors・switches（targetsを含む）・groupWalls・穴同士・ice・periodicと重ならない（同じマスの重なりは検証NG）。ice・paint・periodicとは別のマスなら併用できる（#529。併用盤はエディタ限定でレッスンには出さない）。ぬりの目標が穴に当たる盤は、必須性の判定で穴を目標から除いて再判定する。stageGenでは`warps`は`periodic`・`water`・`paint`・どんぐり・こおり・かぎ・クッション・スイッチ・壁`walls`と併用できる（#649。1種制限・paint の併用不可は撤廃）。入口・出口は土台の橋の上に置かない。`groupRepeats`・`repeatBox`とは併用不可（検証NG）
 
+## rollBalls（たま・おとし穴）
+- JSONフィールド：`rollBalls`（任意・`{x, y}`の配列・既定`[]`。たまの初期位置）、`pits`（任意・`{x, y}`の配列・既定`[]`。おとし穴）。`play`だけで使える（`tutorial`・`intro.demo`は対象外）
+- 移動規則：ロボットが進む先にたまがあれば同じ向きへ1マス転がし、ロボットはそのマスへ入る（1手）。たまは1マスで止まる（こおりのように滑り続けない）。転がし先が埋まっていないおとし穴ならたまは穴に埋まって消え、穴は床と同じになる。転がし先が盤外・壁・他のたまなら動かせず、壁と同じ失敗（`blockedAt`・`bumped`）。1手で動かせるのは1つ。埋まっていないおとし穴へ入る手も壁と同じ失敗。クリア条件は変えない（穴を全部埋めなくてよい）。BFSはたまの位置と埋まった穴を状態に含む
+- 描画：たまは茶〜橙の球（影・縫い目の模様・ハイライト。壁より小さめ）で`data-roll-ball`（添字）。おとし穴は暗い楕円のくぼみで`data-pit`（添字）、埋まると`data-pit-filled="true"`（縁の中にたまの上半分が見える絵）。転がすとロボットと同じ時間でたまが1マス動きながら回転し（1マス180度。影とハイライトは回さない）、穴に入ると0.3秒で沈んで埋まった穴に替わる。動かせないとたまが小さく震え、ロボットは手前で止まる（`view.bounce(dir, 'ball')`。目回し星なし・文字なし）。音は`step`。reduced-motion時は回転・沈み・震えを省いて即時
+- 数値条件：盤面の大きさは盤面共通の20×20以内。たまは1〜2個、おとし穴は1個以上たまの数以下（片方だけはNG）。盤内・整数・重複なしで、壁・start・goal・互いと重ならない。初回は他のギミック（items・ice・cushion・water・bridge・keys・doors・switches・groupWalls・paint・periodic・warps）と同じ盤に置けない。`repeatBox`・`groupRepeats`とも併用不可。たまを外しおとし穴を壁にした盤で`maxCommands`以内に届くと検証NG（転がす球の必須性）。startから届く状態のうち、ゴールへ二度と着けない状態（詰み）が1つでもあると検証NG（詰みの検査。探索は5万状態で打ち切り、打ち切りもNG）。詰みを許す盤（罠盤）は作らない（別Issueで検討）
+- stageGen：対象外（生成しない）
+
 ## 何を1手と数えるか
 - 1手＝コマ1つ分の移動。
   - 氷の滑走は、止まるまで全体で1手。
   - 壁にぶつかる手、クッションで止まる手も1手。
+  - たまを転がす手は1手。動かせない手も1手（壁にぶつかる手と同じ）。
   - ワープは数えない（穴へ入る手の中で出口へ移る。移動した分を別に1手と数えない）。
   - くりかえし（repeatBox）は、中身を展開した方向1つずつを1手。
   - 1コマ実行は、押した1回が1手。通常実行と同じ数え方になる。
@@ -162,6 +171,7 @@ stageGen（たたき台）と盤の検証にある併用禁止を3つに分け�
 | (2) | 同じマスに複数のギミックを置く（ワープ・壁・start・goal ほか） | 1マスに置けるギミックは1つ | `tools/lib/validate/board.mjs:83-106` |
 | (2) | 土台（`base`）×`water` | 水を土台と `gimmicks.water` の二重に定義することになる | `tools/editor/serve.mjs:221`（`checkGenerateBase`） |
 | (2) | `group`×`targets`（同じスイッチ） | 連動のキーが二重になる（どちらか一方） | `tools/editor/editor-view.js:132` |
+| (2) | `rollBalls`・`pits`×他のすべてのギミック | 初回は併用を禁止（#287。後で1つずつ許可するかは別Issue） | `js/gimmicks/rollballs.js`（`validate`） |
 
 ### (3) 撤廃（段3で撤廃済み）
 

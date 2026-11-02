@@ -44,6 +44,7 @@
           <li><a href="#g-keys">かぎ・ドア</a></li>
           <li><a href="#g-periodic">周期ドア</a></li>
           <li><a href="#g-paint">ぬりマス</a></li>
+          <li><a href="#g-rollballs">たま・おとし穴</a></li>
         </ul></li>
       <li><a href="#must">5. ギミックを「必須」にする盤の作り方</a></li>
       <li><a href="#others">6. そのほかの操作</a>
@@ -174,7 +175,7 @@
 
 <figure class="fig">
   <div id="icons" class="icon-row"></div>
-  <figcaption>図3：パレットのアイコン（実エディタと同じ部品で描いています）。12個すべて置けるものです。ワープは1組目が★（紫）、2組目が■（橙）です。</figcaption>
+  <figcaption>図3：パレットのアイコン（実エディタと同じ部品で描いています）。14個すべて置けるものです。ワープは1組目が★（紫）、2組目が■（橙）です。</figcaption>
 </figure>
 
 <h3 id="g-names">名前の対応表</h3>
@@ -191,6 +192,7 @@
   <tr><td>かぎ・ドア（別々の項目）</td><td>かぎ</td><td>かぎ</td><td><code>keys</code>（かぎ）・<code>doors</code>（ドア）</td></tr>
   <tr><td>ぬりマス</td><td>色ぬり</td><td>ぬり</td><td><code>paint</code></td></tr>
   <tr><td>周期ドア</td><td>周期ドア</td><td>周期ドア</td><td><code>periodic</code></td></tr>
+  <tr><td>たま・おとし穴</td><td>（なし）</td><td>転がす球</td><td><code>rollBalls</code>（たま）・<code>pits</code>（おとし穴）</td></tr>
 </table>
 
 <h3 id="g-items">どんぐり</h3>
@@ -318,6 +320,9 @@
   <li>消しゴムは、目標のマスを外します（スタート・ゴールと重なるマスでは、パレットの「ぬりマス」でもう一度クリックして外します）。<kbd>Shift</kbd>+クリックで目標のマスを動かせます（スタート・ゴールと重なるマスでは、スタート・ゴールのほうが動きます）。</li>
   <li>目標が多い盤（たとえば4×4で全面）は、判定に数秒かかります。10秒以内に終わらないと「未判定（時間切れ）」になり、保存できません。</li>
 </ul>
+
+<h3 id="g-rollballs">たま・おとし穴</h3>
+<p>たまとおとし穴を1つずつ以上置きます（たまは2個まで）。他のギミックとは同じ盤に置けません。ロボットが当たるとたまが1マス転がり、おとし穴に入ると埋まって通れるようになります。転がしたあとゴールへ行けなくなる置き方は「詰みの検査」で NG になります。</p>
 
 <h2 id="must">5. ギミックを「必須」にする盤の作り方</h2>
 <p>ギミックを置いただけでは、判定欄はたいてい「○○の必須: 飾り（NG）」になります。ギミックを通らない道でもゴールに着けてしまうからです。「必須」にするには、<strong>壁で道を1本に絞り、その1本の上にギミックを置きます</strong>。氷・ワープ・ぬりマスのように「使うほうが短くなる」ギミックは、使わない道を長くしても必須になります。</p>
@@ -507,7 +512,7 @@ drawFigure(document.getElementById('fig2'), { path: ROUTE });
 // 図3：パレットのアイコン（palette.js の iconSpec を drawBoard で描く。実エディタと同じ）
 const ICONS = [
   ['items', 'どんぐり'], ['ice', '氷'], ['cushion', 'クッション'], ['water', '水・橋'], ['bridge', '橋'], ['warps1', 'ワープ1'], ['warps2', 'ワープ2'], ['switches', 'スイッチ・切替壁'],
-  ['keys', 'かぎ'], ['doors', 'ドア'], ['periodic', '周期ドア'], ['paint', 'ぬりマス'],
+  ['keys', 'かぎ'], ['doors', 'ドア'], ['periodic', '周期ドア'], ['paint', 'ぬりマス'], ['rollBalls', 'たま'], ['pits', 'おとし穴'],
 ];
 const iconHost = document.getElementById('icons');
 for (const [key, label] of ICONS) {

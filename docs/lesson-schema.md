@@ -107,7 +107,7 @@ DOM判定用に箱チップへ`data-round`（0始まりの現在周。実行外�
 `maxCommands`はゴール到達と全item回収の両方を満たす最短経路の手数（`groupRepeats`時はチップ数）
 で判定される（Issue #60）。`maxCommands`は想定の手数（盤の最短手数以上の整数）で、子どもの画面の上限ではない。
 子どもの画面は手数を制限しない。ギミックを使わない遠回りの解は許す。ギミックは想定の最短（`maxCommands`）では必須（検査で確かめる）。命令の列が長くなっても、
-実行中は今のチップが列の中に追従して見える（Issue #393）。
+実行中は今のチップが列の中に追従して見える（Issue #393）。`rollBalls`（たま）・`pits`（おとし穴）は`play`だけで使え、他のギミックと同じ盤に置けない（仕様は`docs/gimmicks.md`）。
 
 `play.text`（任意・文字列。他stepの`text`と同じくルビ記法・20字制限の検証対象）を指定すると、
 playステップの指示文になる。未指定時の既定文言は`items`の有無で決まる（`js/ui-step.js`）：
@@ -266,6 +266,7 @@ MustMatterは、ギミックモジュールの`strip(spec)`（ギミックを除
   回転・鏡写しで同じになる盤は除く。同じレッスンの中で盤を急に2段以上大きくしない。
   打切り（Issue #394）：1盤の生成は探索量（`MAX_WORK`）で決定的に打ち切り、`GEN_ABORTED` を返す（予備盤なしの null と別）。`gen-stages` はこれと時間の安全弁（`TIME_LIMIT_MS`）の超過を「未完了」エラーにし、盤を採用・保存しない。
 - 固定：同じ `seed`・`ver`・`stageGen` から再生成した盤が、書き込んだ盤と一致することをテストで確かめる。生成器を直して出力が変わるときは `ver` を上げて書き直す。
+- `rollBalls`・`pits`は stageGen の対象外（生成しない）。
 
 ## `lessons/index.json`（単元マップ）
 
@@ -353,6 +354,8 @@ MustMatterは、ギミックモジュールの`strip(spec)`（ギミックを除
 - `stageGen` がある場合、各フィールドが上の範囲内で、未知のキーが無いこと。`stages` が `keepHandwritten` の数＋1以上で、play の数が `stages` 以下であること
 - `gen` は `stageGen` があるレッスンにだけ置け、`gen.ver` が `stageGen.ver` と一致し、`keepHandwritten` の play には無いこと
 - `stageGen.teach` が `items` のとき、`gen` を持つ play は、どんぐりを除いた盤の最短がその盤の最短より短いこと（どんぐりの必須性）
+- `rollBalls` を持つ play は、たまを外しおとし穴を壁にした盤の最短が `maxCommands` より多いこと（転がす球の必須性）
+- `rollBalls` を持つ play は、start から届くどの状態からもゴールへ着けること（詰みの検査。5万状態で打ち切り、打ち切りは不合格）
 - **検証NGの場合は再生成する。手で通さない**
 - `lessons/index.json`: 参照する `lessonId` が実在すること、レッスン本体の `unitId` と一致すること、
   同一 `lessonId` を複数の `unit` から参照しないこと
