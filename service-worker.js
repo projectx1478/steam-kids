@@ -41,6 +41,7 @@ const APP_SHELL = [
   "./js/gimmicks/switches.js",
   "./js/gimmicks/water.js",
   "./js/gimmicks/warps.js",
+  "./js/gimmicks/rollballs.js",
   "./js/gate-date.js",
   "./js/guardian.js",
   "./js/kanji-grades.js",

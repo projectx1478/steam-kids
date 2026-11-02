@@ -8,7 +8,7 @@ import { EDITOR_MAX_SIZE, CELL_PX_MIN, CELL_PX_MAX, CELL_PX_DEFAULT, switchModeO
 export const HISTORY_MAX = 100; // 超えたら先頭（古いもの）から捨てる
 
 // 1マスの単純な要素（盤面 JSON 側の配列名）。置く・消す・動かすができる。
-export const SIMPLE_LISTS = ['walls', 'items', 'ice', 'cushion', 'water'];
+export const SIMPLE_LISTS = ['walls', 'items', 'ice', 'cushion', 'water', 'rollBalls', 'pits'];
 // 組・周期・方向などの設定が要り、まだ置けない要素。switches は #404 段A、keys（かぎ・ドア）は #523 段1、periodic は #523 段2、paint は #523 段4 で外し、空になった（bridge は SIMPLE_LISTS ではなく専用の分岐。段3）。
 export const COMPLEX_KEYS = [];
 export const SWITCH_COLORS = ['red', 'blue'];

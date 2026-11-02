@@ -18,6 +18,7 @@ export function buildPalette(gimmicks) {
       if (g.key === 'warps') return [1, 2].map((n) => ({ key: `warps${n}`, label: `${g.label}${n}`, kind: 'gimmick' })); // ワープは組ごとに1個ずつ置く（#488）
       if (g.key === 'keys') return [{ key: 'keys', label: 'かぎ', kind: 'gimmick' }, { key: 'doors', label: 'ドア', kind: 'gimmick' }]; // かぎとドアは別項目（#523）。色は設定欄
       if (g.key === 'water') return [{ key: 'water', label: g.label, kind: 'gimmick' }, { key: 'bridge', label: '橋', kind: 'gimmick' }]; // 橋は水と別項目（#523 段3）
+      if (g.key === 'rollBalls') return [{ key: 'rollBalls', label: 'たま', kind: 'gimmick' }, { key: 'pits', label: 'おとし穴', kind: 'gimmick' }]; // たまとおとし穴は別項目（#287）
       return [{ key: g.key, label: g.label, kind: 'gimmick' }];
     }),
   ];

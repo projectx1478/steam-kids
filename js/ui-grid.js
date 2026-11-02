@@ -222,7 +222,7 @@ window.__gridAnimLog = window.__gridAnimLog || [];
 // view: プレイヤー駒・足あとの差分更新API（アニメーション中はこちらのみ使う。draw全再構築はしない）
 //   view.moveTo(pos): 通常移動（450ms、reduced-motion時は即時）
 //   view.warpTo(pos): ワープの瞬間移動（入口で縮み出口で膨らむ。reduced-motion時は即時＋出口の輪0.5秒。Issue #64）
-//   view.bounce(dir, kind): 衝突の演出（kind='wall'|'cushion'|'water'、250ms〜。'water'は岸側に水しぶきを約0.9秒出し困り顔、失敗ではない、reduced-motion時はしぶきを静止表示して約0.9秒で消す。'wall'は約1.2秒の目回し星を出し、reduced-motion時は静止表示。Issue #168）
+//   view.bounce(dir, kind): 衝突の演出（kind='wall'|'cushion'|'water'|'ball'、250ms〜。'water'は岸側に水しぶきを約0.9秒出し困り顔、失敗ではない、reduced-motion時はしぶきを静止表示して約0.9秒で消す。'wall'は約1.2秒の目回し星を出し、reduced-motion時は静止表示。Issue #168）
 //   view.fallOver(): 壁衝突でロボットが横に倒れる（300ms ease-outで倒れ、倒れたまま保持。reduced-motion時は何もしない。Issue #214）
 //   view.footprint(pos): 通過マスに足あとを追加
 //   view.markCell(pos, kind): 盤面を再構築せず印を重ねる（予想の答え合わせ・playのヒント。Issue #91）
@@ -450,6 +450,18 @@ export function renderGrid(opts) {
         token.animate(
           [{ transform: `translate(${base.x}px, ${base.y}px)` }, { transform: `translate(${base.x + wx * 0.6}px, ${base.y + wy * 0.6}px)`, offset: 0.3 }, { transform: `translate(${base.x}px, ${base.y}px)` }],
           { duration: BOUNCE_MS + 100, easing: 'ease-out' }
+        );
+        return;
+      }
+      if (kind === 'ball') {
+        // 動かせない球：ロボットが進行方向へ小さく寄って戻るだけ（星・倒れ・bump音なし。球の震えはonBump）。
+        if (reduce) return;
+        const b = pixelFor(pos);
+        const [bx, by] = NUDGE_BY_DIR[dir] ?? [0, 0];
+        window.__gridAnimLog.push({ type: 'bounce', ms: BOUNCE_MS, kind });
+        token.animate(
+          [{ transform: `translate(${b.x}px, ${b.y}px)` }, { transform: `translate(${b.x + bx * 0.5}px, ${b.y + by * 0.5}px)`, offset: 0.4 }, { transform: `translate(${b.x}px, ${b.y}px)` }],
+          { duration: BOUNCE_MS, easing: 'ease-out' }
         );
         return;
       }
