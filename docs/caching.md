@@ -42,18 +42,16 @@ BGM音源（`audio/*.ogg`、MusMus）は**`APP_SHELL`に入れない**。`cache.
 アプリシェルとは違い音源は**キャッシュ優先**（`caches.match`→未ヒット時のみfetchして保存。
 同名更新の再検証はしない）。オフラインではキャッシュ済みの音源のみ再生する。
 `install`の挙動は変えない。
+音源は版の付かない別キャッシュ（steam-kids-audio）に保存し、版が変わってもactivateで消さない。
 
 ## 版数管理
 
-`service-worker.js`の`CACHE_NAME`と`js/config.js`の`APP_VERSION`を同値にする。SWは`import`できず
-二重管理になるため、一致は`.claude/verify/scenarios/app-version.mjs`で機械チェックする。
-`APP_SHELL`とバージョンの整合は`npm run check:static`（`tools/check-static.mjs`）で機械的にチェックする。
-`APP_VERSION`はダッシュボードのフッタに表示され、実機でどの版が動いているかを判別できる。
+`service-worker.js`の`CACHE_NAME`と`js/config.js`の`APP_VERSION`は、リポジトリ上では常に`steam-kids-cache-dev`にする。PRで上げない（`checks.yml`が値の変更を失敗にする）。`pages.yml`が、デプロイ時に`_site/`内の2ファイルだけ`steam-kids-cache-<コミットの短いハッシュ>`へ置換し、置換後の一致を確かめる。リポジトリ本体は書き換えない。
+一致の機械チェック：`npm run check:static`（`tools/check-static.mjs`。`APP_SHELL`との整合も見る）と`.claude/verify/scenarios/app-version.mjs`。
+`APP_VERSION`はダッシュボードのフッタに表示される。実機ではコミットの短いハッシュ付きの値が出るので、どのコミットが動いているか判別できる。
+mainへのマージごとに版付きキャッシュ（アプリシェル・lessons）は入れ替わる。BGM音源は版の付かない別キャッシュ`steam-kids-audio`に入れ、activateで消さないので残る。
 
-キャッシュの内容を変える変更（`APP_SHELL`に含まれるファイルの追加・削除、分岐規則の変更）を
-行うPRでは、両方の値を同時に上げること。
-
-`manifest.webmanifest`と`icons/*.png`（ホーム画面用。`tools/gen-icons.mjs`で生成。Issue #381）は`APP_SHELL`に載せる（`check:static`が登録漏れを検出）。差し替え時も版数を上げる。
+`APP_SHELL`に含まれるファイルの追加・削除、`manifest.webmanifest`・`icons/*.png`の差し替えでは`APP_SHELL`だけを更新する（版数は触らない）。
 
 `tools/editor/`は`service-worker.js`の`APP_SHELL`に載せず、公開サイトの配信物から除外する（PagesはActions配信。設定変更は人が行う）。
 

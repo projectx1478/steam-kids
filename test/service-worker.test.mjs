@@ -132,6 +132,36 @@ test('service-worker: 音源(audio/)の取得が404でもrejectしない（曲�
   assert.equal(cachePutCalls.length, 0, 'audioの404はキャッシュへ保存しない');
 });
 
+test('service-worker: 音源(audio/)は版の付かない音源用キャッシュへ保存し、他はアプリ用キャッシュへ保存する', async () => {
+  const opened = [];
+  const namedCaches = { open: async (name) => { opened.push(name); return fakeCache; }, match: async () => undefined };
+  const h = makeFetchHandler(stubFetch, namedCaches);
+  await fireWith(h, `${origin}/audio/title.ogg`, 'GET');
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(opened, ['steam-kids-audio'], 'audioはsteam-kids-audioへ保存される');
+  opened.length = 0;
+  await fireWith(h, `${origin}/app.js`, 'GET');
+  await new Promise((r) => setImmediate(r));
+  assert.equal(opened.length, 1, 'アプリシェルは1回だけ保存先を開く');
+  assert.notEqual(opened[0], 'steam-kids-audio', 'アプリシェルは音源用キャッシュへ入れない');
+});
+
+test('service-worker: activateは音源用キャッシュを消さず、現行以外の旧キャッシュだけ消す', async () => {
+  const listeners = {};
+  const localSelf = { ...fakeSelf, addEventListener: (type, fn) => { listeners[type] = fn; } };
+  const deleted = [];
+  const activateCaches = {
+    open: async () => fakeCache,
+    keys: async () => ['steam-kids-audio', 'steam-kids-cache-dev', 'steam-kids-cache-old1', 'other'],
+    delete: async (k) => { deleted.push(k); return true; },
+  };
+  new Function('self', 'fetch', 'caches', code)(localSelf, stubFetch, activateCaches);
+  let waited = null;
+  listeners.activate({ waitUntil: (p) => { waited = p; } });
+  await waited;
+  assert.deepEqual(deleted.sort(), ['other', 'steam-kids-cache-old1'], '音源用と現行のキャッシュは消えない');
+});
+
 test('service-worker: オフライン・未キャッシュでもResponseを返しrejectしない', async () => {
   const offlineHandler = makeFetchHandler(failingFetch, fakeCaches);
   const r = await fireWith(offlineHandler, `${origin}/app.js`, 'GET');

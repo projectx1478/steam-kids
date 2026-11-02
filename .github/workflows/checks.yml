@@ -70,6 +70,15 @@ jobs:
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
 
+      - name: 版数が steam-kids-cache-dev のままか
+        run: |
+          for f in service-worker.js js/config.js; do
+            if ! grep -q "steam-kids-cache-dev" "$f"; then
+              echo "::error::$f の版数が steam-kids-cache-dev ではありません。版数はデプロイ時に自動付与されます。PRでは戻してください（docs/caching.md）。"
+              exit 1
+            fi
+          done
+
       - name: 静的チェック
         run: npm run check:static
 
