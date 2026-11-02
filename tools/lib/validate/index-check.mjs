@@ -2,6 +2,32 @@
 import { unitsOf } from '../../../js/index-units.js';
 import { textKanjiMaxGrade } from '../../../js/text-render.js';
 import { UNIT_GIMMICKS } from './common.mjs';
+import { checkDemo } from './demo-solution.mjs';
+
+// 単元の icon・color の許可値（Issue #644）。js/ui-picker.js の UNIT_STYLE・COLOR_BG のキーと揃える。
+const UNIT_ICONS = ['commands', 'donguri', 'ice', 'keys', 'switches', 'teko', 'none'];
+const UNIT_COLORS = ['emerald', 'amber', 'sky', 'purple', 'rose', 'teal'];
+
+// 大項目の紹介 tracks[].intro＝{ demo, text? }（Issue #644）。demo は lessons の intro.demo と同形
+// （検査は checkDemo をそのまま使う。本番 play との比較は無いので playSteps は空）、text は短い文字列（空は可）。
+const INTRO_TEXT_MAX = 30;
+function checkTrackIntro(intro, i, add) {
+  const label = `tracks[${i}].intro`;
+  const bad = (detail) => add('tracksのintro', `${label} ${detail}`);
+  if (intro === null || typeof intro !== 'object' || Array.isArray(intro)) {
+    bad('がオブジェクトでない');
+    return;
+  }
+  if ('text' in intro) {
+    if (typeof intro.text !== 'string') bad(`の text が文字列でない ${JSON.stringify(intro.text)}`);
+    else if (intro.text.length > INTRO_TEXT_MAX) bad(`の text が${INTRO_TEXT_MAX}字を超える`);
+  }
+  if (intro.demo === null || typeof intro.demo !== 'object' || Array.isArray(intro.demo)) {
+    bad('の demo がオブジェクトでない、または無い');
+    return;
+  }
+  checkDemo({ stepId: label, demo: intro.demo }, [], (rule, detail) => bad(`の demo が不正（${rule}）: ${detail}`));
+}
 
 // index.jsonはレッスン選択画面（単元マップ）用の一覧ファイル。参照するlessonIdが実在し、
 // unitIdがレッスン本体のunitIdと一致していることを確認する（Issue #58）。
@@ -41,6 +67,7 @@ export function validateIndex(data,lessonById, fileIds = new Set()) {
         if (seenTrackIds.has(track.trackId)) add('trackIdの重複', `trackId="${track.trackId}" が重複している`);
         seenTrackIds.add(track.trackId);
       }
+      if ('intro' in track) checkTrackIntro(track.intro, i, add);
       if ('units' in track) {
         if (!Array.isArray(track.units)) add('tracksの型', `tracks[${i}].units が配列でない`);
         else if (track.units.length === 0) add('unitsが空', `trackId="${track.trackId}" の units が空配列`);
@@ -67,6 +94,12 @@ export function validateIndex(data,lessonById, fileIds = new Set()) {
             add('gimmicks', `unitId="${unit.unitId}" の gimmicks に未知の値 ${JSON.stringify(g)}（許可: ${UNIT_GIMMICKS.join('・')}）`);
           }
         }
+      }
+    }
+    // icon・color＝単元ボタンの見た目（Issue #644）。省略可。js/ui-picker.js の名前表と同じ一覧。
+    for (const [key, allowed] of [['icon', UNIT_ICONS], ['color', UNIT_COLORS]]) {
+      if (key in unit && !allowed.includes(unit[key])) {
+        add(`unitの${key}`, `unitId="${unit.unitId}" の ${key} が不正 ${JSON.stringify(unit[key])}（許可: ${allowed.join('・')}）`);
       }
     }
     if (!Array.isArray(unit.lessonIds)) continue;

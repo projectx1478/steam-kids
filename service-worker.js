@@ -5,7 +5,10 @@
 // steam-kids固有の追加: GitHub Pages配信（Cache-Control: max-age=600）のため、
 // アプリシェル取得に cache: "no-cache" を指定しHTTPキャッシュを迂回する（kids-playerはVercel
 // 配信のためこの指定が無い）。CACHE_NAMEはjs/config.jsのAPP_VERSIONと同値にする（docs/caching.md）。
-const CACHE_NAME = "steam-kids-cache-v103";
+// 値はリポジトリ上では固定で、デプロイ時に自動付与される（PRで変えない。docs/caching.md）。
+const CACHE_NAME = "steam-kids-cache-dev";
+// 音源専用。版を付けず、activateで消さない（版が変わっても保存済みBGMを残す）。
+const AUDIO_CACHE_NAME = "steam-kids-audio";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -66,6 +69,7 @@ const APP_SHELL = [
   "./js/ui-parental-gate.js",
   "./js/ui-picker.js",
   "./js/ui-tracks.js",
+  "./js/ui-track-intro.js",
   "./js/unlock.js",
   "./js/dev-mode.js",
   "./js/ui-play.js",
@@ -102,7 +106,7 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(
-        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
+        keys.filter((k) => k !== CACHE_NAME && k !== AUDIO_CACHE_NAME).map((k) => caches.delete(k))
       )
     )
   );
@@ -144,7 +148,7 @@ self.addEventListener("fetch", (event) => {
         return fetch(event.request).then((response) => {
           if (response.ok) {
             const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone).catch(() => {}));
+            caches.open(AUDIO_CACHE_NAME).then((cache) => cache.put(event.request, clone).catch(() => {}));
           }
           return response;
         });

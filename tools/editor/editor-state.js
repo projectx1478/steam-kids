@@ -68,6 +68,64 @@ export function redo(state) {
   return ok();
 }
 
+// ---- ドラッグ連続配置（#647 段4）。履歴は spec 全体のスナップショットなので、ドラッグ中の commit を最後の1つに畳む。----
+// ドラッグで置く・消すを担う key（wall・SIMPLE_LISTS・bridge・eraser）。それ以外は従来の click のみ。
+export const isDragKey = (key) => key === 'eraser' || key === 'wall' || key === 'bridge' || SIMPLE_LISTS.includes(key);
+
+// (x0,y0) から (x1,y1) までの通るマス（両端含む）。Bresenham。
+export function lineCells(x0, y0, x1, y1) {
+  const out = [];
+  const dx = Math.abs(x1 - x0);
+  const dy = -Math.abs(y1 - y0);
+  const sx = x0 < x1 ? 1 : -1;
+  const sy = y0 < y1 ? 1 : -1;
+  let err = dx + dy;
+  let x = x0;
+  let y = y0;
+  for (;;) {
+    out.push({ x, y });
+    if (x === x1 && y === y1) break;
+    const e2 = 2 * err;
+    if (e2 >= dy) { err += dy; x += sx; }
+    if (e2 <= dx) { err += dx; y += sy; }
+  }
+  return out;
+}
+
+// ドラッグ1回の操作。begin → paint（マスごと）→ end（確定）／cancel（破棄）。
+export function dragBegin(state, key) {
+  return { key, commits: 0, placed: 0 };
+}
+
+// そのマスへ key を置く（eraser は消す）。盤外は何もしない。commit が積まれたときだけ数える。
+export function dragStep(state, drag, x, y) {
+  if (!inGrid(state.spec, x, y)) return ng('盤外');
+  const before = state.history[state.cursor];
+  const r = drag.key === 'eraser' ? erase(state, x, y) : place(state, drag.key, x, y);
+  if (r.ok && state.history[state.cursor] !== before) { drag.commits += 1; drag.placed += 1; }
+  return r;
+}
+
+// ここまでを1手に畳む（途中の commit を捨て、最後の1つを残す）。置いた数を返す。
+export function dragEnd(state, drag) {
+  const n = Math.min(drag.commits, state.history.length);
+  if (n > 1) {
+    state.history.splice(state.history.length - n, n - 1);
+    state.cursor = state.history.length - 1;
+  }
+  return drag.placed;
+}
+
+// ここまでを破棄する（履歴に積まない＝開始時の状態に戻す）。
+export function dragCancel(state, drag) {
+  const n = Math.min(drag.commits, state.history.length - 1);
+  if (n > 0) {
+    state.history.splice(state.history.length - n, n);
+    state.cursor = state.history.length - 1;
+    state.spec = clone(state.history[state.cursor]);
+  }
+}
+
 function inGrid(spec, x, y) {
   return Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < spec.grid.cols && y < spec.grid.rows;
 }
@@ -119,23 +177,58 @@ export function setStepText(state, text) {
   return commit(state, next);
 }
 
-// 盤面サイズを変える。EDITOR_MAX_SIZE 超過・1 未満・非整数、要素が盤外になる場合は拒否。
-export function setGrid(state, cols, rows) {
+// 盤面サイズの入力検査。通れば null、拒否なら ng。
+function gridInputError(cols, rows) {
   if (!Number.isInteger(cols) || !Number.isInteger(rows) || cols < 1 || rows < 1) return ng('盤面サイズは1以上の整数');
   if (cols > EDITOR_MAX_SIZE || rows > EDITOR_MAX_SIZE) return ng(`盤面サイズの上限は ${EDITOR_MAX_SIZE}×${EDITOR_MAX_SIZE}`);
-  if (state.spec.grid.cols === cols && state.spec.grid.rows === rows) return ok();
-  const next = clone(state.spec);
-  next.grid = { cols, rows };
-  for (let y = 0; y < Math.max(state.spec.grid.rows, rows); y++) {
-    for (let x = 0; x < Math.max(state.spec.grid.cols, cols); x++) {
-      if ((x >= cols || y >= rows) && occupants(next, x, y).length) return ng('盤外になるマスに要素がある');
+  return null;
+}
+
+// 縮小で盤外になるマスのうち要素のあるものを (x,y,here) で返す。盤外は元の盤の範囲内のマスのみ（拡大では空）。
+function outsideCells(spec, cols, rows) {
+  const out = [];
+  for (let y = 0; y < spec.grid.rows; y++) {
+    for (let x = 0; x < spec.grid.cols; x++) {
+      if (x < cols && y < rows) continue;
+      const here = occupants(spec, x, y);
+      if (here.length) out.push({ x, y, here });
     }
   }
+  return out;
+}
+
+// 縮小の確認用ドライラン（state は変えない）。盤外に start・goal があれば拒否。それ以外は { ok: true, count: 盤外の要素の個数 }。
+export function shrinkLoss(state, cols, rows) {
+  const bad = gridInputError(cols, rows);
+  if (bad) return bad;
+  const cells = outsideCells(state.spec, cols, rows);
+  if (cells.some((c) => c.here.some((o) => SINGLE.includes(o.kind)))) return ng('盤外になるマスにスタート・ゴールがある');
+  return { ok: true, count: cells.reduce((n, c) => n + c.here.length, 0) };
+}
+
+// 盤面サイズを変える。EDITOR_MAX_SIZE 超過・1 未満・非整数、start・goal が盤外になる場合は拒否。
+// 盤外になるそれ以外の要素は erase の後始末で消し、commit は1回（確認は呼び出し側。件数は shrinkLoss）。
+export function setGrid(state, cols, rows) {
+  const loss = shrinkLoss(state, cols, rows);
+  if (!loss.ok) return loss;
+  if (state.spec.grid.cols === cols && state.spec.grid.rows === rows) return ok();
+  const next = clone(state.spec);
+  for (const c of outsideCells(state.spec, cols, rows)) {
+    for (let guard = 0; guard < 20; guard++) {
+      const here = occupants(next, c.x, c.y);
+      if (here.length === 0) break;
+      eraseCell(next, here, c.x, c.y);
+      // 氷などと同居する switches.targets は eraseCell が触らないので直接外す
+      for (const sw of list(next.switches)) if (Array.isArray(sw.targets)) sw.targets = sw.targets.filter((t) => !(t.x === c.x && t.y === c.y));
+    }
+  }
+  next.grid = { cols, rows };
   return commit(state, next);
 }
 
-// key（palette の key）の要素を (x,y) に置く。同じマスに何かあれば拒否（同じ要素の重なり禁止。他の要素との重なりも盤面 JSON の規則に反するため拒否）。
-// start・goal は各1個なので、置くと今の位置から移る。
+// key（palette の key）の要素を (x,y) に置く。start・goal 以外の key は、同じマスの既存要素（paint を除く）を erase 相当で消してから置く（上書き。1手）。
+// 同種を同じマスへ置くときは何もしない（ok・履歴に積まない）。start・goal がそのマスにあれば拒否。
+// start・goal を置く側は従来どおり paint 以外と重ならず拒否。start・goal は各1個なので、置くと今の位置から移る。
 // groupWalls だけは第5引数 group（その group のスイッチが要る）。
 export function place(state, key, x, y, group) {
   const spec = state.spec;
@@ -144,22 +237,25 @@ export function place(state, key, x, y, group) {
   if (key === 'paint') return togglePaint(state, x, y);
   if (KEY_LISTS.includes(key)) {
     if (!inGrid(spec, x, y)) return ng('盤外');
-    if (occupants(spec, x, y).length) return ng('そのマスには既に要素がある');
-    const next = clone(spec);
+    const o = overwriteBase(spec, key, x, y);
+    if (!o.next) return o;
+    const next = o.next;
     next[key] = [...list(next[key]), { x, y, color: 'red' }];
     return commit(state, next);
   }
   if (key === 'periodic' || key === 'bridge') {
     if (!inGrid(spec, x, y)) return ng('盤外');
-    if (occupants(spec, x, y).length) return ng('そのマスには既に要素がある');
-    const next = clone(spec);
+    const o = overwriteBase(spec, key, x, y);
+    if (!o.next) return o;
+    const next = o.next;
     next[key] = [...list(next[key]), key === 'bridge' ? { x, y } : { x, y, period: PERIODIC_DEFAULT }];
     return commit(state, next);
   }
   if (WARP_KEYS[key]) {
     if (!inGrid(spec, x, y)) return ng('盤外');
-    if (occupants(spec, x, y).length) return ng('そのマスには既に要素がある');
-    const next = clone(spec);
+    const o = overwriteBase(spec, 'warps', x, y, WARP_KEYS[key]);
+    if (!o.next) return o;
+    const next = o.next;
     next.warps = [...list(next.warps), { x, y, pair: WARP_KEYS[key] }];
     return commit(state, next);
   }
@@ -168,15 +264,41 @@ export function place(state, key, x, y, group) {
     return ng(`${key} は置けない`);
   }
   if (!inGrid(spec, x, y)) return ng('盤外');
-  if (occupants(spec, x, y).some((o) => !(SINGLE.includes(key) && o.kind === 'paint'))) return ng('そのマスには既に要素がある'); // start・goal は目標マス（paint）と重なってよい
-  const next = clone(spec);
+  let next;
   if (SINGLE.includes(key)) {
+    if (occupants(spec, x, y).some((o) => o.kind !== 'paint')) return ng('そのマスには既に要素がある'); // start・goal は目標マス（paint）と重なってよい
+    next = clone(spec);
     next[key] = { x, y };
   } else {
     const name = key === 'wall' ? 'walls' : key;
+    const o = overwriteBase(spec, name, x, y);
+    if (!o.next) return o;
+    next = o.next;
     next[name] = [...list(next[name]), { x, y }];
   }
   return commit(state, next);
+}
+
+// 上書きの下ごしらえ。(x,y) の既存要素（paint を除く）を erase 相当で消した next を返す。
+// kind は盤面 JSON の配列名（壁は 'walls'）。pair はワープの組。同種が既にあれば { ok: true }（何もしない）、拒否なら ng、置けるなら { next }。
+// paint は重なり可なので残す。keyMode は、置く側が keys・doors なら消さずに残す。
+function overwriteBase(spec, kind, x, y, pair) {
+  if (!inGrid(spec, x, y)) return ng('盤外');
+  const here = occupants(spec, x, y).filter((o) => o.kind !== 'paint');
+  if (here.some((o) => SINGLE.includes(o.kind))) return ng('そのマスには既に要素がある（スタート・ゴールは上書きできない）');
+  const same = here.some((o) => o.kind === kind && (pair === undefined || spec.warps[o.index].pair === pair));
+  if (same) return ok();
+  const next = clone(spec);
+  if (here.length === 0) return { next };
+  if (here.some((o) => !SIMPLE_LISTS.includes(o.kind) && !SWITCH_KINDS.includes(o.kind) && o.kind !== GROUP_WALLS && o.kind !== 'warps' && o.kind !== 'periodic' && o.kind !== 'bridge' && !KEY_LISTS.includes(o.kind))) return ng('消せない要素');
+  eraseCell(next, here, x, y);
+  // スイッチ本体と氷が同じマスなら、別タイルの上書きで氷も消す（「別タイル＋氷」を作らない。#647-3A）。erase 本体は氷を残す
+  if (kind !== 'ice' && here.some((o) => o.kind === 'switches') && here.some((o) => o.kind === 'ice')) {
+    next.ice = list(next.ice).filter((c) => !(c.x === x && c.y === y));
+    if (next.ice.length === 0) delete next.ice;
+  }
+  if (KEY_LISTS.includes(kind) && spec.keyMode !== undefined) next.keyMode = spec.keyMode;
+  return { next };
 }
 
 // (x,y) の単純な要素を消す。start・goal は各1個必須なので消せない。何も無ければ拒否。
@@ -188,20 +310,26 @@ export function erase(state, x, y) {
   if (here.some((o) => SINGLE.includes(o.kind))) return ng('スタート・ゴールは消せない（各1個）');
   if (here.some((o) => !SIMPLE_LISTS.includes(o.kind) && !SWITCH_KINDS.includes(o.kind) && o.kind !== GROUP_WALLS && o.kind !== 'warps' && o.kind !== 'periodic' && o.kind !== 'bridge' && o.kind !== 'paint' && !KEY_LISTS.includes(o.kind))) return ng('消せない要素');
   const next = clone(spec);
+  eraseCell(next, here, x, y);
+  return commit(state, next);
+}
+
+// next から (x,y) の here（occupants の結果）を消す。commit はしない（erase と place の上書きが共用）。
+function eraseCell(next, here, x, y) {
   if (here.some((o) => o.kind === 'paint')) {
     next.paint = list(next.paint).filter((c) => !(c.x === x && c.y === y));
     if (next.paint.length === 0) delete next.paint;
-    return commit(state, next);
+    return;
   }
   if (here.some((o) => o.kind === 'bridge')) {
     next.bridge = list(next.bridge).filter((c) => !(c.x === x && c.y === y));
     if (next.bridge.length === 0) delete next.bridge;
-    return commit(state, next);
+    return;
   }
   if (here.some((o) => o.kind === 'periodic')) {
     next.periodic = list(next.periodic).filter((c) => !(c.x === x && c.y === y));
     if (next.periodic.length === 0) delete next.periodic;
-    return commit(state, next);
+    return;
   }
   if (here.some((o) => KEY_LISTS.includes(o.kind))) {
     for (const name of KEY_LISTS) {
@@ -209,12 +337,12 @@ export function erase(state, x, y) {
       if (next[name].length === 0) delete next[name];
     }
     if (!next.keys && !next.doors) delete next.keyMode; // keyMode は keys・doors のある盤だけに指定できる（validate）
-    return commit(state, next);
+    return;
   }
   if (here.some((o) => o.kind === 'warps')) {
     next.warps = list(next.warps).filter((c) => !(c.x === x && c.y === y));
     if (next.warps.length === 0) delete next.warps;
-    return commit(state, next);
+    return;
   }
   if (here.some((o) => o.kind === 'switches')) {
     // スイッチ本体を消す（同じマスの氷は残す）。対象の壁は他に持ち主がいなければ床に戻る。
@@ -222,16 +350,16 @@ export function erase(state, x, y) {
     next.switches = list(next.switches).filter((c) => !(c.x === x && c.y === y));
     if (next.switches.length === 0) delete next.switches;
     if (gone && typeof gone.group === 'string') dropGroupWalls(next, gone.group); // group の壁は持ち主がいなくなるので床に戻る
-    return commit(state, next);
+    return;
   }
   if (here.every((o) => o.kind === GROUP_WALLS)) {
     next.groupWalls = list(next.groupWalls).filter((w) => !(w.x === x && w.y === y));
     if (next.groupWalls.length === 0) delete next.groupWalls;
-    return commit(state, next);
+    return;
   }
   if (here.every((o) => o.kind === 'switches.targets')) {
     for (const sw of list(next.switches)) sw.targets = list(sw.targets).filter((t) => !(t.x === x && t.y === y));
-    return commit(state, next);
+    return;
   }
   for (const name of SIMPLE_LISTS) {
     const kept = list(next[name]).filter((c) => !(c.x === x && c.y === y));
@@ -244,7 +372,6 @@ export function erase(state, x, y) {
     }
   }
   if (here.some((o) => o.kind === 'water')) dropOrphanBridges(next, x, y);
-  return commit(state, next);
 }
 
 // 消した水 (x,y) の隣にあった橋のうち、上下左右に水が残らないものを消す（隣接する水が残る橋は残す。#523 段3）。

@@ -6,6 +6,7 @@
 - 同期対象：`review/design/`・`review/autopilot/`（`runlogs/` と `lock.txt` を除く）・`review/handoff-*.md`。コピーは追加と上書きだけで、削除はしない。
 - 作業コピーは `<MAIN>/.worktrees/_state`。コミットは noreply・Co-Authored-By なし。
 - lock：`start` で取り、`finish` で外す。他方が12時間以内に lock 中なら終了コード2（`STOP（他方が実行中）`）。
+- 自動進行（`/run-issues`）は全体で1つだけ（lock は local/cloud 排他）。並行して進めるのは手動の `/implement-issue` のみ。
 - 手元は `start local`、クラウドは `start cloud`。`/run-issues` が起動時に `start`、どの停止でも `finish`（push してから unlock）を実行する。
 - クラウドは 5時間の判定をしない。週間 85％の判定と件数上限（実装2件・設計3件）は残る。
 
@@ -18,9 +19,9 @@
 4. 最初の依頼文：
    ```
    add_repo で projectx1478/steam-kids-state を access: push で追加して。
-   そのあと /run-issues クラウド 週間 ○% を実行して。
+   そのあと /run-issues クラウド [週間 ○%] を実行して。（週間は省略可。7日に1回は入れる）
    ```
-   週間の値は `/usage` の最新値。`steam-kids-state` を付けないと clone できない（`could not read Username`）。
+   週間の値は `/usage` の最新値（省略可。週間は7日に1回は入れる。7日以上入れていないと `STOP（起動値の不備）` になる）。`steam-kids-state` を付けないと clone できない（`could not read Username`）。
 
 ## クラウド → 手元
 1. クラウドの停止時に `finish` が実行されていることを確認する（実行されていなければ、クラウドで `node tools/autopilot-state.mjs finish`）。
@@ -28,7 +29,7 @@
 3. 手元の `review/` に、クラウドへ出していない編集があれば、先に `node tools/autopilot-state.mjs push`（`start` は、`queue.md`・`log.md`・`decisions/inbox.md` に未同期の編集があれば上書きせず `STOP`（終了コード3）。`queue-inbox.md` は追記マージ）。
    - 終了コード3で止まったときの復帰：手元の該当ファイルの編集を別名に退避 → `start` で state を pull → 退避分を手で反映し直す。
    - キューへの追加は `review/autopilot/queue-inbox.md` に書く（`queue.md` を直接編集しない。`start` が末尾へ取り込む）。
-4. `/run-issues 週間 ○% 5時間 ○%` を起動する（`start local` が pull する）。
+4. `/run-issues [週間 ○%] [5時間 ○%]` を起動する（値は省略可。週間は7日に1回は入れる。`start local` が pull する）。
 
 ## 予算不足で止まったとき
 手元の `/run-issues` が 5時間の予算不足で止まると、next.txt の1行目が `STOP（予算不足：クラウドで続行可）` になり、引き継ぎ書の起動欄にクラウド用の依頼文が書かれる。クラウドの起動は悠さんが手動で行う。

@@ -18,7 +18,7 @@ model: sonnet
 
 ## 見るもの
 - 触るファイルの列挙と、その理由。
-- `service-worker.js` の `APP_SHELL`・`CACHE_NAME`、`js/config.js` の `APP_VERSION`（ファイルやモジュールを足す場合は同時に上げる）。
+- `service-worker.js` の `APP_SHELL`（ファイルやモジュールを足す場合は更新する）。`CACHE_NAME`・`js/config.js` の `APP_VERSION` は触らない（デプロイ時に自動付与）。
 - `node tools/affected-scenarios.mjs` で影響シナリオを出し、approved.md の `E2E への影響` に貼る。
 - E2E への影響：固定値（レッスン本数「13本」など）、画面遷移に依存するテスト。`tests/` 以下を検索して列挙する。
 - `tools/validate-lessons.mjs` への影響。

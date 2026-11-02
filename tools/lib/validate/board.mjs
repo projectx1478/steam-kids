@@ -65,7 +65,7 @@ function checkGroupSwitches(board, add, label) {
 
 // ワープ（Issue #64）の形式検査。キーは warps のみ（単数形 warp は受け付けない）。
 // x は 0..cols-1・y は 0..rows-1 の整数、pair は 1 か 2、各 pair はちょうど2個、組は最大2。
-// 壁・start・goal・他ギミックのマスと重ならず、ice・paint・periodic とは併用できない。
+// 壁・start・goal・他ギミックのマスと重ならず、ice・paint・periodic とは別のマスなら併用できる（docs/gimmicks.md ## warps。併用盤はエディタ限定）。
 function checkWarps(board, add, label) {
   const bad = (msg) => add('盤面の妥当性', `${label}${msg}`);
   if (board.warp !== undefined) bad('warp は廃止（キーは warps）');

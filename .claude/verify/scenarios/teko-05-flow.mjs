@@ -72,6 +72,16 @@ export default async function run({ page, check }) {
   await page.waitForSelector('[data-action="robots-plus"]');
   await layout(page, 'p3', check);
   await page.setViewportSize({ width: 1024, height: 640 });
+  // 位置だけ（重さ1・位置2）では失敗→ためしなおす
+  await click(page, 'pos-right');
+  await click(page, 'run');
+  await page.waitForSelector('[data-action="retry"]', { timeout: 10000 });
+  await click(page, 'retry');
+  // 重さだけ（重さ2・位置1）でも失敗→ためしなおす
+  await click(page, 'robots-plus');
+  await click(page, 'run');
+  await page.waitForSelector('[data-action="retry"]', { timeout: 10000 });
+  await click(page, 'retry');
   await click(page, 'pos-right');
   await click(page, 'robots-plus');
   await check('p3：重さが2になる', () => moverRobots(page), 2);
@@ -83,6 +93,16 @@ export default async function run({ page, check }) {
   await page.waitForSelector('[data-action="robots-plus"]');
   await layout(page, 'p4', check);
   await page.setViewportSize({ width: 1024, height: 640 });
+  // 位置だけ（重さ1・位置2）では失敗→ためしなおす
+  await click(page, 'pos-right');
+  await click(page, 'run');
+  await page.waitForSelector('[data-action="retry"]', { timeout: 10000 });
+  await click(page, 'retry');
+  // 重さだけ（重さ3・位置1）でも失敗→ためしなおす
+  await click(page, 'robots-plus', 2);
+  await click(page, 'run');
+  await page.waitForSelector('[data-action="retry"]', { timeout: 10000 });
+  await click(page, 'retry');
   await click(page, 'pos-right');
   await click(page, 'robots-plus', 2);
   await check('p4：重さが3になる', () => moverRobots(page), 3);

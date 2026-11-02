@@ -39,12 +39,25 @@ jobs:
             exit 1
           fi
 
+      # 版数をデプロイ時に自動付与する（docs/caching.md）。_site 内の2ファイルだけ置換し、リポジトリ本体は書き換えない。
+      - name: 版数を付与する（_site 内の2ファイルのみ）
+        run: |
+          VER="steam-kids-cache-${GITHUB_SHA::7}"
+          sed -i "s/steam-kids-cache-dev/${VER}/" _site/service-worker.js _site/js/config.js
+          SW=$(grep -oE "steam-kids-cache-[A-Za-z0-9]+" _site/service-worker.js | head -n1)
+          CF=$(grep -oE "steam-kids-cache-[A-Za-z0-9]+" _site/js/config.js | head -n1)
+          echo "service-worker.js: ${SW} / config.js: ${CF}"
+          if [ "$SW" != "$VER" ] || [ "$CF" != "$VER" ]; then
+            echo "::error::版数の置換結果が一致しません（期待 ${VER}）。"
+            exit 1
+          fi
+
       # BGM 音源（MusMus）は規約上公開リポジトリに置かない。Pages デプロイ時に
       # 非公開リポジトリ steam-kids-state から読み取り deploy key で取得し _site/audio/ へ同名コピーする（#378）。
       # Secret 未設定・取得失敗時は警告のみで曲なし配信を続ける（失敗にはしない）。
       - name: SSH鍵を登録する（BGM音源取得用）
         if: ${{ env.STATE_KEY_SET == 'true' }}
-        uses: webfactory/ssh-agent@v0.9.0
+        uses: webfactory/ssh-agent@v0.10.0
         with:
           ssh-private-key: ${{ secrets.STATE_DEPLOY_KEY }}
 
@@ -62,11 +75,11 @@ jobs:
           fi
           ls -la _site/audio/
 
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
 
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

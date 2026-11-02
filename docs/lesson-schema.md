@@ -196,6 +196,24 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 開発者画面は全レッスンが開き、学習記録（events・tutorialDone・同期）を残さない。`lessons/*.json`は`lessonIds`・`practiceIds`・`devOnlyIds`のどれかに載せる（`validate-lessons`が検証）。
 単元の`gimmicks`（省略可。`items`・`ice`・`keys`の配列）は、その単元のレッスンを1本でもクリアすると練習の`generator`の`gimmickMix`で混ぜてよくなるギミックの種類。`practiceIds`・`devOnlyIds`はクリア判定に数えない。
 
+### 単元の`icon`・`color`（Issue #644。省略可）
+
+単元マップの見た目を単元ごとに選ぶ。どちらも固定の名前で、未知の値・文字列でない値（`""`・`null`・`"bg-emerald-400"`・`"red"`・`"star"`）は`validate-lessons`が拒否する。
+
+- `icon`：`commands`（旗）・`donguri`・`ice`・`keys`・`switches`・`teko`（シーソー）・`none`（アイコン無し）。
+- `color`：`emerald`・`amber`・`sky`・`purple`・`rose`・`teal`（`bg-*-400`の`*`部分）。
+- `icon`だけ指定すると色はその`icon`の既定色（commands＝emerald／donguri＝amber／ice＝sky／keys＝purple／switches＝rose／teko＝teal／none＝sky）。
+- 両方省略すると従来どおり`unitId`の既存表（上の6単元）、無ければ水色・アイコン無し。`color`だけ指定すると、アイコンは`unitId`の既存表のまま色だけ替わる。
+- 名前→クラス名の表は`js/ui-picker.js`の`COLOR_BG`（Tailwindスキャン用にリテラル）。許可値は`tools/lib/validate/index-check.mjs`の`UNIT_ICONS`・`UNIT_COLORS`と揃える。
+
+### 大項目の`intro`（Issue #644。省略可）
+
+`tracks[].intro`＝`{ "demo": <intro.demo と同形>, "text": "<短い文字列>" }`。あると、大項目選択でその大項目を選んだ直後・単元マップの前に紹介画面（`js/ui-track-intro.js`）を毎回出す。省略した大項目は今までどおり単元マップへ直行。
+
+- `demo`（必須）：レッスンの`intro.demo`と同じ形（`grid`は`{cols, rows}`、`start`・`goal`・`walls`・`commands`ほか）。`commands`でゴール到達・全item回収になること。`validate-lessons`が`intro.demo`と同じ検査をする（本番`play`との同一性比較だけは無い）。
+- `text`（任意）：30字以内の文字列。空文字・省略なら文を出さない。数など文字列以外は拒否。
+- 紹介の「もどる」は大項目選択へ、「はじめる」は単元マップへ。単元マップの「もどる」は大項目選択へ戻る（紹介へは戻らない）。
+
 ## `generator`（シード生成の制約。Issue #68）
 
 `js/engine-generate.js`の`generateMap(generator, seed)`へ渡す制約。同じシードなら同じ盤面。れんしゅう（Issue #69）は`steps`が`seedPick`（`text`のみ）→`generator`付き`play`（盤面フィールドを持たない）→`summary`で、
@@ -239,10 +257,10 @@ MustMatterは、ギミックモジュールの`strip(spec)`（ギミックを除
 
 - `stageGen`（レッスンの最上位。任意）：`ver`（生成器の版。整数≥1）、`stages`（play の総数の上限。2〜8。4を超えてよい）、
   `keepHandwritten`（手書きで残す play の stepId。先頭から連続。省略時は空）、`grid.cols`・`grid.rows`（`{min,max}`。3〜20）、
-  `walls`（`{min,max}`。0〜60。省略時0）、`gimmicks`（`items`・`ice`・`keys` のみ。`{min,max}`。加えて `warps:{min,max}`＝組数1〜2。`periodic`・`water` と同時に指定できない（この3つは1種まで）。どんぐり・こおり・かぎ・クッション・スイッチ・壁とは併用できる。`paint`・`groupRepeats` とは併用不可）、`periodic:{min,max}`＝ドア数1〜2（周期3・4のみ生成。`warps`・`water` と同時に指定できない（この3つは1種まで）。どんぐり・こおり・かぎ・クッション・スイッチ・壁とは併用できる。`paint`・`groupRepeats` とは併用不可）、`paint:{min,max}`＝目標マス数4〜8（整数。単独で指定する。ただし water とだけ併用できる（目標は水マスに置かず、橋の1マスを通る。items・ice・keys・cushion・switches・warps・periodic とは併用できない））、`water:{min,max}`＝水マス数2〜8（整数。`warps`・`periodic` と同時に指定できない（この3つは1種まで）。どんぐり・こおり・かぎ・クッション・スイッチ・壁とは併用できる。paint とは併用できる（paint の項を参照）。groupRepeats とは併用不可。`waterMode`は入力にしない）、`teach`（必須性を判定するギミック）、
+  `walls`（`{min,max}`。0〜60。省略時0）、`gimmicks`（`items`・`ice`・`keys` のみ。`{min,max}`。加えて `warps:{min,max}`＝組数1〜2。ほかのギミック（`periodic`・`water`・`paint` を含む）・壁と併用できる（#649。1種制限は撤廃）。`groupRepeats` とは併用不可）、`periodic:{min,max}`＝ドア数1〜2（周期3・4のみ生成。ほかのギミック・壁と併用できる。`groupRepeats` とは併用不可）、`paint:{min,max}`＝目標マス数4〜8（整数。ほかのギミックと併用できる（#649。単独制限は撤廃）。water との併用では目標は水マスに置かず、橋の1マスを通る））、`water:{min,max}`＝水マス数2〜8（整数。ほかのギミック・壁と併用できる。groupRepeats とは併用不可。`waterMode`は入力にしない）、`teach`（必須性を判定するギミック）、
   `shortestPath`（`{min,max}`。2〜60）、`minTurns`（0〜8。省略時0）、`allowedCommands`（上下左右の部分集合。省略時4方向）、`seedBase`（省略時1）。
   表に無いキーは不合格。使わないマス（`shape`・`grid.holes`）は未対応（Issue #338）。
-- `stageGen.base`（エディタの /api/generate 専用。レッスン JSON には書かない。書けば未知キーで不合格）：エディタで開いている盤を土台に渡す入力で、土台の水・橋・壁・盤の大きさを固定し、陸だけに start・goal・壁・ギミックを置く。水の上限 2〜8 は土台の水に掛けない。土台に水があれば `warps`・`periodic` は併用できない。土台は保存されない。
+- `stageGen.base`（エディタの /api/generate 専用。レッスン JSON には書かない。書けば未知キーで不合格）：エディタで開いている盤を土台に渡す入力で、土台の水・橋・壁・盤の大きさを固定し、陸だけに start・goal・壁・ギミックを置く。陸が離れ離れでもよい：陸のいちばん大きいつながり（主の島）の中だけに置き、孤立した陸は残して何も置かない。主の島の選び方＝`base.start`（`{x,y}`。省略可）がある島（2マス以上）→最大→同数なら行優先で最初のマスの島（start が水・壁・2マス未満の島の上なら無視して最大の島）。主の島が2マス未満なら 400。水の上限 2〜8 は土台の水に掛けない。土台に水があっても `warps`・`periodic` は併用できる（#649。ワープの入口・出口と周期ドアは土台の橋の上に置かない）。土台は保存されない。
 - `gen`（生成した play ステップの中）：`{ "seed": <整数≥0>, "ver": <stageGen.ver と同じ> }`。手書きで残す play には付けない。
 - 生成の規則：`maxCommands` は最短手数ちょうど。最短手数は非減少で、真ん中あたりに「最短は前と同じで曲がり角が少ない」面を1つ置く。
   回転・鏡写しで同じになる盤は除く。同じレッスンの中で盤を急に2段以上大きくしない。

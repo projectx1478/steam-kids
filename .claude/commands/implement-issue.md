@@ -56,6 +56,7 @@ Bの修正後に、静的な再照合は回さない。確かめるのはCIの�
 4. `gh issue view <N> --json number,title,body,labels` で本文を取得し、依存先がすべてクローズ済みであることを確認する。
 5. `git --no-pager log -5 --oneline` でコミットメッセージの書き方を確認する。
 6. `.github/workflows/e2e-pr.yml` を読み、PR本文の `E2E:` 行の書式（区切り・シナリオ名の形）を確認する。
+7. 着手宣言：ブランチ名を決め（run-issues 経由は用意済みの worktree のブランチ）、`node tools/parallel-check.mjs <N> --claim env=<local|cloud> branch=<ブランチ名>` を実行する。終了コード2（他の環境が着手中）または3（オープン PR と重なる）なら止まって報告する（`/run-issues` 経由では inbox に積む）。重なりが行の離れた追記だけなら、理由を報告に書いて続行してよい。
 
 ### 1. ブランチ
 `git switch -c feature/issue-<N>-<短い英語のslug>`（`main` から）。`/run-issues` 経由で専用の worktree（`<MAIN>/.worktrees/<N>`）とブランチが用意済みなら、切らずにその worktree で作業する（`review/design/<N>/` は main 作業ツリー側を絶対パスで読む）。クラウドセッションでは、設計で切ったブランチがその clone に無いので、`git fetch origin <branch>` で取ってから `git worktree add <MAIN>/.worktrees/<N> <branch>` で作業する（ブランチが未 push なら `origin/main` から新規に切る）。
@@ -67,6 +68,7 @@ Bの修正後に、静的な再照合は回さない。確かめるのはCIの�
 3. 段が失敗した（検証が落ちる・coder が停止した）ときは、失敗の要約（落ちたテスト名・エラー先頭・変更済みファイル名）を渡して**新しい coder**を起動する。同じ段で2回続けて失敗したら止まって報告する。
 4. coder の最終返信は固定形式（成否／コミットID／設計と違った点／未確認の項目／指示された確認項目の結論）。「設計と違った点」「未確認の項目」は、最終報告にそのまま転記する。
 5. 盤面の最短手数・別解数・探索規模の確認が要る段では、coder に `node tools/analyze-board.mjs` を使わせる（使い捨てスクリプトを書かせない）。
+6. **E2E を先に回す**：段が2つ以上あり、`E2E への影響` にシナリオがある Issue は、段1 の照合が済んだら、手順5（コミットの準備）と手順6-1・6-2 を先に行い、下書き PR を作る（本文の `E2E:` 行は approved.md の全シナリオ）。CI は待たずに段2 へ進み、段2 の照合の後に `gh pr checks <PR番号> --watch` で1回確かめる。落ちていれば、残りの段より先に「CIが落ちたときの分け方」に従う（#370・#497 では、寸法の崩れが全段の後に見つかった）。以降の段は同じブランチに push し、PR 本文の照合の結果を追記する。
 
 ### 3. 照合
 coder の段が終わったら、`command-runner` に `npm run verify:fast`（無ければ `check:static`・`validate:lessons`・`test:unit` の3つ）を回させる。その報告を添えて `impl-checker` を呼ぶ。返信の「成否」行（`本体: 逸脱あり|なし ／ テスト: 不備あり|なし|未確認`）で、停止の規則の A・B に分ける。
@@ -87,6 +89,7 @@ Tailwind のクラスを足したのに、`style.css` が `git --no-pager diff -
 5. `git log -1 --format="%an <%ae>"` を実行する。noreply 形式（`...@users.noreply.github.com`）でなければ push せず、止まって報告する。
 
 ### 6. push と PR（新シナリオをCIで走らせる）
+PR 作成前に `node tools/parallel-check.mjs <N>` を実行し、終了コード3なら報告に重なりを書く。
 1. `git push -u origin <ブランチ>`。
 2. `gh pr create` で PR を作る（`/run-issues` 経由では `--draft` を付ける）。本文は次のとおり。
    - `Closes #<N>`

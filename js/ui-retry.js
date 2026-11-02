@@ -33,6 +33,7 @@ export function shakeBoard(boardArea) {
 }
 
 // showStartCue(boardArea): ステージ開始時に「スタート！」を盤面中央へ2秒だけ表示する（Issue #497。1秒→2秒は #544-3A）。
+// 盤面の最初の操作（命令・◀▶・−＋・ためす・ドラッグ・キー。←もどる・⚙は除く）でも消える（dismissStartCue。Issue #635）。
 // 盤面の内側に重ねて出す（吹き出し欄の外。docs/ui-rules.md の「start-cue は盤面内表示の例外」）。
 // タップは素通し。表示中は boardArea に data-start-cue を立て、消えたら外して 'sk-start-cue-end' を投げる
 // （吹き出し js/ui-bird.js がこれを見て、消えるまで表示を待つ）。再開（うごかす・ためしなおす）では呼ばない。
@@ -50,11 +51,32 @@ export function showStartCue(boardArea) {
   boardArea.appendChild(cue);
   boardArea.dataset.startCue = 'true';
   clearTimeout(boardArea._startCueTimer);
-  boardArea._startCueTimer = setTimeout(() => {
-    cue.remove();
-    delete boardArea.dataset.startCue;
-    boardArea.dispatchEvent(new CustomEvent('sk-start-cue-end'));
-  }, START_CUE_MS);
+  boardArea._startCueTimer = setTimeout(() => endCue(boardArea), START_CUE_MS);
+}
+
+// 「スタート！」を消す共通本体。冪等（data-start-cue が無ければ何もしない＝sk-start-cue-end は1回だけ）。
+function endCue(boardArea) {
+  clearTimeout(boardArea._startCueTimer);
+  if (!boardArea.dataset.startCue) return;
+  boardArea.querySelector(':scope > .sk-start-cue')?.remove();
+  delete boardArea.dataset.startCue;
+  boardArea.dispatchEvent(new CustomEvent('sk-start-cue-end'));
+}
+
+// dismissStartCue(boardArea): 盤面の最初の操作で「スタート！」をいま消す（Issue #635）。連打・キー経路の重複呼び出しは安全。
+export function dismissStartCue(boardArea) {
+  endCue(boardArea);
+}
+
+// bindStartCueDismiss(frame, boardArea): 画面の枠のタップ（capture の pointerdown・click）で消す入口。
+// ⚙（data-action="menu"）と小鳥の欄（bird-lane）の操作では消さない。
+export function bindStartCueDismiss(frame, boardArea) {
+  const onOp = (ev) => {
+    if (ev.target.closest?.('[data-action="menu"], [data-sk-screen="bird-lane"]')) return;
+    dismissStartCue(boardArea);
+  };
+  frame.addEventListener('pointerdown', onOp, true);
+  frame.addEventListener('click', onOp, true);
 }
 
 // createRetryChoice({ canResume, onResume, onRestart }): maxPauses>0 のステージで失敗したときの2ボタン

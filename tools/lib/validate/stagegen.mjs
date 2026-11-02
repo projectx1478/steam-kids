@@ -7,11 +7,12 @@ const SG_KEYS = ['ver', 'stages', 'keepHandwritten', 'grid', 'walls', 'gimmicks'
 const SG_GIMMICK_RANGES = { items: [1, 4], ice: [1, 4], keys: [1, 2], cushion: [1, 4], switches: [1, 2], warps: [1, 2], periodic: [1, 2], paint: [4, 8], water: [2, 8] };
 
 // 他のギミックと併用できない（単独で指定する）ギミック。要素を足せば同じ検査が働く。
-export const SG_SOLO_GIMMICKS = ['paint'];
-// 単独集合の要素ごとの例外（併用してよい相手）。paint は water とだけ併用できる（#531 段2）。
-export const SG_SOLO_EXCEPT = { paint: ['water'] };
-// 同時に1種までしか指定できないギミック（他の items・ice 等とは併用できる。#531）。
-export const SG_ONE_OF_GIMMICKS = ['warps', 'periodic', 'water'];
+// 今は空（paint の単独制限は #649 で撤廃。盤の規則は併用を許す）。
+export const SG_SOLO_GIMMICKS = [];
+// 単独集合の要素ごとの例外（併用してよい相手）。
+export const SG_SOLO_EXCEPT = {};
+// 同時に1種までしか指定できないギミック。今は空（warps・periodic・water の1種制限は #649 で撤廃。実在しない組み合わせは生成側が aborted/null で返す）。
+export const SG_ONE_OF_GIMMICKS = [];
 
 function checkStageGen(data, steps, add, soloGimmicks = SG_SOLO_GIMMICKS, oneOfGimmicks = SG_ONE_OF_GIMMICKS) {
   const sg = data.stageGen;
@@ -76,7 +77,6 @@ function checkStageGen(data, steps, add, soloGimmicks = SG_SOLO_GIMMICKS, oneOfG
           if (!KEY_MODES.includes(sg.keyMode)) add(label, `keyMode=${JSON.stringify(sg.keyMode)} が不正（${KEY_MODES.join('・')}のどちらか）`);
           if (!('keys' in gim)) add(label, 'keyMode は gimmicks.keys があるときだけ指定できる');
         }
-        if ('switches' in gim && 'keys' in gim) add(label, 'switches と keys は併用できない');
         for (const solo of soloGimmicks) {
           if (!(solo in gim)) continue;
           const others = Object.keys(gim).filter((k) => k !== solo && !(SG_SOLO_EXCEPT[solo] ?? []).includes(k));

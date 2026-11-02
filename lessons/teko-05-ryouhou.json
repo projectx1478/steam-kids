@@ -53,11 +53,11 @@
       "stepId": "p3",
       "kind": "play",
       "seesaw": {
-        "notches": 4,
+        "notches": 2,
         "left": [
           {
-            "robots": 1,
-            "pos": 4
+            "robots": 2,
+            "pos": 2
           }
         ],
         "mover": {
