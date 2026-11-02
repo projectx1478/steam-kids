@@ -9,9 +9,8 @@ import { fitCellSize, drawBoard as drawBoardUi, observeBoard } from './ui-board.
 import { createZoom } from './ui-zoom.js';
 import { openMenu } from './ui-menu.js';
 import { registerKeys } from './ui-keys.js';
-import { renderCommandPalette, renderCommandQueue, toggleGhostSlot, computeGapIndex, vibrate, countChips, planRun, clearUnlocked, isLockedIndex, stepsBefore, isPause, setPauseLeft } from './ui-commands.js';
+import { renderCommandPalette, toggleGhostSlot, computeGapIndex, vibrate, countChips, planRun, stepsBefore, isPause } from './ui-commands.js';
 import { play as playSfx, skipClickSfx } from './sfx.js';
-import { UNDO_CLEAR_MS, snapshotUnlocked, restoreUnlocked } from './undo-clear.js';
 import { createOpScreen } from './ui-screen.js';
 import { createIdleNudge } from './ui-guide.js';
 import { showHandHint } from './ui-hand.js';
@@ -30,8 +29,9 @@ import { boardFacts, nextFailHint, nextTapHint, shorterPhrase } from './bird-phr
 import { showClearSequence, recordClear } from './ui-clear.js';
 import { isTrial, closeTrialTab } from './trial-lesson.js';
 import { setupTray } from './ui-play-tray.js';
+import { setupQueue, bindEditButtons } from './ui-play-queue.js';
 import { renderKeyTray, resetKeyTray } from './gimmicks/keys.js';
-import { readDraft, writeDraft, clearDraft } from './storage.js';
+import { readDraft, clearDraft } from './storage.js';
 import { setRetryButton, createRetryChoice, shakeBoard, showStartCue, dismissStartCue, bindStartCueDismiss } from './ui-retry.js';
 
 // diagnose()の原因ごとの文言（20字以内・否定語なし。Issue #91）。
@@ -141,7 +141,7 @@ export function renderPlay(root, step) {
   const ctx = {
     step, spec, root, isFix, maxPauses, freshCommands, stageIndex, isFinalStage, facts, failCounts: FAIL_COUNTS, local,
     screen, statusBar, boardArea, controls, actionsEl, opScreen, bird, gearBtn, keyTrayEl,
-    mut: { remainingEl: null },
+    mut: { remainingEl: null, undoSnap: null, undoTimer: null, clearSequence: null, boxBtn: null, boxActionsShown: false },
     fn: {},
   };
   setupTray(ctx);
@@ -192,31 +192,6 @@ export function renderPlay(root, step) {
   undoBar.className = 'absolute left-0 bottom-0 h-1.5 bg-amber-600';
   undoBar.style.width = '100%';
   undoBtn.append(undoLabel, undoBar);
-  let undoSnap = null;
-  let undoTimer = null;
-  function dropUndo() {
-    if (undoTimer) clearTimeout(undoTimer);
-    undoTimer = null;
-    undoSnap = null;
-    if (undoBtn.parentNode) undoBtn.replaceWith(clearBtn);
-  }
-  function showUndo(snap) {
-    undoSnap = snap;
-    undoBar.style.transition = 'none';
-    undoBar.style.width = '100%';
-    clearBtn.replaceWith(undoBtn);
-    // reduced-motion は減り棒を静止（満タンのまま）。5秒たてば札ごと消える。
-    if (!prefersReducedMotion()) {
-      void undoBar.offsetWidth;
-      undoBar.style.transition = `width ${UNDO_CLEAR_MS}ms linear`;
-      undoBar.style.width = '0%';
-    }
-    undoTimer = setTimeout(() => {
-      undoTimer = null;
-      dropUndo();
-      updateControls();
-    }, UNDO_CLEAR_MS);
-  }
 
   // stepBtn: 1コマずつ実行（タップごとにstepper.advance()を1回呼ぶ。Issue #111）。
   const stepBtn = document.createElement('button');
@@ -231,6 +206,11 @@ export function renderPlay(root, step) {
   runBtn.dataset.action = 'run';
   runBtn.textContent = '▶\nじっこう';
   runBtn.className = 'btn-tactile px-1 bg-emerald-500 text-white text-sm font-bold whitespace-pre-line leading-tight break-keep disabled:opacity-40';
+
+  // 編集・キュー・取り消し札・箱のバー（ui-play-queue.js。Issue #663 段2）。最初の描画（renderQuestion）より前に呼ぶ。
+  Object.assign(ctx, { paletteEl, queueEl, runBtn, clearBtn, removeLastBtn, stepBtn, undoBtn, undoBar });
+  setupQueue(ctx);
+  const { saveDraft, resetToFresh, releaseFailLock, applyFailMark, scrollQueueToEnd, drawQueue, drawQueueFollowActive, updateControls, closeBox, showNormalActions, showResultActions } = ctx.fn;
 
   // 実行が失敗したらrunBtn自体を橙色の「ためしなおす」に変える（目線を動かさずに押せる。Issue #91）。
   // 他のボタンをロックする間、押せるのはこれだけなのでパルス枠で目立たせる（Issue #106）。
@@ -254,28 +234,6 @@ export function renderPlay(root, step) {
     runBtn.classList.toggle('text-xs', mode === 'retry');
     runBtn.classList.toggle('text-sm', mode !== 'retry');
   }
-
-  // クリア時はつぎへ・ためしなおす（レッスン再挑戦）を通常アクション行に差し替えて表示する
-  // （盤面上に重ねない。Issue #97）。
-  function showNormalActions() {
-    dropUndo();
-    clearSequence?.dispose();
-    clearSequence = null;
-    actionsEl.innerHTML = '';
-    actionsEl.appendChild(clearBtn);
-    actionsEl.appendChild(removeLastBtn);
-    actionsEl.appendChild(stepBtn);
-    actionsEl.appendChild(runBtn);
-  }
-
-  function showResultActions(buttons) {
-    actionsEl.innerHTML = '';
-    buttons.forEach((b) => actionsEl.appendChild(b));
-  }
-
-  // クリア演出（星→間→結果ダイアログ。Issue #336・#340・#342）は js/ui-clear.js の共通部品に任せる。
-  // 返り値の dispose() で間のタイマー・ダイアログ・空き枠を片付ける。
-  let clearSequence = null;
 
   // triggerFailFeedback(): 不正解時の視覚・聴覚フィードバック。派手な✕・警告音ではなく、
   // 盤面をやさしくゆらすアニメーションと効果音（未到達はtryAgain・取り残しはitemsLeft）で
@@ -313,51 +271,6 @@ export function renderPlay(root, step) {
     resetKeyTray(keyTrayEl);
   }
 
-  // saveDraft(): 命令列を変える全ての入口から呼ぶ、下書き保存の唯一の入口（Issue #556）。
-  // 実行中は命令列が変わらないので、再読込しても実行前の列が残る。空の箱は保存しない。
-  function saveDraft() {
-    local.failMark = -1; // 列が動いたら、失敗の強調（添字）は外す（#545）
-    if (isTrial()) return;
-    writeDraft(S.lesson.lessonId, step.stepId, local.commands.filter((c) => !(c.box && c.box.length === 0)));
-  }
-
-  // resetToFresh(): 命令列をfreshCommands（なおす系は初期の「ずれた」列、それ以外は空）へ戻す。
-  // クリア後のreplay・ステージ切替・離れるで呼ぶ。失敗後の「ためしなおす」は命令列を残すので
-  // これを呼ばず releaseFailLock を使う（#545。以前は失敗後も必ずこれを呼んでいた。Issue #104）。
-  // 参照(S.drafts)は保ったまま中身だけ入れ替える。
-  function resetToFresh() {
-    dropUndo();
-    local.commands.length = 0;
-    freshCommands.forEach((c) => local.commands.push({ ...c }));
-    local.boxOpen = -1;
-    local.lockedCount = 0;
-    local.runStates = {};
-    S.drafts[step.stepId] = local.commands;
-    saveDraft();
-    local.fixOpened = false;
-    local.locked = false;
-    // 塗りの失敗は結果トーストを出さず resultShown だけ立てる。旧 showRestartCue が戻していた分を、ここで確実に戻す（#497）。
-    local.resultShown = false;
-  }
-
-  // releaseFailLock(): 失敗後の「ためしなおす」。命令列と失敗の強調（failMark）は残し、
-  // resetToFresh と同じ残存状態だけ初期化して編集可へ戻す（#545-9A）。
-  function releaseFailLock() {
-    dropUndo();
-    local.boxOpen = -1;
-    local.lockedCount = 0;
-    local.runStates = {};
-    local.fixOpened = false;
-    local.locked = false;
-    local.resultShown = false;
-  }
-
-  // 失敗後の強調（#545）：最初に外れた命令（info.cmdIndex）の枠。再描画しても付け直す。
-  function applyFailMark() {
-    if (local.failMark < 0) return;
-    queueEl.querySelector(`[data-index="${local.failMark}"]`)?.classList.add('ring-4', 'ring-amber-400', 'sk-cmd-fail');
-  }
-
   // ためしなおす・replay の直後は約0.5秒じっこうを受け付けない（連打の取りこぼし防止。reduced-motion でも同じ。#545-8A）。
   let runCooldownTimer = null;
   function startRunCooldown() {
@@ -368,89 +281,6 @@ export function renderPlay(root, step) {
       local.runCooldown = false;
       updateControls();
     }, RUN_COOLDOWN_MS);
-  }
-
-  // 末尾へ寄せる。列が折り返して1行ぶん(72px)しか見えないとき、末尾の空き枠が次の行へ回ると最新のチップが上へ外れるので、
-  // 最新のチップが列の中に入るところまで戻す（Issue #615。空き枠が同じ行に残るときはそのまま両方見える）。
-  function scrollQueueToEnd() {
-    queueEl.scrollLeft = queueEl.scrollWidth;
-    queueEl.scrollTop = queueEl.scrollHeight;
-    const chips = queueEl.querySelectorAll(':scope > .command-chip');
-    const last = chips[chips.length - 1];
-    if (!last) return;
-    const over = queueEl.getBoundingClientRect().top - last.getBoundingClientRect().top;
-    if (over > 0) queueEl.scrollTop -= over;
-  }
-
-  // drawQueueFollowActive(): 実行中の再描画。再描画で戻るスクロール位置を復元し、今動いているチップを
-  // 列の中央へ寄せる（Issue #393）。scrollIntoViewは使わず、queueElのscrollLeft/scrollTopだけを動かす。
-  function drawQueueFollowActive() {
-    const left = queueEl.scrollLeft;
-    const top = queueEl.scrollTop;
-    drawQueue();
-    queueEl.scrollLeft = left;
-    queueEl.scrollTop = top;
-    const chip = queueEl.querySelector('.command-chip[data-active="true"]');
-    if (!chip) return;
-    const q = queueEl.getBoundingClientRect();
-    const c = chip.getBoundingClientRect();
-    const chipX = c.left - q.left + queueEl.scrollLeft;
-    const chipY = c.top - q.top + queueEl.scrollTop;
-    queueEl.scrollLeft = chipX - (queueEl.clientWidth - c.width) / 2;
-    queueEl.scrollTop = chipY - (queueEl.clientHeight - c.height) / 2;
-  }
-
-  function drawQueue() {
-    renderCommandQueue(queueEl, {
-      commands: local.commands,
-      activeIndex: local.activeIndex,
-      activeInner: local.activeInner,
-      activeRound: local.activeRound,
-      openIndex: local.boxOpen,
-      removable: true,
-      lockedCount: local.lockedCount,
-      // 次の空き枠は常に出す（命令の置ける数に上限は無い。#615）。
-      nextSlot: countChips(local.commands) + 1,
-      onRemove: (i) => {
-        if (local.running || local.stepping || local.locked || isLockedIndex(i, local.lockedCount)) return;
-        if (isFix) local.fixOpened = true;
-        local.commands.splice(i, 1);
-        if (i === local.boxOpen) local.boxOpen = -1;
-        else if (i < local.boxOpen) local.boxOpen -= 1;
-        saveDraft();
-        logEvent('undo', { index: i });
-        playSfx('remove');
-        drawQueue();
-        updateControls();
-        local.nudge?.poke();
-      },
-    });
-    applyFailMark();
-  }
-
-  function updateControls() {
-    // 取り消し札は、命令列が消した直後の状態から動いた（追加・実行・1コマなど）時点で破棄する。
-    if (undoSnap && (local.commands.length !== local.lockedCount || local.running || local.stepping || local.locked)) dropUndo();
-    paletteEl.querySelectorAll('button:not([data-action="menu"])').forEach((b) => {
-      b.disabled = local.running || local.stepping || local.locked;
-    });
-    // 「とめる」：残り回数が0なら無効。maxCommandsには数えないので、上限に達していても置ける（#395 段3）。
-    const pausesLeft = maxPauses - local.commands.filter(isPause).length;
-    const pauseBtn = paletteEl.querySelector('[data-action="pause"]');
-    if (pauseBtn) pauseBtn.disabled = pausesLeft <= 0 || local.boxOpen >= 0 || local.running || local.stepping || local.locked;
-    setPauseLeft(paletteEl, Math.max(0, pausesLeft));
-    const isRetry = runBtn.dataset.action === 'retry';
-    const hasEmptyBox = local.commands.some((c) => c.box && c.box.length === 0);
-    runBtn.disabled = local.running || local.runCooldown || (!isRetry && (local.commands.length === 0 || hasEmptyBox));
-    if (boxBtn) boxBtn.disabled = local.boxOpen >= 0 || local.running || local.stepping || local.locked;
-    drawBoxBar();
-    clearBtn.disabled = local.commands.length <= local.lockedCount || local.running || local.stepping || local.locked;
-    removeLastBtn.disabled = local.commands.length <= local.lockedCount || local.running || local.stepping || local.locked;
-    // 1コマ実行中はタップを続けられるよう有効のままにする。開始条件のみ命令0件で無効化する（Issue #111）。
-    stepBtn.disabled = local.running || local.locked || (!local.stepping && local.commands.length === 0);
-    // ロック中は命令列自体もぼかし、タップを受け付けないようにする（チップ×の誤タップ防止。Issue #106）。
-    queueEl.classList.toggle('opacity-50', local.locked);
-    queueEl.classList.toggle('pointer-events-none', local.locked);
   }
 
   const palette = renderCommandPalette(paletteEl, {
@@ -531,150 +361,7 @@ export function renderPlay(root, step) {
     },
   });
 
-  // くりかえしの箱：はこ→方向タップで箱に入れる→回数ボタン(2→3→4→2)→とじる（Issue #66）。
-  function closeBox() {
-    if (local.boxOpen < 0) return;
-    // 空の箱は残さない。
-    if (local.commands[local.boxOpen].box.length === 0) local.commands.splice(local.boxOpen, 1);
-    local.boxOpen = -1;
-    saveDraft();
-  }
-  let boxBtn = null;
-  let boxActionsShown = false;
-  // 箱を開いている間は、操作行を「けす・かいすう・とじる」に差し替える（盤面の高さを削らないため。
-  // ぜんぶ・1コマ・じっこうは箱を閉じるまで使えない）。
-  const timesBtn = document.createElement('button');
-  timesBtn.type = 'button';
-  timesBtn.dataset.action = 'box-times';
-  timesBtn.className =
-    'min-w-[64px] min-h-[64px] px-3 rounded-lg bg-amber-400 text-white text-sm font-bold whitespace-nowrap break-keep transition-transform duration-100 active:scale-95 disabled:opacity-40';
-  timesBtn.addEventListener('click', () => {
-    if (local.running || local.stepping || local.locked || local.boxOpen < 0) {
-      skipClickSfx();
-      return;
-    }
-    vibrate();
-    const box = local.commands[local.boxOpen];
-    box.times = box.times >= 4 ? 2 : box.times + 1;
-    saveDraft();
-    drawQueue();
-    updateControls();
-  });
-  const closeBtn = document.createElement('button');
-  closeBtn.type = 'button';
-  closeBtn.dataset.action = 'box-close';
-  closeBtn.textContent = 'とじる';
-  closeBtn.className =
-    'btn-tactile px-4 bg-emerald-500 text-white text-lg font-bold whitespace-nowrap break-keep disabled:opacity-40';
-  closeBtn.addEventListener('click', () => {
-    if (local.running || local.stepping || local.locked) {
-      skipClickSfx();
-      return;
-    }
-    vibrate();
-    closeBox();
-    drawQueue();
-    updateControls();
-  });
-  function drawBoxBar() {
-    if (local.boxOpen < 0) {
-      if (boxActionsShown) {
-        boxActionsShown = false;
-        showNormalActions();
-      }
-      return;
-    }
-    timesBtn.textContent = `かいすう ×${local.commands[local.boxOpen].times}`;
-    if (boxActionsShown) return;
-    boxActionsShown = true;
-    showResultActions([removeLastBtn, timesBtn, closeBtn]);
-  }
-  if (step.repeatBox) {
-    boxBtn = document.createElement('button');
-    boxBtn.type = 'button';
-    boxBtn.dataset.action = 'box-open';
-    boxBtn.className =
-      'command-btn btn-tactile flex flex-col items-center justify-center gap-1 px-3 py-2 bg-amber-500 text-white disabled:opacity-40';
-    boxBtn.innerHTML = '<span class="text-xl leading-none" aria-hidden="true">🔁</span><span class="text-sm whitespace-nowrap">はこ</span>';
-    boxBtn.addEventListener('click', () => {
-      if (local.running || local.stepping || local.locked || local.boxOpen >= 0) {
-        skipClickSfx();
-        return;
-      }
-      vibrate();
-      local.commands.push({ box: [], times: 2 });
-      local.boxOpen = local.commands.length - 1;
-      saveDraft();
-      drawQueue();
-      scrollQueueToEnd();
-      updateControls();
-      local.nudge?.poke();
-    });
-    paletteEl.appendChild(boxBtn);
-  }
-
-  removeLastBtn.addEventListener('click', () => {
-    if (local.running || local.stepping || local.locked || local.commands.length <= local.lockedCount) return;
-    vibrate();
-    if (isFix) local.fixOpened = true;
-    const i = local.commands.length - 1;
-    const last = local.commands[i];
-    if (last.box) {
-      // 開いている箱は中の最後の1個、閉じた箱は箱ごと消す。空になった箱も消す。
-      if (local.boxOpen === i && last.box.length > 0) last.box.pop();
-      else local.commands.splice(i, 1);
-      if (local.boxOpen === i && !local.commands[i]) local.boxOpen = -1;
-      saveDraft();
-      logEvent('undo', { index: i });
-      playSfx('remove');
-      drawQueue();
-      updateControls();
-      local.nudge?.poke();
-      return;
-    }
-    // まとめられたチップ（times>1）は1回分だけ減らす。1の時だけチップごと消す（Issue #97）。
-    if (last.times > 1) last.times -= 1;
-    else local.commands.splice(i, 1);
-    saveDraft();
-    logEvent('undo', { index: i });
-    playSfx('remove');
-    drawQueue();
-    updateControls();
-    local.nudge?.poke();
-  });
-
-  clearBtn.addEventListener('click', () => {
-    if (local.running || local.stepping || local.locked || local.commands.length <= local.lockedCount) return;
-    vibrate();
-    if (isFix) local.fixOpened = true;
-    logEvent('undo', { all: true, commandCount: local.commands.length - local.lockedCount });
-    // 参照を維持したまま空にする（S.drafts[step.stepId]との共有を切らないため。Issue #95）。
-    // 止まった間は後ろだけ消す（前の部分は変更不可。#395 段2）。
-    const snap = snapshotUnlocked(local.commands, local.lockedCount);
-    clearUnlocked(local.commands, local.lockedCount);
-    local.boxOpen = -1;
-    saveDraft();
-    playSfx('reset');
-    drawQueue();
-    showUndo(snap);
-    updateControls();
-    local.nudge?.poke();
-  });
-
-  undoBtn.addEventListener('click', () => {
-    if (!undoSnap || local.running || local.stepping || local.locked) {
-      skipClickSfx();
-      return;
-    }
-    vibrate();
-    // 同じ配列へ戻す（S.drafts[step.stepId]との共有参照を保つ）。
-    restoreUnlocked(local.commands, undoSnap, local.lockedCount);
-    saveDraft();
-    dropUndo();
-    drawQueue();
-    updateControls();
-    local.nudge?.poke();
-  });
+  bindEditButtons(ctx);
 
   function replay() {
     showNormalActions();
@@ -747,8 +434,8 @@ export function renderPlay(root, step) {
       // 最短との比較（Issue #491）。算出不能は undefined＝記録も提示もしない。
       const optimal = judgeOptimal(countChips(local.commands), shortestOfStep(step));
       recordClear({ isFinal: isFinalStage, stageIndex, optimal });
-      clearSequence?.dispose();
-      clearSequence = showClearSequence({
+      ctx.mut.clearSequence?.dispose();
+      ctx.mut.clearSequence = showClearSequence({
         bird,
         controls,
         lockEl: opScreen,
@@ -1048,7 +735,7 @@ export function renderPlay(root, step) {
       dismissStartCue(boardArea);
       if (removeLastBtn.isConnected) removeLastBtn.click();
     },
-    isBlocked: () => local.running || local.stepping || !!clearSequence || menuOpen(),
+    isBlocked: () => local.running || local.stepping || !!ctx.mut.clearSequence || menuOpen(),
     getButtons: () => ({
       up: paletteEl.querySelector('[data-command="up"]'),
       down: paletteEl.querySelector('[data-command="down"]'),
