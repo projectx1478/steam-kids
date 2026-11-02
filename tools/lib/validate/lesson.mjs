@@ -1,7 +1,7 @@
 // レッスン1本の検証（validateLesson）。tools/lib/validate/ からの分割（Issue #448）。
 import path from 'node:path';
-import { simulate, shortestSteps, shortestChips, boardSpec } from '../../../js/engine-grid.js';
-import { iceMustMatter, warpsMustMatter,keysMustMatter, periodicMustMatter, paintMustMatter, itemsMustMatter } from '../../lib/must-matter.mjs';
+import { simulate, shortestSteps, shortestChips, boardSpec, findDeadStates } from '../../../js/engine-grid.js';
+import { iceMustMatter, warpsMustMatter,keysMustMatter, periodicMustMatter, paintMustMatter, itemsMustMatter, rollBallsMustMatter } from '../../lib/must-matter.mjs';
 import { plainSegmentsText, plainReading, parseSegments, rubyGrade, KANJI_RE } from '../../../js/text-render.js';
 import {
   REQUIRED_KEYS,
@@ -126,7 +126,9 @@ export function validateLesson(fileName, data, longTrialIds = []) {
     const grid = play.grid || {};
     const label = `stepId="${play.stepId}" の`;
 
+    const problemsBefore = errors.length;
     const groupNg = checkBoard(play, add, label);
+    const boardOk = errors.length === problemsBefore;
 
     if ('groupRepeats' in play && typeof play.groupRepeats !== 'boolean') {
       add('groupRepeatsの型', `${label}groupRepeats=${JSON.stringify(play.groupRepeats)} はboolean以外`);
@@ -197,6 +199,16 @@ export function validateLesson(fileName, data, longTrialIds = []) {
         add('かぎの必須性', `${label}かぎを取らずに想定の手数（maxCommands=${play.maxCommands}）の内でゴールできる（最短${keysCheck.dist}）`);
       }
     }
+    // 転がす球（Issue #287）：球を外した盤で届くなら飾り。詰み（ゴールへ二度と着けない状態）に届く盤と、探索の打ち切りは不合格。
+    if (dist !== null && Array.isArray(play.rollBalls) && play.rollBalls.length > 0) {
+      const rollCheck = rollBallsMustMatter(play);
+      if (!rollCheck.matters) add('転がす球の必須性', `${label}転がす球を外しても想定の手数（maxCommands=${play.maxCommands}）の内でゴールできる（最短${rollCheck.dist}）`);
+      if (boardOk && play.start && play.goal && grid.cols && grid.rows) {
+        const dead = findDeadStates(boardSpec(play));
+        if (dead.truncated) add('詰みの検査', `${label}詰みの検査が上限（5万状態）で止まった。盤を小さくするかたまを減らす`);
+        else if (dead.dead > 0) add('詰みの検査', `${label}ゴールへ着けない状態に届く（詰み${dead.dead}状態・例 ${dead.sample[0]}）`);
+      }
+    }
     // 生成したステップ（gen 付き）で teach=items のとき、どんぐりを除いた盤の最短が実際の最短より短いこと（Issue #337）。
     if (dist !== null && dist !== Infinity && play.gen && data.stageGen?.teach === 'items' && !play.groupRepeats) {
       if (!itemsMustMatter(play, dist)) {
@@ -260,6 +272,11 @@ export function validateLesson(fileName, data, longTrialIds = []) {
     }
 
     checkBoard(tutorial, add, `stepId="${tutorial.stepId}" の`);
+    for (const k of ['rollBalls', 'pits']) {
+      if (Array.isArray(tutorial[k]) ? tutorial[k].length > 0 : tutorial[k] !== undefined) {
+        add('rollBallsの置き場所', `stepId="${tutorial.stepId}" のtutorialに${k}は書けない（playだけ）`);
+      }
+    }
 
     if ('groupRepeats' in tutorial && typeof tutorial.groupRepeats !== 'boolean') {
       add('groupRepeatsの型', `stepId="${tutorial.stepId}" のgroupRepeats=${JSON.stringify(tutorial.groupRepeats)} はboolean以外`);

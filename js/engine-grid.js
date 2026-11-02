@@ -75,6 +75,8 @@ export function makeMover(spec) {
   // tickを持つギミックがこの盤で必要か（盤ごとに1回だけ判定。不要なら手ごとのafter作成を省く）。
   const tickers = GIMMICKS.filter((g) => g.tick && (g.needsTick ? g.needsTick(spec) : true));
   const hasPeriodic = tickers.some((g) => g.key === 'periodic');
+  // roll?を持つギミック（転がす球。Issue #287）。
+  const rollers = GIMMICKS.filter((g) => g.roll);
   const blockers = (p, states) => GIMMICKS.filter((g) => g.blocks?.(states[g.key], p, spec));
   const isOpen = (p, states) => inBoard(p) && !wallSet.has(`${p.x},${p.y}`) && blockers(p, states).length === 0;
   const isSoft = (p, states) => {
@@ -93,7 +95,27 @@ export function makeMover(spec) {
     let byPeriodic = false;
     let ended = false; // 直前のredirectがend:true（ワープ）なら、次に入るマスで連鎖を止める
     let warpedNext = false;
+    let stuck = false;
+    let stuckAt = null;
     for (let n = 0; n <= limit; n += 1) {
+      // 任意フックroll?：入る先に動かせるものがあれば先に動かす（動かせなければ壁と同じ失敗）。
+      let rolled = null;
+      for (const g of rollers) {
+        const r = g.roll(cur[g.key], next, curDir, spec, (p) => isOpen(p, cur));
+        if (!r) continue;
+        if (r.ok) {
+          cur = { ...cur, [g.key]: r.state };
+          rolled = r.move;
+        } else {
+          stuck = true;
+          stuckAt = { ...next };
+        }
+        break;
+      }
+      if (stuck) {
+        bumped = true;
+        break;
+      }
       if (!isOpen(next, cur)) {
         cushioned = isSoft(next, cur);
         bumped = !cushioned;
@@ -101,7 +123,7 @@ export function makeMover(spec) {
         break;
       }
       cur = enterAll(cur, spec, next);
-      steps.push({ pos: next, states: cur, slid: steps.length > 0, warped: warpedNext });
+      steps.push({ pos: next, states: cur, slid: steps.length > 0, warped: warpedNext, roll: rolled });
       if (ended) break; // ワープの出口：ここで止まる（出口の穴でredirectを呼ばない＝再ワープしない）
       let redirect = null;
       for (const g of GIMMICKS) {
@@ -122,7 +144,7 @@ export function makeMover(spec) {
       after = { ...cur };
       for (const g of tickers) after[g.key] = g.tick(cur[g.key]);
     }
-    return { steps, bumped, cushioned, after, byPeriodic };
+    return { steps, bumped, cushioned, after, byPeriodic, stuck, stuckAt };
   };
 }
 
@@ -139,6 +161,7 @@ export function makeMover(spec) {
 // pickups[i]はpath[i+1]で新たに回収したitemsのインデックス配列（Issue #60。js/gimmicks/items.js）。
 // turnAt[k]は展開後のk番目の手（move1回）の開始時の手番（周期ドア。Issue #310）。
 // moveOf[i]はpath[i+1]が属する手（turnAtの添字）。periodicBump[i]はpath[i+1]が閉じた周期ドアへの衝突ならtrue。
+// rolls[i]はpath[i+1]での球の動き（転がす球。Issue #287）。null／{from,to,fill}（転がした。fillは埋めたおとし穴の添字かnull）／{from,stuck:true}（動かせなかった衝突行）。
 // slid[i]はpath[i+1]が滑走（redirect）で進んだマスならtrue（効果音の切替用）。
 // warped[i]はpath[i+1]がワープの出口へ移ったマスならtrue（その手でワープした印。Issue #64）。
 // remainingItemsは最終位置までに回収されなかったitem座標（reachedGoalとの併用でクリア判定に使う）。
@@ -180,13 +203,14 @@ export function simulate(commands, rawSpec) {
   const moveOf = [];
   const periodicBump = [];
   const warped = [];
+  const rolls = [];
   let pos = { ...start };
   let states = enterAll(initGimmickStates(spec), spec, pos);
 
   commands.forEach((entry, i) => {
     for (const [dir, inner, round] of expandEntry(entry)) {
       turnAt.push(states.periodic?.turn ?? 0);
-      const { steps, bumped, cushioned, after, byPeriodic } = move(pos, dir, states);
+      const { steps, bumped, cushioned, after, byPeriodic, stuck, stuckAt } = move(pos, dir, states);
       // 滑走などで複数マス進んだ手は1マスずつpathへ展開する（同一stepOwner）。
       for (const step of steps) {
         pos = step.pos;
@@ -198,6 +222,7 @@ export function simulate(commands, rawSpec) {
         pickups.push(states.items?.collected ?? []);
         slid.push(step.slid);
         warped.push(step.warped);
+        rolls.push(step.roll ?? null);
         bumpedList.push(false);
         moveOf.push(turnAt.length - 1);
         periodicBump.push(false);
@@ -213,6 +238,7 @@ export function simulate(commands, rawSpec) {
         pickups.push(states.items?.collected ?? []);
         slid.push(false);
         warped.push(false);
+        rolls.push(stuck ? { from: stuckAt, stuck: true } : null);
         bumpedList.push(bumped);
         moveOf.push(turnAt.length - 1);
         periodicBump.push(byPeriodic);
@@ -225,7 +251,7 @@ export function simulate(commands, rawSpec) {
   // items以外でクリア条件を満たしていないギミックのkey（items以外は現状paintのみ。remainingItemsは別途返す）。
   const unmet = GIMMICKS.filter((g) => g.key !== 'items' && !g.isCleared(states[g.key])).map((g) => g.key);
   const paintOver = GIMMICKS.find((g) => g.key === 'paint')?.overCells(states.paint) ?? [];
-  return { path, blockedAt, reachedGoal, stepOwner, innerOwner, roundOwner, pickups, slid, bumped: bumpedList, remainingItems, unmet, paintOver, turnAt, moveOf, periodicBump, warped };
+  return { path, blockedAt, reachedGoal, stepOwner, innerOwner, roundOwner, pickups, slid, bumped: bumpedList, remainingItems, unmet, paintOver, turnAt, moveOf, periodicBump, warped, rolls };
 }
 
 // simulate()の結果がクリアか（ゴール到達・item全回収・壁衝突なし・他ギミックの条件達成）。
@@ -358,4 +384,64 @@ export function shortestPath(rawSpec, { maxDepth = Infinity } = {}) {
     level = [...next.values()];
   }
   return null;
+}
+
+// 詰みの検査（転がす球。Issue #287）：startから届く全状態（位置＋全ギミック状態）を列挙し、
+// ゴール到達（allCleared込み）状態へ着けない状態の数を返す。ゴールを通り過ぎた先も列挙する。
+// bumpedの手は遷移に入れない。maxNodesを超えたらtruncated:true。
+// 戻り値 { dead, sample, visited, truncated }（sampleは詰み状態の先頭数件 "x,y|状態キー"）。
+export function findDeadStates(rawSpec, { maxNodes = 50000 } = {}) {
+  const spec = boardSpec(rawSpec);
+  const key = (p, states) => `${p.x},${p.y}|${gimmicksKey(states)}`;
+  const move = makeMover(spec);
+  const startStates = enterAll(initGimmickStates(spec), spec, spec.start);
+  const ids = new Map([[key(spec.start, startStates), 0]]);
+  const keys = [key(spec.start, startStates)];
+  const preds = [[]];
+  const goalIds = [];
+  const queue = [{ pos: spec.start, states: startStates, id: 0 }];
+  let truncated = false;
+  for (let head = 0; head < queue.length && !truncated; head += 1) {
+    const cur = queue[head];
+    if (cur.pos.x === spec.goal.x && cur.pos.y === spec.goal.y && allCleared(cur.states)) goalIds.push(cur.id);
+    for (const cmd of COMMANDS) {
+      const { steps, bumped, after } = move(cur.pos, cmd, cur.states);
+      if (bumped || steps.length === 0) continue;
+      const { pos: next } = steps[steps.length - 1];
+      if (isDead(after)) continue;
+      const k = key(next, after);
+      let id = ids.get(k);
+      if (id === undefined) {
+        if (ids.size >= maxNodes) {
+          truncated = true;
+          break;
+        }
+        id = ids.size;
+        ids.set(k, id);
+        keys.push(k);
+        preds.push([]);
+        queue.push({ pos: next, states: after, id });
+      }
+      preds[id].push(cur.id);
+    }
+  }
+  const reach = new Uint8Array(keys.length);
+  const stack = [...goalIds];
+  for (const g of goalIds) reach[g] = 1;
+  while (stack.length > 0) {
+    for (const p of preds[stack.pop()]) {
+      if (!reach[p]) {
+        reach[p] = 1;
+        stack.push(p);
+      }
+    }
+  }
+  const sample = [];
+  let dead = 0;
+  for (let i = 0; i < keys.length; i += 1) {
+    if (reach[i]) continue;
+    dead += 1;
+    if (sample.length < 5) sample.push(keys[i]);
+  }
+  return { dead, sample, visited: keys.length, truncated };
 }

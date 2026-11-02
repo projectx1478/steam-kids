@@ -17,7 +17,7 @@
           "title": "どんぐりひろい",
           "gimmicks": ["items"],
           "lessonIds": ["donguri-01-hirou", "donguri-02-mawarimichi"],
-          "devOnlyIds": ["paint-01-nuru"]
+          "devOnlyIds": ["paint-01-nuru", "roll-01-korogasu"]
         },
         {
           "unitId": "ice",

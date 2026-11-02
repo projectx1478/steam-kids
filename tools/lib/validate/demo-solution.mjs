@@ -44,6 +44,9 @@ function checkDemo(intro, playSteps, add) {
   const wallKeySet = new Set(walls.map((w) => `${w.x},${w.y}`));
   const items = Array.isArray(demo.items) ? demo.items : [];
   const label = `stepId="${intro.stepId}" のdemo`;
+  for (const k of ['rollBalls', 'pits']) {
+    if (Array.isArray(demo[k]) ? demo[k].length > 0 : demo[k] !== undefined) add('rollBallsの置き場所', `${label} に${k}は書けない（playだけ）`);
+  }
 
   if (!Number.isInteger(grid.cols) || !Number.isInteger(grid.rows) || grid.cols < 1 || grid.cols > 20 || grid.rows < 1 || grid.rows > 20) {
     add('盤面の妥当性', `${label} 盤面の大きさは20×20以内（${grid.cols}×${grid.rows}）`);
