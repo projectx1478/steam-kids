@@ -4,7 +4,7 @@
 import { S } from './state.js';
 import { boardSpec, isRunCleared, judgeOptimal, shortestOfStep } from './engine-grid.js';
 import { logEvent } from './events.js';
-import { shapeSvg, prefersReducedMotion } from './ui-grid.js';
+import { prefersReducedMotion } from './ui-grid.js';
 import { fitCellSize, drawBoard as drawBoardUi, observeBoard } from './ui-board.js';
 import { createZoom } from './ui-zoom.js';
 import { openMenu } from './ui-menu.js';
@@ -29,7 +29,7 @@ import { showHint, diagnose, clearResultBubble } from './ui-reaction.js';
 import { boardFacts, nextFailHint, nextTapHint, shorterPhrase } from './bird-phrases.js';
 import { showClearSequence, recordClear } from './ui-clear.js';
 import { isTrial, closeTrialTab } from './trial-lesson.js';
-import { paintMiniBoard } from './gimmicks/paint.js';
+import { setupTray } from './ui-play-tray.js';
 import { renderKeyTray, resetKeyTray } from './gimmicks/keys.js';
 import { readDraft, writeDraft, clearDraft } from './storage.js';
 import { setRetryButton, createRetryChoice, shakeBoard, showStartCue, dismissStartCue, bindStartCueDismiss } from './ui-retry.js';
@@ -136,80 +136,15 @@ export function renderPlay(root, step) {
     opScreen.classList.add('sk-screen-frame--keys');
   }
 
-  let remainingEl = null;
-  // renderAcornTray(): どんぐりの残数を「空き枠が埋まる絵」で示す（Issue #110）。
-  // data-remaining付きの数字は既存シナリオ（c1-goal-objective等）が読むためsr-onlyで残す
-  // （見た目には出さない。sr-onlyは非表示ではないためinnerText()は値を返す）。
-  function renderAcornTray() {
-    const tray = document.createElement('div');
-    tray.className = 'acorn-tray flex items-center justify-center gap-1';
-    const filled = spec.items.length - local.remaining;
-    for (let i = 0; i < spec.items.length; i += 1) {
-      const slot = document.createElement('span');
-      const isFilled = i < filled;
-      slot.className = `acorn-slot inline-flex items-center justify-center w-5 h-5 rounded-full border-2 ${
-        isFilled ? 'border-amber-500 bg-amber-50' : 'border-dashed border-amber-400/50'
-      }`;
-      if (isFilled) {
-        slot.dataset.filled = 'true';
-        slot.innerHTML = `<span class="w-3 h-3 inline-block">${shapeSvg('item')}</span>`;
-      }
-      tray.appendChild(slot);
-    }
-    statusBar.appendChild(tray);
-    const srRemaining = document.createElement('span');
-    srRemaining.className = 'sr-only';
-    srRemaining.dataset.remaining = 'true';
-    srRemaining.textContent = String(local.remaining);
-    statusBar.appendChild(srRemaining);
-    remainingEl = srRemaining;
-  }
-
-  function renderQuestion() {
-    screen.renderQuestion();
-    if (spec.paint) statusBar.appendChild(paintMiniBoard(spec));
-    if (spec.items.length > 0) {
-      renderAcornTray();
-    } else {
-      remainingEl = null;
-    }
-  }
-
-  // fillNextAcornSlot(): どんぐりを1個拾うたびに、次の空き枠を埋める（spring-inで弾む。
-  // reduced-motion時は演出なしで即座に埋まる。Issue #110）。
-  function fillNextAcornSlot() {
-    const slots = statusBar.querySelectorAll('.acorn-slot');
-    const filledCount = spec.items.length - local.remaining;
-    const slot = slots[filledCount - 1];
-    if (!slot) return;
-    slot.dataset.filled = 'true';
-    slot.classList.remove('border-dashed', 'border-amber-400/50');
-    slot.classList.add('border-amber-500', 'bg-amber-50');
-    slot.innerHTML = `<span class="w-3 h-3 inline-block ${prefersReducedMotion() ? '' : 'spring-in'}">${shapeSvg('item')}</span>`;
-  }
-
-  // syncAcornTray(): local.remainingの値に合わせて、既存のどんぐり枠を（演出無しで）一括同期する。
-  // drawBoard()のリセット時に使う（renderQuestion()が直前のlocal.remainingでトレイを作った後
-  // なので、リセット後の値へ描き直す必要がある。Issue #110）。
-  function syncAcornTray() {
-    if (!remainingEl) return;
-    remainingEl.textContent = String(local.remaining);
-    const filled = spec.items.length - local.remaining;
-    statusBar.querySelectorAll('.acorn-slot').forEach((slot, i) => {
-      const isFilled = i < filled;
-      if (isFilled) {
-        slot.dataset.filled = 'true';
-        slot.classList.add('border-amber-500', 'bg-amber-50');
-        slot.classList.remove('border-dashed', 'border-amber-400/50');
-        slot.innerHTML = `<span class="w-3 h-3 inline-block">${shapeSvg('item')}</span>`;
-      } else {
-        delete slot.dataset.filled;
-        slot.classList.remove('border-amber-500', 'bg-amber-50');
-        slot.classList.add('border-dashed', 'border-amber-400/50');
-        slot.innerHTML = '';
-      }
-    });
-  }
+  // 分割した部品（ui-play-*.js）へ渡す文脈（Issue #663）。変わる共有変数は mut に置き、必ず ctx.mut.x で読み書きする。
+  // 関数は ctx.fn へ各 setup が登録する（ファイルをまたぐ呼び出しだけ）。
+  const ctx = {
+    step, spec, root, isFix, maxPauses, freshCommands, stageIndex, isFinalStage, facts, failCounts: FAIL_COUNTS, local,
+    screen, statusBar, boardArea, controls, actionsEl, opScreen, bird, gearBtn, keyTrayEl,
+    mut: { remainingEl: null },
+    fn: {},
+  };
+  setupTray(ctx);
 
   // 結果の吹き出しは自動で消えない（#497）。resultShown だけ約3秒後（または次の操作）に戻す。問い文の行は結果で書き換えないので描き直し不要。
   function clearResult() {
@@ -374,7 +309,7 @@ export function renderPlay(root, step) {
     zoom.onDraw({ spec, fit: local.fit, view, playerPos });
     local.view = view;
     local.remaining = spec.items.length;
-    syncAcornTray();
+    ctx.fn.syncAcornTray();
     resetKeyTray(keyTrayEl);
   }
 
@@ -958,8 +893,8 @@ export function renderPlay(root, step) {
       },
       onPickup: () => {
         local.remaining -= 1;
-        if (remainingEl) remainingEl.textContent = String(local.remaining);
-        fillNextAcornSlot();
+        if (ctx.mut.remainingEl) ctx.mut.remainingEl.textContent = String(local.remaining);
+        ctx.fn.fillNextAcornSlot();
       },
     });
     return local.stepper;
@@ -1074,7 +1009,7 @@ export function renderPlay(root, step) {
     if (cur.isDone() || cur.isPaused()) endSegment(cur);
   });
 
-  renderQuestion();
+  ctx.fn.renderQuestion();
   showNormalActions();
   drawBoard(spec.start);
   drawQueue();

@@ -74,6 +74,7 @@ const APP_SHELL = [
   "./js/unlock.js",
   "./js/dev-mode.js",
   "./js/ui-play.js",
+  "./js/ui-play-tray.js",
   "./js/ui-predict.js",
   "./js/ui-reaction.js",
   "./js/trial-lesson.js",
