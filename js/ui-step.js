@@ -163,7 +163,7 @@ function renderTrialBand(back) {
 }
 
 // 実行アニメーション中は ← と離れる(#menu-home) を操作させない（playAnimationの開始・終了、
-// および1コマ実行の開始時にui-play.jsから呼ぶ。Issue #111）。
+// および1コマ実行の開始時にui-play-segment.jsから呼ぶ。Issue #111）。
 export function setBackDisabled(disabled) {
   const { back, menuHome } = headerEls();
   back.disabled = disabled;
@@ -467,7 +467,7 @@ function dirAt(commands, idx, inner) {
 // stepOwner経由で渡し続ける。viewはui-grid.jsのrenderGridが返す差分更新API。
 // onTick(chipIndex, to, innerIndex, round)：roundは箱のくりかえしの周回（0始まり。箱の外は-1。
 // 周回の点表示用。Issue #167）。
-// autoAdvance（じっこう）・ui-play.jsの「1コマ」ボタン（タップごとにadvance()を呼ぶ）の
+// autoAdvance（じっこう）・ui-play-segment.jsの「1コマ」ボタン（タップごとにadvance()を呼ぶ）の
 // 両方から共通で使う（Issue #111）。
 // 「とめる」（#395 段2）：commandsに{pause:true}が混じっていても、simulateには除いた列を渡す。
 // startIndex＝続きの開始手（pathの添字。止まった地点の終点から続ける）、stopIndex＝この手の手前で止まる
@@ -549,7 +549,7 @@ export function createStepper(commands, spec, view, { onTick, onPickup, startInd
 // tutorialの実行中と同じ挙動）。js/ui-demo.jsのデモ再生はfalseを渡し、再生中もヘッダー操作を
 // 塞がない（Issue #104）。戻り値{cancel()}は保留中のタイマーを止め、以後の効果音・onDoneを
 // 発火させない（ステップ離脱後も裏で音が鳴り続ける事故を防ぐ。js/ui-step.jsのsetActiveAnimation経由）。
-// ui-play.jsの「1コマ実行の途中でじっこう」でも、進行中のstepperをそのまま渡して残りを続行する
+// ui-play-segment.jsの「1コマ実行の途中でじっこう」でも、進行中のstepperをそのまま渡して残りを続行する
 // （Issue #111）。
 export function autoAdvance(stepper, { onDone }, { lockHeader = true } = {}) {
   if (lockHeader) setBackDisabled(true);
