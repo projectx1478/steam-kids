@@ -22,6 +22,8 @@ js/
   engine-generate.js # シードからgrid-runtime盤面を生成する純粋関数（PRNG・制約判定・予備盤面。Issue #68）
   engine-seesaw.js # predict-slider（シーソー）の純粋関数（おもさ×きょりの傾き判定。Issue #150）
   ui-seesaw.js # シーソーplay画面の描画（Issue #150）
+  engine-buoyancy.js # predict-slider（うかぶ面）の純粋関数（net判定・つりあう組・難易度。Issue #288）
+  ui-buoyancy.js # うかぶ面play画面の描画（水槽・おもり・ふうせん。Issue #288）
   ui-screen.js # 操作画面の枠の共通部品（補助行・盤面・パネル・ボタン行と小鳥の吹き出し。play・シーソー・predict が使う。docs/components.md。Issue #343）
   ui-bird.js # 小鳥の顔アイコン（40px・押せる範囲64px）と吹き出しの器。createOpScreen が盤面の角に置く（Issue #468）
   bird-phrases.js # 小鳥の吹き出し文言テーブル（口調4種・ギミック別）と選び方（ランダム・同セッション重複回避・一巡リセット）。docs/hint-bubble.md。Issue #468 段3
