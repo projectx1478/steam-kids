@@ -587,10 +587,8 @@ export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts 
       spec = { ...spec, goal: placed.goal, paint: placed.paint };
     }
     // rollBalls は paint の後ろ・最後（範囲未指定なら乱数を引かない。既存 seed の盤を変えない）。穴の数＝球の数。
-    // 球1個ごとに状態数が（球の位置）マス数倍になるので、見積りは マス数 × マス数^球 × 2。
     const ballCount = gim.rollBalls ? countOf(rng, gim.rollBalls) : 0;
     if (ballCount > 0) {
-      work += cells.length * cells.length ** ballCount * 2 * stateMul;
       const placed = placeRollBalls(rng, ballCount, spec, can);
       if (!placed) continue;
       spec = { ...spec, rollBalls: placed.rollBalls, pits: placed.pits };
