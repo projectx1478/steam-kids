@@ -51,6 +51,6 @@ const ngCases = [
 for (const [name, rule] of ngCases) {
   test(`validate-buoyancy: ${name} は不合格（${rule}）`, () => {
     const r = validate(name);
-    assert.equal(r.code === 1 && r.out.includes(rule), true, `${name}\n${r.out}`);
+    assert.equal(r.code === 1 && r.out.includes(`: ${rule}: `), true, `${name}\n${r.out}`);
   });
 }

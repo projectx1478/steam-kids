@@ -89,6 +89,7 @@ const APP_SHELL = [
   "./js/bird-phrases.js",
   "./js/ui-seedpick.js",
   "./js/ui-seesaw.js",
+  "./js/ui-buoyancy.js",
   "./js/ui-step.js",
   "./js/ui-summary.js",
   "./js/ui-slots.js",

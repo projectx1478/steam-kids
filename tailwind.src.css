@@ -916,7 +916,8 @@ dialog.result-row {
   column-gap: 0.5rem;
   row-gap: 0.5rem;
 }
-.sk-screen-actions--two-row > [data-action='robots-minus'] {
+.sk-screen-actions--two-row > [data-action='robots-minus'],
+.sk-screen-actions--two-row > [data-action='balloon-minus'] {
   margin-left: 0.5rem;
 }
 .sk-screen-actions--two-row > [data-action='run'],
@@ -927,6 +928,24 @@ dialog.result-row {
   background-color: #bae6fd;
   color: #0c4a6e;
   border-radius: 9999px;
+}
+
+/* うかぶ・しずむ（Issue #288。js/ui-buoyancy.js）：おもり＝灰、ふうせん＝赤系の丸角ボタン。
+   横向きだけ、盤面（左）を広く・操作（右）を340pxにする。他の画面には当てない（修飾クラス sk-screen--buoyancy のみ）。 */
+.weight-btn {
+  background-color: #e2e8f0;
+  color: #1e293b;
+  border-radius: 9999px;
+}
+.balloon-btn {
+  background-color: #ffe4e6;
+  color: #9f1239;
+  border-radius: 9999px;
+}
+@media (orientation: landscape) {
+  .sk-screen-frame.sk-screen-frame.sk-screen--buoyancy {
+    grid-template-columns: minmax(0, 1fr) 340px;
+  }
 }
 
 /* predict（Issue #355）：命令の行（predict-command-row）を問い文と盤面の間に置き、ボタン行 sk-screen-actions--predict は
