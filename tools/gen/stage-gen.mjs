@@ -1,10 +1,10 @@
 // 1盤の生成（Issue #337 段2）。js/engine-generate.js の骨格（配置→最短→制約判定→再試行）を tools/ に書き直したもの。
 // 入力は stageGen（docs/lesson-schema.md の予定仕様）。実行時は使わない。js/ は変えない。
-import { shortestPath, shortestSteps, simulate } from '../../js/engine-grid.js';
+import { shortestPath, shortestSteps, simulate, findDeadStates } from '../../js/engine-grid.js';
 import { GIMMICKS, mattersFor } from '../../js/gimmicks/index.js';
 import { KEY_COLORS } from '../../js/gimmicks/keys.js';
 import { mulberry32 } from '../../js/engine-generate.js';
-import { iceMustMatter, keysMustMatter, warpsMustMatter, periodicMustMatter, paintMustMatter, waterMustMatter, cushionMustMatter } from '../lib/must-matter.mjs';
+import { iceMustMatter, keysMustMatter, warpsMustMatter, periodicMustMatter, paintMustMatter, waterMustMatter, cushionMustMatter, rollBallsMustMatter } from '../lib/must-matter.mjs';
 import { OPEN_COUNT } from '../../js/gimmicks/periodic.js';
 
 // 生成器の出力が変わるときに上げる。stageGen.ver と gen.ver を揃えて書き直す。
@@ -74,6 +74,9 @@ export function canonicalKey(board) {
   if (board.paint?.length) layers.push(['n', board.paint]);
   // 水の層も空でないときだけ足す（橋は描画専用なので含めない）。
   if (board.water?.length) layers.push(['e', board.water]);
+  // 転がす球・おとし穴の層も空でないときだけ足す。
+  if (board.rollBalls?.length) layers.push(['b', board.rollBalls]);
+  if (board.pits?.length) layers.push(['o', board.pits]);
   let best = null;
   for (const f of flips) {
     const parts = layers.map(([tag, cells]) => {
@@ -158,9 +161,47 @@ function placeSwitches(rng, pairCount, spec, free, can = () => true) {
 function occupied(spec) {
   const cells = [spec.start, spec.goal, ...spec.walls, ...(spec.items ?? []), ...(spec.ice ?? []), ...(spec.cushion ?? []),
     ...(spec.keys ?? []), ...(spec.doors ?? []), ...(spec.warps ?? []), ...(spec.periodic ?? []), ...(spec.water ?? []),
-    ...(spec.bridge ?? [])]; // 橋の上にワープ・周期ドアなどを重ねない（#649。盤の検証が NG にする）
+    ...(spec.bridge ?? []), ...(spec.rollBalls ?? []), ...(spec.pits ?? [])]; // 橋の上にワープ・周期ドアなどを重ねない（#649。盤の検証が NG にする）
   for (const s of spec.switches ?? []) cells.push(s, ...(s.targets ?? []));
   return new Set(cells.map(keyOf));
+}
+
+// 転がす球（rollBalls）とおとし穴（pits）の配置（#660。穴の数＝球の数）。穴は現盤の最短経路の途中の1マスで、壁にすると最短が伸びるマス
+// （placeKeys のドアと同じ考え方）。球は穴の手前のマスで、その手前も穴へ向かう一直線の経路上のマス。球を押さないと通れない盤になる。
+// 2個目は1個目を置いた盤に対して同じ手順を繰り返す。見つからなければ null。
+function placeRollBalls(rng, ballCount, spec, can = () => true) {
+  const rollBalls = [];
+  const pits = [];
+  const used = occupied(spec);
+  for (let n = 0; n < ballCount; n += 1) {
+    const cur = { ...spec, rollBalls, pits };
+    const cmds = shortestPath(cur);
+    if (!cmds) return null;
+    const path = simulate(cmds, cur).path;
+    const free = (p) => !used.has(keyOf(p)) && can('rollBall', p);
+    const candidates = [];
+    for (let i = 2; i < path.length - 1; i += 1) {
+      const [a, b, c] = [path[i - 2], path[i - 1], path[i]];
+      if (b.x - a.x !== c.x - b.x || b.y - a.y !== c.y - b.y) continue; // 一直線
+      if (Math.abs(b.x - a.x) + Math.abs(b.y - a.y) !== 1) continue; // 隣り合う1マスずつ
+      if (!free(b) || !free(c)) continue;
+      candidates.push({ ball: b, pit: c });
+    }
+    if (candidates.length === 0) return null;
+    const baseSteps = shortestSteps(cur);
+    let chosen = null;
+    const tries = Math.min(4, candidates.length);
+    for (let t = 0; t < tries && !chosen; t += 1) {
+      const c = candidates[Math.floor(rng() * candidates.length)];
+      if (shortestSteps({ ...cur, walls: [...cur.walls, c.pit] }) > baseSteps) chosen = c;
+    }
+    if (!chosen) return null;
+    used.add(keyOf(chosen.ball));
+    used.add(keyOf(chosen.pit));
+    rollBalls.push({ x: chosen.ball.x, y: chosen.ball.y });
+    pits.push({ x: chosen.pit.x, y: chosen.pit.y });
+  }
+  return { rollBalls, pits };
 }
 
 // ワープ（pair 1・2 を組ごとに2個）の配置。入口は現盤の最短経路上の中間マス、出口は未使用の床。
@@ -410,6 +451,7 @@ function teachMatters(teach, board) {
   if (teach === 'periodic') return periodicMustMatter(play, dist).matters;
   if (teach === 'paint') return paintMustMatter(play, dist).matters;
   if (teach === 'water') return waterMustMatter(play, dist).matters;
+  if (teach === 'rollBalls') return rollBallsMustMatter(play).matters;
   return true;
 }
 
@@ -544,6 +586,15 @@ export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts 
       if (!placed) continue;
       spec = { ...spec, goal: placed.goal, paint: placed.paint };
     }
+    // rollBalls は paint の後ろ・最後（範囲未指定なら乱数を引かない。既存 seed の盤を変えない）。穴の数＝球の数。
+    // 球1個ごとに状態数が（球の位置）マス数倍になるので、見積りは マス数 × マス数^球 × 2。
+    const ballCount = gim.rollBalls ? countOf(rng, gim.rollBalls) : 0;
+    if (ballCount > 0) {
+      work += cells.length * cells.length ** ballCount * 2 * stateMul;
+      const placed = placeRollBalls(rng, ballCount, spec, can);
+      if (!placed) continue;
+      spec = { ...spec, rollBalls: placed.rollBalls, pits: placed.pits };
+    }
     work += cells.length * 2 ** (itemCount + pairCount + switchCount) * (periodicCount > 0 ? 12 : 1);
     const cmds = shortestPath(spec, { maxDepth: stageGen.shortestPath.max });
     if (!cmds || !inRange(cmds.length, stageGen.shortestPath)) continue;
@@ -555,6 +606,13 @@ export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts 
       if (bridge) spec = { ...spec, bridge };
     }
     const board = { ...spec, allowedCommands: allowed, solution: cmds, maxCommands: cmds.length };
+    // 転がす球は確定前に詰みの検査（validate と同じ上限）。詰みあり・打ち切りの盤は捨てる。探索量は work に足す。
+    const deadFree = () => {
+      if (!board.rollBalls?.length) return true;
+      const dead = findDeadStates(board);
+      work += dead.visited;
+      return dead.dead === 0 && !dead.truncated;
+    };
     // teach＋新たに混ぜた1種（warps・periodic・water のうち指定されたもの。teach と同じなら重ねない）を判定する。
     // paint×water は、水が最短を伸ばさない（目標の細い経路は水を踏まない）ので、水の必須性の代わりに
     // 「目標の経路が橋のマス（水に挟まれた隙間）を通る」ことを求める（川を渡る盤にする）。
@@ -566,19 +624,21 @@ export function generateBoard(stageGen, seed, { maxWork = MAX_WORK, maxAttempts 
       const spread = ['warps', 'periodic', 'water'].filter((k) => board[k]?.length > 0 && !(base && k === 'water'));
       const baseWaterMix = Boolean(base && board.water?.length > 0 && (board.warps?.length > 0 || board.periodic?.length > 0));
       const paintMix = board.paint?.length > 0 && ['items', 'ice', 'keys', 'cushion', 'switches', 'warps', 'periodic'].some((k) => k in gim);
-      if (spread.length > 1 || baseWaterMix || paintMix || (gim.keys && gim.switches)) {
+      if (spread.length > 1 || baseWaterMix || paintMix || (gim.keys && gim.switches) || (gim.rollBalls && Object.keys(gim).length > 1)) {
         const present = {
           items: board.items?.length > 0, ice: board.ice?.length > 0, keys: board.doors?.length > 0, switches: board.switches?.length > 0,
-          cushion: board.cushion?.length > 0, warps: board.warps?.length > 0, periodic: board.periodic?.length > 0,
+          cushion: board.cushion?.length > 0, rollBalls: board.rollBalls?.length > 0, warps: board.warps?.length > 0, periodic: board.periodic?.length > 0,
           water: board.water?.length > 0 && !base && !paintWater, paint: board.paint?.length > 0,
         };
         if (Object.keys(present).some((k) => present[k] && !teachMatters(k, board))) continue;
+        if (!deadFree()) continue;
         return board;
       }
       const mixed = ['warps', 'periodic', 'water'].find((k) => board[k]?.length > 0 && k !== stageGen.teach && !(base && k === 'water'));
       if (!(paintWater && stageGen.teach === 'water') && !teachMatters(stageGen.teach, board)) continue;
       if (mixed && !(paintWater && mixed === 'water') && !teachMatters(mixed, board)) continue;
     }
+    if (!deadFree()) continue;
     return board;
   }
   return null;

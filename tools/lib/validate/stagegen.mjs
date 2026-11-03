@@ -4,7 +4,7 @@ import { KEY_MODES } from '../../../js/gimmicks/keys.js';
 import { COMMANDS, isInt, isObj } from './common.mjs';
 
 const SG_KEYS = ['ver', 'stages', 'keepHandwritten', 'grid', 'walls', 'gimmicks', 'teach', 'shortestPath', 'minTurns', 'allowedCommands', 'seedBase', 'keyMode'];
-const SG_GIMMICK_RANGES = { items: [1, 4], ice: [1, 4], keys: [1, 2], cushion: [1, 4], switches: [1, 2], warps: [1, 2], periodic: [1, 2], paint: [4, 8], water: [2, 8] };
+const SG_GIMMICK_RANGES = { items: [1, 4], ice: [1, 4], keys: [1, 2], cushion: [1, 4], switches: [1, 2], warps: [1, 2], periodic: [1, 2], paint: [4, 8], water: [2, 8], rollBalls: [1, 2] };
 
 // 他のギミックと併用できない（単独で指定する）ギミック。要素を足せば同じ検査が働く。
 // 今は空（paint の単独制限は #649 で撤廃。盤の規則は併用を許す）。
@@ -13,6 +13,15 @@ export const SG_SOLO_GIMMICKS = [];
 export const SG_SOLO_EXCEPT = {};
 // 同時に1種までしか指定できないギミック。今は空（warps・periodic・water の1種制限は #649 で撤廃。実在しない組み合わせは生成側が aborted/null で返す）。
 export const SG_ONE_OF_GIMMICKS = [];
+
+// rollBalls と同時に指定できないギミック（盤の併用禁止 + cushion。cushion を必須にするには ice が要る）。
+export const SG_ROLLBALLS_EXCLUDED = {
+  ice: '1手に同じたまを2回押す',
+  warps: '出口でたまを押す・1手に2球動く',
+  switches: '転がしたあとそのマスが壁になり、たまだけ動く',
+  periodic: '転がしたあとそのマスが壁になり、たまだけ動く',
+  cushion: 'cushion を必須にするには ice が要り、ice は球と併用できない',
+};
 
 function checkStageGen(data, steps, add, soloGimmicks = SG_SOLO_GIMMICKS, oneOfGimmicks = SG_ONE_OF_GIMMICKS) {
   const sg = data.stageGen;
@@ -66,7 +75,7 @@ function checkStageGen(data, steps, add, soloGimmicks = SG_SOLO_GIMMICKS, oneOfG
         add(label, 'gimmicks がオブジェクトでない');
       } else {
         for (const [k, v] of Object.entries(gim)) {
-          if (!(k in SG_GIMMICK_RANGES)) add('stageGen 未対応のギミック', `gimmicks の ${k} は未対応（items・ice・keys・cushion・switches・warps・periodic・paint・water のみ）`);
+          if (!(k in SG_GIMMICK_RANGES)) add('stageGen 未対応のギミック', `gimmicks の ${k} は未対応（items・ice・keys・cushion・switches・warps・periodic・paint・water・rollBalls のみ）`);
           else range(v, SG_GIMMICK_RANGES[k][0], SG_GIMMICK_RANGES[k][1], `gimmicks.${k}`);
         }
         const names = Object.keys(gim);
@@ -81,6 +90,11 @@ function checkStageGen(data, steps, add, soloGimmicks = SG_SOLO_GIMMICKS, oneOfG
           if (!(solo in gim)) continue;
           const others = Object.keys(gim).filter((k) => k !== solo && !(SG_SOLO_EXCEPT[solo] ?? []).includes(k));
           if (others.length > 0) add(label, `${solo} は単独で指定する（${others.join('・')} と併用できない）`);
+        }
+        if ('rollBalls' in gim) {
+          for (const [k, why] of Object.entries(SG_ROLLBALLS_EXCLUDED)) {
+            if (k in gim) add(label, `rollBalls は ${k} と同時に指定できない（${why}）`);
+          }
         }
         const oneOfOn = oneOfGimmicks.filter((k) => k in gim);
         if (oneOfOn.length > 1) add(label, `${oneOfOn.join('・')} は同時に指定できない（${oneOfGimmicks.join('・')} は1種まで）`);
