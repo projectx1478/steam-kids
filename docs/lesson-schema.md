@@ -137,6 +137,19 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 ```
 `mover.maxRobots`（2〜3。あれば重さを − ＋ で1〜maxRobotsに変える。省略＝重さ固定）、`mover.fixedPos`（あれば位置は固定で`start`と同じ値。`maxRobots`が要る）。
 
+### `predict-slider`の`play`（うかぶ面。Issue #288）
+
+`kind: "play"`に`seesaw`の代わりに`buoyancy`と`solution`を持つ（同じレッスンに`seesaw`と混在させない。未知のキーは不可）。
+```json
+{ "stepId": "p3", "kind": "play", "text": "ふうせんも つかおう",
+  "buoyancy": { "base": 2, "mass": 3, "lift": 2, "weights": { "start": 1, "max": 3 }, "balloons": { "start": 0, "max": 3 } },
+  "solution": [2, 2] }
+```
+- `base`：整数0〜8（必須）。`mass`・`lift`：整数1〜3（省略時1。おもり／ふうせん1個の力）
+- `weights`：`{ start, max }`（max 1〜4、start 0〜max）、`balloons`：`{ start, max }`（max 1〜3、start 0〜max）。どちらかは必須（省略した軸は無し）
+- 式は `net = base + balloons×lift − weights×mass`。startで`net≠0`、つりあう組（net=0）が1つ以上
+- `solution`（必須）：軸が1つ＝整数（その軸の個数）、軸が2つ＝`[おもり, ふうせん]`。つりあう組のどれか
+
 ### `tutorial`（なぞり操作型チュートリアル）
 
 各レッスンで新しい操作が初登場する時、`intro`直後かつ最初の`play`より前に0〜1個置く

@@ -84,7 +84,7 @@ UI規則（受け入れ条件。すべて判定可能な数値条件とする）
 | tutorial | なし | `[data-action="menu"]` | `#menu-home` `#menu-close` | 同上＋いまの ばしょ |
 | summary | `#back-btn` `#gear-btn` | `#gear-btn` | `#menu-close` | とじる（離れるは出さない） |
 
-⚙の名前は全画面「せってい」。離れるは確認あり＝play・teko、なし＝そのほか。ヘッダの 🏠（旧 `#home-btn`）は #574 段Bで除去済み（離れるは⚙メニューの `#menu-home`）。play の⚙は吹き出し欄の右端（顔の右、間16px、64×64。`createOpScreen` の `gear`。#574 段C）。シーソー（teko）・予想はヘッダの⚙のまま（欄に⚙を出すのは `gear` を渡す play だけ）。同じ画面に⚙が2つ出ない。
+⚙の名前は全画面「せってい」。離れるは確認あり＝play・teko、なし＝そのほか。ヘッダの 🏠（旧 `#home-btn`）は #574 段Bで除去済み（離れるは⚙メニューの `#menu-home`）。play の⚙は吹き出し欄の右端（顔の右、間16px、64×64。`createOpScreen` の `gear`。#574 段C）。シーソー（teko）・うかぶ面・予想はヘッダの⚙のまま（欄に⚙を出すのは `gear` を渡す play だけ）。同じ画面に⚙が2つ出ない。
 
 ## 学習体験の判定表（DO / DON'T。Issue #154）
 

@@ -56,6 +56,7 @@ clearSequence = showClearSequence({ statusBar, controls, lockEl, host, gapEl, vi
 
 - play：js/ui-play.js の finishRun
 - seesaw：js/ui-seesaw.js の finishRun
+- buoyancy（うかぶ面）：js/ui-buoyancy.js（`showClearSequence` を呼ぶ。lockEl・controls は seesaw と同じ `data-sk-screen="frame"` の枠）
 - predict は結果ボタンの並び（つぎへ上・ためしなおす下）だけ揃えており、ダイアログ化はしていない。
 
 ## 禁止パターン
