@@ -1,4 +1,4 @@
-// Issue #28: js/config.jsのAPP_VERSIONとservice-worker.jsのCACHE_NAMEが一致すること、
+// Issue #28: APP_VERSION（js/config.js）とservice-worker.jsのCACHE_NAMEが一致すること、
 // ダッシュボードのフッタに版数が表示されることを確認する(二重管理の機械チェック)。
 
 export const name = 'APP_VERSIONとCACHE_NAMEが一致し、ダッシュボードに表示される(Issue #28)';

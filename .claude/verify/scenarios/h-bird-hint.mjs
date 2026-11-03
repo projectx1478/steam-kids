@@ -31,7 +31,7 @@ const makeLesson = (lessonId, extra) => ({
   ],
 });
 
-// 文言の正本は js/bird-phrases.js の PHRASES（段3でランダム選択）。場面ごとの文言集合（ギミック別・汎用とも）との照合にする。
+// 文言の正本は PHRASES（js/bird-phrases.js）（段3でランダム選択）。場面ごとの文言集合（ギミック別・汎用とも）との照合にする。
 const textsOf = (scene) => PHRASES.filter((p) => p.scene === scene).map((p) => p.text);
 const STOP_HINTS = textsOf('stop');
 const FAIL_HINTS = textsOf('fail');

@@ -140,7 +140,7 @@ async function runDismiss({ page, check }) {
   await page.keyboard.press('ArrowRight');
   await checkDismissed(page, check, 'play(矢印キー)');
 
-  // 命令0個では updateControls（js/ui-play.js の runBtn.disabled・removeLastBtn.disabled の設定行）が
+  // 命令0個では updateControls（js/ui-play-queue.js の runBtn.disabled・removeLastBtn.disabled の設定行）が
   // run・remove-last を無効にするため、Enter も Backspace も何もせず「スタート！」は消えない。
   // ただし直前の check の命令が下書き（steamkids.draft.<lessonId>）として次の読み込みに復元されると、
   // run・removeLast が有効になって keydown が通ってしまう。これを防ぐため、各 check の前に下書きを消す。
