@@ -200,7 +200,7 @@ const GENERATE_WORKER_FILE = path.join(EDITOR_DIR, 'generate-worker.mjs');
 const GENERATE_BODY_KEYS = ['stageGen', 'count', 'seed'];
 // エディタが受け取る stageGen のキー・ギミック（ver・stages・keepHandwritten・keyMode は受け取らない）
 const GENERATE_SG_KEYS = ['grid', 'walls', 'gimmicks', 'teach', 'shortestPath', 'minTurns', 'allowedCommands', 'seedBase', 'base'];
-const GENERATE_GIMMICKS = ['items', 'ice', 'keys', 'cushion', 'switches', 'warps', 'periodic', 'paint', 'water'];
+const GENERATE_GIMMICKS = ['items', 'ice', 'keys', 'cushion', 'switches', 'warps', 'periodic', 'paint', 'water', 'rollBalls'];
 
 // stageGen.base（土台の盤。/api/generate の要求専用でレッスン JSON には書かない）の入力検査。問題があれば messages（空なら OK）。
 // 形：{grid:{cols,rows}（3〜20 の整数）, water?, bridge?, walls?（{x,y} の配列）}。stageGen は base 以外のキーとの併用検査用。
@@ -296,7 +296,7 @@ export function checkGenerateInput(body) {
   const gim = stageGen.gimmicks;
   if (gim && typeof gim === 'object' && !Array.isArray(gim)) {
     for (const k of Object.keys(gim)) {
-      if (!GENERATE_GIMMICKS.includes(k)) out.push(`stageGen.gimmicks の ${k} は受け付けません（items・ice・keys・cushion・switches・warps・periodic・paint・water のみ）`);
+      if (!GENERATE_GIMMICKS.includes(k)) out.push(`stageGen.gimmicks の ${k} は受け付けません（items・ice・keys・cushion・switches・warps・periodic・paint・water・rollBalls のみ）`);
     }
   }
   if (out.length === 0) {

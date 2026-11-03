@@ -260,3 +260,13 @@ test('POST /api/generate: base-ng-split（孤立した陸）は 200 で候補が
     assert.ok(r.json.candidates.length > 0);
   });
 });
+
+test('checkGenerateInput: たま（#660）。土台ONでも受理、ice との併用と gimmicks.pits は断る', () => {
+  const SGB = { base: { grid: { cols: 5, rows: 5 } }, walls: { min: 1, max: 3 }, shortestPath: { min: 4, max: 12 }, minTurns: 1 };
+  assert.deepEqual(checkGenerateInput({ stageGen: { ...SGB, gimmicks: { rollBalls: { min: 1, max: 1 } }, teach: 'rollBalls' } }), []);
+  const ice = checkGenerateInput({ stageGen: { ...SGB, gimmicks: { rollBalls: { min: 1, max: 1 }, ice: { min: 1, max: 1 } }, teach: 'rollBalls' } });
+  assert.ok(ice.join('|').includes('rollBalls は ice'), ice.join('|'));
+  const pits = checkGenerateInput({ stageGen: { ...SG, gimmicks: { pits: { min: 1, max: 1 } }, teach: 'pits' } });
+  assert.ok(pits.join('|').includes('pits は受け付けません'), pits.join('|'));
+  assert.deepEqual(checkGenerateInput({ stageGen: { ...SG, gimmicks: { rollBalls: { min: 1, max: 2 }, items: { min: 1, max: 1 } }, teach: 'rollBalls' } }), []);
+});

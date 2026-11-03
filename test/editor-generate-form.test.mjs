@@ -194,3 +194,21 @@ test('土台（#631）: 未置換は問題。土台に水があってもワー�
   f.gimmicks.periodic = { on: true, min: 1, max: 1 };
   assert.deepEqual(checkGenerateForm(f), []);
 });
+
+test('checkGenerateForm: たま（#660）。単独・items 併用は通り、ice 等との併用は断る', () => {
+  const f = form();
+  f.gimmicks.rollBalls = { on: true, min: 1, max: 2 };
+  f.teach = 'rollBalls';
+  assert.deepEqual(checkGenerateForm(f), []); // items もオンのまま
+  assert.deepEqual(checkGenerateInput(buildGenerateBody(f, 1)), []);
+  f.gimmicks.rollBalls.max = 3;
+  assert.ok(checkGenerateForm(f).length > 0);
+  f.gimmicks.rollBalls.max = 1;
+  for (const k of ['ice', 'warps', 'switches', 'periodic', 'cushion']) {
+    const g = form();
+    g.gimmicks.rollBalls = { on: true, min: 1, max: 1 };
+    g.gimmicks[k] = { on: true, min: 1, max: 1 };
+    g.teach = 'rollBalls';
+    assert.ok(checkGenerateForm(g).join('|').includes('たまは'), k);
+  }
+});
