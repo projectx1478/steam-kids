@@ -174,8 +174,8 @@ export function pendingPaint(spec) {
 
 // ---- たたき台の生成（#401 段2）。範囲は POST /api/generate（tools/lib/validate/stagegen.mjs の checkStageGen）と同じ ----
 export const GEN_COUNT = 4; // 1回に出す候補の数（2×2）。「もう4枚」は seed をこの数だけ進める
-export const GEN_LIMITS = { grid: [3, 20], walls: [0, 60], shortestPath: [2, 60], minTurns: [0, 8], items: [1, 4], ice: [1, 4], keys: [1, 2], cushion: [1, 4], switches: [1, 2], warps: [1, 2], periodic: [1, 2], paint: [4, 8], water: [2, 8] };
-export const GEN_GIMMICKS = [['items', 'どんぐり'], ['ice', 'こおり'], ['keys', 'かぎ'], ['cushion', 'クッション'], ['switches', 'スイッチ'], ['warps', 'ワープ'], ['periodic', '周期ドア'], ['paint', '色ぬり'], ['water', '水']];
+export const GEN_LIMITS = { grid: [3, 20], walls: [0, 60], shortestPath: [2, 60], minTurns: [0, 8], items: [1, 4], ice: [1, 4], keys: [1, 2], cushion: [1, 4], switches: [1, 2], warps: [1, 2], periodic: [1, 2], paint: [4, 8], water: [2, 8], rollBalls: [1, 2] };
+export const GEN_GIMMICKS = [['items', 'どんぐり'], ['ice', 'こおり'], ['keys', 'かぎ'], ['cushion', 'クッション'], ['switches', 'スイッチ'], ['warps', 'ワープ'], ['periodic', '周期ドア'], ['paint', '色ぬり'], ['water', '水'], ['rollBalls', 'たま']];
 // 他のギミックと併用できない（単独で使う）ギミック。要素を足せば checkGenerateForm の同じ検査が働く。
 export const GEN_SOLO_GIMMICKS = []; // 今は空（paint の単独制限は #649 で撤廃）
 // 単独集合の要素ごとの例外（併用してよい相手）。
@@ -259,6 +259,7 @@ export function checkGenerateForm(form) {
   }
   const oneOfOn = GEN_ONE_OF_GIMMICKS.filter((k) => isOn(k));
   if (oneOfOn.length > 1) out.push(`${oneOfOn.join('・')} は同時に指定できない（${GEN_ONE_OF_GIMMICKS.join('・')} は1種まで）`);
+  if (isOn('rollBalls') && ['ice', 'warps', 'switches', 'periodic', 'cushion'].some((k) => isOn(k))) out.push('たまは こおり・ワープ・スイッチ・周期ドア・クッションと いっしょに 使えません');
   if (on.length > 0 && !on.some(([k]) => k === form.teach)) out.push('おしえる物 は 使うギミックから選んでください');
   return out;
 }

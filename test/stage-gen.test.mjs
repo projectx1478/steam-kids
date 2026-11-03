@@ -2,9 +2,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { generateBoard, canonicalKey, metrics, itemsMustMatter, GEN_VERSION, GEN_ABORTED, MAX_WORK } from '../tools/gen/stage-gen.mjs';
-import { simulate, isRunCleared, shortestSteps } from '../js/engine-grid.js';
+import { simulate, isRunCleared, shortestSteps, findDeadStates } from '../js/engine-grid.js';
 import { mattersFor } from '../js/gimmicks/index.js';
-import { iceMustMatter, keysMustMatter, warpsMustMatter, periodicMustMatter, paintMustMatter, waterMustMatter } from '../tools/lib/must-matter.mjs';
+import { iceMustMatter, keysMustMatter, warpsMustMatter, periodicMustMatter, paintMustMatter, waterMustMatter, rollBallsMustMatter } from '../tools/lib/must-matter.mjs';
 import { checkBoard } from '../tools/lib/validate/board.mjs';
 import { checkStageGen } from '../tools/lib/validate/stagegen.mjs';
 
@@ -502,4 +502,46 @@ test('stage-gen: 土台の水（橋あり）にワープ・周期ドアを足し
     assert.deepEqual(ngs, [], `seed=${seed} 盤検査`);
   }
   assert.ok(found > 0, '候補が出ない');
+});
+
+// 転がす球（#660）。盤が大きいと詰みの検査（上限5万状態）が重いので、seed 数も盤も小さくする。
+const SEEDS_ROLL = 8;
+const rollBase = { ver: GEN_VERSION, walls: { min: 2, max: 6 }, shortestPath: { min: 4, max: 12 }, minTurns: 1, teach: 'rollBalls' };
+const rollCases = {
+  'たま1': { ...rollBase, grid: { cols: { min: 4, max: 6 }, rows: { min: 4, max: 6 } }, gimmicks: { rollBalls: { min: 1, max: 1 } } },
+  'たま2': { ...rollBase, grid: { cols: { min: 4, max: 5 }, rows: { min: 4, max: 5 } }, gimmicks: { rollBalls: { min: 2, max: 2 } } },
+  'たま1×items': { ...rollBase, grid: { cols: { min: 4, max: 5 }, rows: { min: 4, max: 5 } }, gimmicks: { rollBalls: { min: 1, max: 1 }, items: { min: 1, max: 2 } } },
+  'たま1×keys': { ...rollBase, grid: { cols: { min: 4, max: 5 }, rows: { min: 4, max: 5 } }, gimmicks: { rollBalls: { min: 1, max: 1 }, keys: { min: 1, max: 1 } } },
+};
+
+test('stage-gen: rollBalls は球と穴が同数で、必須・詰みなし・盤検査に通り、同じ seed で同じ盤', () => {
+  for (const [name, sg] of Object.entries(rollCases)) {
+    const want = sg.gimmicks.rollBalls.max;
+    let accepted = 0;
+    for (let seed = 0; seed < SEEDS_ROLL; seed += 1) {
+      const b = generateBoard(sg, seed);
+      assert.deepEqual(generateBoard(sg, seed), b, `${name} seed=${seed}: 再生成が一致しない`);
+      if (!b || b === GEN_ABORTED) continue;
+      accepted += 1;
+      const tag = `${name} seed=${seed}`;
+      assert.equal(b.rollBalls.length, want, tag);
+      assert.equal(b.pits.length, want, tag);
+      assert.ok(isRunCleared(simulate(b.solution, b)), `${tag}: solution でクリアできない`);
+      assert.equal(shortestSteps(b), b.solution.length, tag);
+      assert.ok(rollBallsMustMatter(b).matters, `${tag}: たま必須でない`);
+      const dead = findDeadStates(b);
+      assert.ok(dead.dead === 0 && !dead.truncated, `${tag}: 詰みあり・打ち切り`);
+      const ngs = [];
+      checkBoard(b, (cat, msg) => ngs.push(`${cat}: ${msg}`), `${tag} `);
+      assert.deepEqual(ngs, [], `${tag} 盤検査`);
+      for (const k of ['ice', 'warps', 'switches', 'periodic', 'cushion']) assert.ok(!b[k]?.length, `${tag}: ${k} を持つ`);
+    }
+    assert.ok(accepted >= SEEDS_ROLL / 2, `${name}: 受理が少ない (${accepted}/${SEEDS_ROLL})`);
+  }
+});
+
+test('stage-gen: rollBalls を指定しない盤は rollBalls・pits を持たず、canonicalKey に層が出ない', () => {
+  const b = generateBoard(cases.items, 1);
+  assert.ok(!('rollBalls' in b) && !('pits' in b));
+  assert.ok(!canonicalKey(b).includes('|b:') && !canonicalKey(b).includes('|o:'));
 });

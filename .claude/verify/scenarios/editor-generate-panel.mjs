@@ -80,6 +80,16 @@ export default async function run({ page, check, shot }) {
     await page.click('#gen-more');
     await check('「もう4枚」で seed が4進む', () => page.evaluate(() => [...document.querySelectorAll('#gen-cands .gen-cand')].map((c) => c.dataset.seed)), ['5', '6', '7', '8']);
 
+    // たま（#660）
+    await page.check('#gen-rollBalls-on');
+    await page.selectOption('#gen-teach', 'rollBalls');
+    await check('たまを選ぶと「つくる」が押せる', () => disabled('#gen-run'), false);
+    await page.click('#gen-run');
+    await check('送った本文に rollBalls と teach=rollBalls', () => { const b = bodies[bodies.length - 1].stageGen; return [Object.keys(b.gimmicks).includes('rollBalls'), b.teach]; }, [true, 'rollBalls']);
+    await check('たまのときも候補が4枚出る（応答はモック）', () => page.evaluate(() => document.querySelectorAll('#gen-cands .gen-cand').length), 4);
+    await page.uncheck('#gen-rollBalls-on');
+    await page.selectOption('#gen-teach', 'items');
+
     // 失敗文言3種
     mode = 'empty';
     await page.click('#gen-run');

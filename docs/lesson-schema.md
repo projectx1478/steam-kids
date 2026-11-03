@@ -257,7 +257,7 @@ MustMatterは、ギミックモジュールの`strip(spec)`（ギミックを除
 
 - `stageGen`（レッスンの最上位。任意）：`ver`（生成器の版。整数≥1）、`stages`（play の総数の上限。2〜8。4を超えてよい）、
   `keepHandwritten`（手書きで残す play の stepId。先頭から連続。省略時は空）、`grid.cols`・`grid.rows`（`{min,max}`。3〜20）、
-  `walls`（`{min,max}`。0〜60。省略時0）、`gimmicks`（`items`・`ice`・`keys` のみ。`{min,max}`。加えて `warps:{min,max}`＝組数1〜2。ほかのギミック（`periodic`・`water`・`paint` を含む）・壁と併用できる（#649。1種制限は撤廃）。`groupRepeats` とは併用不可）、`periodic:{min,max}`＝ドア数1〜2（周期3・4のみ生成。ほかのギミック・壁と併用できる。`groupRepeats` とは併用不可）、`paint:{min,max}`＝目標マス数4〜8（整数。ほかのギミックと併用できる（#649。単独制限は撤廃）。water との併用では目標は水マスに置かず、橋の1マスを通る））、`water:{min,max}`＝水マス数2〜8（整数。ほかのギミック・壁と併用できる。groupRepeats とは併用不可。`waterMode`は入力にしない）、`teach`（必須性を判定するギミック）、
+  `walls`（`{min,max}`。0〜60。省略時0）、`gimmicks`（`items`・`ice`・`keys` のみ。`{min,max}`。加えて `rollBalls:{min,max}`＝球1〜2個（下の説明）、`warps:{min,max}`＝組数1〜2。ほかのギミック（`periodic`・`water`・`paint` を含む）・壁と併用できる（#649。1種制限は撤廃）。`groupRepeats` とは併用不可）、`periodic:{min,max}`＝ドア数1〜2（周期3・4のみ生成。ほかのギミック・壁と併用できる。`groupRepeats` とは併用不可）、`paint:{min,max}`＝目標マス数4〜8（整数。ほかのギミックと併用できる（#649。単独制限は撤廃）。water との併用では目標は水マスに置かず、橋の1マスを通る））、`water:{min,max}`＝水マス数2〜8（整数。ほかのギミック・壁と併用できる。groupRepeats とは併用不可。`waterMode`は入力にしない）、`teach`（必須性を判定するギミック）、
   `shortestPath`（`{min,max}`。2〜60）、`minTurns`（0〜8。省略時0）、`allowedCommands`（上下左右の部分集合。省略時4方向）、`seedBase`（省略時1）。
   表に無いキーは不合格。使わないマス（`shape`・`grid.holes`）は未対応（Issue #338）。
 - `stageGen.base`（エディタの /api/generate 専用。レッスン JSON には書かない。書けば未知キーで不合格）：エディタで開いている盤を土台に渡す入力で、土台の水・橋・壁・盤の大きさを固定し、陸だけに start・goal・壁・ギミックを置く。陸が離れ離れでもよい：陸のいちばん大きいつながり（主の島）の中だけに置き、孤立した陸は残して何も置かない。主の島の選び方＝`base.start`（`{x,y}`。省略可）がある島（2マス以上）→最大→同数なら行優先で最初のマスの島（start が水・壁・2マス未満の島の上なら無視して最大の島）。主の島が2マス未満なら 400。水の上限 2〜8 は土台の水に掛けない。土台に水があっても `warps`・`periodic` は併用できる（#649。ワープの入口・出口と周期ドアは土台の橋の上に置かない）。土台は保存されない。
@@ -266,7 +266,7 @@ MustMatterは、ギミックモジュールの`strip(spec)`（ギミックを除
   回転・鏡写しで同じになる盤は除く。同じレッスンの中で盤を急に2段以上大きくしない。
   打切り（Issue #394）：1盤の生成は探索量（`MAX_WORK`）で決定的に打ち切り、`GEN_ABORTED` を返す（予備盤なしの null と別）。`gen-stages` はこれと時間の安全弁（`TIME_LIMIT_MS`）の超過を「未完了」エラーにし、盤を採用・保存しない。
 - 固定：同じ `seed`・`ver`・`stageGen` から再生成した盤が、書き込んだ盤と一致することをテストで確かめる。生成器を直して出力が変わるときは `ver` を上げて書き直す。
-- `rollBalls`・`pits`は stageGen の対象外（生成しない）。
+- `rollBalls:{min,max}`（球の数1〜2。#660）は stageGen で生成する。おとし穴は入力にせず球と同数。`gimmicks.pits` は未対応で不合格。`ice`・`warps`・`switches`・`periodic`・`cushion` と同時に指定すると不合格（混ぜられるのは items・keys・water・paint・壁）。
 
 ## `lessons/index.json`（単元マップ）
 

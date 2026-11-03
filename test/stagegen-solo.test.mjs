@@ -40,3 +40,17 @@ test('集合に仮の要素を渡すと、その要素との併用がNGになる
   assert.match(errs[0], /items は単独で指定する（ice と併用できない）/);
   assert.deepEqual(run({ items: { min: 1, max: 2 } }, ['items']), []);
 });
+
+test('rollBalls は ice・warps・switches・periodic・cushion と同時に指定できない（#660）。items・keys・water・paint とは併用できる', () => {
+  const one = { min: 1, max: 1 };
+  for (const k of ['ice', 'warps', 'switches', 'periodic', 'cushion']) {
+    const errs = run({ rollBalls: one, [k]: one });
+    assert.equal(errs.length, 1, k);
+    assert.match(errs[0], new RegExp(`^stageGen: rollBalls は ${k} と同時に指定できない`), k);
+  }
+  for (const [k, v] of [['items', one], ['keys', one], ['water', { min: 2, max: 4 }], ['paint', { min: 4, max: 6 }]]) {
+    assert.deepEqual(run({ rollBalls: one, [k]: v }), [], k);
+  }
+  assert.equal(run({ rollBalls: { min: 1, max: 3 } }).length, 1);
+  assert.match(run({ rollBalls: one, pits: one }).join(' '), /stageGen 未対応のギミック: gimmicks の pits は未対応/);
+});
