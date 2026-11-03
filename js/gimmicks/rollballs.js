@@ -31,7 +31,7 @@ const FILLED_SVG = svgLayer(`${PIT_BASE}
   <path d="M12 33 A20 16 0 0 1 52 33 A20 6 0 0 1 12 33 Z" fill="#c2701f" />
   <ellipse cx="32" cy="30" rx="14" ry="8" fill="#e08a2e" />
   <ellipse cx="26" cy="27" rx="6" ry="3" fill="#fde1b0" opacity="0.75" />`);
-// 併用禁止（理由つき）。items・cushion・bridge・paint・keys・doors・water・repeatBox・groupRepeats は併用してよい。
+// 併用禁止（理由つき）。items・cushion・bridge・paint・keys・doors・water・repeatBox・groupRepeats は併用してよい（stageGen が混ぜるのは items・keys・water・paint だけ）。
 const EXCLUDED = {
   ice: '1手に同じたまを2回押す',
   warps: '出口でたまを押す・1手に2球動く',

@@ -112,7 +112,7 @@
 - 移動規則：ロボットが進む先にたまがあれば同じ向きへ1マス転がし、ロボットはそのマスへ入る（1手）。たまは1マスで止まる（こおりのように滑り続けない）。転がし先が埋まっていないおとし穴ならたまは穴に埋まって消え、穴は床と同じになる。転がし先が盤外・壁・他のたまなら動かせず、壁と同じ失敗（`blockedAt`・`bumped`）。1手で動かせるのは1つ。埋まっていないおとし穴へ入る手も壁と同じ失敗。クリア条件は変えない（穴を全部埋めなくてよい）。BFSはたまの位置と埋まった穴を状態に含む
 - 描画：たまは茶〜橙の球（影・縫い目の模様・ハイライト。壁より小さめ）で`data-roll-ball`（添字）。おとし穴は暗い楕円のくぼみで`data-pit`（添字）、埋まると`data-pit-filled="true"`（縁の中にたまの上半分が見える絵）。転がすとロボットと同じ時間でたまが1マス動きながら回転し（1マス180度。影とハイライトは回さない）、穴に入ると0.3秒で沈んで埋まった穴に替わる。動かせないとたまが小さく震え、ロボットは手前で止まる（`view.bounce(dir, 'ball')`。目回し星なし・文字なし）。音は`step`。reduced-motion時は回転・沈み・震えを省いて即時
 - 数値条件：盤面の大きさは盤面共通の20×20以内。たまは1〜2個、おとし穴は1個以上たまの数以下（片方だけはNG）。盤内・整数・重複なしで、壁・start・goal・互いと重ならない。併用できるのはitems・cushion・bridge・paint・keys・doors・water・`repeatBox`・`groupRepeats`。ice（1手に同じたまを2回押す）・warps（出口でたまを押す・1手に2球動く）・switches・groupWalls・periodic（転がしたあとそのマスが壁になり、たまだけ動く）は同じ盤に置けない（検証NG）。たま・おとし穴をwater・doors・cushionのマスに重ねるとNG。たまを外しおとし穴を壁にした盤で`maxCommands`以内に届くと検証NG（転がす球の必須性）。startから届く状態のうち、ゴールへ二度と着けない状態（詰み）が1つでもあると検証NG（詰みの検査。探索は5万状態で打ち切り、打ち切りもNG）。詰みを許す盤（罠盤）は作らない（別Issueで検討）
-- stageGen：対象外（生成しない）
+- stageGen：`gimmicks.rollBalls:{min,max}`（球の数1〜2）で生成する（#660）。おとし穴は入力にせず球と同数で、`gimmicks.pits`を書くと未対応で不合格。穴は最短経路の途中の1マス（壁にすると最短が伸びる）、球はその手前の一直線上のマスに置く。確定前に必須性（`rollBallsMustMatter`）と詰みの検査（`findDeadStates`・5万状態）を通し、通らない盤・打ち切りの盤は捨てる。ice・warps・switches・periodic・cushion とは同時に指定できない（cushion は必須にするのに ice が要るため）。混ぜられるのは items・keys・water・paint・壁。土台（`base`）ONでも選べ、球・穴は主の島の陸だけに置く。成功率は`## 併用の実測`（球2は keys／paint との併用でほぼ中止、単独は 6×6 で25%）
 
 ## 何を1手と数えるか
 - 1手＝コマ1つ分の移動。
@@ -171,7 +171,7 @@ stageGen（たたき台）と盤の検証にある併用禁止を3つに分け�
 | (2) | 同じマスに複数のギミックを置く（ワープ・壁・start・goal ほか） | 1マスに置けるギミックは1つ | `tools/lib/validate/board.mjs:83-106` |
 | (2) | 土台（`base`）×`water` | 水を土台と `gimmicks.water` の二重に定義することになる | `tools/editor/serve.mjs:221`（`checkGenerateBase`） |
 | (2) | `group`×`targets`（同じスイッチ） | 連動のキーが二重になる（どちらか一方） | `tools/editor/editor-view.js:132` |
-| (2) | `rollBalls`・`pits`×ice・warps・switches・groupWalls・periodic | ice・warps・switches・groupWalls・periodic は禁止（理由は検証NGの文言）。items・cushion・bridge・paint・keys・doors・water・repeatBox・groupRepeats は併用可（water・doors・cushion のマスには重ねない） | `js/gimmicks/rollballs.js`（`validate`） |
+| (2) | `rollBalls`・`pits`×ice・warps・switches・groupWalls・periodic | ice・warps・switches・groupWalls・periodic は禁止（理由は検証NGの文言）。items・cushion・bridge・paint・keys・doors・water・repeatBox・groupRepeats は併用可（water・doors・cushion のマスには重ねない）。stageGen は ice・warps・switches・periodic・cushion と混ぜない（#660。入力で断る） | `js/gimmicks/rollballs.js`（`validate`） |
 
 ### (3) 撤廃（段3で撤廃済み）
 
@@ -213,7 +213,25 @@ stageGen（たたき台）と盤の検証にある併用禁止を3つに分け�
 | keys+switches | 200 seed: 成功100%/無0%/中止0%、最大0.5s、必須100% | 32 seed: 成功88%/無13%/中止0%、最大2.7s、必須100% | 5 seed: 成功0%/無100%/中止0%、最大8.6s、必須— |
 | items4+keys2+switches2+warps2 | 7 seed: 成功0%/無0%/中止100%、最大6.2s、必須— | 4 seed: 成功0%/無0%/中止100%、最大12.4s、必須— | 4 seed: 成功0%/無0%/中止100%、最大10.8s、必須— |
 
-読み取り：
+### たま（rollBalls）の実測（#660 段3）
+
+seed 1〜20 を `generateBoard` で回した目安（20×20 は測っていない）。球の数は固定（球1＝1個・穴1、球2＝2個・穴2）。「球必須」は返った盤で `rollBallsMustMatter` が真の割合（全組み合わせで100%）。条件：6×6＝最短4〜12・かべ1〜4、10×10＝最短6〜25・かべ3〜10。ギミック数は items 1〜2・keys 1・water 2〜4・paint 4〜6。`teach` は `rollBalls`。
+
+| 組み合わせ | 6×6 | 10×10 |
+|---|---|---|
+| 球1 | 20 seed: 成功100%/無0%/中止0%、最大0.0s | 20 seed: 成功100%/無0%/中止0%、最大0.2s |
+| 球2 | 20 seed: 成功25%/無0%/中止75%、最大0.1s | 20 seed: 成功0%/無0%/中止100%、最大0.0s |
+| 球1+items | 20 seed: 成功100%/無0%/中止0%、最大0.1s | 20 seed: 成功100%/無0%/中止0%、最大1.4s |
+| 球2+items | 20 seed: 成功20%/無0%/中止80%、最大0.1s | 20 seed: 成功5%/無0%/中止95%、最大2.0s |
+| 球1+keys | 20 seed: 成功95%/無5%/中止0%、最大0.4s | 20 seed: 成功20%/無0%/中止80%、最大0.8s |
+| 球2+keys | 20 seed: 成功0%/無0%/中止100%、最大0.1s | 20 seed: 成功0%/無0%/中止100%、最大0.1s |
+| 球1+water | 20 seed: 成功100%/無0%/中止0%、最大0.0s | 20 seed: 成功100%/無0%/中止0%、最大0.3s |
+| 球2+water | 20 seed: 成功95%/無0%/中止5%、最大0.3s | 20 seed: 成功30%/無0%/中止70%、最大0.7s |
+| 球1+paint | 20 seed: 成功100%/無0%/中止0%、最大0.0s | 20 seed: 成功0%/無0%/中止100%、最大0.0s |
+| 球2+paint | 20 seed: 成功15%/無0%/中止85%、最大0.0s | 20 seed: 成功0%/無0%/中止100%、最大0.0s |
+
+読み取り：球1は 6×6 でほぼ100%。「中止」は実際の重さではなく、生成の見積り（`work`。球の位置の組み合わせ数 マス数^(球+1)×2 など、失敗した試行の分も足す）が上限100万を超えた印で、時間は短くても中止になる。10×10 の球2は1回目の試行で見積りが超えるため必ず中止（上限を外すと成功する。球2：5 seed 中5、最大1.0秒）。10×10 の球2+keys も見積り超過で中止（上限を外すと5 seed 中成功4・無1、最大22秒）。10×10 の球1+paint は試行を約40回失敗して見積りが溜まり中止（上限を外すと5 seed とも「無」＝条件に合う盤なし）。エディタでは「重すぎて途中で止めた」と出るが、球1+paint の実態は「条件に合う盤が出ない」に近い。球2は小さい盤（4〜6）で使い、keys／paint との併用は避ける。
+
 - 土台の水+warps／periodic、warps+periodic、水+warps+periodic は、20×20 まで成功率100%・最大約1.2秒。返った盤は全て必須で、盤検査にも通る。
 - keys+switches は 6×6 で100%、10×10 で約9割。20×20 は5 seed で成功なし（最大8.6秒）。
 - 色ぬり+items／keys／warps／periodic、items4+keys2+switches2+warps2 は、この条件では盤が返らない（0%）。色ぬりは目標の末端が goal に置き換わるため、先に置いたギミックが必須でなくなる（main でも paint+keys は返った200盤の全てで keys が必須でなかった）。必須性を落として通すことはしない。探索が重い組み合わせは 10×10 で1シード十数秒、20×20 で30秒かかり、エディタでは「重すぎて途中で止めた」または「条件に合う盤が出なかった」になる。
