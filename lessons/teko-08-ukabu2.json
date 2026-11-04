@@ -1,0 +1,19 @@
+{
+  "lessonId": "teko-08-ukabu2",
+  "unitId": "teko",
+  "title": "いろいろな ふうせんで うかべよう",
+  "type": "predict-slider",
+  "estimatedMinutes": 8,
+  "steps": [
+    { "stepId": "s1", "kind": "intro", "text": "おもさと ちからを くらべよう" },
+    { "stepId": "p1", "kind": "play", "text": "つよい ふうせんで ためそう", "buoyancy": { "base": 1, "mass": 3, "lift": 2, "weights": { "start": 0, "max": 2 }, "balloons": { "start": 0, "max": 2 } }, "solution": [1, 1] },
+    { "stepId": "p2", "kind": "play", "text": "ふうせんは いるかな？", "buoyancy": { "base": 4, "mass": 2, "lift": 3, "weights": { "start": 1, "max": 3 }, "balloons": { "start": 0, "max": 3 } }, "solution": [2, 0] },
+    { "stepId": "p3", "kind": "play", "text": "おもりと ふうせんを あわせよう", "buoyancy": { "base": 1, "mass": 2, "lift": 3, "weights": { "start": 0, "max": 3 }, "balloons": { "start": 0, "max": 2 } }, "solution": [2, 1] },
+    { "stepId": "p4", "kind": "play", "text": "よわい ふうせんは どう？", "buoyancy": { "base": 5, "mass": 3, "lift": 1, "weights": { "start": 3, "max": 3 }, "balloons": { "start": 0, "max": 2 } }, "solution": [2, 1] },
+    { "stepId": "p5", "kind": "play", "text": "ふうせんが おおすぎるよ", "buoyancy": { "base": 3, "mass": 2, "lift": 3, "weights": { "start": 0, "max": 4 }, "balloons": { "start": 2, "max": 3 } }, "solution": [3, 1] },
+    { "stepId": "p6", "kind": "play", "text": "ぴったりを さがそう", "buoyancy": { "base": 4, "mass": 3, "lift": 1, "weights": { "start": 1, "max": 3 }, "balloons": { "start": 0, "max": 3 } }, "solution": [2, 2] },
+    { "stepId": "p7", "kind": "play", "text": "へらして ふやして ためそう", "buoyancy": { "base": 7, "mass": 3, "lift": 1, "weights": { "start": 1, "max": 4 }, "balloons": { "start": 3, "max": 3 } }, "solution": [3, 2] },
+    { "stepId": "p8", "kind": "play", "text": "いちばん おおきい ぴったり", "buoyancy": { "base": 5, "mass": 2, "lift": 3, "weights": { "start": 0, "max": 4 }, "balloons": { "start": 0, "max": 3 } }, "solution": [4, 1] },
+    { "stepId": "s2", "kind": "summary", "text": "おもさと ちからで きまるよ" }
+  ]
+}
