@@ -56,8 +56,8 @@ async function openFromDev(page, lessonId) {
 
 export default async function run({ page, check }) {
   await page.goto('/index.html?view=map');
-  await check('通常画面にはteko-02が出ない', async () => (await page.$$('[data-lesson-id="teko-02-tsuriai2"]')).length, 0);
-  await check('通常画面にはteko-03が出ない', async () => (await page.$$('[data-lesson-id="teko-03-tsuriai3"]')).length, 0);
+  await check('通常画面にもteko-02が並ぶ（公開）', async () => (await page.$$('[data-lesson-id="teko-02-tsuriai2"]')).length, 1);
+  await check('通常画面にもteko-03が並ぶ（公開）', async () => (await page.$$('[data-lesson-id="teko-03-tsuriai3"]')).length, 1);
   await page.goto('/index.html?view=map&dev=1');
   await check('dev：teko-02が並ぶ', async () => (await page.$$('[data-lesson-id="teko-02-tsuriai2"]')).length, 1);
   await check('dev：teko-03が並ぶ', async () => (await page.$$('[data-lesson-id="teko-03-tsuriai3"]')).length, 1);
