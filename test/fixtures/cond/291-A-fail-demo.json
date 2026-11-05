@@ -1,0 +1,30 @@
+{
+  "stepId": "s1",
+  "kind": "intro",
+  "text": "はこの なかを ぜんぶ くりかえす",
+  "demo": {
+    "grid": {
+      "cols": 4,
+      "rows": 4
+    },
+    "start": {
+      "x": 0,
+      "y": 3
+    },
+    "goal": {
+      "x": 3,
+      "y": 0
+    },
+    "walls": [],
+    "commands": [
+      "right",
+      {
+        "if": "right",
+        "then": [
+          "up"
+        ]
+      }
+    ],
+    "showCommands": true
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "stepId": "p3",
+  "kind": "play",
+  "text": "のぼって すすもう",
+  "grid": {
+    "cols": 7,
+    "rows": 4
+  },
+  "start": {
+    "x": 0,
+    "y": 3
+  },
+  "goal": {
+    "x": 6,
+    "y": 0
+  },
+  "walls": [
+    {
+      "x": 2,
+      "y": 3
+    },
+    {
+      "x": 4,
+      "y": 2
+    }
+  ],
+  "allowedCommands": [
+    "up",
+    "down",
+    "left",
+    "right"
+  ],
+  "solution": [
+    "right",
+    {
+      "if": "right",
+      "then": [
+        "up",
+        "right",
+        "right"
+      ]
+    },
+    {
+      "if": "right",
+      "then": [
+        "up",
+        "right",
+        "right"
+      ]
+    },
+    {
+      "if": "right",
+      "then": [
+        "up",
+        "right",
+        "right"
+      ]
+    },
+    "right",
+    "up"
+  ],
+  "maxCommands": 6,
+  "condBlock": true
+}

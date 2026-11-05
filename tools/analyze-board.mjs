@@ -23,19 +23,19 @@ export function loadPlay(lessonId, stage, root = process.cwd()) {
   return play;
 }
 
-// 最短手数（groupRepeats は最小チップ数。repeatBox は箱なしの最短手数）と訪問状態数。
+// 最短手数（groupRepeats は最小チップ数。repeatBox は箱なし、condBlock は条件なしの最短手数）と訪問状態数。
 export function analyzeShortest(play) {
   const spec = boardSpec(play);
   if (play.groupRepeats === true) return { shortest: shortestChips(spec), unit: 'チップ', visited: null };
   const stats = {};
   const shortest = shortestSteps(spec, stats);
-  return { shortest, unit: play.repeatBox === true ? '手（箱なし）' : '手', visited: stats.visited };
+  return { shortest, unit: play.repeatBox === true ? '手（箱なし）' : play.condBlock === true ? '手（条件なし）' : '手', visited: stats.visited };
 }
 
 // maxCommands 以内でクリアする命令列を深さ優先で数える。limit 本・deadline（epoch ms）で打ち切る。
 // maxNodes（探索ノード数の上限）で切れたときは unknown: true（本数は「count本以上」で、実際は不明）。
 export function countAlternatives(play, { limit = DEFAULT_LIMIT, deadline = Infinity, maxNodes = DEFAULT_MAX_NODES } = {}) {
-  if (play.repeatBox === true || play.groupRepeats === true) return { count: null, truncated: false, reason: 'repeatBox/groupRepeats は対象外', nodes: 0 };
+  if (play.repeatBox === true || play.groupRepeats === true || play.condBlock === true) return { count: null, truncated: false, reason: 'repeatBox/groupRepeats/condBlock は対象外', nodes: 0 };
   const spec = boardSpec(play);
   const cmds = Array.isArray(play.allowedCommands) ? play.allowedCommands : FOUR_DIRS;
   const max = play.maxCommands;

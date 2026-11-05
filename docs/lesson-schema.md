@@ -83,6 +83,17 @@ validate と集計側で同じ一覧を参照する）。一覧の照合はフ�
 残す。`solution`は必須で、箱を`{box, times}`で書ける（`repeatBox`時のみ）。ループ込みの最短性は
 BFSで求めない（`js/ui-summary.js`は「いちばん みじかい」を出さない）。
 長い盤は箱（`groupRepeats`）を併用してよい。使うかは盤ごとに決める（Issue #393）。
+
+`play.condBlock`（任意・boolean・既定false。Issue #291）を`true`にすると条件カード「もし〜なら」が使える。
+`solution`の要素に`{ "if": "right", "then": ["up","right","right"] }`を書く。`if`は4方向の1つ、
+`then`は1〜3個の方向（`allowedCommands`内・入れ子なし・else なし）。評価はそのチップに着いた時点の位置で
+1回だけ：`if`の方向の隣が壁・盤外・soft以外のブロックなら真で`then`を続けて実行、偽なら何もせず次へ。
+条件カードは中身込みで**1チップ**と数える（`maxCommands`・`chipCount`）。`solution`は必須（配列形のみ）。
+`repeatBox`・`groupRepeats`・`maxPauses`(1以上)・walls以外のギミック・`initialCommands`とは併用不可。
+`demo.commands`／`fixFrom`に条件は書けない。最短性はBFSで求めない（`shortestOfStep`は未定義、
+`js/ui-summary.js`は「いちばん みじかい」を出さない）。検証：条件を外した素の最短が`maxCommands`を超えること
+（`条件の必須性`）、全カードを常に偽／常に真に固定してもクリアしないこと（`条件が飾り`。真になるカードと
+偽になるカードを両方置く）。
 実行中は箱チップの「はこ ×N」ラベルの下に周回の点（`.box-rounds`・N個）が並び、済みの周と
 実行中の周が塗りつぶされる（実行中の点だけ強調。実行外はすべて空で、点の数だけで回数が分かる）。
 DOM判定用に箱チップへ`data-round`（0始まりの現在周。実行外は属性なし。Issue #167）。
@@ -326,6 +337,10 @@ MustMatterは、ギミックモジュールの`strip(spec)`（ギミックを除
   一致すること
 - `commands` / `allowedCommands` が `up` `down` `left` `right` のみであること
 - `groupRepeats` を持つ場合はboolean型であること
+- `condBlock` を持つ場合はboolean型（`condBlockの型`）。`true`の場合は上の併用不可の項目を指定せず
+  （`condBlockの併用`）、`solution`が必須（`solutionの必須`）で、条件カードのキーは`if`・`then`のみ（`条件カードのキー`）、
+  `if`は4方向（`ifの方向`）、`then`は1〜3個（`thenの個数`）で`allowedCommands`内の方向のみ（`thenの方向`・`条件の入れ子`）、
+  素の最短が`maxCommands`超（`条件の必須性`）、常に偽／常に真でクリアしない（`条件が飾り（常に偽でクリア）`／`（常に真でクリア）`）。
 - `repeatBox` を持つ場合はboolean型で、`groupRepeats`と同時に`true`にしないこと。`true`の場合は
   `solution`が必須で、箱は空でなく中が方向のみ（入れ子なし）・`times`が2〜4の整数であること、
   `solution`のチップ数（箱1＋中の命令数）が想定の手数`maxCommands`の内であること、箱を使わない最短手数が

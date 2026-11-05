@@ -1,0 +1,52 @@
+{
+  "stepId": "p1",
+  "kind": "play",
+  "text": "かべが あるときだけ のぼろう",
+  "grid": {
+    "cols": 5,
+    "rows": 3
+  },
+  "start": {
+    "x": 0,
+    "y": 2
+  },
+  "goal": {
+    "x": 4,
+    "y": 1
+  },
+  "walls": [
+    {
+      "x": 2,
+      "y": 2
+    }
+  ],
+  "allowedCommands": [
+    "up",
+    "down",
+    "left",
+    "right"
+  ],
+  "solution": [
+    "right",
+    {
+      "if": "right",
+      "then": [
+        "up",
+        "right",
+        "right"
+      ]
+    },
+    {
+      "if": "right",
+      "then": [
+        "up",
+        "right",
+        "right"
+      ]
+    },
+    "right"
+  ],
+  "maxCommands": 4,
+  "condBlock": true,
+  "repeatBox": true
+}

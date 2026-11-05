@@ -148,6 +148,22 @@ export function makeMover(spec) {
   };
 }
 
+// 壁センサー（条件分岐。Issue #291）。sensor(pos, dir, states) は dir の隣が
+// 壁・盤外・soft 以外のブロックなら true（isOpen でも soft でもない）。
+export function makeSensor(spec) {
+  const { grid, walls } = spec;
+  const wallSet = new Set(walls.map((w) => `${w.x},${w.y}`));
+  const inBoard = (p) => p.x >= 0 && p.x < grid.cols && p.y >= 0 && p.y < grid.rows;
+  const blockers = (p, states) => GIMMICKS.filter((g) => g.blocks?.(states[g.key], p, spec));
+  return (pos, dir, states) => {
+    const p = MOVES[dir](pos);
+    if (!inBoard(p) || wallSet.has(`${p.x},${p.y}`)) return true;
+    const list = blockers(p, states);
+    if (list.length === 0) return false;
+    return !list.every((g) => (typeof g.soft === 'function' ? g.soft(spec) : g.soft));
+  };
+}
+
 // simulate(commands, spec) -> { path, blockedAt, reachedGoal, stepOwner, innerOwner, roundOwner, pickups,
 // slid, bumped, remainingItems }
 // spec: { grid: {cols, rows}, start: {x,y}, goal: {x,y}, walls: [{x,y}], items?: [{x,y}], … }
@@ -183,13 +199,19 @@ function expandEntry(entry) {
 
 // 命令列のチップ数。箱は「箱1＋中の命令数」、それ以外は1要素=1チップ（Issue #66）。
 export function chipCount(commands) {
-  return commands.reduce((sum, e) => sum + (typeof e !== 'string' && e.box ? 1 + e.box.length : 1), 0);
+  return commands.reduce((sum, e) => sum + (typeof e !== 'string' && e.box ? 1 + e.box.length : 1), 0); // 条件カード {if,then} は中身込みで1チップ（Issue #291）
 }
 
-export function simulate(commands, rawSpec) {
+// opts.forceCond: true／false なら条件カードの真偽を固定（検査用）。省略時は壁センサーで評価。
+// 条件カード {if, then} はそのチップに着いた位置で1回だけ評価し、真なら then を続けて実行、偽なら
+// condSkipped に {chip, at} を積む（commands に条件がある時だけ戻り値へ condSkipped を付ける）。
+export function simulate(commands, rawSpec, opts = {}) {
   const spec = boardSpec(rawSpec);
   const { start, goal } = spec;
   const move = makeMover(spec);
+  const sensor = makeSensor(spec);
+  const condSkipped = [];
+  const hasCond = commands.some((e) => typeof e !== 'string' && e.if !== undefined);
 
   const path = [{ ...start }];
   const blockedAt = [];
@@ -208,7 +230,16 @@ export function simulate(commands, rawSpec) {
   let states = enterAll(initGimmickStates(spec), spec, pos);
 
   commands.forEach((entry, i) => {
-    for (const [dir, inner, round] of expandEntry(entry)) {
+    let seq;
+    if (typeof entry !== 'string' && entry.if !== undefined) {
+      const truth = opts.forceCond === true || opts.forceCond === false ? opts.forceCond : sensor(pos, entry.if, states);
+      if (truth) seq = entry.then.map((d, j) => [d, j, -1]);
+      else {
+        condSkipped.push({ chip: i, at: path.length - 1 });
+        seq = [];
+      }
+    } else seq = expandEntry(entry);
+    for (const [dir, inner, round] of seq) {
       turnAt.push(states.periodic?.turn ?? 0);
       const { steps, bumped, cushioned, after, byPeriodic, stuck, stuckAt } = move(pos, dir, states);
       // 滑走などで複数マス進んだ手は1マスずつpathへ展開する（同一stepOwner）。
@@ -251,7 +282,9 @@ export function simulate(commands, rawSpec) {
   // items以外でクリア条件を満たしていないギミックのkey（items以外は現状paintのみ。remainingItemsは別途返す）。
   const unmet = GIMMICKS.filter((g) => g.key !== 'items' && !g.isCleared(states[g.key])).map((g) => g.key);
   const paintOver = GIMMICKS.find((g) => g.key === 'paint')?.overCells(states.paint) ?? [];
-  return { path, blockedAt, reachedGoal, stepOwner, innerOwner, roundOwner, pickups, slid, bumped: bumpedList, remainingItems, unmet, paintOver, turnAt, moveOf, periodicBump, warped, rolls };
+  const result = { path, blockedAt, reachedGoal, stepOwner, innerOwner, roundOwner, pickups, slid, bumped: bumpedList, remainingItems, unmet, paintOver, turnAt, moveOf, periodicBump, warped, rolls };
+  if (hasCond) result.condSkipped = condSkipped;
+  return result;
 }
 
 // simulate()の結果がクリアか（ゴール到達・item全回収・壁衝突なし・他ギミックの条件達成）。
@@ -334,7 +367,7 @@ export function shortestChips(rawSpec) {
 
 // ステージ(step)の最短手数。groupRepeatsはチップ数、それ以外は手数。repeatBox・到達不能など算出できなければundefined（Issue #491）。
 export function shortestOfStep(step) {
-  if (!step || step.repeatBox) return undefined;
+  if (!step || step.repeatBox || step.condBlock) return undefined;
   const spec = boardSpec(step);
   const n = step.groupRepeats ? shortestChips(spec) : shortestSteps(spec);
   return Number.isFinite(n) ? n : undefined;

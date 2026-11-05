@@ -1,0 +1,63 @@
+{
+  "stepId": "p2",
+  "kind": "play",
+  "text": "かべが ふたつ",
+  "grid": {
+    "cols": 7,
+    "rows": 3
+  },
+  "start": {
+    "x": 0,
+    "y": 2
+  },
+  "goal": {
+    "x": 6,
+    "y": 0
+  },
+  "walls": [
+    {
+      "x": 2,
+      "y": 2
+    },
+    {
+      "x": 4,
+      "y": 1
+    }
+  ],
+  "allowedCommands": [
+    "up",
+    "down",
+    "left",
+    "right"
+  ],
+  "solution": [
+    "right",
+    {
+      "if": "right",
+      "then": [
+        "up",
+        "right",
+        "right"
+      ]
+    },
+    {
+      "if": "right",
+      "then": [
+        "up",
+        "right",
+        "right"
+      ]
+    },
+    {
+      "if": "right",
+      "then": [
+        "up",
+        "right",
+        "right"
+      ]
+    },
+    "right"
+  ],
+  "maxCommands": 5,
+  "condBlock": true
+}

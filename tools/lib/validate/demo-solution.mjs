@@ -123,6 +123,29 @@ function checkDemo(intro, playSteps, add) {
   }
 }
 
+// 条件カード{if, then}の形式検証（Issue #291）。キーは if・then のみ、ifは4方向、thenは1〜3個の
+// 許可された方向文字列（入れ子不可）。問題があれば[rule, 詳細]の配列を返す。
+const COND_THEN_MAX = 3;
+function condProblems(entry, play) {
+  const problems = [];
+  const extra = Object.keys(entry).filter((k) => k !== 'if' && k !== 'then');
+  if (extra.length > 0) problems.push(['条件カードのキー', `${JSON.stringify(entry)} にif・then以外のキー（${extra.join('・')}）がある`]);
+  if (typeof entry.if !== 'string' || !COMMANDS.includes(entry.if)) {
+    problems.push(['ifの方向', `if=${JSON.stringify(entry.if)} が4方向以外`]);
+  }
+  if (!Array.isArray(entry.then) || entry.then.length < 1 || entry.then.length > COND_THEN_MAX) {
+    problems.push(['thenの個数', `then=${JSON.stringify(entry.then)} が1〜${COND_THEN_MAX}個の配列でない`]);
+  } else {
+    const allowed = Array.isArray(play.allowedCommands) ? play.allowedCommands : COMMANDS;
+    if (entry.then.some((d) => d && typeof d === 'object')) {
+      problems.push(['条件の入れ子', `then=${JSON.stringify(entry.then)} の中は方向文字列のみ（入れ子不可）`]);
+    } else if (entry.then.some((d) => typeof d !== 'string' || !COMMANDS.includes(d) || !allowed.includes(d))) {
+      problems.push(['thenの方向', `then=${JSON.stringify(entry.then)} に方向でない、またはallowedCommands外の要素がある`]);
+    }
+  }
+  return problems;
+}
+
 // play.solution（任意。検証ハーネスが正解手順として使う）の検証。
 // 形式: 方向文字列の配列（initialCommandsの後ろへ積む命令）、または{ removeIndex?, commands? }
 // （initialCommandsのremoveIndex番目を消してからcommandsを積む）。最終キューがクリアすること。
@@ -133,15 +156,22 @@ function checkSolution(play, add, label) {
   const obj = Array.isArray(sol) ? { commands: sol } : sol;
   const commands = obj && obj.commands !== undefined ? obj.commands : [];
   const isBox = (c) => c && typeof c === 'object' && 'box' in c;
+  const isCond = (c) => c && typeof c === 'object' && !Array.isArray(c) && ('if' in c || 'then' in c);
+  const condOn = play.condBlock === true;
+  // condBlock:true の solution は配列形のみ（オブジェクト形は不可。Issue #291）。
   const valid =
     obj &&
     typeof obj === 'object' &&
+    (!condOn || Array.isArray(sol)) &&
     Array.isArray(commands) &&
-    commands.every((c) => COMMANDS.includes(c) || (play.repeatBox === true && isBox(c)));
+    commands.every((c) => COMMANDS.includes(c) || (play.repeatBox === true && isBox(c)) || (condOn && isCond(c)));
   if (!valid || (obj.removeIndex !== undefined && !Number.isInteger(obj.removeIndex))) {
-    add('solutionの形式', `${label}solution=${JSON.stringify(sol)} が不正（方向文字列の配列か{removeIndex,commands}。箱{box,times}はrepeatBox時のみ）`);
+    add('solutionの形式', `${label}solution=${JSON.stringify(sol)} が不正（方向文字列の配列か{removeIndex,commands}。箱{box,times}はrepeatBox時のみ、条件{if,then}はcondBlock時のみ・配列形のみ）`);
     return;
   }
+  const conds = commands.filter(isCond);
+  for (const c of conds) for (const [rule, detail] of condProblems(c, play)) add(rule, `${label}solution ${detail}`);
+  if (conds.some((c) => condProblems(c, play).length > 0)) return;
   const boxes = commands.filter(isBox);
   for (const b of boxes) for (const [rule, detail] of boxProblems(b)) add(rule, `${label}solution ${detail}`);
   if (boxes.some((b) => boxProblems(b).length > 0)) return;
@@ -161,9 +191,9 @@ function checkSolution(play, add, label) {
   }
   // groupRepeatsは同方向の連続が1チップにまとまる（ui-commands.js）ためチップ数で数える。
   // repeatBoxは箱1＋中の命令数（chipCount）で数える（Issue #66）。
-  const chips = play.repeatBox ? chipCount(queue) : play.groupRepeats ? queue.filter((c, i) => c !== queue[i - 1]).length : queue.length;
+  const chips = play.repeatBox || condOn ? chipCount(queue) : play.groupRepeats ? queue.filter((c, i) => c !== queue[i - 1]).length : queue.length;
   if (typeof play.maxCommands === 'number' && chips > play.maxCommands) {
-    add('solutionの手数', `${label}solutionが${chips}${play.groupRepeats || play.repeatBox ? 'チップ' : '手'}で想定の手数 maxCommands=${play.maxCommands} より多い`);
+    add('solutionの手数', `${label}solutionが${chips}${play.groupRepeats || play.repeatBox || condOn ? 'チップ' : '手'}で想定の手数 maxCommands=${play.maxCommands} より多い`);
   }
   return chips;
 }
