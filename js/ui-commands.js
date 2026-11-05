@@ -1,6 +1,7 @@
 // 命令パレット・命令列（キュー）の描画。パレットの操作はタップ、またはドラッグして
 // 命令列へドロップ（末尾に追加。Issue #95）。
 import { chipCount, simulate } from './engine-grid.js';
+import { renderCondChip } from './ui-cond-chip.js';
 
 // 対応端末のみ短く振動する（未対応環境では何もしない。例外を投げない）。
 export function vibrate(ms = 15) {
@@ -360,7 +361,7 @@ export function renderOrderArrow(tag = 'li') {
 // 周回の点（.box-rounds・N個）を並べ、済みの周と実行中の周を塗りつぶす（実行中の点だけ強調）。
 // 実行外は点をすべて空で出し、点の数だけで回数が分かる。DOM判定用に箱チップへdata-round
 // （実行中の周。実行外は属性なし）を付ける（Issue #167）。「はこ ×N」ラベル文言は実行中も変えない。
-export function renderCommandQueue(container, { commands, activeIndex, activeInner = -1, activeRound = -1, openIndex = -1, onRemove, removable: removableAll = true, nextSlot = null, lockedCount = 0 }) {
+export function renderCommandQueue(container, { commands, activeIndex, activeInner = -1, activeRound = -1, openIndex = -1, onRemove, onCondCycle, removable: removableAll = true, nextSlot = null, lockedCount = 0 }) {
   container.innerHTML = '';
   commands.forEach((entry, i) => {
     const { dir, times } = entry;
@@ -419,6 +420,27 @@ export function renderCommandQueue(container, { commands, activeIndex, activeInn
     if (i === activeIndex) {
       chip.dataset.active = 'true';
       chip.classList.add('ring-4', 'ring-yellow-400');
+    }
+
+    if (entry.if !== undefined) {
+      renderCondChip(chip, entry, {
+        i,
+        isOpen: i === openIndex,
+        activeIndex,
+        activeInner,
+        removable,
+        arrowSvg,
+        onRemove: (idx) => {
+          vibrate();
+          onRemove(idx);
+        },
+        onCycle: (idx) => {
+          vibrate();
+          onCondCycle?.(idx);
+        },
+      });
+      container.appendChild(chip);
+      return;
     }
 
     if (entry.box) {

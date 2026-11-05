@@ -198,6 +198,7 @@ const DRAFT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 function isDraftCommand(c) {
   if (!c || typeof c !== 'object' || Array.isArray(c)) return false;
   if (c.pause === true) return true;
+  if (c.if !== undefined) return typeof c.if === 'string' && Array.isArray(c.then) && c.then.length <= 3 && c.then.every((d) => typeof d === 'string');
   if (Array.isArray(c.box)) return c.box.length <= DRAFT_MAX_LEN && typeof c.times === 'number';
   return typeof c.dir === 'string' && typeof c.times === 'number';
 }

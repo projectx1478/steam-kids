@@ -55,7 +55,8 @@ export function renderPlay(root, step) {
   // 復元する dir（箱の中身も）は、このステップの allowedCommands に入っているものだけ。外れたら破棄して空で始める。
   const allowedDirs = Array.isArray(step.allowedCommands) ? step.allowedCommands : null;
   const inAllowed = (d) => typeof d === 'string' && (!allowedDirs || allowedDirs.includes(d));
-  const dirOk = (c) => c.pause === true || (Array.isArray(c.box) ? c.box.every(inAllowed) : inAllowed(c.dir));
+  const condOk = (c) => ['up', 'down', 'left', 'right'].includes(c.if) && Array.isArray(c.then) && c.then.length <= 3 && c.then.every(inAllowed);
+  const dirOk = (c) => c.pause === true || (c.if !== undefined ? condOk(c) : Array.isArray(c.box) ? c.box.every(inAllowed) : inAllowed(c.dir));
   let restored = saved && saved.stepId === step.stepId && !isTrial() ? saved.commands : null;
   if (restored && !restored.every(dirOk)) {
     clearDraft(S.lesson.lessonId);
@@ -251,7 +252,15 @@ export function renderPlay(root, step) {
         return;
       }
       if (local.boxOpen >= 0) {
-        local.commands[local.boxOpen].box.push(dir);
+        const open = local.commands[local.boxOpen];
+        if (open.then) {
+          // 条件カードの中は最大3手。4手目は入れない。
+          if (open.then.length >= 3) {
+            skipClickSfx();
+            return;
+          }
+          open.then.push(dir);
+        } else open.box.push(dir);
         saveDraft();
         playSfx(via === 'drag' ? 'snap' : 'tap');
         drawQueue();
