@@ -23,7 +23,7 @@ async function boardFits(page, label, check) {
 
 export default async function run({ page, check }) {
   await page.goto('/index.html?view=map');
-  await check('通常画面にはteko-04が出ない', async () => (await page.$$('[data-lesson-id="teko-04-omosa"]')).length, 0);
+  await check('通常画面にもteko-04が並ぶ（公開）', async () => (await page.$$('[data-lesson-id="teko-04-omosa"]')).length, 1);
   await page.goto('/index.html?view=map&dev=1');
   await check('dev：teko-04が並ぶ', async () => (await page.$$('[data-lesson-id="teko-04-omosa"]')).length, 1);
 

@@ -31,7 +31,7 @@ async function click(page, action, n = 1) {
 
 export default async function run({ page, check }) {
   await page.goto('/index.html?view=map');
-  await check('通常画面にはteko-05が出ない', async () => (await page.$$('[data-lesson-id="teko-05-ryouhou"]')).length, 0);
+  await check('通常画面にもteko-05が並ぶ（公開）', async () => (await page.$$('[data-lesson-id="teko-05-ryouhou"]')).length, 1);
   await page.goto('/index.html?view=map&dev=1');
   await check('dev：teko-05が並ぶ', async () => (await page.$$('[data-lesson-id="teko-05-ryouhou"]')).length, 1);
 
