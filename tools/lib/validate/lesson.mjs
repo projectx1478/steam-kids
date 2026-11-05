@@ -177,6 +177,11 @@ export function validateLesson(fileName, data, longTrialIds = []) {
         const v = play[g.key];
         if (g.key !== 'walls' && v !== undefined && v !== null && v !== false && !(Array.isArray(v) && v.length === 0)) used.push(g.key);
       }
+      // ギミックの付随フィールド（GIMMICKSのkeyに現れないもの）
+      for (const k of ['doors', 'keyMode', 'pits', 'bridge', 'waterMode', 'groupWalls']) {
+        const v = play[k];
+        if (v !== undefined && v !== null && v !== false && !(Array.isArray(v) && v.length === 0)) used.push(k);
+      }
       if ('initialCommands' in play) used.push('initialCommands');
       if (used.length > 0) add('condBlockの併用', `${label}condBlockは${used.join('・')}と同時に指定できない`);
     }
