@@ -1,6 +1,7 @@
 // レッスン1本の検証（validateLesson）。tools/lib/validate/ からの分割（Issue #448）。
 import path from 'node:path';
-import { simulate, shortestSteps, shortestChips, boardSpec, findDeadStates } from '../../../js/engine-grid.js';
+import { simulate, shortestSteps, shortestChips, boardSpec, findDeadStates, isRunCleared } from '../../../js/engine-grid.js';
+import { GIMMICKS } from '../../../js/gimmicks/index.js';
 import { iceMustMatter, warpsMustMatter,keysMustMatter, periodicMustMatter, paintMustMatter, itemsMustMatter, rollBallsMustMatter } from '../../lib/must-matter.mjs';
 import { plainSegmentsText, plainReading, parseSegments, rubyGrade, KANJI_RE } from '../../../js/text-render.js';
 import {
@@ -163,6 +164,23 @@ export function validateLesson(fileName, data, longTrialIds = []) {
       add('repeatBoxとgroupRepeats', `${label}repeatBoxとgroupRepeatsは同時に指定できない`);
     }
 
+    // condBlock（条件分岐 {if,then}。Issue #291）：型と併用の規則。
+    if ('condBlock' in play && typeof play.condBlock !== 'boolean') {
+      add('condBlockの型', `${label}condBlock=${JSON.stringify(play.condBlock)} はboolean以外`);
+    }
+    if (play.condBlock === true) {
+      const used = [];
+      if (play.repeatBox === true) used.push('repeatBox');
+      if (play.groupRepeats === true) used.push('groupRepeats');
+      if (isInt(play.maxPauses) && play.maxPauses >= 1) used.push('maxPauses');
+      for (const g of GIMMICKS) {
+        const v = play[g.key];
+        if (g.key !== 'walls' && v !== undefined && v !== null && v !== false && !(Array.isArray(v) && v.length === 0)) used.push(g.key);
+      }
+      if ('initialCommands' in play) used.push('initialCommands');
+      if (used.length > 0) add('condBlockの併用', `${label}condBlockは${used.join('・')}と同時に指定できない`);
+    }
+
     const solutionChips = checkSolution(play, add, label);
 
     let dist = null;
@@ -174,6 +192,26 @@ export function validateLesson(fileName, data, longTrialIds = []) {
         const noBox = shortestSteps(boardSpec(play));
         if (noBox <= play.maxCommands) {
           add('箱の必須性', `${label}箱なしで想定の手数（maxCommands=${play.maxCommands}）の内に解ける（最短${noBox}手）`);
+        }
+      }
+      dist = typeof solutionChips === 'number' ? solutionChips : null;
+    } else if (play.condBlock === true) {
+      // 条件ステージ：最短性はBFSで求めない。条件を外した素の最短が maxCommands を超えること（必須性）と、
+      // 条件が飾りでないこと（全カードを常に偽／常に真に固定してもクリアしない）を検証する。難易度順序はsolutionのチップ数。
+      if (!('solution' in play)) add('solutionの必須', `${label}condBlockにはsolutionが必要`);
+      if (play.start && play.goal && grid.cols && grid.rows) {
+        const plain = shortestSteps(boardSpec(play));
+        if (plain <= play.maxCommands) {
+          add('条件の必須性', `${label}条件なしで想定の手数（maxCommands=${play.maxCommands}）の内に解ける（最短${plain}手）`);
+        }
+        if (typeof solutionChips === 'number' && Array.isArray(play.solution)) {
+          const spec = boardSpec(play);
+          if (isRunCleared(simulate(play.solution, spec, { forceCond: false }))) {
+            add('条件が飾り（常に偽でクリア）', `${label}全カードを常に偽にしてもクリアする（真になるカードが無い）`);
+          }
+          if (isRunCleared(simulate(play.solution, spec, { forceCond: true }))) {
+            add('条件が飾り（常に真でクリア）', `${label}全カードを常に真にしてもクリアする（偽になるカードが無い）`);
+          }
         }
       }
       dist = typeof solutionChips === 'number' ? solutionChips : null;

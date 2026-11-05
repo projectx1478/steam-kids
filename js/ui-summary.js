@@ -80,7 +80,8 @@ export function renderSummary(root) {
   if (lastPlay && S.lesson.type !== 'predict-slider') {
     const spec = playSpecOf(lastPlay);
     // repeatBoxはループ込みの最短性を求めない（shortest未定義＝「いちばん みじかい」を出さない。Issue #66）。
-    if (!lastPlay.repeatBox) shortest = lastPlay.groupRepeats ? shortestChips(spec) : shortestSteps(spec);
+    // condBlockも同様に最短を出さない（Issue #291）。
+    if (!lastPlay.repeatBox && !lastPlay.condBlock) shortest = lastPlay.groupRepeats ? shortestChips(spec) : shortestSteps(spec);
   }
   const sinceTs = currentAttemptSinceTs(events, lessonId);
   const cards = lessonAchievements(events, lessonId, sinceTs, { shortest, playStepIds });
