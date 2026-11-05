@@ -212,7 +212,7 @@ export function splitMaxCell(portraitMax = MAX_CELL) {
   return window.matchMedia('(orientation: landscape)').matches ? SPLIT_MAX_CELL : portraitMax;
 }
 
-window.__gridAnimLog = window.__gridAnimLog || [];
+globalThis.__gridAnimLog = globalThis.__gridAnimLog || [];
 
 // renderGrid({grid, walls, goal, items, ice, playerPos, labels, cellSize}) -> { el, view }
 // cellSize省略時はDEFAULT_CELL(64px)。呼び出し側がcomputeCellSize()で盤面エリアの実寸から算出する（Issue #93）。

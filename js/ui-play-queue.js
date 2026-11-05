@@ -11,7 +11,7 @@ import { play as playSfx, skipClickSfx } from './sfx.js';
 import { UNDO_CLEAR_MS, snapshotUnlocked, restoreUnlocked } from './undo-clear.js';
 import { isTrial } from './trial-lesson.js';
 import { writeDraft } from './storage.js';
-import { nextCondDir } from './ui-cond-chip.js';
+import { nextCondDir, robotFacingSvg } from './ui-cond-chip.js';
 
 // 取り消し札を破棄して「ぜんぶけす」へ戻す（setupQueue と bindEditButtons の両方から使う）。
 function dropUndo(ctx) {
@@ -315,8 +315,9 @@ export function bindEditButtons(ctx) {
     condBtn.type = 'button';
     condBtn.dataset.action = 'cond-open';
     condBtn.className =
-      'col-span-full command-btn btn-tactile flex flex-col items-center justify-center gap-1 px-3 py-2 bg-violet-500 text-white disabled:opacity-40';
-    condBtn.innerHTML = '<span class="text-xl leading-none" aria-hidden="true">👀</span><span class="text-sm whitespace-nowrap">もし</span>';
+      'col-span-full command-btn btn-tactile flex flex-row items-center justify-center gap-2 px-3 py-2 bg-amber-500 border-2 border-slate-800 text-white disabled:opacity-40';
+    condBtn.innerHTML = '<span class="text-sm whitespace-nowrap">もし</span>';
+    condBtn.prepend(robotFacingSvg('right'));
     condBtn.addEventListener('click', () => {
       if (local.running || local.stepping || local.locked || local.boxOpen >= 0) {
         skipClickSfx();
