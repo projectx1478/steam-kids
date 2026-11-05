@@ -17,6 +17,7 @@ test('analyze-board: 全レッスンの全playで、最短手数が validate:les
       const { shortest } = analyzeShortest(play);
       const label = `${file} ${play.stepId}`;
       if (play.repeatBox === true) assert.ok(shortest > play.maxCommands, `${label}: 箱ステージは箱なしの最短(${shortest})がmaxCommandsを超える`);
+      else if (play.condBlock === true) assert.ok(shortest > play.maxCommands, `${label}: 条件カードのステージは素の最短(${shortest})がmaxCommandsを超える`);
       else assert.ok(shortest <= play.maxCommands, `${label}: 最短(${shortest})がmaxCommands(${play.maxCommands})以内`);
       if (Array.isArray(play.paint) && play.paint.length > 0) assert.equal(shortest, play.maxCommands, `${label}: paintはmaxCommands＝最短`);
       checked += 1;

@@ -459,6 +459,7 @@ const WATER_DELTA = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
 function dirAt(commands, idx, inner) {
   const entry = commands[idx];
   if (typeof entry === 'string') return entry;
+  if (entry.if !== undefined) return entry.then[inner];
   return entry.box ? entry.box[inner] : entry.dir;
 }
 
@@ -474,7 +475,7 @@ function dirAt(commands, idx, inner) {
 // startIndex＝続きの開始手（pathの添字。止まった地点の終点から続ける）、stopIndex＝この手の手前で止まる
 // （次の「とめる」の位置。null＝最後まで）、runStates＝止まる前から引き継ぐギミックの作業領域。
 // 返すresultのstepOwner・blockedAtは元のcommandsの添字に直す（「とめる」が無ければ従来と同一）。
-export function createStepper(commands, spec, view, { onTick, onPickup, startIndex = 0, stopIndex = null, runStates = {} }) {
+export function createStepper(commands, spec, view, { onTick, onPickup, onCondSkip, startIndex = 0, stopIndex = null, runStates = {} }) {
   const { cmds, origIndex } = stripPauses(commands);
   const raw = simulate(cmds, spec);
   const result =
@@ -482,6 +483,11 @@ export function createStepper(commands, spec, view, { onTick, onPickup, startInd
       ? raw
       : { ...raw, stepOwner: raw.stepOwner.map((o) => origIndex[o]), blockedAt: raw.blockedAt.map((o) => origIndex[o]) };
   const total = raw.path.length - 1;
+  // 条件カードの飛ばし（#291）：at＝飛ばした時点のpath添字。atの手の直前（最後の手の後は最後のonTickの直後）に通知する。
+  const condSkips = (raw.condSkipped ?? []).map((s) => ({ chip: origIndex[s.chip], at: s.at }));
+  const notifySkips = (at) => {
+    for (const s of condSkips) if (s.at === at) onCondSkip?.(s.chip);
+  };
   let i = startIndex;
   let finished = i >= total;
   // stopIndexの手前まで進んだら一時停止（失敗・最後まで進んだ場合は終了を優先）。
@@ -493,6 +499,7 @@ export function createStepper(commands, spec, view, { onTick, onPickup, startInd
     isPaused: () => paused,
     advance() {
       if (finished || paused) return;
+      notifySkips(i);
       const from = result.path[i];
       const to = result.path[i + 1];
       const bumped = result.bumped[i];
@@ -535,6 +542,7 @@ export function createStepper(commands, spec, view, { onTick, onPickup, startInd
       }
       onTick(result.stepOwner[i], to, result.innerOwner[i], result.roundOwner[i]);
       // 壁・盤外にぶつかった手で実行を止める。残りの手は再生しない（Issue #136）。クッションは止まらない。
+      if (!bumped && i === total - 1) notifySkips(total);
       if (bumped || i === result.path.length - 2) {
         finished = true;
       } else {

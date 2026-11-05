@@ -29,6 +29,19 @@ test('複製なので、消した後の変更や復元後の変更が互いに�
   assert.equal(snap[0].box.length, 1);
 });
 
+test('条件カードの then も複製される（取り消し前のスナップショットと共有しない）', () => {
+  const commands = [{ if: 'right', then: ['up', 'right'] }];
+  const snap = snapshotUnlocked(commands, 0);
+  commands[0].then.push('down');
+  assert.deepEqual(snap[0].then, ['up', 'right']);
+  clearUnlocked(commands, 0);
+  restoreUnlocked(commands, snap, 0);
+  assert.deepEqual(commands, [{ if: 'right', then: ['up', 'right'] }]);
+  commands[0].then.push('left');
+  commands[0].if = 'down';
+  assert.deepEqual(snap[0], { if: 'right', then: ['up', 'right'] });
+});
+
 test('止まった間（lockedCount>0）は前の部分を変えず後ろだけ戻す', () => {
   const commands = [mv('right'), { pause: true }, mv('down'), mv('left')];
   const snap = snapshotUnlocked(commands, 2);

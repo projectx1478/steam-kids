@@ -57,6 +57,7 @@ const APP_SHELL = [
   "./js/sync.js",
   "./js/text-render.js",
   "./js/ui-commands.js",
+  "./js/ui-cond-chip.js",
   "./js/ui-dashboard.js",
   "./js/ui-demo.js",
   "./js/ui-gate.js",

@@ -11,6 +11,7 @@ import { play as playSfx, skipClickSfx } from './sfx.js';
 import { UNDO_CLEAR_MS, snapshotUnlocked, restoreUnlocked } from './undo-clear.js';
 import { isTrial } from './trial-lesson.js';
 import { writeDraft } from './storage.js';
+import { nextCondDir, robotFacingSvg } from './ui-cond-chip.js';
 
 // 取り消し札を破棄して「ぜんぶけす」へ戻す（setupQueue と bindEditButtons の両方から使う）。
 function dropUndo(ctx) {
@@ -66,7 +67,7 @@ export function setupQueue(ctx) {
   function saveDraft() {
     local.failMark = -1; // 列が動いたら、失敗の強調（添字）は外す（#545）
     if (isTrial()) return;
-    writeDraft(S.lesson.lessonId, step.stepId, local.commands.filter((c) => !(c.box && c.box.length === 0)));
+    writeDraft(S.lesson.lessonId, step.stepId, local.commands.filter((c) => !(c.box && c.box.length === 0) && !(c.then && c.then.length === 0)));
   }
 
   // resetToFresh(): 命令列をfreshCommands（なおす系は初期の「ずれた」列、それ以外は空）へ戻す。
@@ -80,6 +81,7 @@ export function setupQueue(ctx) {
     local.boxOpen = -1;
     local.lockedCount = 0;
     local.runStates = {};
+    local.condSkipped = new Set(); // 飛ばしの灰色を消す（#291）
     S.drafts[step.stepId] = local.commands;
     saveDraft();
     local.fixOpened = false;
@@ -95,6 +97,7 @@ export function setupQueue(ctx) {
     local.boxOpen = -1;
     local.lockedCount = 0;
     local.runStates = {};
+    local.condSkipped = new Set(); // 飛ばしの灰色を消す（#291）
     local.fixOpened = false;
     local.locked = false;
     local.resultShown = false;
@@ -143,10 +146,23 @@ export function setupQueue(ctx) {
       activeInner: local.activeInner,
       activeRound: local.activeRound,
       openIndex: local.boxOpen,
+      condSkipped: local.condSkipped,
       removable: true,
       lockedCount: local.lockedCount,
       // 次の空き枠は常に出す（命令の置ける数に上限は無い。#615）。
       nextSlot: countChips(local.commands) + 1,
+      onCondCycle: (i) => {
+        if (local.running || local.stepping || local.locked || isLockedIndex(i, local.lockedCount)) {
+          skipClickSfx();
+          return;
+        }
+        const c = local.commands[i];
+        if (!c || c.if === undefined) return;
+        c.if = nextCondDir(c.if);
+        saveDraft();
+        drawQueue();
+        updateControls();
+      },
       onRemove: (i) => {
         if (local.running || local.stepping || local.locked || isLockedIndex(i, local.lockedCount)) return;
         if (isFix) local.fixOpened = true;
@@ -176,7 +192,7 @@ export function setupQueue(ctx) {
     if (pauseBtn) pauseBtn.disabled = pausesLeft <= 0 || local.boxOpen >= 0 || local.running || local.stepping || local.locked;
     setPauseLeft(paletteEl, Math.max(0, pausesLeft));
     const isRetry = runBtn.dataset.action === 'retry';
-    const hasEmptyBox = local.commands.some((c) => c.box && c.box.length === 0);
+    const hasEmptyBox = local.commands.some((c) => (c.box && c.box.length === 0) || (c.then && c.then.length === 0));
     runBtn.disabled = local.running || local.runCooldown || (!isRetry && (local.commands.length === 0 || hasEmptyBox));
     if (ctx.mut.boxBtn) ctx.mut.boxBtn.disabled = local.boxOpen >= 0 || local.running || local.stepping || local.locked;
     drawBoxBar();
@@ -193,7 +209,8 @@ export function setupQueue(ctx) {
   function closeBox() {
     if (local.boxOpen < 0) return;
     // 空の箱は残さない。
-    if (local.commands[local.boxOpen].box.length === 0) local.commands.splice(local.boxOpen, 1);
+    const open = local.commands[local.boxOpen];
+    if ((open.box ?? open.then).length === 0) local.commands.splice(local.boxOpen, 1);
     local.boxOpen = -1;
     saveDraft();
   }
@@ -240,10 +257,14 @@ export function setupQueue(ctx) {
       }
       return;
     }
-    timesBtn.textContent = `かいすう ×${local.commands[local.boxOpen].times}`;
-    if (ctx.mut.boxActionsShown) return;
+    const open = local.commands[local.boxOpen];
+    const isCond = open.then !== undefined;
+    if (!isCond) timesBtn.textContent = `かいすう ×${open.times}`;
+    // 条件カードの開閉でも操作行を作り直す（回数ボタンを出さない）。
+    if (ctx.mut.boxActionsShown && ctx.mut.boxActionsCond === isCond) return;
     ctx.mut.boxActionsShown = true;
-    showResultActions([removeLastBtn, timesBtn, closeBtn]);
+    ctx.mut.boxActionsCond = isCond;
+    showResultActions(isCond ? [removeLastBtn, closeBtn] : [removeLastBtn, timesBtn, closeBtn]);
   }
 
   ctx.fn.saveDraft = saveDraft;
@@ -289,15 +310,42 @@ export function bindEditButtons(ctx) {
     paletteEl.appendChild(openBtn);
   }
 
+  if (step.condBlock) {
+    const condBtn = document.createElement('button');
+    condBtn.type = 'button';
+    condBtn.dataset.action = 'cond-open';
+    condBtn.className =
+      'col-span-full command-btn btn-tactile flex flex-row items-center justify-center gap-2 px-3 py-2 bg-amber-500 border-2 border-slate-800 text-white disabled:opacity-40';
+    condBtn.innerHTML = '<span class="text-sm whitespace-nowrap">もし</span>';
+    condBtn.prepend(robotFacingSvg('right'));
+    condBtn.addEventListener('click', () => {
+      if (local.running || local.stepping || local.locked || local.boxOpen >= 0) {
+        skipClickSfx();
+        return;
+      }
+      vibrate();
+      local.commands.push({ if: 'right', then: [] });
+      local.boxOpen = local.commands.length - 1;
+      saveDraft();
+      drawQueue();
+      scrollQueueToEnd();
+      updateControls();
+      local.nudge?.poke();
+    });
+    ctx.mut.boxBtn = condBtn;
+    paletteEl.appendChild(condBtn);
+  }
+
   removeLastBtn.addEventListener('click', () => {
     if (local.running || local.stepping || local.locked || local.commands.length <= local.lockedCount) return;
     vibrate();
     if (isFix) local.fixOpened = true;
     const i = local.commands.length - 1;
     const last = local.commands[i];
-    if (last.box) {
-      // 開いている箱は中の最後の1個、閉じた箱は箱ごと消す。空になった箱も消す。
-      if (local.boxOpen === i && last.box.length > 0) last.box.pop();
+    const lastInner = last.box ?? last.then;
+    if (lastInner) {
+      // 開いている箱（条件カード）は中の最後の1個、閉じた箱は箱ごと消す。空になった箱も消す。
+      if (local.boxOpen === i && lastInner.length > 0) lastInner.pop();
       else local.commands.splice(i, 1);
       if (local.boxOpen === i && !local.commands[i]) local.boxOpen = -1;
       saveDraft();

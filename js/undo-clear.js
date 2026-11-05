@@ -4,7 +4,11 @@
 // 取り消せる秒数（ミリ秒）。
 export const UNDO_CLEAR_MS = 5000;
 
-const cloneCommand = (c) => (c && Array.isArray(c.box) ? { ...c, box: c.box.map((x) => ({ ...x })) } : { ...c });
+const cloneCommand = (c) => {
+  if (c && Array.isArray(c.box)) return { ...c, box: c.box.map((x) => ({ ...x })) };
+  if (c && Array.isArray(c.then)) return { ...c, then: [...c.then] }; // 条件カード {if, then}（Issue #291）
+  return { ...c };
+};
 
 // snapshotUnlocked(commands, lockedCount): 後ろ(lockedCount以降)の複製。止まった間の前の部分は消えないので含めない。
 export function snapshotUnlocked(commands, lockedCount) {
