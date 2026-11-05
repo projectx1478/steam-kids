@@ -12,7 +12,7 @@ const EYE_SVG =
 
 // renderCondChip(chip, entry, { i, isOpen, activeIndex, activeInner, removable, interactive, arrowSvg, onRemove, onCycle })
 // chip は呼び元が作った li.command-chip。中身とイベントだけここで付ける。
-export function renderCondChip(chip, entry, { i, isOpen, activeIndex, activeInner, removable, interactive = removable, arrowSvg, onRemove, onCycle }) {
+export function renderCondChip(chip, entry, { i, isOpen, activeIndex, activeInner, removable, interactive = removable, skipped = false, arrowSvg, onRemove, onCycle }) {
   chip.dataset.cond = 'true';
   chip.dataset.condDir = entry.if;
   chip.classList.replace('min-w-[64px]', 'min-w-[96px]');
@@ -25,7 +25,15 @@ export function renderCondChip(chip, entry, { i, isOpen, activeIndex, activeInne
   eye.className = 'cond-eye flex items-center justify-center gap-1 px-1 min-h-[40px] text-[11px] font-bold leading-tight whitespace-nowrap rounded bg-violet-100 text-violet-800';
   eye.innerHTML = EYE_SVG;
   const label = document.createElement('span');
-  label.textContent = `かべ→${COND_LABELS[entry.if] ?? ''}`;
+  label.textContent = skipped ? 'かべ なし' : `かべ→${COND_LABELS[entry.if] ?? ''}`;
+  if (skipped) {
+    // 実行中に偽で飛ばされたカード：灰色にして「かべ なし」（Issue #291 段2b）
+    chip.dataset.skipped = 'true';
+    chip.classList.remove('bg-sky-100');
+    chip.classList.add('bg-slate-200', 'opacity-50');
+    eye.classList.replace('bg-violet-100', 'bg-slate-200');
+    eye.classList.replace('text-violet-800', 'text-slate-500');
+  }
   eye.appendChild(label);
   if (interactive) {
     eye.addEventListener('click', (ev) => {

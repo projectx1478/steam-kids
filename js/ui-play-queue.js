@@ -81,6 +81,7 @@ export function setupQueue(ctx) {
     local.boxOpen = -1;
     local.lockedCount = 0;
     local.runStates = {};
+    local.condSkipped = new Set(); // 飛ばしの灰色を消す（#291）
     S.drafts[step.stepId] = local.commands;
     saveDraft();
     local.fixOpened = false;
@@ -96,6 +97,7 @@ export function setupQueue(ctx) {
     local.boxOpen = -1;
     local.lockedCount = 0;
     local.runStates = {};
+    local.condSkipped = new Set(); // 飛ばしの灰色を消す（#291）
     local.fixOpened = false;
     local.locked = false;
     local.resultShown = false;
@@ -144,6 +146,7 @@ export function setupQueue(ctx) {
       activeInner: local.activeInner,
       activeRound: local.activeRound,
       openIndex: local.boxOpen,
+      condSkipped: local.condSkipped,
       removable: true,
       lockedCount: local.lockedCount,
       // 次の空き枠は常に出す（命令の置ける数に上限は無い。#615）。

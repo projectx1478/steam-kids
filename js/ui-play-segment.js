@@ -30,10 +30,15 @@ export function setupSegment(ctx) {
     }
     local.pendingPause = plan.nextPause;
     local.failMark = -1; // 実行を始めたら失敗の強調は消える（#545）
+    local.condSkipped = new Set(); // 飛ばしの灰色も実行開始で消す（#291）
     local.stepper = createStepper(local.commands, spec, local.view, {
       startIndex: plan.startIndex,
       stopIndex: plan.stopIndex,
       runStates: local.runStates,
+      onCondSkip: (chip) => {
+        local.condSkipped.add(chip);
+        ctx.fn.drawQueueFollowActive();
+      },
       onTick: (i, _to, inner, round) => {
         local.activeIndex = i;
         local.activeInner = inner;

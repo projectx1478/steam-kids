@@ -361,7 +361,7 @@ export function renderOrderArrow(tag = 'li') {
 // 周回の点（.box-rounds・N個）を並べ、済みの周と実行中の周を塗りつぶす（実行中の点だけ強調）。
 // 実行外は点をすべて空で出し、点の数だけで回数が分かる。DOM判定用に箱チップへdata-round
 // （実行中の周。実行外は属性なし）を付ける（Issue #167）。「はこ ×N」ラベル文言は実行中も変えない。
-export function renderCommandQueue(container, { commands, activeIndex, activeInner = -1, activeRound = -1, openIndex = -1, onRemove, onCondCycle, removable: removableAll = true, nextSlot = null, lockedCount = 0 }) {
+export function renderCommandQueue(container, { commands, activeIndex, activeInner = -1, activeRound = -1, openIndex = -1, condSkipped = null, onRemove, onCondCycle, removable: removableAll = true, nextSlot = null, lockedCount = 0 }) {
   container.innerHTML = '';
   commands.forEach((entry, i) => {
     const { dir, times } = entry;
@@ -429,6 +429,7 @@ export function renderCommandQueue(container, { commands, activeIndex, activeInn
         activeIndex,
         activeInner,
         removable,
+        skipped: condSkipped?.has(i) === true,
         arrowSvg,
         onRemove: (idx) => {
           vibrate();
