@@ -12,6 +12,9 @@ argument-hint: <Issue番号を空白区切りで1つ以上> [--roles learner,scr
 - 設計の議論はここまで。**コードは変更しない**。ブランチも切らない。
 - 決めるのは悠さん。割れた点は割れたまま出す。
 - 議論の原文（`review/design/` 以下）は Issue に貼らない。コメントに残すのは要約だけ。例外として、承認済みの設計は別コメント「承認済み設計」（先頭行）として approved.md の本文を貼ってよい。観察メモ・保護者の記述は含めない。リポジトリは公開である。
+- 実行（node・playwright）を要する点検は調整役が行い、結果を `review/design/<G>/run/` に保存する。設計役は Bash を持たない。
+- 役への指示：寸法・最短手数・validate・check-approved の結果は `run/` のファイルから引き、引いた値に `run/<ファイル名>` を添える。`run/` に無い値は手計算せず「未測定」と書き、調整役に実行を頼む。手計算の寸法を承認の根拠にしない。ファイルが無い点検は「未実行」と書く。
+- `run/` のファイル：1ファイル＝1コマンド。名前は `<種別>-<N>.txt`（種別は `affected`・`analyze`・`validate`・`mock`。N は Issue 番号で、単独の Issue なら `<G>` と同じ）。案ファイルの検査だけ `check-<案>.txt`（例 `check-690-A.txt`）。書式は、1行目 `# <実行したコマンド>`、本文（最大100行。超えたら `Select-Object -First 100`）、最終行 `# exit <終了コード>`。出力は `> ファイル 2>&1` 相当でファイルに書き、調整役は先頭20行だけ読む。
 - 費用を抑える：メインは大きいファイル（`style.css`、`js/ui-*.js`、`tools/validate-lessons.mjs` など）を自分で読まない。ラウンド2は意見が割れた論点だけ。
 
 ## 用語
@@ -25,7 +28,7 @@ argument-hint: <Issue番号を空白区切りで1つ以上> [--roles learner,scr
 2. 各Issueについて `gh issue view <N> --json number,title,body,labels,comments` で本文を取得し、`review/design/<G>/issue.md` に、Issueごとの節に分けて保存する。
 3. 前提の測り直し：Issue 本文の計測・「現状」が、Issue を書いた後にマージされた PR（`git --no-pager log --since=<Issue 作成日> origin/main`）で古くなっていないかを確かめる。古ければ、現行コードで測り直してから設計する。
 4. 依存先が未完了でも、**設計の段階では止めない**。依存と実装順は、`summary.md` と `approved.md` に書く（実装するときに `/implement-issue` が確認する）。ただし、依存先が存在しない・番号が違うと思われるときは、止まって報告する。
-5. `review/design/<G>/round1/` と `round2/` を作る。既存の `review/principles/` と `review/lesson-ideas/` には書かない。
+5. `review/design/<G>/round1/`・`round2/`・`run/`・`mock/` を作る。既存の `review/principles/` と `review/lesson-ideas/` には書かない。
 
 ### 1. 役の決定
 - `--roles` があれば、それを使う。
@@ -72,13 +75,13 @@ Issue本文を読み、設計で決めるべき論点を整理して `review/des
 コードの事実（併用規則・呼び出し順・既存の値）を決定・文案に書くときは file:行 を添える。file:行 は、その Issue の worktree（`<MAIN>/.worktrees/<N>`。origin/main 起点）で取る（main 作業ツリーの行は古いことがある。#640・#641）。レイアウトを変える決定は、4端末（360×640・844×390・768×1024・1280×800）の実寸を見本で測ってから承認に出す。
 
 **完了見込みの案を作ってから聞く**（#370・#391・#554・#641 などで、承認の後にゲート・E2E で止まり、inbox が2〜6往復した）。悠さんに論点ごとに聞かず、全論点を決め切った案を出し、その案で Issue が完了すると言える根拠を付ける。
-1. **事前点検**：`design-impl` に、次の4点を実物で確かめさせ、`review/design/<G>/precheck.md` に結果（コマンドまたは grep と、その出力の要点）を書かせる。該当しない点は「該当なし（理由）」。
-   - E2E：変える id・セレクタ・文言・寸法・レッスン数を `.claude/verify/scenarios/` と `test/` で grep し、ヒットした行ごとに、新しい挙動で通るか・期待を変える必要があるかを書く。寸法の判定（`c7-board-fit` などの数値の閾値）がある行は、見本の実測値と比べる。`tools/affected-scenarios.mjs` が扱わない場所（`tools/editor` など）は、空の出力を根拠にしない。
+1. **事前点検**：調整役が先に、触るファイル（`points.md` と Issue 本文の「やること」に挙がったファイル。round1 に impl 役が無い設計もあるため impl.md には頼らない）を `precheck.md` の冒頭に書き、`node tools/affected-scenarios.mjs --files <触るファイル>` を実行して `run/affected-<N>.txt` に保存する（設計時は差分が無いので `--diff` ではなく `--files`）。案A の触るファイルが変わったら、案の作成の後にもう1回実行する。そのうえで `design-impl` に、次の4点を実物で確かめさせ、`review/design/<G>/precheck.md` に結果（コマンドまたは grep と、その出力の要点）を書かせる。該当しない点は「該当なし（理由）」。
+   - E2E：変える id・セレクタ・文言・寸法・レッスン数を `.claude/verify/scenarios/` と `test/` で grep し、ヒットした行ごとに、新しい挙動で通るか・期待を変える必要があるかを書く。`run/affected-<N>.txt` を読んで E2E の行に使う。寸法の判定（`c7-board-fit` などの数値の閾値）がある行は、見本の実測値（`run/mock-<N>.txt`）と比べる。`tools/affected-scenarios.mjs` が扱わない場所（`tools/editor` など）は、空の出力を根拠にしない。出力が空でも根拠にしない。
    - validate の上限：決める文言・数値を、`tools/lib/validate/` の上限（文字数・個数・範囲）と突き合わせる。
-   - 盤と検査：検査を新設・変更する設計は、`boards/` の合格盤・不合格盤を実際の validate の関数で走らせ（調整役が実行）、盤のフィールドの置き場所が既存レッスンの形と同じかを書く。
+   - 盤と検査：検査を新設・変更する設計は、`boards/` の合格盤・不合格盤を実際の validate の関数で走らせ（調整役が実行し、`run/validate-<N>.txt` に保存する。`run/validate-<N>.txt` を読む）、盤のフィールドの置き場所が既存レッスンの形と同じかを書く。実行は、盤ごとに実際の関数を import して走らせる一時の node 実行で行う（play ステージ1つ分の盤には `checkBoard(board, add, label)`〔`tools/lib/validate/board.mjs`〕を使う。`validateLesson(fileName, data, longTrialIds)` はレッスン単位なので盤を直接渡さない）。1行＝`盤名 → 合格｜不合格（理由の先頭）`。新しい道具は作らない。
    - docs の規則：変える語・挙動を、`docs/`（`lesson-schema.md`・`learning-spec.md`・`ui-rules.md`・`gimmicks.md`）・`PROJECT.md` で grep し、文言の変更（止まる条件 c）が要る箇所を全部挙げる。
-2. **案の作成**：割れた点と承認が要る点を全部決めた案を、M は2つ、L は2〜3つ考える（推奨を案A とする。#672）。割れた点が1つも無ければ1案でよい。**全項目を書く案ファイルは案A（推奨）だけ**：`review/design/<G>/plans/<案>.md` を `.claude/templates/approved.md` の形で書く（先頭の `承認:` 行は書かない）。案B 以降は `review/design/<G>/plans/<案>-outline.md` に、比較表に載せる要点（決めた内容・効果・コスト・止まりうる点・悠さんに残る確認、子どもが見る文言と規則の文言を具体値で）を 1〜2KB で書くだけにし、`check-approved.mjs`・事前ゲート・見本・盤面の実測は行わない（比較表の事前ゲート欄は「省略（案Bが選ばれたら承認後に実施）」）。案A と案B で共通の節（影響範囲・事前点検・検証計画・E2E）は `plans/common-<G>.md` に1回だけ書き、案A のファイルからは見出しと参照だけにしてよい（approved.md を書くときに展開する）。precheck.md の結果を、案A の `## 事前点検` と `## 止まりうる点と対処` に反映する。
-3. **事前ゲート（案A だけ。#672）**：案A に `node tools/check-approved.mjs <案> --draft` を回し、欠けを埋めてから、`reviewer` をモード `ゲート判定` で呼ぶ（approved.md の代わりに案のファイルを渡す。渡す資料は `run-issues.md` の「ゲート判定」と同じ）。設計の直しで済む不合格は直して、もう1回だけ呼ぶ（再判定は `model: sonnet`。ゲートは合計2回まで）。**直し役（エージェント）には、ゲートの「重大」の一覧と直す節の名前だけを渡し、該当節を Edit で直させる。案ファイル全体を読み直させず、ターンの上限は20とし、超えたら直した分を報告して止める。**それでも重大が残る案は出さない（残った理由を summary.md の6に書く）。結果は `review/design/<G>/plans/<案>-gate.md` に保存する。案A が出せなければ、止まって報告する（案B を代わりに通すかは悠さんが決める）。
+2. **案の作成**：次の順で進める。①盤（`boards/`）と見本（`mock/`）を先に書く。②調整役が `analyze`（`node tools/analyze-board.mjs --board <ファイル>`）・`validate`・`mock` を実行し、`run/` に保存する。`mock` は、見本（`mock/mock.html`）を既存の playwright で 4 端末（360×640・844×390・768×1024・1280×800）の実寸を測るもので、先例 `review/design/242/mock/shot.mjs` を写して `mock/shot.mjs` を書き、各端末で PNG と、注目する要素の boundingRect・`scrollWidth` を `run/mock-<N>.txt` に出す（新しい依存は足さない）。見本の作成と他の測定は並行させない。③その結果を読んで案ファイルを書く。検証コスト・見本の実寸・G2 の合格盤/不合格盤は `run/` の値を引用し、「実測（run/ファイル名・日付）」と書く。割れた点と承認が要る点を全部決めた案を、M は2つ、L は2〜3つ考える（推奨を案A とする。#672）。割れた点が1つも無ければ1案でよい。**全項目を書く案ファイルは案A（推奨）だけ**：`review/design/<G>/plans/<案>.md` を `.claude/templates/approved.md` の形で書く（先頭の `承認:` 行は書かない）。案B 以降は `review/design/<G>/plans/<案>-outline.md` に、比較表に載せる要点（決めた内容・効果・コスト・止まりうる点・悠さんに残る確認、子どもが見る文言と規則の文言を具体値で）を 1〜2KB で書くだけにし、`check-approved.mjs`・事前ゲート・見本・盤面の実測は行わない（比較表の事前ゲート欄は「省略（案Bが選ばれたら承認後に実施）」）。案A と案B で共通の節（影響範囲・事前点検・検証計画・E2E）は `plans/common-<G>.md` に1回だけ書き、案A のファイルからは見出しと参照だけにしてよい（approved.md を書くときに展開する）。precheck.md の結果を、案A の `## 事前点検` と `## 止まりうる点と対処` に反映する。
+3. **事前ゲート（案A だけ。#672）**：調整役が案A に `node tools/check-approved.mjs <案のファイル> --draft --worktree <MAIN>/.worktrees/<N>` を MAIN で回し（結果は `run/check-<案>.txt`）、欠けを埋めてから、`reviewer` をモード `ゲート判定` で呼ぶ（approved.md の代わりに案のファイルを渡す。渡す資料は `run-issues.md` の「ゲート判定」と同じ枠のまま、`run/validate-<N>.txt` を「gate-validate.txt」の欄に、`run/` のそれ以外のファイル〔analyze・mock・affected。盤でも見本でもない測定結果〕を「boards/・mock/」の欄に、パスとして渡す。新しい資料の種類は足さない。validate の結果の名前は `run/validate-<N>.txt` に一本化し、`gate-validate.txt` を別名として作らない）。設計の直しで済む不合格は直して、もう1回だけ呼ぶ（再判定は `model: sonnet`。ゲートは合計2回まで）。**直し役（エージェント）には、ゲートの「重大」の一覧と直す節の名前だけを渡し、該当節を Edit で直させる。案ファイル全体を読み直させず、ターンの上限は20とし、超えたら直した分を報告して止める。**それでも重大が残る案は出さない（残った理由を summary.md の6に書く）。結果は `review/design/<G>/plans/<案>-gate.md` に保存する。案A が出せなければ、止まって報告する（案B を代わりに通すかは悠さんが決める）。
 
 `review/design/<G>/summary.md` に、次の見出しで書く。
 1. 合意した点
@@ -101,9 +104,9 @@ Issue本文を読み、設計で決めるべき論点を整理して `review/des
 チャットには、3の比較表と推奨、5・7の要点と `summary.md` のパスを出して、**停止**する。悠さんが案を選ぶ（部分的な変更の指示があれば、それも受ける）。
 
 ### 6. 承認後（悠さんの返事を受けたら）
-0. 選ばれた案の `plans/<案>.md` を写して approved.md の元にする。悠さんの返事に案と違う指示があれば、その指示に関わる節を**全部書き直す**（末尾や節の途中に追記しない。追記で本文と食い違い、未決が残った：#391・#397・#389・#468・#497）。書き直した節が precheck.md の4点に関わるなら、その点だけ事前点検をやり直す。最後に `node tools/check-approved.mjs <approved.md>` を回す（「未決」「要確認」や雛形の `<…>` が残っていれば欠けになる）。
+0. 選ばれた案の `plans/<案>.md` を写して approved.md の元にする。悠さんの返事に案と違う指示があれば、その指示に関わる節を**全部書き直す**（末尾や節の途中に追記しない。追記で本文と食い違い、未決が残った：#391・#397・#389・#468・#497）。書き直した節が precheck.md の4点に関わるなら、その点だけ事前点検をやり直す。最後に `node tools/check-approved.mjs <approved.md> --strict --worktree <MAIN>/.worktrees/<N>` を回す（「未決」「要確認」や雛形の `<…>` が残っていれば欠けになる）。
 1. 返事に書かれた決定を、**Issueごとに** `review/design/<N>/approved.md` にまとめる。複数Issueのときは、共通の決定と、そのIssueの設計を、どのファイルにも含める（`/implement-issue` は `review/design/<N>/approved.md` だけを読むため）。先頭行は `承認: 悠 <日付>` にする。**この行は、悠さんが決定を明示した返事を受けたときだけ書く**。内容は次の節で書く。`/implement-issue <N>` の一行だけで進められるよう、実装に必要な指示は、チャットではなく approved.md に必ず含める。approved.md は `.claude/templates/approved.md` から書く。節名は、`/implement-issue` が読む4節（`決定`・`段の分け方`・`実装時に守ること`・`E2E への影響`）に加え、`tools/check-approved.mjs` が前方一致で確かめる節（`検証コスト`・`検証計画`・`使う共通部品`・`部品化の置き換え計画`・`入力仕様`・`状態遷移表`・`文言の経路一覧`・`事前点検`・`止まりうる点と対処`）の見出し（`## ` で始める）を使う。
-   - `決定`：確定した設計案、割れた点の決定。先頭に**経路**を1行書く（`/implement-issue` で進める、または停止して別経路〔`/implement-issue-light`・設計のやり直し・悠さんの手作業など〕。その理由つき）。
+   - `決定`：確定した設計案、割れた点の決定。先頭に**経路**を1行書く（`/implement-issue` で進める、または停止して別経路〔`/implement-issue-light`・設計のやり直し・悠さんの手作業など〕。その理由つき）。`.claude/`・docs/・AGENTS.md を触る設計は、続けて `上位規則：…。同期対象外：…` の1行を書く（#687 の検査1が見る）。
      - **入力仕様**：設計が盤面JSON・レッスンJSON・ギミックの入力（フィールド）を新設または変更するときは必ず書く。無い設計は「入力仕様：該当なし」と1行書く。書くこと：フィールド名と形（例を1つ）／値の範囲／省略時・初期値（周期なら初期位相）／判定や数え方の式（例：手番の数え方）／他の要素との重なり・併用の禁止／受け付けないフィールド・値（廃止したフィールドを含む）と、指定されたときの validate の扱い／それを検査する場所（`tools/lib/validate/` 内のどの検査か。入口は `tools/validate-lessons.mjs`）。既存ギミック（`docs/gimmicks.md` の keys・switches など各節の「JSONフィールド」）の入力形（`spec.<フィールド名>`・省略時の既定値・座標は `{x, y}`）に合わせ、違う形にするときは理由を書く。summary.md の「設計案」の入力仕様から転記する（無ければ approved.md を書かず、補ってから悠さんに確認する）。
    - `段の分け方`：summary.md の「設計案」から必須項目として転記する（無ければ approved.md を書かず、補ってから悠さんに確認する）。各段の**完了条件**に、検証コマンドと、その段が生成テスト（generate）を含むか含まないかの区別を書く。
    - `実装時に守ること`：次の5項を必ず含める。
