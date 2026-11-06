@@ -39,7 +39,7 @@ const KIND_CHIP_LABEL = {
   predict: 'よそう',
   play: 'うごかす',
   summary: 'まとめ',
-  seedPick: 'たね',
+  seedPick: 'シードち',
 };
 
 // clear到達後は離脱してもabandonを記録しない。1セッションにつき1回だけ記録する。
