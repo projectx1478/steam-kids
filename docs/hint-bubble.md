@@ -5,7 +5,7 @@
 ## 出し方
 
 - 出先は小鳥の吹き出し（`bird.showBubble`）。1画面に1つ。後に出たもので置き換える。**タップでのみ消える**（顔アイコンまたは吹き出し自体。自動消去なし）。
-- 失敗後のヒント：`showHint(null, { bird, kind, message, restore, extra })`（`js/ui-reaction.js`）。`data-hint="<kind>"` は吹き出し内のパネルに付く。play・predict・seesaw・うかぶ面（`kind: "buoyancy"`。「ぷかっと うかんだよ ▲」「ずーんと しずんだよ ▼」）が使う。
+- 失敗後のヒント：`showHint(null, { bird, kind, message, restore, extra })`（`js/ui-reaction.js`）。`data-hint="<kind>"` は吹き出し内のパネルに付く。play・predict・seesaw・うかぶ面（`kind: "buoyancy"`。「ぷかっと うかんだよ ▲」「ずーんと しずんだよ ▼」）が使う。シーソー（`kind: "tilt"`）は同じステージの1回目の失敗では『もういちど』だけ、2回目から向きの文（『◀ こっちが おもいよ』『こっちが おもいよ ▶』）を `big: true` で大きく出す（回数はメモリのみ。その盤のクリアで0。#678）。`showHint` の `big` は省略時 false。
 - 顔アイコンのタップ：吹き出しが出ていれば消す。無ければ「問い文」と「ヒント」を交互に出す。ヒントは画面が `screen.setHintProvider(fn)`（`createOpScreen` の戻り値）で渡す。`fn` が `null` を返す（文言が無い）ときは問い文。ヒントの吹き出しには `data-tap-hint="true"`（`data-hint` は結果のヒントの印なので使わない）。現在はplayだけが渡す。
 - 失敗2回目の自動1回（playのみ。predict・seesaw・うかぶ面には出さない。#468-20A）：同じレッスンで2回目の失敗のとき、診断のヒントの下に汎用ヒントを1行足す（`extra`、`data-hint-extra="true"`）。回数はメモリのみで、クリアでリセットする。paint盤は出さない（#468-14d）。
 

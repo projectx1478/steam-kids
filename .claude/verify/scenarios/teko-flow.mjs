@@ -42,10 +42,21 @@ export default async function run({ page, check }) {
   await check('ヒント(data-hint=tilt)が出る', async () => (await page.$$('[data-hint="tilt"]')).length, 1);
   await check('未達成時はdata-resultが付かない', async () => (await page.$$('[data-result]')).length, 0);
   await check('試した位置に足あとが残る', () => page.$$eval('[data-footprint]', (e) => e.map((x) => x.dataset.footprint).join()), '1');
+  await check('1回目の失敗は「もういちど」だけで向きの文は出ない', async () => {
+    const t = await page.textContent('[data-hint="tilt"]');
+    return [t.includes('もういちど'), t.includes('おもいよ')].join();
+  }, 'true,false');
 
   await page.click('[data-action="retry"]');
   await page.waitForSelector('[data-action="run"]');
   await check('ためしなおすでstartへ戻り足あとは残る', async () => [await pos(page), (await page.$$('[data-footprint]')).length].join(), '1,1');
+
+  // 同じ位置で2回目の失敗：向きの文が出る（足あとは同じ位置なので1のまま）。
+  await page.click('[data-action="run"]');
+  await page.waitForSelector('[data-action="retry"]', { timeout: 10000 });
+  await check('2回目の失敗は向きの文(おもいよ)が出る', async () => (await page.textContent('[data-hint="tilt"]')).includes('おもいよ'), true);
+  await page.click('[data-action="retry"]');
+  await page.waitForSelector('[data-action="run"]');
 
   // p1：解2でクリア
   await page.click('[data-action="pos-right"]');

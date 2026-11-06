@@ -67,7 +67,7 @@ export function renderSeesaw(root, step) {
   const stageIndex = playSteps.findIndex((s) => s.stepId === step.stepId);
   const isFinalStage = stageIndex === playSteps.length - 1;
 
-  const local = { pos: spec.mover.start, robots: spec.mover.robots, phase: 'edit', timer: null };
+  const local = { pos: spec.mover.start, robots: spec.mover.robots, phase: 'edit', timer: null, fails: 0 };
   // 重さが動く面（maxRobots あり）／位置が固定の面（fixedPos あり）。teko-01〜03 はどちらも無い。
   const maxRobots = spec.mover.maxRobots ?? null;
   const posFixed = spec.mover.fixedPos != null;
@@ -273,7 +273,12 @@ export function renderSeesaw(root, step) {
     playSfx('tryAgain');
     setMoodIn(svg, 'puzzled');
     shakeBoard(boardArea);
-    showHint(null, { bird, kind: 'tilt', message: HEAVY_MESSAGE[result.tilt] });
+    local.fails += 1;
+    if (local.fails === 1) {
+      showHint(null, { bird, kind: 'tilt', message: 'もういちど' });
+    } else {
+      showHint(null, { bird, kind: 'tilt', message: HEAVY_MESSAGE[result.tilt], big: true });
+    }
   }
 
   function run() {
@@ -311,6 +316,7 @@ export function renderSeesaw(root, step) {
     showNormalActions();
     clearResultBubble(bird);
     footprints.innerHTML = '';
+    local.fails = 0;
     resetBoard();
   }
 
