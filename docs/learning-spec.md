@@ -35,6 +35,7 @@
 - 描画は`js/ui-seesaw.js`。ロボット・表情・紙ふぶき・トースト・指ガイドは既存部品を再利用する（新キャラなし）
 - シーソー面は、playは2〜4個（`p1`〜）。難易度＝左のおもさ合計が非減少。1ステージの解は1つ以上、startではつりあわない（`tools/validate-lessons.mjs`が検証）
 - うかぶ面（`play.buoyancy`。Issue #288）は predict-slider の一種。おもり・ふうせんを − ＋ で変えて「ためす」と、浮く／沈む／ぴたり（つりあえばクリア）を見る。`net = base + balloons×lift − weights×mass`（整数のみ）。描画は`js/ui-buoyancy.js`、判定は`js/engine-buoyancy.js`。盤には数字を添える。おもりの丸の中に重さ（`mass`）、ふうせんの丸の中にうく力（`lift`）、ロボットの右肩の青緑の丸に「↑」と`base`（ロボットだけのうく力）を、白の太字（縁は濃い茶）で出す。単位や説明の文字は付けない。
+- うかぶ面のレッスン（teko-07・teko-08）は単元`ukabu`（大項目`float`「うかぶ しずむ」）に置き、公開レッスンとして通しの順で開く。
 - うかぶ面は grid-runtime の最短手数規則（最短手数の非減少・maxCommands・勾配p1<p2<p3）の適用外。命令を並べないので maxCommands・groupRepeats・最短手数を持たない。代わりに「つりあう組が1つ以上」「startではつりあわない」「難易度（つりあう組のおもり＋ふうせんの最大）がステージごとに非減少」を `tools/validate-lessons.mjs` が検証する
 - イベントは既存の`run`（payload `{ pos }`）・`retry`・`stage_clear`・`clear`を使い、新種別は作らない
 
