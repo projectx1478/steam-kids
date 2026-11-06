@@ -35,7 +35,7 @@ export default async function run({ page, check }) {
   }, ids);
   await page.goto('/index.html?view=tracks');
   await page.waitForSelector('[data-track-id]');
-  await check('全クリア済みの大項目だけ★が出る', async () => (await page.$$eval('[data-star]', (els) => els.map((e) => [e.dataset.star, e.textContent]))), [['robot', '★'], ['body', '']]);
+  await check('全クリア済みの大項目だけ★が出る', async () => (await page.$$eval('[data-star]', (els) => els.map((e) => [e.dataset.star, e.textContent]))), [['robot', '★'], ['body', ''], ['float', '']]);
 
   // カード→その大項目の単元だけ。もどる→大項目選択
   await page.click('[data-track-id="robot"]');
