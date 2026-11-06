@@ -14,7 +14,7 @@ export const BGM_TRACKS = {
   title: { url: 'audio/title.ogg', volume: 0.28 },
   map: { url: 'audio/lesson_logic.ogg', volume: 0.22 },
   play: { url: 'audio/play_logic.ogg', volume: 0.15 },
-  clear: { url: 'audio/clear_logic.ogg', volume: 0.12 },
+  clear: { url: 'audio/clear_logic.ogg', volume: 0.22 },
 };
 
 // 画面→BGM場面の対応表（Issue #541）。setScene の直書きをここへ集約する。

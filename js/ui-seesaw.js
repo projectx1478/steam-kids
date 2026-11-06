@@ -78,13 +78,14 @@ export function renderSeesaw(root, step) {
       ${ticks}
       <g data-footprints></g>
       <g data-left>${leftRobots}</g>
-      <g data-mover class="cursor-grab" style="touch-action: none"></g>
+      <g data-mover-slot><g data-mover class="cursor-grab" style="touch-action: none"></g></g>
     </g>
   </svg>`;
   const svg = boardArea.querySelector('svg');
   const plank = svg.querySelector('[data-plank]');
   const support = svg.querySelector('[data-support]');
   const footprints = svg.querySelector('[data-footprints]');
+  const moverSlot = svg.querySelector('[data-mover-slot]');
   const mover = svg.querySelector('[data-mover]');
   mover.innerHTML = robotsSvg(cx0, spec.mover.robots);
   plank.style.transition = 'none';
@@ -159,7 +160,7 @@ export function renderSeesaw(root, step) {
   }
 
   function drawMover() {
-    mover.setAttribute('transform', `translate(${local.pos * UNIT},0)`);
+    moverSlot.setAttribute('transform', `translate(${local.pos * UNIT},0)`);
     mover.dataset.pos = String(local.pos);
     if (maxRobots) {
       mover.dataset.robots = String(local.robots);
