@@ -28,26 +28,35 @@ const MOVE_DOWN_MAX = 50;
 const MOVE_MS = 900;
 const HINT_MESSAGE = { 1: 'ぷかっと うかんだよ ▲', '-1': 'ずーんと しずんだよ ▼' };
 
-// 風船SVG（ひも18px＋直径22pxの円）。cx は風船の中心x、赤・黄を交互にする。
-function balloonSvg(cx, index) {
-  const top = ROBOT_Y - 18 - 22;
-  const fill = index % 2 === 0 ? '#f43f5e' : '#facc15';
-  return `<g data-balloon><line x1="${cx}" y1="${top + 22}" x2="${cx}" y2="${ROBOT_Y + 4}" stroke="#78716c" stroke-width="1.5" /><circle cx="${cx}" cy="${top + 11}" r="11" fill="${fill}" /><ellipse cx="${cx - 4}" cy="${top + 7}" rx="3" ry="2" fill="#fff" opacity="0.6" /></g>`;
+// 数字の丸の中の文字（白の太字＋濃い茶の縁。黄色の上でも読める）。シーソーの数字と見た目をそろえる。
+function numberDiscSvg(cx, cy, text, fontSize) {
+  return `<text x="${cx}" y="${cy + 0.5}" text-anchor="middle" dominant-baseline="central" font-family="sans-serif" font-weight="800" font-size="${fontSize}" fill="#fff" stroke="#44403c" stroke-width="2" paint-order="stroke" stroke-linejoin="round">${text}</text>`;
 }
 
-// おもりSVG（mass=1は直径20px、2以上は28px。大きい＝重い）。
+// 風船SVG（ひも18px＋直径22pxの円）。cx は風船の中心x、赤・黄を交互にする。中にうく力 lift。
+function balloonSvg(cx, index, lift) {
+  const top = ROBOT_Y - 18 - 22;
+  const fill = index % 2 === 0 ? '#f43f5e' : '#facc15';
+  return `<g data-balloon><line x1="${cx}" y1="${top + 22}" x2="${cx}" y2="${ROBOT_Y + 4}" stroke="#78716c" stroke-width="1.5" /><circle cx="${cx}" cy="${top + 11}" r="11" fill="${fill}" /><ellipse cx="${cx - 4}" cy="${top + 7}" rx="3" ry="2" fill="#fff" opacity="0.6" />${numberDiscSvg(cx, top + 11, lift, 14)}</g>`;
+}
+
+// おもりSVG（mass=1は直径20px、2以上は28px。大きい＝重い）。中に重さ mass。
 function weightSvg(cx, mass) {
   const d = mass === 1 ? 20 : 28;
   const cy = ROBOT_Y + ROBOT + d / 2 - 2;
-  return `<g data-weight><circle cx="${cx}" cy="${cy}" r="${d / 2}" fill="#44403c" /><circle cx="${cx - d / 5}" cy="${cy - d / 5}" r="${d / 8}" fill="#fff" opacity="0.35" /></g>`;
+  return `<g data-weight><circle cx="${cx}" cy="${cy}" r="${d / 2}" fill="#44403c" /><circle cx="${cx - d / 5}" cy="${cy - d / 5}" r="${d / 8}" fill="#fff" opacity="0.35" />${numberDiscSvg(cx, cy, mass, 14)}</g>`;
 }
 
-function itemsSvg(weights, balloons, mass) {
+// withBadge：ロボット右肩の「↑base」（ロボットだけのうく力）。足あと（薄い写し）では描かない。
+function itemsSvg(weights, balloons, mass, lift, base, withBadge) {
   const d = mass === 1 ? 20 : 28;
   const cx0 = ROBOT_X + ROBOT / 2;
   let out = '';
-  for (let i = 0; i < balloons; i += 1) out += balloonSvg(cx0 + (i - (balloons - 1) / 2) * 24, i);
+  for (let i = 0; i < balloons; i += 1) out += balloonSvg(cx0 + (i - (balloons - 1) / 2) * 24, i, lift);
   out += `<svg x="${ROBOT_X}" y="${ROBOT_Y}" width="${ROBOT}" height="${ROBOT}" viewBox="0 0 64 64">${shapeSvg('player')}</svg>`;
+  if (withBadge) {
+    out += `<g><circle cx="196" cy="150" r="13" fill="#0d9488" stroke="#fff" stroke-width="1.5" /><text x="196" y="150.5" text-anchor="middle" dominant-baseline="central" font-family="sans-serif" font-weight="800" font-size="13" fill="#fff">↑${base}</text></g>`;
+  }
   for (let i = 0; i < weights; i += 1) out += weightSvg(cx0 + (i - (weights - 1) / 2) * (d + 2), mass);
   return out;
 }
@@ -58,6 +67,8 @@ const ICON_BALLOON = '<svg viewBox="0 0 24 24" class="w-6 h-6 shrink-0" aria-hid
 export function renderBuoyancy(root, step) {
   const spec = step.buoyancy;
   const mass = spec.mass ?? 1;
+  const lift = spec.lift ?? 1;
+  const base = spec.base ?? 0;
   const wMax = spec.weights?.max ?? 0;
   const bMax = spec.balloons?.max ?? 0;
   const hasW = wMax > 0;
@@ -153,7 +164,7 @@ export function renderBuoyancy(root, step) {
   }
 
   function drawRobot() {
-    bob.innerHTML = itemsSvg(local.weights, local.balloons, mass);
+    bob.innerHTML = itemsSvg(local.weights, local.balloons, mass, lift, base, true);
     robot.dataset.weights = String(local.weights);
     robot.dataset.balloons = String(local.balloons);
     updateControls();
@@ -184,7 +195,7 @@ export function renderBuoyancy(root, step) {
     g.dataset.footprint = key;
     g.setAttribute('opacity', '0.25');
     g.setAttribute('transform', `translate(0,${dy})`);
-    g.innerHTML = itemsSvg(weights, balloons, mass);
+    g.innerHTML = itemsSvg(weights, balloons, mass, lift, base, false);
     footprints.appendChild(g);
   }
 
