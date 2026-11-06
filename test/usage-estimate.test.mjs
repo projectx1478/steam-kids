@@ -27,7 +27,7 @@ function out(lines) {
 }
 
 test('5時間以内：five + estAdded', () => {
-  assert.equal(out([row('2026-11-01T09:00:00+09:00', { five: 20, estAdded: 10 })]), '週間 40 5時間 30 出典 推定（省略）');
+  assert.equal(out([row('2026-11-01T09:00:00+09:00', { five: 20, estAdded: 10 })]), '週間 50 5時間 30 出典 推定（省略）');
 });
 test('5時間ちょうどは 0', () => {
   assert.match(out([row('2026-11-01T07:00:00+09:00', { five: 20 })]), /5時間 0 /);
@@ -104,6 +104,65 @@ test('at が読めない行・未来の at の行は読み飛ばす', () => {
     row('2026-11-01T13:00:00+09:00', { five: 80, week: 80 }),
   ]);
   assert.equal(s, '週間 33 5時間 20 出典 推定（省略）');
+});
+const EST = '推定（省略）';
+test('週間：引数の後の推定（省略）の行の estAdded を足す', () => {
+  const s = out([
+    row('2026-10-30T12:00:00+09:00', { week: 40, estAdded: 5 }),
+    row('2026-10-31T12:00:00+09:00', { week: 0, estAdded: 8, weekSource: EST }),
+  ]);
+  assert.match(s, /^週間 53 /);
+});
+test('週間：引数の行自身の estAdded も足す', () => {
+  assert.match(out([row('2026-10-31T12:00:00+09:00', { week: 40, estAdded: 6 })]), /^週間 46 /);
+});
+test('週間：引数より前の行の estAdded は足さない', () => {
+  const s = out([
+    row('2026-10-29T12:00:00+09:00', { week: 0, estAdded: 9, weekSource: EST }),
+    row('2026-10-30T12:00:00+09:00', { week: 40 }),
+  ]);
+  assert.match(s, /^週間 40 /);
+});
+test('週間：7日境界は後の行の estAdded があっても不明／1秒後は有効', () => {
+  const post = row('2026-10-31T12:00:00+09:00', { week: 0, estAdded: 20, weekSource: EST });
+  assert.match(out([row('2026-10-25T12:00:00+09:00', { week: 50 }), post]), /^週間 不明 /);
+  assert.match(out([row('2026-10-25T12:00:01+09:00', { week: 50 }), post]), /^週間 70 /);
+});
+test('週間：引数が無ければ推定（省略）の行だけでは不明', () => {
+  assert.match(out([row('2026-10-31T12:00:00+09:00', { week: 0, estAdded: 5, weekSource: EST })]), /^週間 不明 /);
+});
+test('週間：estAdded の欠落・負・小数・文字列は 0、2 は 2', () => {
+  const at = '2026-10-31T12:00:00+09:00';
+  const s = out([
+    row('2026-10-30T12:00:00+09:00', { week: 40 }),
+    row(at, { weekSource: EST }),
+    row(at, { weekSource: EST, estAdded: -3 }),
+    row(at, { weekSource: EST, estAdded: 1.5 }),
+    row(at, { weekSource: EST, estAdded: '4' }),
+    row(at, { weekSource: EST, estAdded: 2 }),
+  ]);
+  assert.match(s, /^週間 42 /);
+});
+test('5時間：前の行の estAdded を二重に足さない', () => {
+  const s = out([
+    row('2026-11-01T08:00:00+09:00', { five: 20, week: 40, estAdded: 10 }),
+    row('2026-11-01T10:00:00+09:00', { five: 30, week: 50, fiveSource: EST, weekSource: EST, estAdded: 5 }),
+  ]);
+  assert.equal(s, '週間 55 5時間 35 出典 推定（省略）');
+});
+test('5時間：窓外の古い行の分は数えない', () => {
+  const s = out([
+    row('2026-11-01T06:00:00+09:00', { five: 50, estAdded: 10 }),
+    row('2026-11-01T11:00:00+09:00', { five: 0, fiveSource: EST }),
+  ]);
+  assert.match(s, /5時間 0 /);
+});
+test('クラウドの行（five null）の estAdded は週間に足す', () => {
+  const s = out([
+    row('2026-10-30T12:00:00+09:00', { week: 40 }),
+    row('2026-11-01T10:00:00+09:00', { five: null, fiveSource: null, weekSource: EST, estAdded: 12 }),
+  ]);
+  assert.match(s, /^週間 52 5時間 0 /);
 });
 test('引数の誤りは終了コード2', () => {
   for (const args of [['--now', 'bad'], ['--now'], ['--file'], ['--unknown'], ['x']]) {

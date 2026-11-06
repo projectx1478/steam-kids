@@ -34,6 +34,8 @@ export function parseRows(text, nowMs) {
   return rows;
 }
 
+const addOf = (rec) => (Number.isInteger(rec.estAdded) && rec.estAdded >= 0 ? rec.estAdded : 0);
+
 export function estimate(text, nowMs) {
   const rows = parseRows(text, nowMs);
   let five = 0;
@@ -41,16 +43,20 @@ export function estimate(text, nowMs) {
     const { t, rec } = rows[i];
     if (!isNum(rec.five)) continue;
     if (nowMs - t < FIVE_MS) {
-      const add = Number.isInteger(rec.estAdded) && rec.estAdded >= 0 ? rec.estAdded : 0;
-      five = rec.five + add;
+      five = rec.five + addOf(rec);
     }
     break;
   }
+  // 週間：最後の引数の行の week ＋ その行以降の estAdded の合計（#690）。
   let week = '不明';
   for (let i = rows.length - 1; i >= 0; i--) {
     const { t, rec } = rows[i];
     if (rec.weekSource !== '引数' || !isNum(rec.week)) continue;
-    if (nowMs - t < WEEK_MS) week = rec.week;
+    if (nowMs - t < WEEK_MS) {
+      let sum = rec.week;
+      for (let j = i; j < rows.length; j++) sum += addOf(rows[j].rec);
+      week = sum;
+    }
     break;
   }
   return { week, five };
