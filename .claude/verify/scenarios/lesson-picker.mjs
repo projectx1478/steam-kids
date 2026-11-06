@@ -1,4 +1,4 @@
-export const name = 'レッスン選択画面: ?lesson無しで17本が並び、解放済みから選べる(Issue #31, #60, #216)';
+export const name = 'レッスン選択画面: ?lesson無しで19本が並び、解放済みから選べる(Issue #31, #60, #216)';
 
 async function boxesOk(page) {
   const boxes = [];
@@ -47,7 +47,7 @@ function title(id) {
 export default async function run({ page, check }) {
   await page.goto('/index.html?view=map');
 
-  await check('17本のレッスンボタンが表示される', async () => (await page.$$('.lesson-pick-btn')).length, 17);
+  await check('19本のレッスンボタンが表示される', async () => (await page.$$('.lesson-pick-btn')).length, 19);
   await check('レッスン1のタイトルが表示される', async () => title('cmd-01-susumu')(page), 'すすむ');
   await check('レッスン2のタイトルが表示される（cmd-02 は #615 で非公開、2番目は cmd-03）', async () => title('cmd-03-naosu')(page), 'なおす');
   await check('cmd-02 は選択画面に並ばない（devOnly）', async () => (await page.$$('[data-lesson-id="cmd-02-mijikaku"]')).length, 0);

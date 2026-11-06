@@ -59,7 +59,7 @@
 `tools/validate-lessons.mjs`が機械チェック）。`predict`は将来の教材型向けに語彙のみ残し、
 現行レッスンでは0個（Issue #104で全廃。0個でも検証NG にはしない）。
 
-**長尺試作（例外）**：ステージ数を通常（play 2〜4）より増やすレッスン。ステージ数だけを変えた別IDの試作（例：cmd-01 を元にした cmd-01-susumu-long）のほか、teko 単元の教材（つりあいの teko-01〜03、浮力の teko-07・teko-08）も載る（teko-01 は公開、他は開発者画面のみ）。
+**長尺試作（例外）**：ステージ数を通常（play 2〜4）より増やすレッスン。ステージ数だけを変えた別IDの試作（例：cmd-01 を元にした cmd-01-susumu-long）のほか、teko 単元の教材（つりあいの teko-01〜03、浮力の teko-07・teko-08）も載る（つりあいの teko-01〜03 と浮力の teko-07・teko-08 は公開レッスンでもある。単元`ukabu`に置く）。
 下記の上限を緩められるのは、この一覧に載るIDか、下の stageGen の別枠だけである。
 `stageGen` を持つレッスン（`seedPick` を持たないもの）も、一覧に載せずに緩められる（別枠）：play は `stageGen.stages` 個まで（最大8）、steps は12個まで、`estimatedMinutes` は8。
 一覧の置き場は `lessons/index.json` の最上位 `longTrialIds`（文字列配列。省略時は空。
@@ -310,7 +310,7 @@ MustMatterは、ギミックモジュールの`strip(spec)`（ギミックを除
 
 - `index.json` は `tracks`（大項目。`trackId`・`title`・`units`）の中に `units`（単元）を持つ2段。
   `units` 直下の古い形も読める（`tracks` との併用は不可）。`longTrialIds` は直下。
-  大項目の表示名・色は #375 で決める（Issue #374）
+  大項目（`tracks[]`）に`icon`・`color`の項目は無い。見た目は単元の`icon`・`color`（下の節）で決める
 - `unitId` は各レッスンJSONの `unitId` と一致させる
 - `lessonIds` は同じ `unitId` を持つレッスンのファイル名（拡張子無し）の配列。1つの `lessonId` を
   複数の `unit` から参照しない

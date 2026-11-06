@@ -35,7 +35,7 @@ export default async function run({ page, check }) {
   }, ids);
   await page.goto('/index.html?view=tracks');
   await page.waitForSelector('[data-track-id]');
-  await check('全クリア済みの大項目だけ★が出る', async () => (await page.$$eval('[data-star]', (els) => els.map((e) => [e.dataset.star, e.textContent]))), [['robot', '★'], ['body', '']]);
+  await check('全クリア済みの大項目だけ★が出る', async () => (await page.$$eval('[data-star]', (els) => els.map((e) => [e.dataset.star, e.textContent]))), [['robot', '★'], ['body', ''], ['float', '']]);
 
   // カード→その大項目の単元だけ。もどる→大項目選択
   await page.click('[data-track-id="robot"]');
@@ -109,4 +109,11 @@ export default async function run({ page, check }) {
   await page.click('[data-track-id="body"]');
   await page.waitForSelector('[data-lesson-id]');
   await check('intro の無い大項目は紹介を挟まず単元マップへ直行', () => page.getAttribute('#stage', 'data-screen'), 'picker');
+
+  // うかぶ しずむ（float）の大項目から teko-07 へ（Issue #680）
+  await page.click('[data-action="map-back"]');
+  await page.click('[data-track-id="float"]');
+  await page.waitForSelector('[data-lesson-id="teko-07-ukabu"]');
+  await check('float の単元マップに teko-07・teko-08 が出る', async () =>
+    (await page.$$eval('[data-lesson-id]', (els) => els.map((e) => e.dataset.lessonId))).join(), 'teko-07-ukabu,teko-08-ukabu2');
 }

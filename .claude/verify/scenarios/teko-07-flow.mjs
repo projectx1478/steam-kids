@@ -48,6 +48,10 @@ export default async function run({ page, check }) {
 
   await enterPlay(page, 'teko-07-ukabu');
 
+  // 数字：1面はおもりmass1・base2。盤の文字がJSONと一致する
+  await check('p1：おもりの丸の数字が1（mass）', async () => await page.evaluate(() => [...document.querySelectorAll('[data-weight] text')].map((t) => t.textContent).join(',')), '1');
+  await check('p1：ロボットの丸が「↑2」（base）', async () => await page.evaluate(() => [...document.querySelectorAll('.buoyancy-board text')].map((t) => t.textContent).filter((t) => t.startsWith('↑')).join(',')), '↑2');
+
   // 1面：浮く失敗→クリア
   await noOverflow(page, 'p1', check);
   await failOnce(page, check, 'p1：浮く', 'うかんだ');
@@ -66,6 +70,10 @@ export default async function run({ page, check }) {
   await page.waitForSelector('[data-action="balloon-minus"]');
   await check('p3：ふうせん−は無効（0個）', () => page.locator('[data-action="balloon-minus"]').isDisabled(), true);
   await noOverflow(page, 'p3', check);
+  await click(page, 'balloon-plus');
+  await check('p3：ふうせんの丸の数字が2（lift）', async () => await page.evaluate(() => [...document.querySelectorAll('[data-balloon] text')].map((t) => t.textContent).join(',')), '2');
+  await check('p3：おもりの丸の数字が3（mass）', async () => await page.evaluate(() => [...document.querySelectorAll('[data-weight] text')].map((t) => t.textContent).join(',')), '3');
+  await click(page, 'balloon-minus');
   await solve(page, { wp: 1, bp: 1 });
   await click(page, 'next-stage');
 
