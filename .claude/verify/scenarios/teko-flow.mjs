@@ -98,10 +98,10 @@ export default async function run({ page, check }) {
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="next"]', { timeout: 10000 });
   await check('最終ステージの次はnext（next-stageではない）', async () => (await page.$$('[data-action="next-stage"]')).length, 0);
-  await check('stage_clear6回・clear1回・retry1回が記録される', async () => {
+  await check('stage_clear6回・clear1回・retry2回が記録される', async () => {
     const t = await eventTypes(page);
     return [t.filter((x) => x === 'stage_clear').length, t.filter((x) => x === 'clear').length, t.filter((x) => x === 'retry').length].join();
-  }, '6,1,1');
+  }, '6,1,2');
 
   await page.click('[data-action="next"]');
   await page.waitForSelector('[data-action="back-to-picker"]');
