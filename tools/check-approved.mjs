@@ -35,6 +35,8 @@ export function checkApproved(text, { draft = false, strict = false, worktree, m
   if (draft || strict) {
     missing.push(...checkSuperior(lines));
     missing.push(...checkE2eWords(lines));
+    missing.push(...checkMock(lines, mockRoot, notes));
+    if (worktree !== undefined) missing.push(...checkLineRefs(lines, worktree));
   }
   return missing;
 }
@@ -86,6 +88,87 @@ function checkE2eWords(lines) {
     }
   }
   return out;
+}
+
+const MOCK_EXT = 'png|svg|html|jpg|jpeg|webp|txt';
+const MOCK_FULL = new RegExp(`review/design/[A-Za-z0-9-]+/mock/[A-Za-z0-9._-]+\\.(?:${MOCK_EXT})(?![A-Za-z0-9_])`, 'g');
+const MOCK_DIR = /review\/design\/[A-Za-z0-9-]+\/mock\/(?![A-Za-z0-9._*-])/;
+const MOCK_BARE = new RegExp(`(?<![A-Za-z0-9._/*-])[A-Za-z0-9_-]+(?:\\.[A-Za-z0-9_-]+)*\\.(?:${MOCK_EXT})(?![A-Za-z0-9_])`);
+
+// 検査3: 見本が要る設計には mock/ の参照が要る。参照が無いときは notes に注を出すだけ。
+// フルパスの参照だけ、mockRoot があれば実在を見る。
+function checkMock(lines, mockRoot, notes) {
+  const note = (s) => { if (notes) notes.push(s); };
+  let scope = null; // 参照 (c) を探す行の範囲 [開始, 終了)
+  let needed = false;
+  const idx = lines.findIndex((l) => l.startsWith('## 見本') || /^\s*(?:-\s*)?\**見本\**[:：]/.test(l));
+  if (idx >= 0) {
+    const line = lines[idx];
+    let text = line;
+    if (line.startsWith('## 見本')) {
+      let end = lines.findIndex((l, i) => i > idx && l.startsWith('## '));
+      if (end < 0) end = lines.length;
+      text = lines.slice(idx, end).join('\n');
+      scope = [idx, end];
+    } else {
+      let s = idx;
+      while (s >= 0 && !lines[s].startsWith('## ')) s--;
+      let e = lines.findIndex((l, i) => i > idx && l.startsWith('## '));
+      if (e < 0) e = lines.length;
+      scope = [Math.max(s, 0), e];
+    }
+    const afterColon = line.replace(/^.*?見本\**[:：]\s*/, '');
+    needed = !(/該当なし|対象外/.test(text) || (!line.startsWith('## ') && afterColon.startsWith('なし')));
+  } else {
+    const r = sectionRange(lines, '文言の経路一覧');
+    if (r) {
+      const body = lines.slice(r[0], r[1]).filter((l) => l.trim() !== '');
+      scope = r;
+      needed = body.length > 0 && body.every((l) => !l.includes('該当なし') && !/^\s*(?:-\s*)?\**なし/.test(l));
+    }
+  }
+  if (!needed) return [];
+  const all = lines.join('\n');
+  const fulls = [...new Set(all.match(MOCK_FULL) || [])];
+  const scoped = lines.slice(scope[0], scope[1]);
+  const hasRef = fulls.length > 0 || MOCK_DIR.test(all) || scoped.some((l) => MOCK_BARE.test(l));
+  if (!hasRef) note('見本が必要と判定されたが mock/ の参照が無い');
+  if (mockRoot === undefined) return [];
+  return fulls.filter((f) => !existsSync(path.join(mockRoot, f))).map((f) => `見本のファイルが無い: ${f}`);
+}
+
+const LINE_REF = /(?<![A-Za-z0-9._/:@-])((?:[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+\.(?:mjs|cjs|js|json|md|html|css|yml|yaml|sh)):(\d+(?:-\d+)?(?:,\d+(?:-\d+)?)*)/g;
+
+// 検査4: worktree に実在するファイルの path:行 が行数の範囲内か。実在しないファイルは見ない。
+function checkLineRefs(lines, worktree) {
+  const out = new Set();
+  const counts = new Map();
+  const countOf = (p) => {
+    if (!counts.has(p)) {
+      const f = path.join(worktree, p);
+      let n = null;
+      if (existsSync(f) && statSync(f).isFile()) {
+        const t = readFileSync(f, 'utf-8').replace(/\r?\n$/, '');
+        n = t === '' ? 0 : t.split(/\r?\n/).length;
+      }
+      counts.set(p, n);
+    }
+    return counts.get(p);
+  };
+  for (const line of lines) {
+    for (const m of line.matchAll(LINE_REF)) {
+      const p = m[1];
+      if (p === 'style.css' || p.startsWith('review/')) continue;
+      const n = countOf(p);
+      if (n === null) continue;
+      for (const item of m[2].split(',')) {
+        const [a, b = a] = item.split('-').map(Number);
+        if (b < a) continue;
+        if (a === 0 || b > n) out.add(`行番号が範囲外: ${p}:${item}（${n}行）`);
+      }
+    }
+  }
+  return [...out];
 }
 
 // 未決・要確認・雛形の置き場所の印が残る行を返す。行番号は元ファイルのまま（コメントは改行を残して除く）。

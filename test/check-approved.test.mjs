@@ -138,3 +138,122 @@ test('引数の解析：--worktree の異常は終了コード2、順序に依�
   assert.match(r.stderr, /--worktree が無いので/);
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+// --- 段2：検査3（見本）・検査4（path:行） ---
+const MOCK_REF = 'review/design/9/mock/a.png';
+const withLine = (line) => FULL.replace('## 決定\n- x', `## 決定\n${line}`);
+const withWording = (...ls) => FULL.replace('## 文言の経路一覧', ['## 文言の経路一覧', ...ls].join('\n'));
+const tmpDir = () => fs.mkdtempSync(path.join(os.tmpdir(), 'check-approved-'));
+function mockFixture() {
+  const mockRoot = tmpDir();
+  fs.mkdirSync(path.join(mockRoot, 'review', 'design', '9', 'mock'), { recursive: true });
+  fs.writeFileSync(path.join(mockRoot, MOCK_REF), '');
+  return mockRoot;
+}
+function worktreeFixture() {
+  const worktree = tmpDir();
+  fs.mkdirSync(path.join(worktree, 'tools'), { recursive: true });
+  fs.writeFileSync(path.join(worktree, 'tools', 'x.mjs'), 'a\n'.repeat(10));
+  return worktree;
+}
+const run3 = (text, o, extra = {}) => {
+  const notes = [];
+  return { r: checkApproved(text, { ...o, notes, ...extra }), notes };
+};
+const NO_REF_NOTE = '見本が必要と判定されたが mock/ の参照が無い';
+
+test('検査3 合格：フルパスが実在する', () => {
+  const mockRoot = mockFixture();
+  for (const o of OPTS) {
+    const { r, notes } = run3(withLine(`- 見本：必要。${MOCK_REF}`), o, { mockRoot });
+    assert.deepEqual(r, []);
+    assert.deepEqual(notes, []);
+  }
+  fs.rmSync(mockRoot, { recursive: true, force: true });
+});
+
+test('検査3 不合格：フルパスが実在しない', () => {
+  const mockRoot = mockFixture();
+  const ref = 'review/design/9/mock/zzz.png';
+  const { r } = run3(withLine(`- 見本：必要。${ref}`), { strict: true }, { mockRoot });
+  assert.deepEqual(r, [`見本のファイルが無い: ${ref}`]);
+  fs.rmSync(mockRoot, { recursive: true, force: true });
+});
+
+test('検査3 参照なしは欠けにせず注にとどめる', () => {
+  const mockRoot = mockFixture();
+  const o = { strict: true };
+  let x = run3(withLine('- 見本：必要'), o, { mockRoot });
+  assert.deepEqual(x.r, []);
+  assert.deepEqual(x.notes, [NO_REF_NOTE]);
+  x = run3(withLine('- 見本：必要。review/design/9/mock/'), o, { mockRoot });
+  assert.deepEqual(x.r, []);
+  assert.deepEqual(x.notes, []);
+  x = run3(withLine('- x\n## 見本\n- a.png と boxes.txt'), o, { mockRoot });
+  assert.deepEqual(x.r, []);
+  assert.deepEqual(x.notes, []);
+  x = run3(withLine('- x\n## 見本\n- boxes.txt'), o, { mockRoot });
+  assert.deepEqual(x.notes, []);
+  x = run3(withLine('- 見本：必要。mock/a.png'), o, { mockRoot });
+  assert.deepEqual(x.r, []);
+  assert.deepEqual(x.notes, [NO_REF_NOTE]);
+  x = run3(withLine('- 見本：必要。review/design/9/mock/v2-*.png'), o, { mockRoot });
+  assert.deepEqual(x.r, []);
+  assert.deepEqual(x.notes, [NO_REF_NOTE]);
+  fs.rmSync(mockRoot, { recursive: true, force: true });
+});
+
+test('検査3 不要：該当なし・なし・文言の経路一覧が空／なし', () => {
+  for (const text of [
+    withLine('- 見本：該当なし（画面を変えない）'),
+    withLine('- 見本：なし（画面を変えない）'),
+    FULL,
+    withWording('- なし（文言を変えない）'),
+    withWording('- 該当なし（文言を変えない）'),
+  ]) {
+    for (const o of OPTS) {
+      const { r, notes } = run3(text, o);
+      assert.deepEqual(r, []);
+      assert.deepEqual(notes, []);
+    }
+  }
+});
+
+test('検査3 推定：見本の行が無く文言の経路一覧に文言がある', () => {
+  const mockRoot = mockFixture();
+  let x = run3(withWording('- 子どもに「やったね」を出す'), { strict: true }, { mockRoot });
+  assert.deepEqual(x.r, []);
+  assert.deepEqual(x.notes, [NO_REF_NOTE]);
+  x = run3(withWording('- 子どもに「やったね」を出す', `- ${MOCK_REF}`), { strict: true }, { mockRoot });
+  assert.deepEqual(x.r, []);
+  assert.deepEqual(x.notes, []);
+  fs.rmSync(mockRoot, { recursive: true, force: true });
+});
+
+test('検査4 合格：範囲内・実在しない・URL・除外パス', () => {
+  const worktree = worktreeFixture();
+  for (const ref of ['tools/x.mjs:10', 'tools/x.mjs:8-10', 'tools/x.mjs:3,10', 'tools/none.mjs:99', 'https://e.com/a.js:99', 'style.css:99', 'review/design/9/plan.md:99']) {
+    for (const o of OPTS) assert.deepEqual(checkApproved(withLine(`- ${ref}`), { ...o, worktree }), [], ref);
+  }
+  fs.rmSync(worktree, { recursive: true, force: true });
+});
+
+test('検査4 不合格：範囲外・0・コンマの2番目以降・重複は1件', () => {
+  const worktree = worktreeFixture();
+  const bad = (ref) => checkApproved(withLine(`- ${ref}`), { strict: true, worktree });
+  assert.deepEqual(bad('tools/x.mjs:11'), ['行番号が範囲外: tools/x.mjs:11（10行）']);
+  assert.deepEqual(bad('tools/x.mjs:8-12'), ['行番号が範囲外: tools/x.mjs:8-12（10行）']);
+  assert.deepEqual(bad('tools/x.mjs:0'), ['行番号が範囲外: tools/x.mjs:0（10行）']);
+  assert.deepEqual(bad('tools/x.mjs:3,117'), ['行番号が範囲外: tools/x.mjs:117（10行）']);
+  assert.deepEqual(bad('tools/x.mjs:96,117'), ['行番号が範囲外: tools/x.mjs:96（10行）', '行番号が範囲外: tools/x.mjs:117（10行）']);
+  assert.deepEqual(bad('tools/x.mjs:11 と tools/x.mjs:11'), ['行番号が範囲外: tools/x.mjs:11（10行）']);
+  fs.rmSync(worktree, { recursive: true, force: true });
+});
+
+test('検査4 worktree が無い・旗なしでは行わない', () => {
+  const worktree = worktreeFixture();
+  const text = withLine('- tools/x.mjs:11');
+  for (const o of OPTS) assert.deepEqual(checkApproved(text, o), []);
+  assert.deepEqual(checkApproved(text, { worktree }), []);
+  fs.rmSync(worktree, { recursive: true, force: true });
+});
