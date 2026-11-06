@@ -23,6 +23,9 @@ export default async function run({ page, check }) {
   await check('▶で1刻み右へ', () => pos(page), '2');
   await page.click('[data-action="pos-left"]');
   await check('◀で1刻み左へ', () => pos(page), '1');
+  // 数字（Issue #678）：p1は notches=4・left 1体(pos2)・mover 1体。距離は左右1〜4で8個、おもさは山ごとに左1・動かす1の2個。
+  await check('距離の数字が notches×2 個（4×2=8）', async () => (await page.$$('[data-num="dist"]')).length, 8);
+  await check('おもさの数字が山の数（左1＋動かす1=2）', async () => (await page.$$('[data-num="weight"]')).length, 2);
 
   for (const [label, vp] of [['横向き', { width: 1024, height: 640 }], ['縦向き', { width: 360, height: 640 }]]) {
     await page.setViewportSize(vp);
@@ -39,10 +42,21 @@ export default async function run({ page, check }) {
   await check('ヒント(data-hint=tilt)が出る', async () => (await page.$$('[data-hint="tilt"]')).length, 1);
   await check('未達成時はdata-resultが付かない', async () => (await page.$$('[data-result]')).length, 0);
   await check('試した位置に足あとが残る', () => page.$$eval('[data-footprint]', (e) => e.map((x) => x.dataset.footprint).join()), '1');
+  await check('1回目の失敗は「もういちど」だけで向きの文は出ない', async () => {
+    const t = await page.textContent('[data-hint="tilt"]');
+    return [t.includes('もういちど'), t.includes('おもいよ')].join();
+  }, 'true,false');
 
   await page.click('[data-action="retry"]');
   await page.waitForSelector('[data-action="run"]');
   await check('ためしなおすでstartへ戻り足あとは残る', async () => [await pos(page), (await page.$$('[data-footprint]')).length].join(), '1,1');
+
+  // 同じ位置で2回目の失敗：向きの文が出る（足あとは同じ位置なので1のまま）。
+  await page.click('[data-action="run"]');
+  await page.waitForSelector('[data-action="retry"]', { timeout: 10000 });
+  await check('2回目の失敗は向きの文(おもいよ)が出る', async () => (await page.textContent('[data-hint="tilt"]')).includes('おもいよ'), true);
+  await page.click('[data-action="retry"]');
+  await page.waitForSelector('[data-action="run"]');
 
   // p1：解2でクリア
   await page.click('[data-action="pos-right"]');
@@ -84,10 +98,10 @@ export default async function run({ page, check }) {
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="next"]', { timeout: 10000 });
   await check('最終ステージの次はnext（next-stageではない）', async () => (await page.$$('[data-action="next-stage"]')).length, 0);
-  await check('stage_clear6回・clear1回・retry1回が記録される', async () => {
+  await check('stage_clear6回・clear1回・retry2回が記録される', async () => {
     const t = await eventTypes(page);
     return [t.filter((x) => x === 'stage_clear').length, t.filter((x) => x === 'clear').length, t.filter((x) => x === 'retry').length].join();
-  }, '6,1,1');
+  }, '6,1,2');
 
   await page.click('[data-action="next"]');
   await page.waitForSelector('[data-action="back-to-picker"]');

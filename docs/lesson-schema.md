@@ -146,7 +146,7 @@ playステップの指示文になる。未指定時の既定文言は`items`の
   "seesaw": { "notches": 4, "left": [{ "robots": 2, "pos": 2 }], "mover": { "robots": 1, "start": 1 } },
   "solution": 4 }
 ```
-`mover.maxRobots`（2〜3。あれば重さを − ＋ で1〜maxRobotsに変える。省略＝重さ固定）、`mover.fixedPos`（あれば位置は固定で`start`と同じ値。`maxRobots`が要る）。
+`mover.maxRobots`（2〜6。あれば重さを − ＋ で1〜maxRobotsに変える。省略＝重さ固定）、`mover.fixedPos`（あれば位置は固定で`start`と同じ値。`maxRobots`が要る）。`left[].robots`（固定ロボットの1つの山）は1〜6体。
 
 ### `predict-slider`の`play`（うかぶ面。Issue #288）
 

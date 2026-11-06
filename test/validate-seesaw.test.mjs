@@ -69,7 +69,7 @@ const boards = [
   ])],
   ['ng-maxRobots-range', ['seesaw:p2'], board([
     mp('p1', 3, [{ robots: 1, pos: 2 }], w1, 2),
-    mp('p2', 3, [{ robots: 2, pos: 2 }], { robots: 1, maxRobots: 4, fixedPos: 1, start: 1 }, 4),
+    mp('p2', 3, [{ robots: 2, pos: 2 }], { robots: 1, maxRobots: 7, fixedPos: 1, start: 1 }, 4),
   ])],
   ['ng-robots-over-max', ['seesaw:p2'], board([
     mp('p1', 3, [{ robots: 1, pos: 2 }], w1, 2),
@@ -86,6 +86,23 @@ const boards = [
   ['ng-solution-shape', ['solution:p1'], board([
     mp('p1', 2, [{ robots: 1, pos: 2 }], { robots: 1, maxRobots: 3, start: 1 }, 2),
     mp('p2', 3, [{ robots: 2, pos: 3 }], { robots: 1, maxRobots: 3, start: 1 }, [2, 3]),
+  ])],
+  // 上限6（Issue #678。review/design/678/boards/678-*.json の形。各盤を p1・p2 に2つ並べる）。期待 OK・NG・OK・NG
+  ['678-ok-maxrobots6', [], board([
+    mp('p1', 3, [{ robots: 2, pos: 3 }], { robots: 1, maxRobots: 6, fixedPos: 1, start: 1 }, 6),
+    mp('p2', 3, [{ robots: 2, pos: 3 }], { robots: 1, maxRobots: 6, fixedPos: 1, start: 1 }, 6),
+  ])],
+  ['678-ng-maxrobots7', ['seesaw:p1', 'seesaw:p2'], board([
+    mp('p1', 3, [{ robots: 2, pos: 3 }], { robots: 1, maxRobots: 7, fixedPos: 1, start: 1 }, 6),
+    mp('p2', 3, [{ robots: 2, pos: 3 }], { robots: 1, maxRobots: 7, fixedPos: 1, start: 1 }, 6),
+  ])],
+  ['678-ok-left6', [], board([
+    mp('p1', 3, [{ robots: 6, pos: 1 }], { robots: 2, start: 1 }, 3),
+    mp('p2', 3, [{ robots: 6, pos: 1 }], { robots: 2, start: 1 }, 3),
+  ])],
+  ['678-ng-left7', ['seesaw:p1', 'seesaw:p2'], board([
+    mp('p1', 3, [{ robots: 7, pos: 1 }], { robots: 7, start: 2 }, 1),
+    mp('p2', 3, [{ robots: 7, pos: 1 }], { robots: 7, start: 2 }, 1),
   ])],
 ];
 for (const [name, expected, mutate] of boards) {

@@ -82,7 +82,7 @@ export function showSuccess(slotEl, { view, restore, label = 'やったね！', 
 // 見出しの左に首をかしげたロボット＋「？」を添え、文字だけでなく非言語でも
 // 「もう一度」と伝わるようにする（失敗を責めない表現。Issue #106）。
 // extra は診断の文言の下に足す1行（任意）。bird を渡すと小鳥の吹き出しに出る（Issue #497。data-hint は吹き出し内の panel に付く）。bird なしは従来のトースト。
-export function showHint(slotEl, { kind, message, restore, bird, extra }) {
+export function showHint(slotEl, { kind, message, restore, bird, extra, big = false }) {
   const buildPanel = () => {
     const panel = document.createElement('div');
     panel.dataset.hint = kind;
@@ -104,7 +104,21 @@ export function showHint(slotEl, { kind, message, restore, bird, extra }) {
     panel.appendChild(headingRow);
     const msg = document.createElement('p');
     msg.className = 'text-sm text-slate-600';
-    msg.textContent = message;
+    if (big) {
+      // ◀▶ の記号だけ大きくする（本文は今の大きさ。360px幅で欄からあふれないため。Issue #678）。
+      message.split(/([◀▶])/).forEach((part) => {
+        if (part === '◀' || part === '▶') {
+          const arrow = document.createElement('span');
+          arrow.className = 'text-lg font-bold';
+          arrow.textContent = part;
+          msg.appendChild(arrow);
+        } else if (part) {
+          msg.appendChild(document.createTextNode(part));
+        }
+      });
+    } else {
+      msg.textContent = message;
+    }
     panel.appendChild(msg);
     if (extra) {
       // 失敗2回目の自動ヒント（Issue #468 段2）。診断の文言の下に1行足す。
