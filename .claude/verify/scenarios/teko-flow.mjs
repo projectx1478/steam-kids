@@ -23,6 +23,9 @@ export default async function run({ page, check }) {
   await check('▶で1刻み右へ', () => pos(page), '2');
   await page.click('[data-action="pos-left"]');
   await check('◀で1刻み左へ', () => pos(page), '1');
+  // 数字（Issue #678）：p1は notches=4・left 1体(pos2)・mover 1体。距離は左右1〜4で8個、おもさは山ごとに左1・動かす1の2個。
+  await check('距離の数字が notches×2 個（4×2=8）', async () => (await page.$$('[data-num="dist"]')).length, 8);
+  await check('おもさの数字が山の数（左1＋動かす1=2）', async () => (await page.$$('[data-num="weight"]')).length, 2);
 
   for (const [label, vp] of [['横向き', { width: 1024, height: 640 }], ['縦向き', { width: 360, height: 640 }]]) {
     await page.setViewportSize(vp);

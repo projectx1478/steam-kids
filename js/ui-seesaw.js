@@ -15,30 +15,51 @@ import { showHint, clearResultBubble } from './ui-reaction.js';
 import { showClearSequence, recordClear } from './ui-clear.js';
 import { setRetryButton, shakeBoard, showStartCue, bindStartCueDismiss } from './ui-retry.js';
 
-const UNIT = 40; // 1刻みの幅（viewBox単位）
-const BOARD_H = 260;
-const PLANK_Y = 170;
+const BOARD_H = 270;
+const PLANK_Y = 180;
 const PLANK_H = 14;
-const GROUND_Y = 250;
-const ROBOT = 36;
-const ROBOT_STACK = 30;
+const GROUND_Y = 260;
+const ROBOT = 30;
+const ROBOT_STACK = 30; // 6体のみ24（robotStack）
+const NUM_R = 11; // おもさの数字の円の半径
 const TILT_DEG = 8;
 const TILT_MS = 900;
 const HEAVY_MESSAGE = { '-1': '◀ こっちが おもいよ', 1: 'こっちが おもいよ ▶' };
 
+// 1刻みの幅（viewBox単位）。刻みが多い面ほど詰める。
+function unitFor(notches) {
+  if (notches <= 4) return 40;
+  return notches === 5 ? 36 : 31;
+}
+
+const robotStack = (count) => (count >= 6 ? 24 : ROBOT_STACK);
+
 function robotsSvg(cx, count, extraAttrs = '') {
   let out = '';
+  const stack = robotStack(count);
   for (let i = 0; i < count; i += 1) {
-    const y = PLANK_Y - ROBOT - i * ROBOT_STACK + 2;
+    const y = PLANK_Y - ROBOT - i * stack + 2;
     out += `<svg x="${cx - ROBOT / 2}" y="${y}" width="${ROBOT}" height="${ROBOT}" viewBox="0 0 64 64" ${extraAttrs}>${shapeSvg('player')}</svg>`;
   }
   return out;
 }
 
+// おもさの数字：山の真上の円（<g>。<svg>にしない）。
+function weightNumSvg(cx, count) {
+  const top = PLANK_Y - ROBOT - (count - 1) * robotStack(count) + 2;
+  const cy = top - NUM_R;
+  return `<g data-weight-disc><circle cx="${cx}" cy="${cy}" r="${NUM_R}" fill="#5b3a1a" /><text data-num="weight" x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" fill="#ffffff" font-size="16" font-weight="800">${count}</text></g>`;
+}
+
+function distNumSvg(x, n) {
+  return `<text data-num="dist" x="${x}" y="${PLANK_Y + PLANK_H / 2}" text-anchor="middle" dominant-baseline="central" fill="#ffffff" font-size="14" font-weight="800" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" paint-order="stroke">${n}</text>`;
+}
+
 export function renderSeesaw(root, step) {
   const spec = step.seesaw;
   const notches = spec.notches;
-  const cx0 = (notches + 1) * UNIT;
+  const unit = unitFor(notches);
+  const cx0 = (notches + 1) * unit;
   const boardW = cx0 * 2;
   const pivotY = PLANK_Y + PLANK_H;
 
@@ -61,10 +82,11 @@ export function renderSeesaw(root, step) {
   }
 
   const ticks = Array.from({ length: notches * 2 + 1 }, (_, i) => i - notches)
-    .map((n) => `<circle cx="${cx0 + n * UNIT}" cy="${PLANK_Y + PLANK_H / 2}" r="${n === 0 ? 0 : 2.5}" fill="#7c4a1e" opacity="0.55" />`)
+    .filter((n) => n !== 0)
+    .map((n) => distNumSvg(cx0 + n * unit, Math.abs(n)))
     .join('');
-  const leftRobots = spec.left.map((w) => robotsSvg(cx0 - w.pos * UNIT, w.robots)).join('');
-  const postX = (side) => cx0 + side * notches * UNIT;
+  const leftRobots = spec.left.map((w) => robotsSvg(cx0 - w.pos * unit, w.robots) + weightNumSvg(cx0 - w.pos * unit, w.robots)).join('');
+  const postX = (side) => cx0 + side * notches * unit;
   boardArea.innerHTML = `<svg class="seesaw-board w-full h-full" viewBox="0 0 ${boardW} ${BOARD_H}" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
     <rect x="0" y="${GROUND_Y}" width="${boardW}" height="6" rx="3" fill="#a16207" opacity="0.5" />
     <polygon points="${cx0 - 30},${GROUND_Y} ${cx0 + 30},${GROUND_Y} ${cx0},${pivotY}" fill="#92400e" />
@@ -73,8 +95,8 @@ export function renderSeesaw(root, step) {
       <rect x="${postX(1) - 5}" y="${pivotY}" width="10" height="${GROUND_Y - pivotY}" rx="3" fill="#a8a29e" />
     </g>
     <g data-plank style="transform-origin: ${cx0}px ${pivotY}px">
-      <rect x="${cx0 - (notches + 0.7) * UNIT}" y="${PLANK_Y}" width="${(notches * 2 + 1.4) * UNIT}" height="${PLANK_H}" rx="6" fill="#b45309" />
-      <rect x="${cx0 - (notches + 0.7) * UNIT + 4}" y="${PLANK_Y + 1}" width="${(notches * 2 + 1.4) * UNIT - 8}" height="4" rx="2" fill="#f59e0b" opacity="0.6" />
+      <rect x="${cx0 - (notches + 0.7) * unit}" y="${PLANK_Y}" width="${(notches * 2 + 1.4) * unit}" height="${PLANK_H}" rx="6" fill="#b45309" />
+      <rect x="${cx0 - (notches + 0.7) * unit + 4}" y="${PLANK_Y + 1}" width="${(notches * 2 + 1.4) * unit - 8}" height="4" rx="2" fill="#f59e0b" opacity="0.6" />
       ${ticks}
       <g data-footprints></g>
       <g data-left>${leftRobots}</g>
@@ -87,7 +109,7 @@ export function renderSeesaw(root, step) {
   const footprints = svg.querySelector('[data-footprints]');
   const moverSlot = svg.querySelector('[data-mover-slot]');
   const mover = svg.querySelector('[data-mover]');
-  mover.innerHTML = robotsSvg(cx0, spec.mover.robots);
+  mover.innerHTML = robotsSvg(cx0, spec.mover.robots) + weightNumSvg(cx0, spec.mover.robots);
   plank.style.transition = 'none';
 
   const view = {
@@ -160,11 +182,11 @@ export function renderSeesaw(root, step) {
   }
 
   function drawMover() {
-    moverSlot.setAttribute('transform', `translate(${local.pos * UNIT},0)`);
+    moverSlot.setAttribute('transform', `translate(${local.pos * unit},0)`);
     mover.dataset.pos = String(local.pos);
     if (maxRobots) {
       mover.dataset.robots = String(local.robots);
-      mover.innerHTML = robotsSvg(cx0, local.robots);
+      mover.innerHTML = robotsSvg(cx0, local.robots) + weightNumSvg(cx0, local.robots);
     }
     updateControls();
   }
@@ -203,7 +225,7 @@ export function renderSeesaw(root, step) {
     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     g.dataset.footprint = key;
     g.setAttribute('opacity', '0.25');
-    g.setAttribute('transform', `translate(${pos * UNIT},0)`);
+    g.setAttribute('transform', `translate(${pos * unit},0)`);
     g.innerHTML = robotsSvg(cx0, robots);
     footprints.appendChild(g);
   }
@@ -316,7 +338,7 @@ export function renderSeesaw(root, step) {
     const rect = svg.getBoundingClientRect();
     const scale = Math.min(rect.width / boardW, rect.height / BOARD_H);
     const left = rect.left + (rect.width - boardW * scale) / 2;
-    return Math.round(((ev.clientX - left) / scale - cx0) / UNIT);
+    return Math.round(((ev.clientX - left) / scale - cx0) / unit);
   }
   mover.addEventListener('pointerdown', (ev) => {
     if (local.phase !== 'edit' || posFixed) return;

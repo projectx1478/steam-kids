@@ -160,7 +160,7 @@ function validateSeesaw(playSteps, add, maxPlay = MAX_PLAY) {
       isInt(spec.notches) &&
       Array.isArray(spec.left) &&
       spec.left.length > 0 &&
-      spec.left.every((w) => isInt(w.robots) && isInt(w.pos) && w.pos <= spec.notches) &&
+      spec.left.every((w) => isInt(w.robots) && w.robots <= 6 && isInt(w.pos) && w.pos <= spec.notches) &&
       spec.mover &&
       isInt(spec.mover.robots) &&
       isInt(spec.mover.start) &&
@@ -168,10 +168,10 @@ function validateSeesaw(playSteps, add, maxPlay = MAX_PLAY) {
     const { maxRobots, fixedPos } = ok ? spec.mover : {};
     const newOk =
       ok &&
-      (maxRobots === undefined || (Number.isInteger(maxRobots) && maxRobots >= 2 && maxRobots <= 3 && spec.mover.robots <= maxRobots)) &&
+      (maxRobots === undefined || (Number.isInteger(maxRobots) && maxRobots >= 2 && maxRobots <= 6 && spec.mover.robots <= maxRobots)) &&
       (fixedPos === undefined || (maxRobots !== undefined && isInt(fixedPos) && fixedPos <= spec.notches && fixedPos === spec.mover.start));
     if (!newOk) {
-      add('seesaw', `${label} のseesaw（notches・left・mover）が不正（robots・pos・startは1〜notchesの整数、maxRobotsは2〜3でrobots以上、fixedPosはmaxRobotsがあるときだけでstartと同じ）`);
+      add('seesaw', `${label} のseesaw（notches・left・mover）が不正（robots・pos・startは1〜notchesの整数、leftのrobotsは1〜6、maxRobotsは2〜6でrobots以上、fixedPosはmaxRobotsがあるときだけでstartと同じ）`);
       continue;
     }
     const found = solutionPairs(spec);
