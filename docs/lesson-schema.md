@@ -139,6 +139,8 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 `fixFrom`はそのまま実行してもゴールに到達しない内容にする）。reduced-motion時も1手0.6秒の
 コマ送りで動かし、静止画にはしない。未指定の教材型は表示しない（Issue #97・#104）。
 
+`type: "predict-slider"`のレッスンの intro は`demo`に`{ kind: "seesaw", seesaw, solution }`を持てる（`seesaw`・`solution`は play と同じ形。mover は単体で`robots`・`start`だけ、`right`は任意）。本番 play のどのステージとも同じ盤にしない。うかぶ面（buoyancy）と grid 教材には書けない。
+
 ### `predict-slider`の`play`（シーソー。Issue #150）
 
 `type: "predict-slider"`のレッスンは`kind: "play"`に`seesaw`と`solution`を持つ。`solution`は、位置だけ動く面＝位置（整数）、重さだけ動く面＝重さ（整数）、両方動く面＝`[pos, robots]`。`left`・`right`の`pos`は支点からの刻み数（1〜`notches`）。`mover`の`start`は支点からの刻み数で、`side`が省略または`"right"`なら1〜`notches`、`"both"`なら−`notches`〜−1と1〜`notches`（負は支点の左。0は不可）。
@@ -236,7 +238,7 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 
 `tracks[].intro`＝`{ "demo": <intro.demo と同形>, "text": "<短い文字列>" }`。あると、大項目選択でその大項目を選んだ直後・単元マップの前に紹介画面（`js/ui-track-intro.js`）を毎回出す。省略した大項目は今までどおり単元マップへ直行。
 
-- `demo`（必須）：レッスンの`intro.demo`と同じ形（`grid`は`{cols, rows}`、`start`・`goal`・`walls`・`commands`ほか）。`commands`でゴール到達・全item回収になること。`validate-lessons`が`intro.demo`と同じ検査をする（本番`play`との同一性比較だけは無い）。
+- `demo`（必須）：レッスンの`intro.demo`と同じ形（`grid`は`{cols, rows}`、`start`・`goal`・`walls`・`commands`ほか）。`commands`でゴール到達・全item回収になること。`validate-lessons`が`intro.demo`と同じ検査をする（本番`play`との同一性比較だけは無い）。`demo`は grid 形のみ（`kind`は書けない）。
 - `text`（任意）：30字以内の文字列。空文字・省略なら文を出さない。数など文字列以外は拒否。
 - 紹介の「もどる」は大項目選択へ、「はじめる」は単元マップへ。単元マップの「もどる」は大項目選択へ戻る（紹介へは戻らない）。
 
@@ -362,6 +364,7 @@ MustMatterは、ギミックモジュールの`strip(spec)`（ギミックを除
 - `intro.demo`がある場合、`commands`（`fixFrom`があればそれも）の語彙が正しく、壁にぶつからず
   ゴール到達＋全item回収になること。`fixFrom`はそのまま実行してもゴールに到達しないこと。
   `start`/`goal`の組が本番`play`のいずれのステージとも一致しないこと（ネタバレ防止。Issue #104）
+- seesaw 形の`intro.demo`は`balance`が真になる`solution`を持ち、本番 play と同一盤でないこと。
 - `text` に否定語（「ちがう」「まちがい」「ざんねん」）が含まれないこと（ひらがな展開後の
   文字列で判定。`docs/authoring-rules.md`）
 - `text` のルビ記法 `{漢字|よみ}` 外に生の漢字が無いこと、ルビ内の漢字が

@@ -5,7 +5,20 @@
   "type": "predict-slider",
   "estimatedMinutes": 8,
   "steps": [
-    { "stepId": "s1", "kind": "intro", "text": "シーソーを つりあわせよう" },
+    {
+      "stepId": "s1",
+      "kind": "intro",
+      "text": "シーソーを つりあわせよう",
+      "demo": {
+        "kind": "seesaw",
+        "seesaw": {
+          "notches": 4,
+          "left": [{ "robots": 1, "pos": 3 }],
+          "mover": { "robots": 1, "start": 1 }
+        },
+        "solution": 3
+      }
+    },
     {
       "stepId": "p1",
       "kind": "play",

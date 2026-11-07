@@ -22,6 +22,8 @@ js/
   engine-generate.js # シードからgrid-runtime盤面を生成する純粋関数（PRNG・制約判定・予備盤面。Issue #68）
   engine-seesaw.js # predict-slider（シーソー）の純粋関数（おもさ×きょりの傾き判定。Issue #150）
   ui-seesaw.js # シーソーplay画面の描画（Issue #150）
+  ui-seesaw-draw.js # シーソーの描画ヘルパー（定数・ロボット・数字・盤面SVG。本編とデモが共用。Issue #679）
+  ui-demo-seesaw.js # introのシーソー紹介デモ（demo.kind: "seesaw"の盤面描画と1周の動き。Issue #679）
   engine-buoyancy.js # predict-slider（うかぶ面）の純粋関数（net判定・つりあう組・難易度。Issue #288）
   ui-buoyancy.js # うかぶ面play画面の描画（水槽・おもり・ふうせん。Issue #288）
   ui-screen.js # 操作画面の枠の共通部品（補助行・盤面・パネル・ボタン行と小鳥の吹き出し。play・シーソー・predict が使う。docs/components.md。Issue #343）
