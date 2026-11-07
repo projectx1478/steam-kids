@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { balance, solutions, solutionPairs, difficulty } from '../js/engine-seesaw.js';
+import { balance, solutions, solutionPairs, difficulty, allowedPositions } from '../js/engine-seesaw.js';
 
 const spec = { notches: 4, left: [{ robots: 2, pos: 2 }], mover: { robots: 1, start: 1 } };
 
@@ -59,4 +59,45 @@ test('teko-05: p3・p4 は位置だけ・重さだけでは解けない', () => 
     assert.equal(pairs.filter((p) => p.robots === seesaw.mover.robots).length, 0, `${id}: 位置だけで解ける`);
     assert.equal(pairs.filter((p) => p.pos === seesaw.mover.start).length, 0, `${id}: 重さだけで解ける`);
   }
+});
+
+// 右の固定ロボット（right。Issue #689 段1）
+const refBalance = (s, pos, robots = s.mover.robots) => {
+  const torqueL = s.left.reduce((sum, w) => sum + w.robots * w.pos, 0);
+  const torqueR = robots * pos;
+  return { torqueL, torqueR, tilt: torqueL > torqueR ? -1 : torqueL < torqueR ? 1 : 0 };
+};
+
+test('engine-seesaw: right・side が無い従来の面は、1000番号の生成結果で旧式の計算と同じ', async () => {
+  const { generateSeesawRun, SEESAW_RUN_STAGES } = await import('../js/engine-seesaw-gen.js');
+  for (let n = 0; n < 1000; n += 1) {
+    const run = generateSeesawRun(SEESAW_RUN_STAGES, String(n).padStart(3, '0'));
+    for (const s of run) {
+      const oldSolutions = [];
+      for (let pos = 1; pos <= s.notches; pos += 1) {
+        assert.deepEqual(balance(s, pos), refBalance(s, pos));
+        if (refBalance(s, pos).tilt === 0) oldSolutions.push(pos);
+      }
+      assert.deepEqual(solutions(s), oldSolutions);
+      assert.deepEqual(solutionPairs(s), oldSolutions.map((pos) => ({ pos, robots: s.mover.robots })));
+      assert.equal(difficulty(s), s.left.reduce((sum, w) => sum + w.robots * w.pos, 0));
+    }
+  }
+});
+
+test('engine-seesaw: right があるとトルクに足され、解は[4]の1件（689-ok-right-both の side を外した形）', () => {
+  const r = { notches: 4, left: [{ robots: 3, pos: 2 }], right: [{ robots: 1, pos: 2 }], mover: { robots: 1, start: 1 } };
+  assert.deepEqual(balance(r, 1), { torqueL: 6, torqueR: 3, tilt: -1 });
+  assert.deepEqual(solutions(r), [4]);
+  assert.deepEqual(solutionPairs(r), [{ pos: 4, robots: 1 }]);
+  assert.equal(difficulty(r), 4, '|6-2|');
+});
+
+test('engine-seesaw: allowedPositions は right のいる刻みを除く。占有された刻みは解にならない', () => {
+  const r = { notches: 4, left: [{ robots: 3, pos: 2 }], right: [{ robots: 1, pos: 2 }], mover: { robots: 2, start: 1 } };
+  assert.deepEqual(allowedPositions(r), [1, 3, 4]);
+  assert.deepEqual(allowedPositions(spec), [1, 2, 3, 4]);
+  assert.deepEqual(solutions(r), [], 'pos2 でつりあう計算だが占有');
+  assert.equal(balance(r, 2).tilt, 0);
+  assert.deepEqual(difficulty({ ...r, right: [{ robots: 6, pos: 4 }] }), 18, '|6-24|');
 });

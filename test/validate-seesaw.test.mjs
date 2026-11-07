@@ -156,3 +156,48 @@ for (const [label, rule, mutate] of practiceCases) {
     assert.equal(r.code === 1 && r.out.includes(rule), true, `NG検出: ${label}\n${r.out}`);
   });
 }
+
+// 右の固定ロボット（right。Issue #689 段1）：review/design/689/boards の right・未知キー・占有の盤を写す。
+const rp = (stepId, seesaw, solution) => ({ stepId, kind: 'play', text: 'つりあう ところに おこう', seesaw, solution });
+const rightOkSee = { notches: 4, left: [{ robots: 3, pos: 2 }], right: [{ robots: 1, pos: 2 }], mover: { robots: 1, start: 1 } };
+const rightOk = (id) => rp(id, JSON.parse(JSON.stringify(rightOkSee)), 4);
+const rightBoards = [
+  ['ok-right', [], [rightOk('p1'), rightOk('p2')]],
+  ['ng-occupied-solution', ['解の個数:p1', 'solution:p1'], [rp('p1', { ...rightOkSee, mover: { robots: 2, start: 1 } }, 2), rightOk('p2')]],
+  ['ng-right-empty', ['seesaw:p1'], [rp('p1', { ...rightOkSee, left: [{ robots: 2, pos: 2 }], right: [] }, 4), rightOk('p2')]],
+  ['ng-right-range', ['seesaw:p1'], [rp('p1', { ...rightOkSee, right: [{ robots: 1, pos: 5 }] }, 1), rightOk('p2')]],
+  ['ng-right-dup-pos', ['seesaw:p1'], [rp('p1', { ...rightOkSee, right: [{ robots: 1, pos: 2 }, { robots: 1, pos: 2 }] }, 4), rightOk('p2')]],
+  ['ng-unknown-key', ['seesaw:p1'], [rp('p1', { notches: 4, left: rightOkSee.left, rights: rightOkSee.right, mover: rightOkSee.mover }, 4), rightOk('p2')]],
+  ['ng-unknown-mover-key', ['seesaw:p1'], [rp('p1', { ...rightOkSee, mover: { robots: 1, start: 1, sidee: 'both' } }, 4), rightOk('p2')]],
+  ['ng-start-occupied', ['seesaw:p1'], [rp('p1', { ...rightOkSee, mover: { robots: 1, start: 2 } }, 4), rightOk('p2')]],
+  [
+    'ok-difficulty',
+    [],
+    [
+      rp('p1', { notches: 4, left: [{ robots: 2, pos: 2 }], right: [{ robots: 1, pos: 1 }], mover: { robots: 1, start: 2 } }, 3),
+      rightOk('p2'),
+    ],
+  ],
+  [
+    'ng-difficulty',
+    ['難易度:p2'],
+    [
+      rightOk('p1'),
+      rp('p2', { notches: 4, left: [{ robots: 2, pos: 2 }], right: [{ robots: 1, pos: 1 }], mover: { robots: 1, start: 2 } }, 3),
+    ],
+  ],
+];
+for (const [name, expected, plays] of rightBoards) {
+  test(`validate-lessons: 右固定の盤 ${name}`, () => {
+    const r = validate(board(plays));
+    const got = [];
+    for (const rule of ['解の個数', 'solution', 'seesaw', 'start', '難易度', '盤面の必須']) {
+      for (const line of r.out.split('\n')) {
+        const m = line.includes(rule) && line.match(/stepId="(p\d)"/);
+        if (m && line.indexOf(rule) < line.indexOf('stepId=')) got.push(`${rule}:${m[1]}`);
+      }
+    }
+    assert.deepEqual(got.sort(), [...expected].sort(), r.out);
+    assert.equal(r.code, expected.length === 0 ? 0 : 1, r.out);
+  });
+}

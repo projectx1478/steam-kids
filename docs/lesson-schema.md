@@ -147,6 +147,7 @@ playステップの指示文になる。未指定時の既定文言は`items`の
   "solution": 4 }
 ```
 `mover.maxRobots`（2〜6。あれば重さを − ＋ で1〜maxRobotsに変える。省略＝重さ固定）、`mover.fixedPos`（あれば位置は固定で`start`と同じ値。`maxRobots`が要る）。`left[].robots`（固定ロボットの1つの山）は1〜6体。
+`seesaw.right`（任意。`left`と同じ形。空配列は不可。同じ位置に2山は不可。`mover.start`・`solution`の位置は`right`の位置と別）。未知のキーは不可（`seesaw`は`notches`・`left`・`right`・`mover`、`mover`は`robots`・`start`・`maxRobots`・`fixedPos`だけ）。
 
 ### `predict-slider`の`play`（うかぶ面。Issue #288）
 

@@ -2,7 +2,7 @@
 // 動かして置く（＝予想）→「ためす」で支えが外れ、傾きを見る。選択肢UIは使わない（#104を踏襲）。
 // 画面の骨格・ボタン・ヒント・クリア演出は ui-play.js と同じ部品を再利用する。
 import { S } from './state.js';
-import { balance } from './engine-seesaw.js';
+import { balance, allowedPositions } from './engine-seesaw.js';
 import { logEvent } from './events.js';
 import { shapeSvg, setMoodIn, prefersReducedMotion, screenConfetti } from './ui-grid.js';
 import { vibrate } from './ui-commands.js';
@@ -86,6 +86,8 @@ export function renderSeesaw(root, step) {
     .map((n) => distNumSvg(cx0 + n * unit, Math.abs(n)))
     .join('');
   const leftRobots = spec.left.map((w) => robotsSvg(cx0 - w.pos * unit, w.robots) + weightNumSvg(cx0 - w.pos * unit, w.robots)).join('');
+  const rightRobots = (spec.right ?? []).map((w) => robotsSvg(cx0 + w.pos * unit, w.robots) + weightNumSvg(cx0 + w.pos * unit, w.robots)).join('');
+  const allowed = allowedPositions(spec); // 右の固定ロボットがいる刻みは置けない
   const postX = (side) => cx0 + side * notches * unit;
   boardArea.innerHTML = `<svg class="seesaw-board w-full h-full" viewBox="0 0 ${boardW} ${BOARD_H}" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
     <rect x="0" y="${GROUND_Y}" width="${boardW}" height="6" rx="3" fill="#a16207" opacity="0.5" />
@@ -100,6 +102,7 @@ export function renderSeesaw(root, step) {
       ${ticks}
       <g data-footprints></g>
       <g data-left>${leftRobots}</g>
+      <g data-right>${rightRobots}</g>
       <g data-mover-slot><g data-mover class="cursor-grab" style="touch-action: none"></g></g>
     </g>
   </svg>`;
@@ -162,8 +165,8 @@ export function renderSeesaw(root, step) {
 
   function updateControls() {
     const editing = local.phase === 'edit';
-    leftBtn.disabled = !editing || local.pos <= 1;
-    rightBtn.disabled = !editing || local.pos >= notches;
+    leftBtn.disabled = !editing || !allowed.some((p) => p < local.pos);
+    rightBtn.disabled = !editing || !allowed.some((p) => p > local.pos);
     minusBtn.disabled = !editing || local.robots <= 1;
     plusBtn.disabled = !editing || local.robots >= (maxRobots ?? 1);
     runBtn.disabled = local.phase === 'running';
@@ -202,8 +205,11 @@ export function renderSeesaw(root, step) {
   }
 
   function setPos(pos, via) {
-    const next = Math.max(1, Math.min(notches, pos));
-    if (local.phase !== 'edit' || next === local.pos) {
+    const clamped = Math.max(1, Math.min(notches, pos));
+    // 占有された刻みは、動いてきた向きの次の置ける刻みへ飛ぶ。行き先が無ければ動かさない。
+    const forward = clamped >= local.pos;
+    const next = allowed.includes(clamped) ? clamped : forward ? allowed.find((p) => p > clamped) : [...allowed].reverse().find((p) => p < clamped);
+    if (local.phase !== 'edit' || next === undefined || next === local.pos) {
       skipClickSfx();
       return;
     }
