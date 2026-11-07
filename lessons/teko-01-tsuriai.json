@@ -83,6 +83,17 @@
       },
       "solution": 5
     },
+    {
+      "stepId": "p8",
+      "kind": "play",
+      "text": "つりあう ところに おこう",
+      "seesaw": {
+        "notches": 5,
+        "left": [{ "robots": 6, "pos": 2 }],
+        "mover": { "robots": 3, "start": 1 }
+      },
+      "solution": 4
+    },
     { "stepId": "s2", "kind": "summary", "text": "おもいほど ちかくに おくよ" }
   ]
 }
