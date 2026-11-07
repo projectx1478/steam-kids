@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 export const name = 'U1 段階解放・次のレッスン強調・開発者画面(Issue #216)';
 
 const ORDER = [
@@ -12,6 +14,21 @@ const ORDER = [
   'switch-01-suicchi',
   'switch-02-futatsu',
 ];
+
+// 未解放の数は lessons/index.json から数える（先頭1本だけ有効。レッスン追加のたびに固定値が古くなるのを防ぐ。#704）
+function lockedTotal() {
+  const index = JSON.parse(readFileSync(new URL('../../../lessons/index.json', import.meta.url), 'utf8'));
+  let n = 0;
+  const walk = (o) => {
+    if (Array.isArray(o)) o.forEach(walk);
+    else if (o && typeof o === 'object') {
+      if (o.unitId) n += o.lessonIds.length + (o.practiceIds ?? []).length;
+      else Object.values(o).forEach(walk);
+    }
+  };
+  walk(index);
+  return n - 1;
+}
 
 function setCleared(page, ids) {
   return page.evaluate(
@@ -42,7 +59,7 @@ const pulseIds = (page) => page.$$eval('.next-pulse', (els) => els.map((e) => e.
 export default async function run({ page, check }) {
   // --- 初期：先頭だけ有効 ---
   await page.goto('/index.html?view=map');
-  await check('初期は先頭以外(レッスン15本＋れんしゅう1本)がdisabled＋data-locked', async () => (await lockedIds(page)).length, 16);
+  await check('初期は先頭以外(index.jsonの全公開レッスン・れんしゅう)がdisabled＋data-locked', async () => (await lockedIds(page)).length, lockedTotal());
   await check('先頭(cmd-01)は有効', async () => page.$eval('[data-lesson-id="cmd-01-susumu"]', (b) => !b.disabled));
   await check('パルスは先頭の1件だけ', async () => pulseIds(page), ['cmd-01-susumu']);
   await check('ボタンに単元内番号が付く(cmd-03は2。cmd-02は#615で非公開)', async () =>
