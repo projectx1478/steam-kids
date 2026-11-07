@@ -15,7 +15,10 @@ function setup() {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'editor-index-'));
   const lessonsDir = path.join(tmp, 'lessons');
   fs.cpSync(path.join(ROOT, 'lessons'), lessonsDir, { recursive: true });
-  return { lessonsDir, backupsDir: path.join(tmp, 'backups'), indexFile: path.join(lessonsDir, 'index.json') };
+  const draftsDir = path.join(tmp, 'drafts');
+  const pubIndex = path.join(draftsDir, 'publish', 'index.json');
+  // #685: 保存先は drafts/publish/。indexFile は重ね読み（drafts があれば drafts、無ければ lessons/）の読み先
+  return { lessonsDir, backupsDir: path.join(tmp, 'backups'), draftsDir, pubIndex, get indexFile() { return fs.existsSync(pubIndex) ? pubIndex : path.join(lessonsDir, 'index.json'); } };
 }
 
 function call(port, method, urlPath, body, raw = false) {
@@ -36,7 +39,8 @@ async function withServer(opts, fn) {
 }
 
 const backupsOf = (dir, prefix) => (fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.startsWith(prefix)) : []);
-const unitIdOf = (dir, id) => JSON.parse(fs.readFileSync(path.join(dir, `${id}.json`), 'utf8')).unitId;
+const lessonFileOverlay = (s, id) => { const f = path.join(s.draftsDir, 'publish', 'lessons', `${id}.json`); return fs.existsSync(f) ? f : path.join(s.lessonsDir, `${id}.json`); };
+const unitIdOf = (s, id) => JSON.parse(fs.readFileSync(lessonFileOverlay(s, id), 'utf8')).unitId;
 const readIndex = (s) => JSON.parse(fs.readFileSync(s.indexFile, 'utf8'));
 const unitOf = (idx, unitId) => idx.tracks.flatMap((t) => t.units).find((u) => u.unitId === unitId);
 
@@ -93,12 +97,12 @@ test('単元間の移動: lessons/<id>.json の unitId が変わり、退避さ�
     const r = await call(port, 'PUT', '/api/index', moveLessonToUnit(idx, 'ice-01-suberu', 'keys'));
     assert.equal(r.status, 200, JSON.stringify(r.json));
     assert.deepEqual(r.json.moved, ['ice-01-suberu']);
-    assert.equal(unitIdOf(s.lessonsDir, 'ice-01-suberu'), 'keys');
+    assert.equal(unitIdOf(s, 'ice-01-suberu'), 'keys');
     assert.equal(backupsOf(s.backupsDir, 'ice-01-suberu-').length, 1);
     assert.equal(backupsOf(s.backupsDir, 'index-').length, 1);
     const steps = (await call(port, 'GET', '/api/lessons/ice-01-suberu')).json.steps;
     assert.equal((await call(port, 'PUT', '/api/lessons/ice-01-suberu', steps)).status, 200);
-    assert.equal(unitIdOf(s.lessonsDir, 'ice-01-suberu'), 'keys');
+    assert.equal(unitIdOf(s, 'ice-01-suberu'), 'keys');
   });
 });
 
@@ -143,7 +147,7 @@ test('段2: 単元の追加は空のままだと 400、レッスンを移すと�
     const r = await call(port, 'PUT', '/api/index', moved);
     assert.equal(r.status, 200, JSON.stringify(r.json));
     assert.deepEqual(unitOf(readIndex(s), 'newu').lessonIds, ['ice-01-suberu']);
-    assert.equal(unitIdOf(s.lessonsDir, 'ice-01-suberu'), 'newu');
+    assert.equal(unitIdOf(s, 'ice-01-suberu'), 'newu');
     const renamed = renameUnit(moved, 'newu', 'なおした');
     assert.equal((await call(port, 'PUT', '/api/index', renamed)).status, 200);
     assert.equal(unitOf(readIndex(s), 'newu').title, 'なおした');
@@ -176,7 +180,7 @@ test('段2: 追加・削除の後の index は validateIndex が通る', async (
     assert.equal((await call(port, 'PUT', '/api/index', next)).status, 200);
   });
   const lessonById = new Map();
-  for (const f of fs.readdirSync(s.lessonsDir)) if (f.endsWith('.json') && f !== 'index.json') lessonById.set(f.slice(0, -5), JSON.parse(fs.readFileSync(path.join(s.lessonsDir, f), 'utf8')));
+  for (const f of fs.readdirSync(s.lessonsDir)) if (f.endsWith('.json') && f !== 'index.json') lessonById.set(f.slice(0, -5), JSON.parse(fs.readFileSync(lessonFileOverlay(s, f.slice(0, -5)), 'utf8')));
   assert.deepEqual(validateIndex(readIndex(s), lessonById, new Set(lessonById.keys())), []);
 });
 
@@ -200,4 +204,23 @@ test('#644 段3: icon・color 付き保存が往復し、未指定に戻すと�
     assert.equal(Object.hasOwn(unitOf(readIndex(s), unitId), 'icon'), false);
     assert.equal(Object.hasOwn(unitOf(readIndex(s), unitId), 'color'), false);
   });
+});
+
+test('#685 段1: 保存は lessons/ を変えず drafts/publish/ に出る。移動した面も drafts/publish/lessons/ に出る', async () => {
+  const s = setup();
+  const idxBefore = fs.readFileSync(path.join(s.lessonsDir, 'index.json'));
+  const lessonBefore = fs.readFileSync(path.join(s.lessonsDir, 'ice-01-suberu.json'));
+  await withServer(s, async (port) => {
+    const idx = (await call(port, 'GET', '/api/index')).json;
+    const r = await call(port, 'PUT', '/api/index', moveLessonToUnit(idx, 'ice-01-suberu', 'keys'));
+    assert.equal(r.status, 200, JSON.stringify(r.json));
+    assert.ok(fs.existsSync(s.pubIndex));
+    assert.ok(fs.existsSync(path.join(s.draftsDir, 'publish', 'lessons', 'ice-01-suberu.json')));
+    // 重ね読み：一覧・個別・静的配信（ためしあそび）が drafts を見る
+    assert.equal((await call(port, 'GET', '/api/lessons')).json.find((l) => l.lessonId === 'ice-01-suberu').unitId, 'keys');
+    const served = await new Promise((resolve, reject) => http.get({ host: '127.0.0.1', port, path: '/lessons/ice-01-suberu.json' }, (res) => { let b = ''; res.on('data', (c) => { b += c; }); res.on('end', () => resolve(JSON.parse(b))); }).on('error', reject));
+    assert.equal(served.unitId, 'keys');
+  });
+  assert.deepEqual(fs.readFileSync(path.join(s.lessonsDir, 'index.json')), idxBefore);
+  assert.deepEqual(fs.readFileSync(path.join(s.lessonsDir, 'ice-01-suberu.json')), lessonBefore);
 });

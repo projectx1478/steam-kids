@@ -14,15 +14,16 @@ export default async function run({ page, check, shot }) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'editor-layout-'));
   const lessonsDir = path.join(tmp, 'lessons');
   const backupsDir = path.join(tmp, 'backups');
+  const draftsDir = path.join(tmp, 'drafts'); // #685: 保存先は drafts/publish/。重ね読み（あれば drafts、無ければ lessons/）で読む
+  const overlay = (name) => { const pub = name === 'index.json' ? path.join(draftsDir, 'publish', 'index.json') : path.join(draftsDir, 'publish', 'lessons', name); return fs.existsSync(pub) ? pub : path.join(lessonsDir, name); };
   fs.cpSync(path.join(ROOT, 'lessons'), lessonsDir, { recursive: true });
   const repoIndexBefore = fs.readFileSync(path.join(ROOT, 'lessons', 'index.json'), 'utf8');
-  const idxPath = path.join(lessonsDir, 'index.json');
-  const readIndex = () => JSON.parse(fs.readFileSync(idxPath, 'utf8'));
-  const readLesson = (id) => JSON.parse(fs.readFileSync(path.join(lessonsDir, `${id}.json`), 'utf8'));
+  const readIndex = () => JSON.parse(fs.readFileSync(overlay('index.json'), 'utf8'));
+  const readLesson = (id) => JSON.parse(fs.readFileSync(overlay(`${id}.json`), 'utf8'));
   const backupCount = () => (fs.existsSync(backupsDir) ? fs.readdirSync(backupsDir).filter((f) => /^index-.*\.json$/.test(f)).length : 0);
   const unitOf = (idx, unitId) => idx.tracks.flatMap((t) => t.units).find((u) => u.unitId === unitId);
 
-  const server = await startEditorServer({ port: 0, lessonsDir, backupsDir });
+  const server = await startEditorServer({ port: 0, lessonsDir, backupsDir, draftsDir });
   try {
     const port = server.address().port;
     const base = `http://127.0.0.1:${port}/`;
@@ -38,6 +39,13 @@ export default async function run({ page, check, shot }) {
       await page.waitForFunction(() => document.getElementById('layout-ng').textContent === '保存しました');
     };
     const ngText = () => page.evaluate(() => document.getElementById('layout-ng').textContent);
+
+    // 0. 公開ダイアログの開閉と変更ゼロ時の無効表示（仮保存が空のうちに。gh・git は呼ばれない）
+    await page.click('#publish-open');
+    await page.waitForSelector('#publish-panel:not([hidden])');
+    const pubState = await page.evaluate(() => ({ go: document.getElementById('publish-go').disabled, ng: document.getElementById('publish-ng').textContent }));
+    await page.click('#publish-close');
+    await check('公開ダイアログは変更ゼロで「公開する」無効・文言あり、とじるで閉じる', async () => [pubState.go, pubState.ng, await page.isHidden('#publish-panel')], [true, '公開する変更がありません', true]);
 
     // 1. パネルを開く
     const idx0 = readIndex();
@@ -139,18 +147,18 @@ export default async function run({ page, check, shot }) {
     await check('未指定に戻して保存すると color のキーが消える', () => Object.hasOwn(unitOf(readIndex(), 'commands'), 'color'), false);
 
     // 6. 保存前検査の失敗
-    const bytesBefore = fs.readFileSync(idxPath, 'utf8');
+    const bytesBefore = fs.readFileSync(overlay('index.json'), 'utf8');
     const b1 = backupCount();
     // 意図した 400 がブラウザの console.error / HTTP エラー検知に拾われないよう、ページ外（node）から送る。
     const cur = await (await fetch(`${base}api/index`)).json();
     cur.tracks[0].units[0].lessonIds.push('no-such-lesson');
     const status = (await fetch(`${base}api/index`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cur) })).status;
     await check('存在しない lessonId を含む PUT は 400', () => status, 400);
-    await check('index.json はバイト不変', () => fs.readFileSync(idxPath, 'utf8') === bytesBefore, true);
+    await check('index.json はバイト不変', () => fs.readFileSync(overlay('index.json'), 'utf8') === bytesBefore, true);
     await check('backups は増えない', () => backupCount(), b1);
 
     // 7. 保存後の index.json の検査と実リポジトリの不変
-    const lessonById = new Map(fs.readdirSync(lessonsDir).filter((f) => f.endsWith('.json') && f !== 'index.json').map((f) => [f.slice(0, -5), JSON.parse(fs.readFileSync(path.join(lessonsDir, f), 'utf8'))]));
+    const lessonById = new Map(fs.readdirSync(lessonsDir).filter((f) => f.endsWith('.json') && f !== 'index.json').map((f) => [f.slice(0, -5), JSON.parse(fs.readFileSync(overlay(f), 'utf8'))]));
     const fileIds = new Set(lessonById.keys());
     await check('保存後の index.json は validateIndex でエラー0件', () => validateIndex(readIndex(), lessonById, fileIds), []);
     await check('実リポジトリの lessons/index.json は不変', () => fs.readFileSync(path.join(ROOT, 'lessons', 'index.json'), 'utf8') === repoIndexBefore, true);

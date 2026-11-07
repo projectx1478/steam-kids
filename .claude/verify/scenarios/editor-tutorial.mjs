@@ -15,13 +15,14 @@ export default async function run({ page, check, shot }) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'editor-tutorial-'));
   const lessonsDir = path.join(tmp, 'lessons');
   const backupsDir = path.join(tmp, 'backups');
+  const draftsDir = path.join(tmp, 'drafts'); // #685: 保存先は drafts/publish/lessons/。あれば drafts、無ければ lessons/ を読む
   fs.cpSync(path.join(ROOT, 'lessons'), lessonsDir, { recursive: true });
-  const file = path.join(lessonsDir, `${LESSON}.json`);
-  const raw = () => fs.readFileSync(file, 'utf8');
+  const pubFile = path.join(draftsDir, 'publish', 'lessons', `${LESSON}.json`);
+  const raw = () => fs.readFileSync(fs.existsSync(pubFile) ? pubFile : path.join(lessonsDir, `${LESSON}.json`), 'utf8');
   const tutOf = () => JSON.parse(raw()).steps.find((s) => s.kind === 'tutorial');
   const repoBefore = fs.readFileSync(path.join(ROOT, 'lessons', `${LESSON}.json`), 'utf8');
 
-  const server = await startEditorServer({ port: 0, lessonsDir, backupsDir });
+  const server = await startEditorServer({ port: 0, lessonsDir, backupsDir, draftsDir });
   const ctx = await page.context().browser().newContext({ viewport: { width: 1280, height: 800 }, serviceWorkers: 'block' });
   const p = await ctx.newPage();
   const pageErrors = [];

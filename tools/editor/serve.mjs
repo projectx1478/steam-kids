@@ -6,9 +6,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Worker } from 'node:worker_threads';
+import { execFile } from 'node:child_process';
 import { formatLesson } from '../gen-stages.mjs';
 import { shortestSteps, shortestChips, boardSpec } from '../../js/engine-grid.js';
 import { checkStageGen } from '../lib/validate/stagegen.mjs';
+import { createPublisher } from './publish.mjs';
 
 export const EDITOR_HOST = '127.0.0.1';
 export const DEFAULT_PORT = 5173;
@@ -179,7 +181,7 @@ async function handleAnalyze(req, res, opts) {
   if (lessonId !== undefined) {
     try {
       const lessonsDir = process.env.LESSONS_DIR || path.join(ROOT, 'lessons');
-      steps = JSON.parse(await fs.promises.readFile(path.join(lessonsDir, `${lessonId}.json`), 'utf8')).steps;
+      steps = JSON.parse((await readOverlay(lessonsDir, publishDirOf(opts), `${lessonId}.json`)).raw).steps;
     } catch { return sendJson(res, 404, { messages: [`lessonId=${lessonId} のレッスンがありません`] }); }
     if (index !== undefined && !(Array.isArray(steps) && index < steps.length)) return sendJson(res, 400, { messages: ['index が範囲外です'] });
   }
@@ -423,13 +425,56 @@ export async function backupLesson(id, raw, backupsDir, now = new Date()) {
   return path.join(backupsDir, name);
 }
 
-async function readAllLessons(dir) {
-  const files = (await fs.promises.readdir(dir)).filter((f) => f.endsWith('.json') && f !== 'index.json');
+// ---- 仮保存（#685）。配置の保存先は lessons/ ではなく tools/editor/drafts/publish/ 配下。読むときは「あれば drafts、無ければ lessons/」の重ね読み ----
+const publishDirOf = (opts) => path.join(draftsDirOf(opts), 'publish');
+const pubFileOf = (pubDir, name) => (name === 'index.json' ? path.join(pubDir, 'index.json') : path.join(pubDir, 'lessons', name));
+
+// name（'index.json' か '<id>.json'）を重ね読みする。{ raw, file(読んだ元), fromDrafts }。どちらにも無ければ throw。
+async function readOverlay(dir, pubDir, name) {
+  const pub = pubFileOf(pubDir, name);
+  try { return { raw: await fs.promises.readFile(pub, 'utf8'), file: pub, fromDrafts: true }; } catch (e) { if (e.code !== 'ENOENT') throw e; }
+  const file = path.join(dir, name);
+  return { raw: await fs.promises.readFile(file, 'utf8'), file, fromDrafts: false };
+}
+
+async function readAllLessons(dir, pubDir) {
+  const names = new Set((await fs.promises.readdir(dir)).filter((f) => f.endsWith('.json') && f !== 'index.json'));
+  try { for (const f of await fs.promises.readdir(path.join(pubDir, 'lessons'))) if (f.endsWith('.json')) names.add(f); } catch { /* 無ければ lessons/ のみ */ }
+  const files = [...names];
   const lessons = new Map();
   for (const f of files) {
-    try { lessons.set(f.slice(0, -5), JSON.parse(await fs.promises.readFile(path.join(dir, f), 'utf8'))); } catch { /* 読めないファイルは飛ばす */ }
+    try { lessons.set(f.slice(0, -5), JSON.parse((await readOverlay(dir, pubDir, f)).raw)); } catch { /* 読めないファイルは飛ばす */ }
   }
   return { files, lessons };
+}
+
+const execFileP = (cmd, args, cwd) => new Promise((resolve, reject) => {
+  execFile(cmd, args, { cwd, windowsHide: true }, (err, stdout, stderr) => (err ? reject(Object.assign(err, { stdout, stderr })) : resolve({ stdout, stderr })));
+});
+
+// 既定の base 取得：git fetch origin main → 作業ツリーの lessons/ が origin/main と同じか確認 → origin/main の sha。違えば Error。
+export async function resolveBaseDefault() {
+  try { await execFileP('git', ['fetch', 'origin', 'main'], ROOT); } catch (e) { throw new Error(`git fetch origin main に失敗しました（${String(e.stderr || e.message).trim().split('\n').pop()}）`); }
+  try { await execFileP('git', ['diff', '--quiet', 'origin/main', '--', 'lessons'], ROOT); } catch (e) {
+    if (e.code === 1) throw new Error('作業ツリーの lessons/ が origin/main と違います。git pull してから保存してください');
+    throw new Error(`git diff に失敗しました（${String(e.stderr || e.message).trim()}）`);
+  }
+  return (await execFileP('git', ['rev-parse', 'origin/main'], ROOT)).stdout.trim();
+}
+
+// 最初の仮保存のとき drafts/publish/base.json を書く。既にあれば何もしない。問題があれば messages（空なら OK）。
+// 実リポジトリの lessons/ 以外（試験用の lessonsDir・LESSONS_DIR）では、opts.resolveBase が無ければ base を記録しない。
+export async function ensureBase(opts, pubDir) {
+  const bf = path.join(pubDir, 'base.json');
+  if (fs.existsSync(bf)) return [];
+  const real = path.resolve(lessonsDirOf(opts)) === path.join(ROOT, 'lessons');
+  const resolver = opts.resolveBase || (real ? resolveBaseDefault : null);
+  if (!resolver) return [];
+  let sha;
+  try { sha = await resolver(); } catch (e) { return [e.message]; }
+  await fs.promises.mkdir(pubDir, { recursive: true });
+  await fs.promises.writeFile(bf, `${JSON.stringify({ base: sha, at: new Date().toISOString() })}\n`, 'utf8');
+  return [];
 }
 
 // validateLesson・validateIndex をメモリ上で worker_threads から呼ぶ。timeoutMs で打ち切り（timeout:true）。
@@ -486,9 +531,10 @@ export function checkIndexChange(current, next) {
 
 async function handleIndex(req, res, opts) {
   const dir = lessonsDirOf(opts);
-  const file = path.join(dir, 'index.json');
+  const pubDir = publishDirOf(opts);
+  const file = pubFileOf(pubDir, 'index.json');
   let raw;
-  try { raw = await fs.promises.readFile(file, 'utf8'); } catch { return sendJson(res, 404, { messages: ['index.json がありません'] }); }
+  try { raw = (await readOverlay(dir, pubDir, 'index.json')).raw; } catch { return sendJson(res, 404, { messages: ['index.json がありません'] }); }
   let current;
   try { current = JSON.parse(raw); } catch { return sendJson(res, 400, { messages: ['index.json: JSONとして読めません'] }); }
   if (req.method === 'GET') return sendJson(res, 200, current);
@@ -501,7 +547,7 @@ async function handleIndex(req, res, opts) {
   const problems = checkIndexChange(current, body);
   if (problems.length > 0) return sendJson(res, 400, { messages: problems });
 
-  const { files, lessons } = await readAllLessons(dir);
+  const { files, lessons } = await readAllLessons(dir, pubDir);
   // 単元間の移動：レッスン本体の unitId を移動先の単元に合わせる（メモリ上）
   const moved = new Map();
   for (const t of body.tracks) for (const u of t.units) for (const id of idsOfUnit(u)) {
@@ -517,12 +563,15 @@ async function handleIndex(req, res, opts) {
   const crlf = (rawText, out) => (rawText.includes('\r\n') ? out.replace(/\n/g, '\r\n') : out);
   const lessonWrites = [];
   for (const [id, data] of moved) {
-    const lf = lessonFileOf(dir, id);
-    const lraw = await fs.promises.readFile(lf, 'utf8');
+    const lf = lessonFileOf(path.join(pubDir, 'lessons'), id);
+    const lraw = (await readOverlay(dir, pubDir, `${id}.json`)).raw;
     lessonWrites.push({ id, lf, lraw, out: crlf(lraw, `${formatLesson(data)}\n`) });
   }
+  const baseNg = await ensureBase(opts, pubDir);
+  if (baseNg.length > 0) return sendJson(res, 400, { messages: baseNg });
   await backupLesson('index', raw, backups);
   for (const w of lessonWrites) await backupLesson(w.id, w.lraw, backups);
+  await fs.promises.mkdir(path.join(pubDir, 'lessons'), { recursive: true });
   for (const w of lessonWrites) await fs.promises.writeFile(w.lf, w.out, 'utf8');
   await fs.promises.writeFile(file, crlf(raw, `${formatLesson(body)}\n`), 'utf8');
   sendJson(res, 200, { ok: true, moved: [...moved.keys()] });
@@ -530,19 +579,20 @@ async function handleIndex(req, res, opts) {
 
 async function handleLessons(req, res, pathname, opts) {
   const dir = lessonsDirOf(opts);
+  const pubDir = publishDirOf(opts);
   if (pathname === '/api/lessons') {
     if (req.method !== 'GET') return sendJson(res, 404, { messages: ['Not Found'] });
-    const { lessons } = await readAllLessons(dir);
+    const { lessons } = await readAllLessons(dir, pubDir);
     return sendJson(res, 200, [...lessons].sort(([a], [b]) => (a < b ? -1 : 1)).map(([id, d]) => ({ lessonId: id, title: d.title, unitId: d.unitId, stepCount: Array.isArray(d.steps) ? d.steps.length : 0 })));
   }
   let id;
   try { id = decodeURIComponent(pathname.slice('/api/lessons/'.length)); } catch { return sendJson(res, 400, { messages: ['id が不正です'] }); }
   const idProblems = checkLessonId(id);
   if (idProblems.length > 0) return sendJson(res, 400, { messages: idProblems });
-  const file = lessonFileOf(dir, id);
+  const file = lessonFileOf(path.join(pubDir, 'lessons'), id);
   if (!file) return sendJson(res, 400, { messages: ['パスが不正です'] });
   let raw;
-  try { raw = await fs.promises.readFile(file, 'utf8'); } catch { return sendJson(res, 404, { messages: [`${id} のレッスンがありません`] }); }
+  try { raw = (await readOverlay(dir, pubDir, `${id}.json`)).raw; } catch { return sendJson(res, 404, { messages: [`${id} のレッスンがありません`] }); }
   let current;
   try { current = JSON.parse(raw); } catch { return sendJson(res, 400, { messages: [`${id}.json: JSONとして読めません`] }); }
   if (req.method === 'GET') return sendJson(res, 200, { ok: true, lessonId: id, steps: current.steps, keepHandwritten: current.stageGen && typeof current.stageGen === 'object' ? (current.stageGen.keepHandwritten ?? []) : null });
@@ -562,18 +612,21 @@ async function handleLessons(req, res, pathname, opts) {
 
   const next = { ...current, steps };
   if (withKeep) next.stageGen = { ...current.stageGen, keepHandwritten: body.keepHandwritten };
-  const { files, lessons } = await readAllLessons(dir);
+  const { files, lessons } = await readAllLessons(dir, pubDir);
   lessons.set(id, next);
   let indexData = null;
-  try { indexData = JSON.parse(await fs.promises.readFile(path.join(dir, 'index.json'), 'utf8')); } catch { return sendJson(res, 400, { messages: ['index.json: 読めません（検査できないため保存しません）'] }); }
+  try { indexData = JSON.parse((await readOverlay(dir, pubDir, 'index.json')).raw); } catch { return sendJson(res, 400, { messages: ['index.json: 読めません（検査できないため保存しません）'] }); }
   const longTrialIds = Array.isArray(indexData.longTrialIds) ? indexData.longTrialIds.filter((x) => typeof x === 'string') : [];
   const fileIds = new Set([...files.map((f) => f.slice(0, -5)), id]);
   const result = await runSaveValidate({ id, data: next, longTrialIds, indexData, lessons: [...lessons], fileIds: [...fileIds] }, opts.saveTimeoutMs);
   if (result.timeout) return sendJson(res, 400, { messages: ['検査が時間内に終わらなかったため保存しません（時間切れ）'] });
   if (result.errors.length > 0) return sendJson(res, 400, { messages: result.errors });
 
+  const baseNg = await ensureBase(opts, pubDir);
+  if (baseNg.length > 0) return sendJson(res, 400, { messages: baseNg });
   await backupLesson(id, raw, backupsDirOf(opts));
   const out = `${formatLesson(next)}\n`;
+  await fs.promises.mkdir(path.join(pubDir, 'lessons'), { recursive: true });
   await fs.promises.writeFile(file, raw.includes('\r\n') ? out.replace(/\n/g, '\r\n') : out, 'utf8');
   sendJson(res, 200, { ok: true });
 }
@@ -633,10 +686,26 @@ async function handleDrafts(req, res, pathname, opts) {
   sendJson(res, 200, { ok: true });
 }
 
+// 公開（#685 段2）：GET /api/publish/preview（書かない）・POST /api/publish（開始。実行中は 409）・GET /api/publish/status（進捗）
+async function handlePublish(req, res, pathname, publisher) {
+  if (req.method === 'GET' && pathname === '/api/publish/preview') return sendJson(res, 200, await publisher.preview());
+  if (req.method === 'GET' && pathname === '/api/publish/status') return sendJson(res, 200, publisher.status());
+  if (req.method === 'POST' && pathname === '/api/publish') {
+    if (!publisher.start()) return sendJson(res, 409, { messages: ['公開は実行中です'] });
+    return sendJson(res, 202, { ok: true });
+  }
+  return sendJson(res, 404, { messages: ['Not Found'] });
+}
+
 export function createEditorServer(opts = {}) {
+  const publisher = createPublisher({ pubDir: publishDirOf(opts), root: opts.publishRoot || ROOT, run: opts.publishRun });
   return http.createServer((req, res) => {
     const notFound = () => { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('Not Found'); };
     const pathname = new URL(req.url, 'http://localhost').pathname;
+    if (pathname === '/api/publish' || pathname.startsWith('/api/publish/')) {
+      handlePublish(req, res, pathname, publisher).catch(() => sendJson(res, 500, { messages: ['内部エラー'] }));
+      return;
+    }
     if (pathname === '/api/lessons' || pathname.startsWith('/api/lessons/')) {
       handleLessons(req, res, pathname, opts).catch(() => sendJson(res, 500, { messages: ['内部エラー'] }));
       return;
@@ -658,8 +727,14 @@ export function createEditorServer(opts = {}) {
       return;
     }
     if (req.method !== 'GET' && req.method !== 'HEAD') return notFound();
-    const file = resolveRequest(new URL(req.url, 'http://localhost').pathname);
+    let file = resolveRequest(new URL(req.url, 'http://localhost').pathname);
     if (!file) return notFound();
+    // 重ね読み（#685）：/lessons/<name>.json は仮保存（drafts/publish/）があればそちらを返す
+    const lm = /^\/lessons\/([A-Za-z0-9_-]+\.json)$/.exec(pathname);
+    if (lm) {
+      const pub = pubFileOf(publishDirOf(opts), lm[1]);
+      if (fs.existsSync(pub)) file = pub;
+    }
     fs.readFile(file, (err, data) => {
       if (err) return notFound();
       res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store' });

@@ -16,6 +16,7 @@
   <button type="button" class="btn" id="redo" disabled>やり直し</button>
   <button type="button" class="btn" id="gen-open">たたき台</button>
   <button type="button" class="btn" id="layout-open">配置</button>
+  <button type="button" class="btn" id="publish-open">公開…</button>
   <span id="layout-msg"></span>
   <button type="button" class="btn" id="trial-open">ためしあそび</button>
   <label class="grid-ctl">よこ <input type="number" id="grid-w" min="1" max="20" step="1"></label>
@@ -117,8 +118,18 @@
     <div class="gen-head"><strong>れっすんを えらぼう の配置</strong>
       <span><button type="button" class="btn sm" id="layout-discard" disabled>変更を破棄</button> <button type="button" class="btn sm" id="layout-save" disabled>保存</button> <button type="button" class="btn sm" id="layout-close">とじる</button></span></div>
     <div id="layout-ng"></div>
-    <div id="layout-note" hidden>手元に保存しました。公開サイトに出すには、コミット→PR→マージが要ります。<a href="/help.html#o-layout" target="_blank" rel="noopener">くわしくは「つかいかた」</a></div>
+    <div id="layout-note" hidden>手元に仮保存しました。公開ボタンで公開します。<a href="/help.html#o-layout" target="_blank" rel="noopener">くわしくは「つかいかた」</a></div>
     <div id="layout-body"></div>
+  </div>
+</div>
+<div id="publish-panel" hidden>
+  <div class="publish-box" role="dialog" aria-label="公開の確認">
+    <div class="gen-head"><strong>公開の確認</strong>
+      <span><button type="button" class="btn sm" id="publish-close">とじる</button></span></div>
+    <div id="publish-ng"></div>
+    <div id="publish-body"></div>
+    <div id="publish-log"></div>
+    <div class="publish-foot"><button type="button" class="btn" id="publish-back">戻る</button> <button type="button" class="btn" id="publish-go" disabled>公開する</button></div>
   </div>
 </div>
 <script type="module" src="/editor.js"></script>
