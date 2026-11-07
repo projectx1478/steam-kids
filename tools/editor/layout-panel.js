@@ -217,6 +217,16 @@ export function closeLayoutPanel() {
   $('layout-panel').hidden = true;
 }
 
+// 公開ダイアログ（#685 段3）用：配置パネルが開いていて保存していない変更があるか。
+export function layoutHasUnsaved() {
+  return !$('layout-panel').hidden && dirty();
+}
+
+// 公開ダイアログを開くとき、保存していない変更が無い配置パネルを閉じる。
+export function hideLayoutPanel() {
+  if (!layoutHasUnsaved()) $('layout-panel').hidden = true;
+}
+
 $('layout-save').addEventListener('click', saveLayout);
 $('layout-discard').addEventListener('click', discardLayout);
 $('layout-close').addEventListener('click', closeLayoutPanel);

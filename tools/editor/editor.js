@@ -5,6 +5,7 @@ import { EMPTY_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clam
 import { GIMMICKS } from '/js/gimmicks/index.js';
 import { markGatePassedToday } from '/js/gate-date.js';
 import { openLayoutPanel } from './layout-panel.js';
+import './publish-panel.js';
 import { buildPalette, iconSpec } from './palette.js';
 import { isDragKey, lineCells, dragBegin, dragStep, dragEnd, dragCancel, createState, setCellPx as setStateCellPx, setGrid, shrinkLoss, place, erase, move, toggleTarget, togglePaint, setSwitchColor, setSwitchMode, setSwitchGroup, setTargetInitial, setMaxPauses, setKeyColor, setDoorColor, setKeyMode, setWaterMode, setPeriodicPeriod, PERIODIC_PERIODS, WATER_MODES, SWITCH_COLORS, KEY_COLORS, KEY_MODES, undo, redo, canUndo, canRedo, nextGeneration, shouldApplyResult, createLessonState, selectStep, loadSpec, moveStep, replaceStep, removeStep, duplicateStep, pinStep, duplicateBoards, hasBoard, addDraftStep, explainSaveNg, addTutorialStep, setStepText, setTutorialScript, tutorialReach } from './editor-state.js';
 

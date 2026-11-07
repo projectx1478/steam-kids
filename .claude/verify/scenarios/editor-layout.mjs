@@ -40,6 +40,13 @@ export default async function run({ page, check, shot }) {
     };
     const ngText = () => page.evaluate(() => document.getElementById('layout-ng').textContent);
 
+    // 0. 公開ダイアログの開閉と変更ゼロ時の無効表示（仮保存が空のうちに。gh・git は呼ばれない）
+    await page.click('#publish-open');
+    await page.waitForSelector('#publish-panel:not([hidden])');
+    const pubState = await page.evaluate(() => ({ go: document.getElementById('publish-go').disabled, ng: document.getElementById('publish-ng').textContent }));
+    await page.click('#publish-close');
+    await check('公開ダイアログは変更ゼロで「公開する」無効・文言あり、とじるで閉じる', async () => [pubState.go, pubState.ng, await page.isHidden('#publish-panel')], [true, '公開する変更がありません', true]);
+
     // 1. パネルを開く
     const idx0 = readIndex();
     await page.click('#layout-open');
