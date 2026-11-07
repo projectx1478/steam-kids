@@ -57,13 +57,13 @@ export default async function run({ page, check }) {
   await page.waitForSelector('[data-action="next-stage"]', { timeout: 10000 });
   await click(page, 'next-stage');
 
-  // p2：同じ盤で開始(位置2・重さ2)→重さを−1回→(2,1)でクリア
+  // p2：独立した盤（n3・左1体pos3・開始 位置1・重さ1・解 [3,1]）→▶を2回→(3,1)でクリア
   await page.waitForSelector('[data-action="robots-plus"]');
-  await check('p2：開始の重さは2', () => moverRobots(page), 2);
+  await check('p2：開始の重さは1', () => moverRobots(page), 1);
   await layout(page, 'p2', check);
   await page.setViewportSize({ width: 1024, height: 640 });
-  await click(page, 'robots-minus');
-  await check('p2：重さが1になる', () => moverRobots(page), 1);
+  await click(page, 'pos-right', 2);
+  await check('p2：位置を▶2回しても重さは1', () => moverRobots(page), 1);
   await click(page, 'run');
   await page.waitForSelector('[data-action="next-stage"]', { timeout: 10000 });
   await click(page, 'next-stage');
@@ -107,8 +107,60 @@ export default async function run({ page, check }) {
   await click(page, 'robots-plus', 2);
   await check('p4：重さが3になる', () => moverRobots(page), 3);
   await click(page, 'run');
+  await page.waitForSelector('[data-action="next-stage"]', { timeout: 10000 });
+  await click(page, 'next-stage');
+
+  // p5：n4・左3体pos2・解 [3,2]（別解 [2,3]）。位置だけ・重さだけでは失敗→▶2回・＋1回でクリア
+  await page.waitForSelector('[data-action="robots-plus"]');
+  await layout(page, 'p5', check);
+  await page.setViewportSize({ width: 1024, height: 640 });
+  await click(page, 'pos-right', 2);
+  await click(page, 'run');
+  await page.waitForSelector('[data-action="retry"]', { timeout: 10000 });
+  await click(page, 'retry');
+  await click(page, 'robots-plus');
+  await click(page, 'run');
+  await page.waitForSelector('[data-action="retry"]', { timeout: 10000 });
+  await click(page, 'retry');
+  await click(page, 'pos-right', 2);
+  await click(page, 'robots-plus');
+  await check('p5：重さが2になる', () => moverRobots(page), 2);
+  await click(page, 'run');
+  await page.waitForSelector('[data-action="next-stage"]', { timeout: 10000 });
+  await click(page, 'next-stage');
+
+  // p6：n4・左4体pos2・解 [4,2]（▶3回・＋1回）
+  await page.waitForSelector('[data-action="robots-plus"]');
+  await layout(page, 'p6', check);
+  await page.setViewportSize({ width: 1024, height: 640 });
+  await click(page, 'pos-right', 3);
+  await click(page, 'robots-plus');
+  await check('p6：重さが2になる', () => moverRobots(page), 2);
+  await click(page, 'run');
+  await page.waitForSelector('[data-action="next-stage"]', { timeout: 10000 });
+  await click(page, 'next-stage');
+
+  // p7：n3・左3体pos3・解 [3,3]（▶2回・＋2回）
+  await page.waitForSelector('[data-action="robots-plus"]');
+  await layout(page, 'p7', check);
+  await page.setViewportSize({ width: 1024, height: 640 });
+  await click(page, 'pos-right', 2);
+  await click(page, 'robots-plus', 2);
+  await check('p7：重さが3になる', () => moverRobots(page), 3);
+  await click(page, 'run');
+  await page.waitForSelector('[data-action="next-stage"]', { timeout: 10000 });
+  await click(page, 'next-stage');
+
+  // p8：n4・左4体pos3・解 [4,3]（▶3回・＋2回）
+  await page.waitForSelector('[data-action="robots-plus"]');
+  await layout(page, 'p8', check);
+  await page.setViewportSize({ width: 1024, height: 640 });
+  await click(page, 'pos-right', 3);
+  await click(page, 'robots-plus', 2);
+  await check('p8：重さが3になる', () => moverRobots(page), 3);
+  await click(page, 'run');
   await page.waitForSelector('[data-action="next"]', { timeout: 10000 });
-  await check('teko-05：stage_clear3回・clear1回（最終面はclear）', () => counts(page), '3,1');
+  await check('teko-05：stage_clear7回・clear1回（最終面はclear）', () => counts(page), '7,1');
   await click(page, 'next');
   await page.waitForSelector('[data-action="back-to-picker"]');
   await check('teko-05：summaryへ進める', () => page.getAttribute('#stage', 'data-step'), 'summary');

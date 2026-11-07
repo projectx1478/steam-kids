@@ -1,0 +1,102 @@
+{
+  "lessonId": "teko-09-oukou",
+  "unitId": "teko",
+  "title": "つりあい 4",
+  "type": "predict-slider",
+  "estimatedMinutes": 8,
+  "steps": [
+    { "stepId": "s1", "kind": "intro", "text": "みぎにも ロボットが いるよ" },
+    {
+      "stepId": "p1",
+      "kind": "play",
+      "text": "つりあう ところに おこう",
+      "seesaw": {
+        "notches": 4,
+        "left": [{ "robots": 1, "pos": 3 }],
+        "right": [{ "robots": 1, "pos": 1 }],
+        "mover": { "robots": 1, "start": 4 }
+      },
+      "solution": 2
+    },
+    {
+      "stepId": "p2",
+      "kind": "play",
+      "text": "つりあう ところに おこう",
+      "seesaw": {
+        "notches": 4,
+        "left": [{ "robots": 1, "pos": 4 }],
+        "right": [{ "robots": 1, "pos": 1 }],
+        "mover": { "robots": 1, "start": 4 }
+      },
+      "solution": 3
+    },
+    {
+      "stepId": "p3",
+      "kind": "play",
+      "text": "つりあう ところに おこう",
+      "seesaw": {
+        "notches": 4,
+        "left": [{ "robots": 2, "pos": 3 }],
+        "right": [{ "robots": 2, "pos": 1 }],
+        "mover": { "robots": 2, "start": 4 }
+      },
+      "solution": 2
+    },
+    {
+      "stepId": "p4",
+      "kind": "play",
+      "text": "つりあう ところに おこう",
+      "seesaw": {
+        "notches": 4,
+        "left": [{ "robots": 2, "pos": 2 }],
+        "mover": { "robots": 1, "start": 1, "side": "both" }
+      },
+      "solution": 4
+    },
+    {
+      "stepId": "p5",
+      "kind": "play",
+      "text": "つりあう ところに おこう",
+      "seesaw": {
+        "notches": 4,
+        "left": [{ "robots": 1, "pos": 2 }],
+        "right": [{ "robots": 2, "pos": 3 }],
+        "mover": { "robots": 1, "start": 1, "side": "both" }
+      },
+      "solution": -4
+    },
+    {
+      "stepId": "p6",
+      "kind": "play",
+      "text": "つりあう ところに おこう",
+      "seesaw": {
+        "notches": 4,
+        "left": [{ "robots": 1, "pos": 2 }],
+        "right": [{ "robots": 2, "pos": 4 }],
+        "mover": { "robots": 2, "start": 1, "side": "both" }
+      },
+      "solution": -3
+    },
+    {
+      "stepId": "p7",
+      "kind": "play",
+      "seesaw": {
+        "notches": 4,
+        "left": [{ "robots": 1, "pos": 3 }, { "robots": 1, "pos": 4 }],
+        "mover": [{ "robots": 2, "start": 4 }, { "robots": 3, "start": 3 }]
+      },
+      "solution": [2, 1]
+    },
+    {
+      "stepId": "p8",
+      "kind": "play",
+      "seesaw": {
+        "notches": 4,
+        "left": [{ "robots": 3, "pos": 3 }],
+        "mover": [{ "robots": 1, "start": 4 }, { "robots": 2, "start": 3 }]
+      },
+      "solution": [1, 4]
+    },
+    { "stepId": "s2", "kind": "summary", "text": "りょうがわを くらべよう" }
+  ]
+}

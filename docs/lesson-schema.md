@@ -59,7 +59,8 @@
 `tools/validate-lessons.mjs`が機械チェック）。`predict`は将来の教材型向けに語彙のみ残し、
 現行レッスンでは0個（Issue #104で全廃。0個でも検証NG にはしない）。
 
-**長尺試作（例外）**：ステージ数を通常（play 2〜4）より増やすレッスン。ステージ数だけを変えた別IDの試作（例：cmd-01 を元にした cmd-01-susumu-long）のほか、teko 単元の教材（つりあいの teko-01〜03、浮力の teko-07・teko-08）も載る（つりあいの teko-01〜03 と浮力の teko-07・teko-08 は公開レッスンでもある。単元`ukabu`に置く）。
+**長尺試作（例外）**：ステージ数を通常（play 2〜4）より増やすレッスン。ステージ数だけを変えた別IDの試作（例：cmd-01 を元にした cmd-01-susumu-long）のほか、teko 単元の教材（つりあいの teko-01〜06・teko-09、浮力の teko-07・teko-08）も載る（つりあいの teko-01〜05・teko-09 と浮力の teko-07・teko-08 は公開レッスンでもある。teko-06 は練習で、単元の practiceIds に置く。浮力は単元`ukabu`に置く）。
+**てこ・浮力・新教材は8ステージ固定**：今後つくる teko 単元・浮力・新教材のレッスンは、1レッスン＝ play 8（steps は intro 1＋play 8＋summary 1＝10）、`estimatedMinutes` は 8、`longTrialIds` に載せる。既存のブロック〔`grid-runtime`〕レッスンは対象外（play 2〜4、所要5分のまま）。
 下記の上限を緩められるのは、この一覧に載るIDか、下の stageGen の別枠だけである。
 `stageGen` を持つレッスン（`seedPick` を持たないもの）も、一覧に載せずに緩められる（別枠）：play は `stageGen.stages` 個まで（最大8）、steps は12個まで、`estimatedMinutes` は8。
 一覧の置き場は `lessons/index.json` の最上位 `longTrialIds`（文字列配列。省略時は空。
@@ -332,7 +333,7 @@ MustMatterは、ギミックモジュールの`strip(spec)`（ギミックを除
 - `lessons/index.json` の `longTrialIds` は配列で、要素は文字列・重複なし、各IDに対応する
   `lessons/<id>.json` があること（一覧に載るのにJSONが無い場合は不合格）
 - `stageGen` を持つレッスンは `longTrialIds` に載せない（詰まりアラートを空にしないため）
-- 長尺試作（一覧のID）は `seedPick`（れんしゅう）を持てない（併用は不合格）
+- 長尺試作（一覧のID）は `seedPick`（れんしゅう）を持てない（併用は不合格）。ただし `type: "predict-slider"`（シーソーのれんしゅう。teko-06）は持てる
 - `answer` が `options` に存在し、`optionCells` の `id` 集合が `options` と一致すること
 - `predict.commands` を最初の `play`（`p1`）の盤面で実行した終点が `answer` の `optionCells` 座標と
   一致すること

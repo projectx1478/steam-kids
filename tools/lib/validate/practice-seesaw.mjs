@@ -38,9 +38,26 @@ function validateShape(play, add) {
   }
   return ok;
 }
-// シーソーのれんしゅう（predict-slider＋seedPick。Issue #611）。構成は seedPick, play×5, summary。
-// playの generator は { seesawStage: 'A'|'B'|'C' } だけ（seesaw・solution は書かない）。段の並びは A,A,B,B,C。
-// 面は全1000番号で generateSeesawRun を回して確かめる（解ちょうど1つ・開始で傾く・段のd範囲内・d非減少・盤の重複なし）。
+// シーソーのれんしゅう（predict-slider＋seedPick。Issue #611）。構成は seedPick, play×8, summary（SEESAW_RUN_STAGES から導く）。
+// playの generator は { seesawStage: 'A'|'B'|'R'|'X' } だけ（seesaw・solution は書かない）。段の並びは A,A,B,R,R,X,X,X（Issue #676）。
+// 面は全1000番号で generateSeesawRun を回して確かめる（解の個数・開始で傾く・段のd範囲内・d非減少・盤の重複なし）。
+// 解の個数：位置だけの段（A・B）は solutions が1〜MAX_MULTI_SOLUTIONS件、人数が動く段（R・X）は solutionPairs がちょうど1件。
+export function seesawFaceProblems(stage, spec) {
+  const cond = SEESAW_STAGES[stage];
+  const problems = [];
+  if (cond.kind === 'pos') {
+    const n = solutions(spec).length;
+    if (n < 1 || n > MAX_MULTI_SOLUTIONS) problems.push(['解の個数', `の解が${n}個（1〜${MAX_MULTI_SOLUTIONS}個である必要がある）`]);
+  } else {
+    const n = solutionPairs(spec).length;
+    if (n !== 1) problems.push(['解の個数', `の解が${n}個（ちょうど1つ必要）`]);
+  }
+  if (balance(spec, spec.mover.start).tilt === 0) problems.push(['start', 'がstartの時点でつりあっている']);
+  const d = difficulty(spec);
+  if (d < cond.d[0] || d > cond.d[1]) problems.push(['難易度', `のd=${d}が段${stage}の範囲外`]);
+  return problems;
+}
+
 function validateSeesawPractice(steps, add) {
   const expected = ['seedPick', ...SEESAW_RUN_STAGES.map(() => 'play'), 'summary'];
   const kinds = steps.map((s) => s.kind).join(',');
@@ -54,7 +71,7 @@ function validateSeesawPractice(steps, add) {
     const label = `stepId="${play.stepId}"`;
     const g = play.generator;
     if (!isObj(g) || Object.keys(g).length !== 1 || !('seesawStage' in g)) {
-      add('generator', `${label} のgeneratorは { "seesawStage": "A"|"B"|"C" } だけ（他のキーは受け付けない）`);
+      add('generator', `${label} のgeneratorは { "seesawStage": "A"|"B"|"R"|"X" } だけ（他のキーは受け付けない）`);
       ok = false;
     } else if (g.seesawStage !== SEESAW_RUN_STAGES[i]) {
       add('generator', `${label} のseesawStage=${JSON.stringify(g.seesawStage)} が不正（${i + 1}面目は"${SEESAW_RUN_STAGES[i]}"。並びは${SEESAW_RUN_STAGES.join(',')}）`);
@@ -69,19 +86,15 @@ function validateSeesawPractice(steps, add) {
   });
   if (!ok) return;
   const stages = plays.map((p) => p.generator.seesawStage);
-  const boardKey = (s) => JSON.stringify([s.notches, s.left.map((w) => [w.robots, w.pos]), s.mover.robots]);
+  const boardKey = (s) => JSON.stringify([s.notches, s.left.map((w) => [w.robots, w.pos]), s.mover.robots, s.mover.maxRobots ?? null, s.mover.fixedPos ?? null]);
   for (let n = 0; n < 1000; n += 1) {
     const code = String(n).padStart(3, '0');
     const run = generateSeesawRun(stages, code);
     let prevD = 0;
     run.forEach((spec, i) => {
       const label = `番号${code}の${i + 1}面目`;
-      const cond = SEESAW_STAGES[stages[i]];
-      const found = solutions(spec);
-      if (found.length !== 1) add('解の個数', `${label}の解が${found.length}個（ちょうど1つ必要）`);
-      if (balance(spec, spec.mover.start).tilt === 0) add('start', `${label}がstartの時点でつりあっている`);
+      for (const [rule, msg] of seesawFaceProblems(stages[i], spec)) add(rule, `${label}${msg}`);
       const d = difficulty(spec);
-      if (d < cond.d[0] || d > cond.d[1]) add('難易度', `${label}のd=${d}が段${stages[i]}の範囲外`);
       if (d < prevD) add('難易度', `${label}のd=${d}が前の面(${prevD})より小さい`);
       prevD = d;
     });

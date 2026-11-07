@@ -3,31 +3,17 @@
   "unitId": "teko",
   "title": "おもさを かえよう",
   "type": "predict-slider",
-  "estimatedMinutes": 5,
+  "estimatedMinutes": 8,
   "steps": [
-    {
-      "stepId": "s1",
-      "kind": "intro",
-      "text": "おもさを かえて つりあわせよう"
-    },
+    { "stepId": "s1", "kind": "intro", "text": "おもさを かえて つりあわせよう" },
     {
       "stepId": "p1",
       "kind": "play",
       "text": "＋ で ふやそう",
       "seesaw": {
         "notches": 3,
-        "left": [
-          {
-            "robots": 1,
-            "pos": 2
-          }
-        ],
-        "mover": {
-          "robots": 1,
-          "maxRobots": 3,
-          "fixedPos": 1,
-          "start": 1
-        }
+        "left": [{ "robots": 1, "pos": 2 }],
+        "mover": { "robots": 1, "maxRobots": 3, "fixedPos": 1, "start": 1 }
       },
       "solution": 2
     },
@@ -36,18 +22,8 @@
       "kind": "play",
       "seesaw": {
         "notches": 3,
-        "left": [
-          {
-            "robots": 1,
-            "pos": 3
-          }
-        ],
-        "mover": {
-          "robots": 1,
-          "maxRobots": 3,
-          "fixedPos": 1,
-          "start": 1
-        }
+        "left": [{ "robots": 1, "pos": 3 }],
+        "mover": { "robots": 1, "maxRobots": 3, "fixedPos": 1, "start": 1 }
       },
       "solution": 3
     },
@@ -56,25 +32,61 @@
       "kind": "play",
       "seesaw": {
         "notches": 3,
-        "left": [
-          {
-            "robots": 2,
-            "pos": 2
-          }
-        ],
-        "mover": {
-          "robots": 1,
-          "maxRobots": 3,
-          "fixedPos": 2,
-          "start": 2
-        }
+        "left": [{ "robots": 2, "pos": 2 }],
+        "mover": { "robots": 1, "maxRobots": 3, "fixedPos": 2, "start": 2 }
       },
       "solution": 2
     },
     {
-      "stepId": "s2",
-      "kind": "summary",
-      "text": "ふえると おもくなるよ"
-    }
+      "stepId": "p4",
+      "kind": "play",
+      "seesaw": {
+        "notches": 3,
+        "left": [{ "robots": 3, "pos": 2 }],
+        "mover": { "robots": 1, "maxRobots": 3, "fixedPos": 2, "start": 2 }
+      },
+      "solution": 3
+    },
+    {
+      "stepId": "p5",
+      "kind": "play",
+      "seesaw": {
+        "notches": 3,
+        "left": [{ "robots": 3, "pos": 2 }],
+        "mover": { "robots": 1, "maxRobots": 3, "fixedPos": 3, "start": 3 }
+      },
+      "solution": 2
+    },
+    {
+      "stepId": "p6",
+      "kind": "play",
+      "seesaw": {
+        "notches": 3,
+        "left": [{ "robots": 2, "pos": 3 }],
+        "mover": { "robots": 1, "maxRobots": 3, "fixedPos": 2, "start": 2 }
+      },
+      "solution": 3
+    },
+    {
+      "stepId": "p7",
+      "kind": "play",
+      "seesaw": {
+        "notches": 4,
+        "left": [{ "robots": 4, "pos": 2 }],
+        "mover": { "robots": 1, "maxRobots": 3, "fixedPos": 4, "start": 4 }
+      },
+      "solution": 2
+    },
+    {
+      "stepId": "p8",
+      "kind": "play",
+      "seesaw": {
+        "notches": 4,
+        "left": [{ "robots": 4, "pos": 3 }],
+        "mover": { "robots": 1, "maxRobots": 3, "fixedPos": 4, "start": 4 }
+      },
+      "solution": 3
+    },
+    { "stepId": "s2", "kind": "summary", "text": "ふえると おもくなるよ" }
   ]
 }

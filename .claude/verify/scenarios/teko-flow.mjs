@@ -91,17 +91,25 @@ export default async function run({ page, check }) {
     await page.click('[data-action="next-stage"]');
   }
 
-  // p7（最終）：解5（刻み5なので▶が押せなくなる）
+  // p7：解5（刻み5なので▶が押せなくなる）
   await page.waitForSelector('[data-action="pos-right"]');
   for (let i = 0; i < 4; i += 1) await page.click('[data-action="pos-right"]');
   await check('p7で位置が5になり▶が押せない', async () => [await pos(page), await page.isDisabled('[data-action="pos-right"]')].join(), '5,true');
   await page.click('[data-action="run"]');
+  await page.waitForSelector('[data-action="next-stage"]', { timeout: 10000 });
+  await page.click('[data-action="next-stage"]');
+
+  // p8（最終）：解4（開始1から▶3回）
+  await page.waitForSelector('[data-action="pos-right"]');
+  for (let i = 0; i < 3; i += 1) await page.click('[data-action="pos-right"]');
+  await check('p8で位置が4になる', () => pos(page), '4');
+  await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="next"]', { timeout: 10000 });
   await check('最終ステージの次はnext（next-stageではない）', async () => (await page.$$('[data-action="next-stage"]')).length, 0);
-  await check('stage_clear6回・clear1回・retry2回が記録される', async () => {
+  await check('stage_clear7回・clear1回・retry2回が記録される', async () => {
     const t = await eventTypes(page);
     return [t.filter((x) => x === 'stage_clear').length, t.filter((x) => x === 'clear').length, t.filter((x) => x === 'retry').length].join();
-  }, '6,1,2');
+  }, '7,1,2');
 
   await page.click('[data-action="next"]');
   await page.waitForSelector('[data-action="back-to-picker"]');

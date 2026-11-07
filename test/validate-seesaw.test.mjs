@@ -131,7 +131,7 @@ function validatePractice(mutate) {
   writeFileSync(path.join(dir, `${lesson.lessonId}.json`), JSON.stringify(lesson));
   writeFileSync(
     path.join(dir, 'index.json'),
-    JSON.stringify({ units: [{ unitId: 'teko', title: 'つりあい', lessonIds: [lesson.lessonId] }] })
+    JSON.stringify({ units: [{ unitId: 'teko', title: 'つりあい', lessonIds: [lesson.lessonId] }], longTrialIds: [lesson.lessonId] })
   );
   const r = spawnSync('node', ['tools/validate-lessons.mjs'], { env: { ...process.env, LESSONS_DIR: dir }, encoding: 'utf-8' });
   return { code: r.status, out: r.stdout };
@@ -148,7 +148,7 @@ const practiceCases = [
   ['未知の段', 'generator', (l) => (stageOf(l, 'p5').generator.seesawStage = 'D')],
   ['generatorに余計なキー', 'generator', (l) => (stageOf(l, 'p1').generator.shape = 'round')],
   ['seesawを書いている', 'generator', (l) => (stageOf(l, 'p1').seesaw = { notches: 3, left: [{ robots: 1, pos: 1 }], mover: { robots: 1, start: 2 } })],
-  ['playが4個', 'れんしゅうの構成', (l) => (l.steps = l.steps.filter((s) => s.stepId !== 'p5'))],
+  ['playが7個（8個でない）', 'れんしゅうの構成', (l) => (l.steps = l.steps.filter((s) => s.stepId !== 'p5'))],
 ];
 for (const [label, rule, mutate] of practiceCases) {
   test(`validate-lessons: れんしゅうのNG検出: ${label}`, () => {
