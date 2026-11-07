@@ -101,3 +101,23 @@ test('engine-seesaw: allowedPositions は right のいる刻みを除く。占�
   assert.equal(balance(r, 2).tilt, 0);
   assert.deepEqual(difficulty({ ...r, right: [{ robots: 6, pos: 4 }] }), 18, '|6-24|');
 });
+
+// side:"both"（Issue #689 段2）：689-ok-right-both と同形。
+const bothSpec = { notches: 4, left: [{ robots: 3, pos: 2 }], right: [{ robots: 1, pos: 2 }], mover: { robots: 1, start: -1, side: 'both' } };
+
+test('engine-seesaw: side:"both" の符号付きトルク。負のposはtorqueLへ足され、解は[4]', () => {
+  assert.deepEqual(balance(bothSpec, -1), { torqueL: 7, torqueR: 2, tilt: -1 });
+  assert.deepEqual(balance(bothSpec, 4), { torqueL: 6, torqueR: 6, tilt: 0 });
+  assert.deepEqual(solutions(bothSpec), [4]);
+  assert.deepEqual(solutionPairs(bothSpec), [{ pos: 4, robots: 1 }]);
+  // 左が軽く右が重い面は、負の刻みが解になる（L=1 + 1×3 = R=2×2 でpos −3）。
+  const lightLeft = { notches: 4, left: [{ robots: 1, pos: 1 }], right: [{ robots: 2, pos: 2 }], mover: { robots: 1, start: 1, side: 'both' } };
+  assert.deepEqual(solutions(lightLeft), [-3]);
+});
+
+test('engine-seesaw: side:"both" の allowedPositions は 0 と占有（right は +pos、left は −pos）を飛ぶ', () => {
+  assert.deepEqual(allowedPositions(bothSpec), [-4, -3, -1, 1, 3, 4]);
+  assert.deepEqual(allowedPositions({ ...bothSpec, mover: { robots: 1, start: 1, side: 'both' }, left: [{ robots: 1, pos: 1 }], right: [] }), [-4, -3, -2, 1, 2, 3, 4], '1から◀で0と、−1（左の固定ロボットで占有）を飛んで−2');
+  assert.deepEqual(allowedPositions({ ...bothSpec, mover: { robots: 1, start: 1 } }), [1, 3, 4], 'side 省略は従来どおり 1〜notches（rightの占有だけ除く）');
+  assert.deepEqual(allowedPositions({ ...bothSpec, mover: { robots: 1, start: 1, side: 'right' } }), [1, 3, 4]);
+});

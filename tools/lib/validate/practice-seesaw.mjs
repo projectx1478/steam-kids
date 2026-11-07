@@ -148,7 +148,11 @@ function solutionPair(play, spec) {
 }
 // 未知キーは不合格（綴り違いを見逃さない。Issue #689）。
 const SEESAW_KEYS = ['notches', 'left', 'right', 'mover'];
-const MOVER_KEYS = ['robots', 'start', 'maxRobots', 'fixedPos'];
+const MOVER_KEYS = ['robots', 'start', 'maxRobots', 'fixedPos', 'side'];
+// moverの位置（start・fixedPos）：整数で0でない。sideが省略か"right"なら1〜notches、"both"なら−notches〜−1と1〜notches。
+const isPos = (v, spec) => Number.isInteger(v) && v !== 0 && Math.abs(v) <= spec.notches && (v > 0 || spec.mover.side === 'both');
+// moverのstartが固定ロボットの占有位置（rightは+pos、leftは−pos）か。
+const startTaken = (spec) => (spec.right ?? []).some((w) => w.pos === spec.mover.start) || spec.left.some((w) => -w.pos === spec.mover.start);
 // seesaw.right（任意。leftと同形。空配列不可、同じ位置に2山は不可）。
 function rightOk(spec) {
   if (spec.right === undefined) return true;
@@ -177,19 +181,19 @@ function validateSeesaw(playSteps, add, maxPlay = MAX_PLAY) {
       spec.left.every((w) => isInt(w.robots) && w.robots <= 6 && isInt(w.pos) && w.pos <= spec.notches) &&
       spec.mover &&
       isInt(spec.mover.robots) &&
-      isInt(spec.mover.start) &&
-      spec.mover.start <= spec.notches &&
+      (spec.mover.side === undefined || spec.mover.side === 'right' || spec.mover.side === 'both') &&
+      isPos(spec.mover.start, spec) &&
       Object.keys(spec).every((k) => SEESAW_KEYS.includes(k)) &&
       Object.keys(spec.mover).every((k) => MOVER_KEYS.includes(k)) &&
       rightOk(spec) &&
-      !(spec.right ?? []).some((w) => w.pos === spec.mover.start);
+      !startTaken(spec);
     const { maxRobots, fixedPos } = ok ? spec.mover : {};
     const newOk =
       ok &&
       (maxRobots === undefined || (Number.isInteger(maxRobots) && maxRobots >= 2 && maxRobots <= 6 && spec.mover.robots <= maxRobots)) &&
-      (fixedPos === undefined || (maxRobots !== undefined && isInt(fixedPos) && fixedPos <= spec.notches && fixedPos === spec.mover.start));
+      (fixedPos === undefined || (maxRobots !== undefined && isPos(fixedPos, spec) && fixedPos === spec.mover.start));
     if (!newOk) {
-      add('seesaw', `${label} のseesaw（notches・left・right・mover）が不正（robots・pos・startは1〜notchesの整数、left・rightのrobotsは1〜6、rightは空不可で同じ位置に2山不可、startはrightの位置と別、未知のキーは不可、maxRobotsは2〜6でrobots以上、fixedPosはmaxRobotsがあるときだけでstartと同じ）`);
+      add('seesaw', `${label} のseesaw（notches・left・right・mover）が不正（robots・posは1〜notchesの整数、startは1〜notches（sideが"both"なら負も可。0は不可）、sideは"right"か"both"、left・rightのrobotsは1〜6、rightは空不可で同じ位置に2山不可、startは固定ロボットの位置と別、未知のキーは不可、maxRobotsは2〜6でrobots以上、fixedPosはmaxRobotsがあるときだけでstartと同じ）`);
       continue;
     }
     const found = solutionPairs(spec);

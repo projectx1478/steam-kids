@@ -88,6 +88,11 @@ export function renderSeesaw(root, step) {
   const leftRobots = spec.left.map((w) => robotsSvg(cx0 - w.pos * unit, w.robots) + weightNumSvg(cx0 - w.pos * unit, w.robots)).join('');
   const rightRobots = (spec.right ?? []).map((w) => robotsSvg(cx0 + w.pos * unit, w.robots) + weightNumSvg(cx0 + w.pos * unit, w.robots)).join('');
   const allowed = allowedPositions(spec); // 右の固定ロボットがいる刻みは置けない
+  const both = spec.mover.side === 'both'; // 支点の左（負の刻み）にも置ける面
+  // 支点の真上の縦の点線（side:"both" の盤だけ。板の外に置き、傾けない）。
+  const pivotLine = both
+    ? `<line data-pivot-line x1="${cx0}" y1="${PLANK_Y - 60}" x2="${cx0}" y2="${PLANK_Y}" stroke="#64748b" stroke-width="3" stroke-dasharray="6 5" stroke-linecap="round" opacity="0.5" />`
+    : '';
   const postX = (side) => cx0 + side * notches * unit;
   boardArea.innerHTML = `<svg class="seesaw-board w-full h-full" viewBox="0 0 ${boardW} ${BOARD_H}" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
     <rect x="0" y="${GROUND_Y}" width="${boardW}" height="6" rx="3" fill="#a16207" opacity="0.5" />
@@ -96,6 +101,7 @@ export function renderSeesaw(root, step) {
       <rect x="${postX(-1) - 5}" y="${pivotY}" width="10" height="${GROUND_Y - pivotY}" rx="3" fill="#a8a29e" />
       <rect x="${postX(1) - 5}" y="${pivotY}" width="10" height="${GROUND_Y - pivotY}" rx="3" fill="#a8a29e" />
     </g>
+    ${pivotLine}
     <g data-plank style="transform-origin: ${cx0}px ${pivotY}px">
       <rect x="${cx0 - (notches + 0.7) * unit}" y="${PLANK_Y}" width="${(notches * 2 + 1.4) * unit}" height="${PLANK_H}" rx="6" fill="#b45309" />
       <rect x="${cx0 - (notches + 0.7) * unit + 4}" y="${PLANK_Y + 1}" width="${(notches * 2 + 1.4) * unit - 8}" height="4" rx="2" fill="#f59e0b" opacity="0.6" />
@@ -205,8 +211,8 @@ export function renderSeesaw(root, step) {
   }
 
   function setPos(pos, via) {
-    const clamped = Math.max(1, Math.min(notches, pos));
-    // 占有された刻みは、動いてきた向きの次の置ける刻みへ飛ぶ。行き先が無ければ動かさない。
+    const clamped = Math.max(both ? -notches : 1, Math.min(notches, pos));
+    // 0（支点の上）と占有された刻みは、動いてきた向きの次の置ける刻みへ飛ぶ。行き先が無ければ動かさない。
     const forward = clamped >= local.pos;
     const next = allowed.includes(clamped) ? clamped : forward ? allowed.find((p) => p > clamped) : [...allowed].reverse().find((p) => p < clamped);
     if (local.phase !== 'edit' || next === undefined || next === local.pos) {

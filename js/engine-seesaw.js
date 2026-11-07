@@ -1,11 +1,13 @@
 // predict-slider（シーソー）の純粋関数。DOMに触れない。てこの原理（おもさ×きょり）を整数だけで計算する。
-// spec: { notches, left: [{robots, pos}], mover: {robots, start} }。pos・startは支点からの刻み数（1〜notches）。
+// spec: { notches, left: [{robots, pos}], mover: {robots, start, side?} }。pos・startは支点からの刻み数（1〜notches）。
+// mover.side:"both" のときだけ負（−notches〜−1。支点の左）も使える。0は使えない。
 
 // balance(spec, pos, robots = spec.mover.robots) -> { torqueL, torqueR, tilt }。tiltは-1=左がさがる／0=つりあう／1=右がさがる。
 // spec.right（任意。leftと同形）があれば右の固定ロボットのトルクをtorqueRに足す。
 export function balance(spec, pos, robots = spec.mover.robots) {
-  const torqueL = spec.left.reduce((sum, w) => sum + w.robots * w.pos, 0);
-  const torqueR = (spec.right ?? []).reduce((sum, w) => sum + w.robots * w.pos, 0) + robots * pos;
+  // posが負（支点の左）なら、moverのトルクはtorqueLへ足す（符号付きトルク）。
+  const torqueL = spec.left.reduce((sum, w) => sum + w.robots * w.pos, 0) + (pos < 0 ? robots * -pos : 0);
+  const torqueR = (spec.right ?? []).reduce((sum, w) => sum + w.robots * w.pos, 0) + (pos > 0 ? robots * pos : 0);
   const tilt = torqueL > torqueR ? -1 : torqueL < torqueR ? 1 : 0;
   return { torqueL, torqueR, tilt };
 }
@@ -15,13 +17,14 @@ export function solutions(spec) {
   return allowedPositions(spec).filter((pos) => balance(spec, pos).tilt === 0);
 }
 
-// allowedPositions(spec) -> moverが置ける刻みの昇順配列（1〜notches。右の固定ロボットがいる刻みは除く）。
-// ◀▶・ドラッグ・解の列挙・validateが共有する。
+// allowedPositions(spec) -> moverが置ける刻みの昇順配列。sideが省略か"right"なら1〜notches、"both"なら−notches〜−1と1〜notches（0は除く）。
+// 固定ロボットがいる刻み（rightは+pos、leftは−pos）は除く。◀▶・ドラッグ・解の列挙・validateが共有する。
 export function allowedPositions(spec) {
-  const taken = new Set((spec.right ?? []).map((w) => w.pos));
+  const taken = new Set([...(spec.right ?? []).map((w) => w.pos), ...spec.left.map((w) => -w.pos)]);
+  const from = spec.mover?.side === 'both' ? -spec.notches : 1;
   const out = [];
-  for (let pos = 1; pos <= spec.notches; pos += 1) {
-    if (!taken.has(pos)) out.push(pos);
+  for (let pos = from; pos <= spec.notches; pos += 1) {
+    if (pos !== 0 && !taken.has(pos)) out.push(pos);
   }
   return out;
 }

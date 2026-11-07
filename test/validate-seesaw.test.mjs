@@ -186,6 +186,13 @@ const rightBoards = [
       rp('p2', { notches: 4, left: [{ robots: 2, pos: 2 }], right: [{ robots: 1, pos: 1 }], mover: { robots: 1, start: 2 } }, 3),
     ],
   ],
+  // side:"both"（段2）：689-ok-right-both・ng-pos0・ng-neg-no-side・ng-side・ok-side
+  ['ok-right-both', [], [rp('p1', { ...rightOkSee, mover: { robots: 1, start: -1, side: 'both' } }, 4), rightOk('p2')]],
+  ['ok-side', [], [rp('p1', { ...rightOkSee, mover: { robots: 1, start: 1, side: 'right' } }, 4), rightOk('p2')]],
+  ['ng-pos0', ['seesaw:p1'], [rp('p1', { notches: 4, left: [{ robots: 2, pos: 2 }], mover: { robots: 1, start: 0, side: 'both' } }, 4), rightOk('p2')]],
+  ['ng-neg-no-side', ['seesaw:p1'], [rp('p1', { notches: 4, left: [{ robots: 2, pos: 2 }], mover: { robots: 1, start: -1 } }, 4), rightOk('p2')]],
+  ['ng-side', ['seesaw:p1'], [rp('p1', { ...rightOkSee, mover: { robots: 1, start: 1, side: 'left' } }, 4), rightOk('p2')]],
+  ['ng-both-start-left-occupied', ['seesaw:p1'], [rp('p1', { ...rightOkSee, mover: { robots: 1, start: -2, side: 'both' } }, 4), rightOk('p2')]],
 ];
 for (const [name, expected, plays] of rightBoards) {
   test(`validate-lessons: 右固定の盤 ${name}`, () => {

@@ -140,14 +140,14 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 
 ### `predict-slider`の`play`（シーソー。Issue #150）
 
-`type: "predict-slider"`のレッスンは`kind: "play"`に`seesaw`と`solution`を持つ。`solution`は、位置だけ動く面＝位置（整数）、重さだけ動く面＝重さ（整数）、両方動く面＝`[pos, robots]`。`pos`・`start`は支点からの刻み数（1〜`notches`）。
+`type: "predict-slider"`のレッスンは`kind: "play"`に`seesaw`と`solution`を持つ。`solution`は、位置だけ動く面＝位置（整数）、重さだけ動く面＝重さ（整数）、両方動く面＝`[pos, robots]`。`left`・`right`の`pos`は支点からの刻み数（1〜`notches`）。`mover`の`start`は支点からの刻み数で、`side`が省略または`"right"`なら1〜`notches`、`"both"`なら−`notches`〜−1と1〜`notches`（負は支点の左。0は不可）。
 ```json
 { "stepId": "p1", "kind": "play", "text": "つりあう ところに おこう",
   "seesaw": { "notches": 4, "left": [{ "robots": 2, "pos": 2 }], "mover": { "robots": 1, "start": 1 } },
   "solution": 4 }
 ```
 `mover.maxRobots`（2〜6。あれば重さを − ＋ で1〜maxRobotsに変える。省略＝重さ固定）、`mover.fixedPos`（あれば位置は固定で`start`と同じ値。`maxRobots`が要る）。`left[].robots`（固定ロボットの1つの山）は1〜6体。
-`seesaw.right`（任意。`left`と同じ形。空配列は不可。同じ位置に2山は不可。`mover.start`・`solution`の位置は`right`の位置と別）。未知のキーは不可（`seesaw`は`notches`・`left`・`right`・`mover`、`mover`は`robots`・`start`・`maxRobots`・`fixedPos`だけ）。
+`seesaw.right`（任意。`left`と同じ形。空配列は不可。同じ位置に2山は不可。`mover.start`・`solution`の位置は`right`の位置と別）。未知のキーは不可（`seesaw`は`notches`・`left`・`right`・`mover`、`mover`は`robots`・`start`・`maxRobots`・`fixedPos`・`side`だけ）。`mover.side`は`"right"`（省略時）または`"both"`。`"both"`の面は支点の左にも置け（負の位置。`solution`の位置も負になりうる）、`start`・`solution`の位置は固定ロボット（`right`は+pos、`left`は−pos）と別。
 
 ### `predict-slider`の`play`（うかぶ面。Issue #288）
 
