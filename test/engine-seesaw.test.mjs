@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { balance, solutions, solutionPairs, difficulty, allowedPositions } from '../js/engine-seesaw.js';
+import { balance, solutions, solutionPairs, difficulty, allowedPositions, solutionSets, moversOf, MAX_MULTI_SOLUTIONS } from '../js/engine-seesaw.js';
 
 const spec = { notches: 4, left: [{ robots: 2, pos: 2 }], mover: { robots: 1, start: 1 } };
 
@@ -120,4 +120,36 @@ test('engine-seesaw: side:"both" の allowedPositions は 0 と占有（right �
   assert.deepEqual(allowedPositions({ ...bothSpec, mover: { robots: 1, start: 1, side: 'both' }, left: [{ robots: 1, pos: 1 }], right: [] }), [-4, -3, -2, 1, 2, 3, 4], '1から◀で0と、−1（左の固定ロボットで占有）を飛んで−2');
   assert.deepEqual(allowedPositions({ ...bothSpec, mover: { robots: 1, start: 1 } }), [1, 3, 4], 'side 省略は従来どおり 1〜notches（rightの占有だけ除く）');
   assert.deepEqual(allowedPositions({ ...bothSpec, mover: { robots: 1, start: 1, side: 'right' } }), [1, 3, 4]);
+});
+
+// 動かすロボット2組（Issue #689 段3）：689-ok-array-len2 と同形。
+const multiSpec = { notches: 4, left: [{ robots: 3, pos: 2 }, { robots: 1, pos: 1 }], mover: [{ robots: 1, start: 1 }, { robots: 2, start: 2 }] };
+
+test('engine-seesaw: moversOf は単体を長さ1の配列にし、配列はそのまま返す', () => {
+  assert.deepEqual(moversOf(spec), [spec.mover]);
+  assert.equal(moversOf(multiSpec), multiSpec.mover);
+  assert.equal(MAX_MULTI_SOLUTIONS, 3);
+});
+
+test('engine-seesaw: balance の配列形は単体形と同じ式で、複数組のトルクを足す', () => {
+  assert.deepEqual(balance(spec, [{ pos: 4, robots: 1 }]), balance(spec, 4));
+  assert.deepEqual(balance(multiSpec, [{ pos: 3, robots: 1 }, { pos: 2, robots: 2 }]), { torqueL: 7, torqueR: 7, tilt: 0 });
+  assert.equal(balance(multiSpec, [{ pos: 1, robots: 1 }, { pos: 2, robots: 2 }]).tilt, -1);
+  // 負の位置（side:"both"）は左へ足す
+  const neg = { notches: 4, left: [{ robots: 1, pos: 1 }], mover: [{ robots: 1, start: 1, side: 'both' }, { robots: 2, start: 2 }] };
+  assert.deepEqual(balance(neg, [{ pos: -1, robots: 1 }, { pos: 1, robots: 2 }]), { torqueL: 2, torqueR: 2, tilt: 0 });
+});
+
+test('engine-seesaw: solutionSets は2組のつりあう [pos1, pos2] を昇順で返す', () => {
+  assert.deepEqual(solutionSets(multiSpec), [[1, 3], [3, 2]]);
+  assert.deepEqual(solutionSets({ ...multiSpec, notches: 6, left: [{ robots: 5, pos: 2 }, { robots: 1, pos: 1 }] }), [[1, 5], [3, 4], [5, 3]]);
+  assert.deepEqual(solutionSets({ ...multiSpec, notches: 2 }), [], '解なし');
+  // 1×p1 + 2×p2 = 9 は [1,4] と [3,3]。同じ刻みの [3,3] は置けないので除く。
+  assert.deepEqual(solutionSets({ notches: 4, left: [{ robots: 3, pos: 3 }], mover: multiSpec.mover }), [[1, 4]]);
+});
+
+test('engine-seesaw: allowedPositions は もう1組のいる刻みを飛ばす', () => {
+  assert.deepEqual(allowedPositions(multiSpec, 0, [1, 2]), [1, 3, 4]);
+  assert.deepEqual(allowedPositions(multiSpec, 1, [3, 2]), [1, 2, 4]);
+  assert.deepEqual(allowedPositions(multiSpec, 0), [1, 2, 3, 4], 'placements なしは従来どおり');
 });

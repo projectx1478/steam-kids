@@ -908,7 +908,7 @@ dialog.result-row {
   }
 }
 
-/* ボタン行の修飾 sk-screen-actions--two-row（シーソーの重さも位置も動く面。Issue #612）：1行目 ◀ ▶ ｜ − ＋（溝16px）、2行目に主ボタン全幅。
+/* ボタン行の修飾 sk-screen-actions--two-row（シーソーの重さも位置も動く面。Issue #612）：1行目 ◀ ▶ ｜ − ＋ または ① ②（動かすロボット2組。溝16px）、2行目に主ボタン全幅。
    − ＋ は丸角の水色（robots-btn）。向きによらず同じ配置。 */
 .sk-screen-panel > .sk-screen-actions.sk-screen-actions--two-row {
   display: grid;
@@ -917,6 +917,7 @@ dialog.result-row {
   row-gap: 0.5rem;
 }
 .sk-screen-actions--two-row > [data-action='robots-minus'],
+.sk-screen-actions--two-row > [data-action='select-mover-1'],
 .sk-screen-actions--two-row > [data-action='balloon-minus'] {
   margin-left: 0.5rem;
 }

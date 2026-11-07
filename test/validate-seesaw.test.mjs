@@ -161,6 +161,9 @@ for (const [label, rule, mutate] of practiceCases) {
 const rp = (stepId, seesaw, solution) => ({ stepId, kind: 'play', text: 'つりあう ところに おこう', seesaw, solution });
 const rightOkSee = { notches: 4, left: [{ robots: 3, pos: 2 }], right: [{ robots: 1, pos: 2 }], mover: { robots: 1, start: 1 } };
 const rightOk = (id) => rp(id, JSON.parse(JSON.stringify(rightOkSee)), 4);
+const multiSee = { notches: 4, left: [{ robots: 3, pos: 2 }, { robots: 1, pos: 1 }], mover: [{ robots: 1, start: 1 }, { robots: 2, start: 2 }] };
+// 2組の面の次に置く、d が大きい単体の面（難易度の非減少を満たす）。
+const bigOk = (id) => rp(id, { notches: 6, left: [{ robots: 6, pos: 3 }], mover: { robots: 3, start: 1 } }, 6);
 const rightBoards = [
   ['ok-right', [], [rightOk('p1'), rightOk('p2')]],
   ['ng-occupied-solution', ['解の個数:p1', 'solution:p1'], [rp('p1', { ...rightOkSee, mover: { robots: 2, start: 1 } }, 2), rightOk('p2')]],
@@ -193,12 +196,26 @@ const rightBoards = [
   ['ng-neg-no-side', ['seesaw:p1'], [rp('p1', { notches: 4, left: [{ robots: 2, pos: 2 }], mover: { robots: 1, start: -1 } }, 4), rightOk('p2')]],
   ['ng-side', ['seesaw:p1'], [rp('p1', { ...rightOkSee, mover: { robots: 1, start: 1, side: 'left' } }, 4), rightOk('p2')]],
   ['ng-both-start-left-occupied', ['seesaw:p1'], [rp('p1', { ...rightOkSee, mover: { robots: 1, start: -2, side: 'both' } }, 4), rightOk('p2')]],
+  // 動かすロボット2組（段3）：689-ok-array-len2・ng-array-len1/3・ng-same-robots/start・ng-array-maxrobots/fixedpos・ok-sets-3・ng-sets-0/4・ng-required
+  ['ok-array-len2', [], [rp('p1', multiSee, [3, 2]), bigOk('p2')]],
+  ['ok-array-len2-solution-1', [], [rp('p1', multiSee, [1, 3]), bigOk('p2')]],
+  ['ng-array-len1', ['seesaw:p1'], [rp('p1', { notches: 4, left: [{ robots: 2, pos: 2 }], mover: [{ robots: 1, start: 1 }] }, [4]), bigOk('p2')]],
+  ['ng-array-len3', ['seesaw:p1'], [rp('p1', { ...multiSee, mover: [...multiSee.mover, { robots: 3, start: 3 }] }, [3, 2, 1]), bigOk('p2')]],
+  ['ng-same-robots', ['seesaw:p1'], [rp('p1', { notches: 4, left: [{ robots: 4, pos: 2 }], mover: [{ robots: 2, start: 1 }, { robots: 2, start: 2 }] }, [1, 3]), bigOk('p2')]],
+  ['ng-same-start', ['seesaw:p1'], [rp('p1', { ...multiSee, mover: [{ robots: 1, start: 1 }, { robots: 2, start: 1 }] }, [3, 2]), bigOk('p2')]],
+  ['ng-array-maxrobots', ['seesaw:p1'], [rp('p1', { ...multiSee, mover: [{ robots: 1, start: 1, maxRobots: 4 }, { robots: 2, start: 2 }] }, [3, 2]), bigOk('p2')]],
+  ['ng-array-fixedpos', ['seesaw:p1'], [rp('p1', { ...multiSee, mover: [{ robots: 1, start: 1 }, { robots: 2, start: 2, fixedPos: 2 }] }, [3, 2]), bigOk('p2')]],
+  ['ok-sets-3', [], [rp('p1', { notches: 6, left: [{ robots: 5, pos: 2 }, { robots: 1, pos: 1 }], mover: multiSee.mover }, [5, 3]), bigOk('p2')]],
+  ['ng-sets-0', ['solution:p1', '解の個数:p1'], [rp('p1', { notches: 2, left: multiSee.left, mover: multiSee.mover }, [1, 2]), bigOk('p2')]],
+  ['ng-sets-4', ['解の個数:p1'], [rp('p1', { notches: 7, left: [{ robots: 5, pos: 2 }, { robots: 1, pos: 1 }], mover: multiSee.mover }, [5, 3]), bigOk('p2')]],
+  ['ng-required', ['必須性:p1'], [rp('p1', { notches: 4, left: [{ robots: 3, pos: 2 }], mover: multiSee.mover }, [4, 1]), bigOk('p2')]],
+  ['ng-multi-solution-wrong', ['solution:p1'], [rp('p1', multiSee, [2, 1]), bigOk('p2')]],
 ];
 for (const [name, expected, plays] of rightBoards) {
   test(`validate-lessons: 右固定の盤 ${name}`, () => {
     const r = validate(board(plays));
     const got = [];
-    for (const rule of ['解の個数', 'solution', 'seesaw', 'start', '難易度', '盤面の必須']) {
+    for (const rule of ['解の個数', 'solution', 'seesaw', 'start', '難易度', '盤面の必須', '必須性']) {
       for (const line of r.out.split('\n')) {
         const m = line.includes(rule) && line.match(/stepId="(p\d)"/);
         if (m && line.indexOf(rule) < line.indexOf('stepId=')) got.push(`${rule}:${m[1]}`);
