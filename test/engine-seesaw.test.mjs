@@ -74,12 +74,16 @@ test('engine-seesaw: right・side が無い従来の面は、1000番号の生成
     const run = generateSeesawRun(SEESAW_RUN_STAGES, String(n).padStart(3, '0'));
     for (const s of run) {
       const oldSolutions = [];
+      const oldPairs = [];
+      const poses = s.mover.fixedPos ? [s.mover.fixedPos] : Array.from({ length: s.notches }, (_, k) => k + 1);
+      const robotsList = s.mover.maxRobots ? Array.from({ length: s.mover.maxRobots }, (_, k) => k + 1) : [s.mover.robots];
       for (let pos = 1; pos <= s.notches; pos += 1) {
         assert.deepEqual(balance(s, pos), refBalance(s, pos));
         if (refBalance(s, pos).tilt === 0) oldSolutions.push(pos);
       }
+      for (const pos of poses) for (const robots of robotsList) if (refBalance(s, pos, robots).tilt === 0) oldPairs.push({ pos, robots });
       assert.deepEqual(solutions(s), oldSolutions);
-      assert.deepEqual(solutionPairs(s), oldSolutions.map((pos) => ({ pos, robots: s.mover.robots })));
+      assert.deepEqual(solutionPairs(s), oldPairs);
       assert.equal(difficulty(s), s.left.reduce((sum, w) => sum + w.robots * w.pos, 0));
     }
   }

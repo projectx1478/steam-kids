@@ -3,46 +3,17 @@
   "unitId": "teko",
   "title": "シーソー れんしゅう",
   "type": "predict-slider",
-  "estimatedMinutes": 5,
+  "estimatedMinutes": 8,
   "steps": [
-    {
-      "stepId": "s1",
-      "kind": "seedPick",
-      "text": "ばんごうを 3つ いれよう"
-    },
-    {
-      "stepId": "p1",
-      "kind": "play",
-      "text": "つりあう ところに おこう",
-      "generator": { "seesawStage": "A" }
-    },
-    {
-      "stepId": "p2",
-      "kind": "play",
-      "text": "つりあう ところに おこう",
-      "generator": { "seesawStage": "A" }
-    },
-    {
-      "stepId": "p3",
-      "kind": "play",
-      "text": "つりあう ところに おこう",
-      "generator": { "seesawStage": "B" }
-    },
-    {
-      "stepId": "p4",
-      "kind": "play",
-      "text": "つりあう ところに おこう",
-      "generator": { "seesawStage": "B" }
-    },
-    {
-      "stepId": "p5",
-      "kind": "play",
-      "text": "つりあう ところに おこう",
-      "generator": { "seesawStage": "C" }
-    },
-    {
-      "stepId": "s2",
-      "kind": "summary"
-    }
+    { "stepId": "s1", "kind": "seedPick", "text": "ばんごうを 3つ いれよう" },
+    { "stepId": "p1", "kind": "play", "text": "つりあう ところに おこう", "generator": { "seesawStage": "A" } },
+    { "stepId": "p2", "kind": "play", "text": "つりあう ところに おこう", "generator": { "seesawStage": "A" } },
+    { "stepId": "p3", "kind": "play", "text": "つりあう ところに おこう", "generator": { "seesawStage": "B" } },
+    { "stepId": "p4", "kind": "play", "text": "＋ で ふやそう", "generator": { "seesawStage": "R" } },
+    { "stepId": "p5", "kind": "play", "text": "＋ で ふやそう", "generator": { "seesawStage": "R" } },
+    { "stepId": "p6", "kind": "play", "generator": { "seesawStage": "X" } },
+    { "stepId": "p7", "kind": "play", "generator": { "seesawStage": "X" } },
+    { "stepId": "p8", "kind": "play", "generator": { "seesawStage": "X" } },
+    { "stepId": "s2", "kind": "summary" }
   ]
 }
