@@ -23,6 +23,7 @@ import {
 import { checkBoard, checkSwitchMatters } from './board.mjs';
 import { checkDemo, checkSolution } from './demo-solution.mjs';
 import { validatePractice, validateSeesaw } from './practice-seesaw.mjs';
+import { checkSeesawDemo } from './demo-seesaw.mjs';
 import { validateBuoyancy } from './buoyancy.mjs';
 import { checkStageGen } from './stagegen.mjs';
 
@@ -117,8 +118,10 @@ export function validateLesson(fileName, data, longTrialIds = []) {
     const buoyancyCount = playSteps.filter((s) => 'buoyancy' in s).length;
     if (buoyancyCount === 0) {
       validateSeesaw(playSteps, add, maxPlay);
+      checkSeesawDemo(steps.find((s) => s.kind === 'intro'), playSteps, add);
     } else if (buoyancyCount === playSteps.length && !playSteps.some((s) => 'seesaw' in s)) {
       validateBuoyancy(playSteps, add, maxPlay);
+      if (steps.find((s) => s.kind === 'intro')?.demo !== undefined) add('デモの形', 'うかぶ面（buoyancy）の intro に demo は書けない');
     } else {
       add('seesawとbuoyancyの混在', 'play に seesaw と buoyancy が混在している（1レッスンはどちらか一方）');
     }

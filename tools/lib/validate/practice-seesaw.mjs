@@ -160,7 +160,7 @@ function solutionPair(play, spec) {
   return Number.isInteger(s) ? { pos: s, robots: spec.mover.robots } : null;
 }
 // 未知キーは不合格（綴り違いを見逃さない。Issue #689）。
-const SEESAW_KEYS = ['notches', 'left', 'right', 'mover'];
+export const SEESAW_KEYS = ['notches', 'left', 'right', 'mover'];
 const MOVER_KEYS = ['robots', 'start', 'maxRobots', 'fixedPos', 'side'];
 // moverの位置（start・fixedPos）：整数で0でない。sideが省略か"right"なら1〜notches、"both"なら−notches〜−1と1〜notches。
 const isPos = (v, spec, mover = spec.mover) => Number.isInteger(v) && v !== 0 && Math.abs(v) <= spec.notches && (v > 0 || mover.side === 'both');
@@ -169,7 +169,7 @@ const MULTI_MOVER_KEYS = ['robots', 'start', 'side'];
 // moverのstartが固定ロボットの占有位置（rightは+pos、leftは−pos）か。
 const startTaken = (spec, mover = spec.mover) => (spec.right ?? []).some((w) => w.pos === mover.start) || spec.left.some((w) => -w.pos === mover.start);
 // seesaw.right（任意。leftと同形。空配列不可、同じ位置に2山は不可）。
-function rightOk(spec) {
+export function rightOk(spec) {
   if (spec.right === undefined) return true;
   const isI = (v) => Number.isInteger(v) && v >= 1;
   return (
@@ -180,7 +180,7 @@ function rightOk(spec) {
   );
 }
 // mover（単体オブジェクト、または2要素の配列＝2組。Issue #689）の形。start は固定ロボットの位置と別、2組は体数も start も違う。
-function moverOk(spec) {
+export function moverOk(spec) {
   const multi = Array.isArray(spec.mover);
   const list = multi ? spec.mover : [spec.mover];
   const isInt = (v) => Number.isInteger(v) && v >= 1;
