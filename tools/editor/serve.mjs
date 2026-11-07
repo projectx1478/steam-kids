@@ -10,6 +10,7 @@ import { execFile } from 'node:child_process';
 import { formatLesson } from '../gen-stages.mjs';
 import { shortestSteps, shortestChips, boardSpec } from '../../js/engine-grid.js';
 import { checkStageGen } from '../lib/validate/stagegen.mjs';
+import { createPublisher } from './publish.mjs';
 
 export const EDITOR_HOST = '127.0.0.1';
 export const DEFAULT_PORT = 5173;
@@ -463,7 +464,7 @@ export async function resolveBaseDefault() {
 
 // 最初の仮保存のとき drafts/publish/base.json を書く。既にあれば何もしない。問題があれば messages（空なら OK）。
 // 実リポジトリの lessons/ 以外（試験用の lessonsDir・LESSONS_DIR）では、opts.resolveBase が無ければ base を記録しない。
-async function ensureBase(opts, pubDir) {
+export async function ensureBase(opts, pubDir) {
   const bf = path.join(pubDir, 'base.json');
   if (fs.existsSync(bf)) return [];
   const real = path.resolve(lessonsDirOf(opts)) === path.join(ROOT, 'lessons');
@@ -685,10 +686,26 @@ async function handleDrafts(req, res, pathname, opts) {
   sendJson(res, 200, { ok: true });
 }
 
+// 公開（#685 段2）：GET /api/publish/preview（書かない）・POST /api/publish（開始。実行中は 409）・GET /api/publish/status（進捗）
+async function handlePublish(req, res, pathname, publisher) {
+  if (req.method === 'GET' && pathname === '/api/publish/preview') return sendJson(res, 200, await publisher.preview());
+  if (req.method === 'GET' && pathname === '/api/publish/status') return sendJson(res, 200, publisher.status());
+  if (req.method === 'POST' && pathname === '/api/publish') {
+    if (!publisher.start()) return sendJson(res, 409, { messages: ['公開は実行中です'] });
+    return sendJson(res, 202, { ok: true });
+  }
+  return sendJson(res, 404, { messages: ['Not Found'] });
+}
+
 export function createEditorServer(opts = {}) {
+  const publisher = createPublisher({ pubDir: publishDirOf(opts), root: opts.publishRoot || ROOT, run: opts.publishRun });
   return http.createServer((req, res) => {
     const notFound = () => { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('Not Found'); };
     const pathname = new URL(req.url, 'http://localhost').pathname;
+    if (pathname === '/api/publish' || pathname.startsWith('/api/publish/')) {
+      handlePublish(req, res, pathname, publisher).catch(() => sendJson(res, 500, { messages: ['内部エラー'] }));
+      return;
+    }
     if (pathname === '/api/lessons' || pathname.startsWith('/api/lessons/')) {
       handleLessons(req, res, pathname, opts).catch(() => sendJson(res, 500, { messages: ['内部エラー'] }));
       return;
