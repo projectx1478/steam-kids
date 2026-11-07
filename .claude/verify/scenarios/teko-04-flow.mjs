@@ -48,7 +48,7 @@ export default async function run({ page, check }) {
   await check('p1：ためしなおすと−が押せない', () => page.isDisabled('[data-action="robots-minus"]'), true);
 
   // 各面：＋を（解−1）回→重さが解と一致→ためす
-  const solutions = [2, 3, 2];
+  const solutions = [2, 3, 2, 3, 2, 3, 2, 3];
   for (let i = 0; i < solutions.length; i += 1) {
     const sol = solutions[i];
     if (i > 0) {
@@ -64,7 +64,7 @@ export default async function run({ page, check }) {
     await page.waitForSelector(last ? '[data-action="next"]' : '[data-action="next-stage"]', { timeout: 10000 });
     if (!last) await page.click('[data-action="next-stage"]');
   }
-  await check('teko-04：stage_clear2回・clear1回（最終面はclear）', () => counts(page), '2,1');
+  await check('teko-04：stage_clear7回・clear1回（最終面はclear）', () => counts(page), '7,1');
   await page.click('[data-action="next"]');
   await page.waitForSelector('[data-action="back-to-picker"]');
   await check('teko-04：summaryへ進める', () => page.getAttribute('#stage', 'data-step'), 'summary');
