@@ -3,7 +3,7 @@
 import { generateMap, SHAPE_PRESETS } from '../../../js/engine-generate.js';
 import { isValidCode, codeToSeed } from '../../../js/seed-code.js';
 import { simulate, boardSpec } from '../../../js/engine-grid.js';
-import { balance, solutions, solutionPairs, difficulty } from '../../../js/engine-seesaw.js';
+import { balance, solutions, solutionPairs, solutionSets, allowedPositions, moversOf, MAX_MULTI_SOLUTIONS, difficulty } from '../../../js/engine-seesaw.js';
 import { generateSeesawRun, SEESAW_STAGES, SEESAW_RUN_STAGES } from '../../../js/engine-seesaw-gen.js';
 import { KEY_MODES } from '../../../js/gimmicks/keys.js';
 import { MIN_PLAY, MAX_PLAY, UNIT_GIMMICKS, isObj } from './common.mjs';
@@ -146,6 +146,58 @@ function solutionPair(play, spec) {
   if (maxRobots !== undefined) return Array.isArray(s) && s.length === 2 && s.every(Number.isInteger) ? { pos: s[0], robots: s[1] } : null;
   return Number.isInteger(s) ? { pos: s, robots: spec.mover.robots } : null;
 }
+// 未知キーは不合格（綴り違いを見逃さない。Issue #689）。
+const SEESAW_KEYS = ['notches', 'left', 'right', 'mover'];
+const MOVER_KEYS = ['robots', 'start', 'maxRobots', 'fixedPos', 'side'];
+// moverの位置（start・fixedPos）：整数で0でない。sideが省略か"right"なら1〜notches、"both"なら−notches〜−1と1〜notches。
+const isPos = (v, spec, mover = spec.mover) => Number.isInteger(v) && v !== 0 && Math.abs(v) <= spec.notches && (v > 0 || mover.side === 'both');
+// 2組の面（mover が配列。Issue #689）の要素に書けるキー（maxRobots・fixedPos は書けない）。
+const MULTI_MOVER_KEYS = ['robots', 'start', 'side'];
+// moverのstartが固定ロボットの占有位置（rightは+pos、leftは−pos）か。
+const startTaken = (spec, mover = spec.mover) => (spec.right ?? []).some((w) => w.pos === mover.start) || spec.left.some((w) => -w.pos === mover.start);
+// seesaw.right（任意。leftと同形。空配列不可、同じ位置に2山は不可）。
+function rightOk(spec) {
+  if (spec.right === undefined) return true;
+  const isI = (v) => Number.isInteger(v) && v >= 1;
+  return (
+    Array.isArray(spec.right) &&
+    spec.right.length > 0 &&
+    spec.right.every((w) => isI(w.robots) && w.robots <= 6 && isI(w.pos) && w.pos <= spec.notches) &&
+    new Set(spec.right.map((w) => w.pos)).size === spec.right.length
+  );
+}
+// mover（単体オブジェクト、または2要素の配列＝2組。Issue #689）の形。start は固定ロボットの位置と別、2組は体数も start も違う。
+function moverOk(spec) {
+  const multi = Array.isArray(spec.mover);
+  const list = multi ? spec.mover : [spec.mover];
+  const isInt = (v) => Number.isInteger(v) && v >= 1;
+  if (multi && list.length !== 2) return false;
+  const each = list.every(
+    (m) =>
+      isObj(m) &&
+      isInt(m.robots) &&
+      (m.side === undefined || m.side === 'right' || m.side === 'both') &&
+      isPos(m.start, spec, m) &&
+      Object.keys(m).every((k) => (multi ? MULTI_MOVER_KEYS : MOVER_KEYS).includes(k)) &&
+      !startTaken(spec, m)
+  );
+  return each && (!multi || (list[0].robots !== list[1].robots && list[0].start !== list[1].start));
+}
+// 2組の面の検査：解（[pos1, pos2]）が1〜MAX_MULTI_SOLUTIONS件、solution が解の1つ、各組が必須（どちらか1組だけでは解にならない）。
+function validateSeesawMulti(play, spec, label, add) {
+  const sets = solutionSets(spec);
+  if (sets.length < 1 || sets.length > MAX_MULTI_SOLUTIONS) add('解の個数', `${label} の2組の解が${sets.length}個（1〜${MAX_MULTI_SOLUTIONS}個である必要がある）`);
+  const s = play.solution;
+  if (!Array.isArray(s) || s.length !== 2 || !sets.some((f) => f[0] === s[0] && f[1] === s[1])) {
+    add('solution', `${label} のsolution=${JSON.stringify(s)} がつりあう組 [1組目の位置, 2組目の位置] と一致しない`);
+  }
+  const movers = moversOf(spec);
+  movers.forEach((m, i) => {
+    const alone = allowedPositions(spec, i).filter((pos) => balance(spec, [{ pos, robots: m.robots }, { pos: 1, robots: 0 }]).tilt === 0);
+    if (alone.length > 0) add('必須性', `${label} は${i + 1}組目だけでもつりあう（位置${alone.join('・')}）。両方の組が要る面にする`);
+  });
+  if (balance(spec, movers.map((m) => ({ pos: m.start, robots: m.robots }))).tilt === 0) add('start', `${label} がstartの時点でつりあっている`);
+}
 function validateSeesaw(playSteps, add, maxPlay = MAX_PLAY) {
   if (playSteps.length < MIN_PLAY || playSteps.length > maxPlay) {
     add('盤面の必須', `kind="play" が${playSteps.length}個（${MIN_PLAY}〜${maxPlay}個である必要がある）`);
@@ -161,17 +213,24 @@ function validateSeesaw(playSteps, add, maxPlay = MAX_PLAY) {
       Array.isArray(spec.left) &&
       spec.left.length > 0 &&
       spec.left.every((w) => isInt(w.robots) && w.robots <= 6 && isInt(w.pos) && w.pos <= spec.notches) &&
-      spec.mover &&
-      isInt(spec.mover.robots) &&
-      isInt(spec.mover.start) &&
-      spec.mover.start <= spec.notches;
-    const { maxRobots, fixedPos } = ok ? spec.mover : {};
+      Object.keys(spec).every((k) => SEESAW_KEYS.includes(k)) &&
+      moverOk(spec) &&
+      rightOk(spec);
+    const multi = ok && Array.isArray(spec.mover);
+    const { maxRobots, fixedPos } = ok && !multi ? spec.mover : {};
     const newOk =
       ok &&
       (maxRobots === undefined || (Number.isInteger(maxRobots) && maxRobots >= 2 && maxRobots <= 6 && spec.mover.robots <= maxRobots)) &&
-      (fixedPos === undefined || (maxRobots !== undefined && isInt(fixedPos) && fixedPos <= spec.notches && fixedPos === spec.mover.start));
+      (fixedPos === undefined || (maxRobots !== undefined && isPos(fixedPos, spec) && fixedPos === spec.mover.start));
     if (!newOk) {
-      add('seesaw', `${label} のseesaw（notches・left・mover）が不正（robots・pos・startは1〜notchesの整数、leftのrobotsは1〜6、maxRobotsは2〜6でrobots以上、fixedPosはmaxRobotsがあるときだけでstartと同じ）`);
+      add('seesaw', `${label} のseesaw（notches・left・right・mover）が不正（moverは単体か2要素の配列〔2組は体数もstartも違い、キーはrobots・start・sideだけ〕、robots・posは1〜notchesの整数、startは1〜notches（sideが"both"なら負も可。0は不可）、sideは"right"か"both"、left・rightのrobotsは1〜6、rightは空不可で同じ位置に2山不可、startは固定ロボットの位置と別、未知のキーは不可、maxRobotsは2〜6でrobots以上、fixedPosはmaxRobotsがあるときだけでstartと同じ）`);
+      continue;
+    }
+    if (multi) {
+      validateSeesawMulti(play, spec, label, add);
+      const d = difficulty(spec);
+      if (d < prevDifficulty) add('難易度', `${label} の|左−右|のおもさ合計(${d})が前のステージ(${prevDifficulty})より小さい`);
+      prevDifficulty = d;
       continue;
     }
     const found = solutionPairs(spec);
@@ -182,7 +241,7 @@ function validateSeesaw(playSteps, add, maxPlay = MAX_PLAY) {
     }
     if (balance(spec, spec.mover.start).tilt === 0) add('start', `${label} がstartの時点でつりあっている`);
     const d = difficulty(spec);
-    if (d < prevDifficulty) add('難易度', `${label} の左のおもさ合計(${d})が前のステージ(${prevDifficulty})より小さい`);
+    if (d < prevDifficulty) add('難易度', `${label} の|左−右|のおもさ合計(${d})が前のステージ(${prevDifficulty})より小さい`);
     prevDifficulty = d;
   }
 }
