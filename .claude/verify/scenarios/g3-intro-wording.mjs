@@ -1,6 +1,6 @@
 // G3 文言と intro 構成（Issue #554）。
 // ① 新文言4つの textContent（おてほんを みる／ためしなおす×2経路／もういちど よそう）を照合し、旧名「もういちど」単独が残らない。
-// ② 全ギミックの1本目と対照（teko）で、intro の構成（再生ボタン・そうさほうほう・主ボタンの並びと右寄せ）が
+// ② 全ギミックの1本目（teko-01 は紹介デモ付き。Issue #679）で、intro の構成（再生ボタン・そうさほうほう・主ボタンの並びと右寄せ）が
 //    docs/ui-rules.md 原則3の規則どおり。
 // ③ donguri-01-hirou を全クリアしたあと、intro の ✓ を8個押して data-step-id が押した番号のステージになる。
 // 実行順：retry-predict は凍結 fixture（config.mjs）の predict 構成を通る唯一の経路のため最初に見る。
@@ -20,7 +20,7 @@ const forgetLesson = (page, id) =>
       .forEach((k) => localStorage.removeItem(k));
   }, id);
 
-// [id, 再生ボタンの数, そうさほうほうの数]（docs/ui-rules.md「intro の構成規則」。teko は対照）
+// [id, 再生ボタンの数, そうさほうほうの数]（docs/ui-rules.md「intro の構成規則」。teko-01 は紹介デモ付き）
 const INTROS = [
   ['cmd-01-susumu', 1, 1],
   ['donguri-01-hirou', 1, 1],
@@ -30,7 +30,7 @@ const INTROS = [
   ['switch-01-suicchi', 1, 1],
   ['paint-01-nuru', 1, 0],
   ['switch-07-shuuki-door', 1, 0],
-  ['teko-01-tsuriai', 0, 0],
+  ['teko-01-tsuriai', 1, 0],
 ];
 
 export default async function run({ page, check }) {
