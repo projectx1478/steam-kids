@@ -153,6 +153,13 @@ test('長尺: 一覧IDがseedPickを持つと不合格', () => {
   practice.estimatedMinutes = 8;
   ng(one('practice', practice, ['practice']), '長尺試作とseedPick', 'seedPick併用');
 });
+test('長尺: predict-slider の seedPick は長尺に載って合格（例外）', () => {
+  const practice = JSON.parse(readFileSync('lessons/teko-06-practice.json', 'utf-8'));
+  assert.equal(practice.type, 'predict-slider');
+  practice.lessonId = 'practice';
+  practice.estimatedMinutes = 8;
+  ok(one('practice', practice, ['practice']), 'predict-slider+seedPick');
+});
 test('長尺: longTrialIdsが配列でないと不合格', () => {
   ng(one('std', gridLesson('std', { dists: [4, 5, 6], minutes: 5 }), 'std'), 'longTrialIds', '配列でない');
 });

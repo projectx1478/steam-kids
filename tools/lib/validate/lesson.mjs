@@ -59,7 +59,7 @@ export function validateLesson(fileName, data, longTrialIds = []) {
 
   checkStageGen(data, steps, add);
   if (steps.some((s) => s.kind === 'seedPick')) {
-    if (isLong) add('長尺試作とseedPick', 'longTrialIdsのレッスンはseedPick（れんしゅう）を持てない');
+    if (isLong && data.type !== 'predict-slider') add('長尺試作とseedPick', 'longTrialIdsのレッスンはseedPick（れんしゅう）を持てない');
     validatePractice(steps, add, data.type);
     return errors;
   }
