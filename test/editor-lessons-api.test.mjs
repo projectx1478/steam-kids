@@ -17,7 +17,7 @@ function setup() {
   const lessonsDir = path.join(tmp, 'lessons');
   const backupsDir = path.join(tmp, 'backups');
   fs.cpSync(path.join(ROOT, 'lessons'), lessonsDir, { recursive: true });
-  return { tmp, lessonsDir, backupsDir };
+  return { tmp, lessonsDir, backupsDir, draftsDir: path.join(tmp, 'drafts') };
 }
 
 function call(port, method, urlPath, body, raw = false) {
@@ -37,6 +37,7 @@ async function withServer(opts, fn) {
   try { await fn(server.address().port); } finally { await new Promise((r) => server.close(r)); }
 }
 
+const pubLesson = (draftsDir, id) => path.join(draftsDir, 'publish', 'lessons', id + '.json'); // #685: 保存先は drafts/publish/lessons/
 const listBackups = (dir) => (fs.existsSync(dir) ? fs.readdirSync(dir).sort() : []);
 
 test('checkLessonId: ^[a-z0-9-]+$ のみ。index と .. は不可', () => {
@@ -47,9 +48,9 @@ test('checkLessonId: ^[a-z0-9-]+$ のみ。index と .. は不可', () => {
 });
 
 test('GET /api/lessons と /api/lessons/:id', async () => {
-  const { tmp, lessonsDir, backupsDir } = setup();
+  const { tmp, lessonsDir, backupsDir, draftsDir } = setup();
   try {
-    await withServer({ lessonsDir, backupsDir }, async (port) => {
+    await withServer({ lessonsDir, backupsDir, draftsDir }, async (port) => {
       const list = await call(port, 'GET', '/api/lessons');
       assert.equal(list.status, 200);
       assert.ok(list.json.some((l) => l.lessonId === ID && l.stepCount > 0));
@@ -67,9 +68,9 @@ test('GET /api/lessons と /api/lessons/:id', async () => {
 });
 
 test('PUT: パス検査（index・不正な id は 400、存在しない id は 404 で何も作らない）', async () => {
-  const { tmp, lessonsDir, backupsDir } = setup();
+  const { tmp, lessonsDir, backupsDir, draftsDir } = setup();
   try {
-    await withServer({ lessonsDir, backupsDir }, async (port) => {
+    await withServer({ lessonsDir, backupsDir, draftsDir }, async (port) => {
       const before = fs.readFileSync(path.join(lessonsDir, 'index.json'), 'utf8');
       const steps = JSON.parse(fs.readFileSync(path.join(lessonsDir, `${ID}.json`), 'utf8')).steps;
       assert.equal((await call(port, 'PUT', '/api/lessons/index', steps)).status, 400);
@@ -86,9 +87,9 @@ test('PUT: パス検査（index・不正な id は 400、存在しない id は 
 });
 
 test('PUT: 壊れた body・不合格の steps は 400 で書かず、退避も作らない', async () => {
-  const { tmp, lessonsDir, backupsDir } = setup();
+  const { tmp, lessonsDir, backupsDir, draftsDir } = setup();
   try {
-    await withServer({ lessonsDir, backupsDir }, async (port) => {
+    await withServer({ lessonsDir, backupsDir, draftsDir }, async (port) => {
       const file = path.join(lessonsDir, `${ID}.json`);
       const before = fs.readFileSync(file, 'utf8');
       const steps = JSON.parse(before).steps;
@@ -109,9 +110,9 @@ test('PUT: 壊れた body・不合格の steps は 400 で書かず、退避も�
 });
 
 test('PUT: 検査が時間切れなら 400 で書かない', async () => {
-  const { tmp, lessonsDir, backupsDir } = setup();
+  const { tmp, lessonsDir, backupsDir, draftsDir } = setup();
   try {
-    await withServer({ lessonsDir, backupsDir, saveTimeoutMs: 1 }, async (port) => {
+    await withServer({ lessonsDir, backupsDir, draftsDir, saveTimeoutMs: 1 }, async (port) => {
       const file = path.join(lessonsDir, `${ID}.json`);
       const before = fs.readFileSync(file, 'utf8');
       const r = await call(port, 'PUT', `/api/lessons/${ID}`, JSON.parse(before).steps);
@@ -124,9 +125,9 @@ test('PUT: 検査が時間切れなら 400 で書かない', async () => {
 });
 
 test('PUT: 合格なら退避してから書き、{ok:true}。退避は直近10件', async () => {
-  const { tmp, lessonsDir, backupsDir } = setup();
+  const { tmp, lessonsDir, backupsDir, draftsDir } = setup();
   try {
-    await withServer({ lessonsDir, backupsDir }, async (port) => {
+    await withServer({ lessonsDir, backupsDir, draftsDir }, async (port) => {
       const file = path.join(lessonsDir, `${ID}.json`);
       const before = fs.readFileSync(file, 'utf8');
       const steps = JSON.parse(before).steps;
@@ -137,7 +138,8 @@ test('PUT: 合格なら退避してから書き、{ok:true}。退避は直近10�
       assert.equal(backups.length, 1);
       assert.match(backups[0], new RegExp(`^${ID}-\\d{8}-\\d{6}\\.json$`));
       assert.equal(fs.readFileSync(path.join(backupsDir, backups[0]), 'utf8'), before, '退避は書く前の内容');
-      assert.deepEqual(JSON.parse(fs.readFileSync(file, 'utf8')).steps, steps);
+      assert.deepEqual(JSON.parse(fs.readFileSync(pubLesson(draftsDir, ID), 'utf8')).steps, steps);
+      assert.equal(fs.readFileSync(file, 'utf8'), before, 'lessons/ は変わらない');
       assert.ok(!fs.readdirSync(lessonsDir).some((f) => f.startsWith(`${ID}-2`)), 'lessons/ に退避を置かない');
       for (let i = 0; i < BACKUP_KEEP + 2; i++) assert.equal((await call(port, 'PUT', `/api/lessons/${ID}`, steps)).status, 200);
       assert.equal(listBackups(backupsDir).length, BACKUP_KEEP);
@@ -165,9 +167,9 @@ test('backupLesson: 名前は <id>-YYYYMMDD-HHmmss、同じ秒は連番、別レ
 });
 
 test('PUT: { steps, keepHandwritten } は stageGen.keepHandwritten を保存する。stageGen の無いレッスンは 400', async () => {
-  const { tmp, lessonsDir, backupsDir } = setup();
+  const { tmp, lessonsDir, backupsDir, draftsDir } = setup();
   try {
-    await withServer({ lessonsDir, backupsDir }, async (port) => {
+    await withServer({ lessonsDir, backupsDir, draftsDir }, async (port) => {
       const sg = 'donguri-02-mawarimichi';
       const file = path.join(lessonsDir, `${sg}.json`);
       const lesson = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -178,14 +180,14 @@ test('PUT: { steps, keepHandwritten } は stageGen.keepHandwritten を保存す�
       delete steps.find((s) => s.stepId === 'p3').gen;
       const r = await call(port, 'PUT', `/api/lessons/${sg}`, { steps, keepHandwritten: ['p1', 'p2', 'p3'] });
       assert.equal(r.status, 200, JSON.stringify(r.json));
-      const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
+      const saved = JSON.parse(fs.readFileSync(pubLesson(draftsDir, sg), 'utf8'));
       assert.deepEqual(saved.stageGen.keepHandwritten, ['p1', 'p2', 'p3']);
       assert.equal('gen' in saved.steps.find((s) => s.stepId === 'p3'), false);
       // 連続でない keepHandwritten は検査で断られ、ファイルは変わらない
-      const before = fs.readFileSync(file, 'utf8');
+      const before = fs.readFileSync(pubLesson(draftsDir, sg), 'utf8');
       const ng = await call(port, 'PUT', `/api/lessons/${sg}`, { steps, keepHandwritten: ['p1', 'p3'] });
       assert.equal(ng.status, 400);
-      assert.equal(fs.readFileSync(file, 'utf8'), before);
+      assert.equal(fs.readFileSync(pubLesson(draftsDir, sg), 'utf8'), before);
       // stageGen の無いレッスンに keepHandwritten は保存できない
       const none = await call(port, 'PUT', `/api/lessons/${ID}`, { steps: JSON.parse(fs.readFileSync(path.join(lessonsDir, `${ID}.json`), 'utf8')).steps, keepHandwritten: [] });
       assert.equal(none.status, 400);
@@ -208,12 +210,12 @@ function tutorialSteps(lessonsDir, text, taps = ['right', 'down', 'down', 'down'
 }
 
 test('PUT(tutorial): tutorial 付きの steps を保存できる', async () => {
-  const { tmp, lessonsDir, backupsDir } = setup();
+  const { tmp, lessonsDir, backupsDir, draftsDir } = setup();
   try {
-    await withServer({ lessonsDir, backupsDir }, async (port) => {
+    await withServer({ lessonsDir, backupsDir, draftsDir }, async (port) => {
       const r = await call(port, 'PUT', '/api/lessons/ice-02-kabe', tutorialSteps(lessonsDir, 'ここを おす'));
       assert.equal(r.status, 200, JSON.stringify(r.json));
-      const saved = JSON.parse(fs.readFileSync(path.join(lessonsDir, 'ice-02-kabe.json'), 'utf8')).steps;
+      const saved = JSON.parse(fs.readFileSync(pubLesson(draftsDir, 'ice-02-kabe'), 'utf8')).steps;
       const t = saved.find((s) => s.kind === 'tutorial');
       assert.equal(t.text, 'ここを おす');
       assert.equal(saved.indexOf(t), 1);
@@ -222,9 +224,9 @@ test('PUT(tutorial): tutorial 付きの steps を保存できる', async () => {
 });
 
 test('PUT(tutorial): 文言違反（20字超）は 400 で書かない', async () => {
-  const { tmp, lessonsDir, backupsDir } = setup();
+  const { tmp, lessonsDir, backupsDir, draftsDir } = setup();
   try {
-    await withServer({ lessonsDir, backupsDir }, async (port) => {
+    await withServer({ lessonsDir, backupsDir, draftsDir }, async (port) => {
       const file = path.join(lessonsDir, 'ice-02-kabe.json');
       const before = fs.readFileSync(file, 'utf8');
       const r = await call(port, 'PUT', '/api/lessons/ice-02-kabe', tutorialSteps(lessonsDir, 'あ'.repeat(25)));
@@ -236,9 +238,9 @@ test('PUT(tutorial): 文言違反（20字超）は 400 で書かない', async (
 });
 
 test('PUT(tutorial): ゴールに着かない手順は 400（チュートリアルの到達可能性）で書かない', async () => {
-  const { tmp, lessonsDir, backupsDir } = setup();
+  const { tmp, lessonsDir, backupsDir, draftsDir } = setup();
   try {
-    await withServer({ lessonsDir, backupsDir }, async (port) => {
+    await withServer({ lessonsDir, backupsDir, draftsDir }, async (port) => {
       const file = path.join(lessonsDir, 'ice-02-kabe.json');
       const before = fs.readFileSync(file, 'utf8');
       const r = await call(port, 'PUT', '/api/lessons/ice-02-kabe', tutorialSteps(lessonsDir, 'ここを おす', ['right', 'down', 'down']));
