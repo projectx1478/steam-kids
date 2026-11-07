@@ -53,11 +53,11 @@ export default async function run({ page, check }) {
   await check('ためしなおす: inert が外れる', async () =>
     page.evaluate(() => document.querySelector('[data-action="run"]').closest('[inert]') === null), true);
 
-  // 最終ステージ（p7）：見出しなし・ボタンは next。p1を解き直し、p2〜p6（解は4・6・6・3・4、開始は1）を順に通す
+  // 最終ステージ（p8）：見出しなし・ボタンは next。p1を解き直し、p2〜p7（解は4・6・6・3・4・5、開始は1）を順に通す
   await page.click('[data-action="pos-right"]');
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="next-stage"]', { timeout: 10000 });
-  for (const sol of [4, 6, 6, 3, 4]) {
+  for (const sol of [4, 6, 6, 3, 4, 5]) {
     await page.click('[data-action="next-stage"]');
     await page.waitForSelector('[data-action="pos-right"]');
     for (let i = 1; i < sol; i += 1) await page.click('[data-action="pos-right"]');
@@ -66,7 +66,7 @@ export default async function run({ page, check }) {
   }
   await page.click('[data-action="next-stage"]');
   await page.waitForSelector('[data-action="pos-right"]');
-  for (let i = 0; i < 4; i += 1) await page.click('[data-action="pos-right"]');
+  for (let i = 0; i < 3; i += 1) await page.click('[data-action="pos-right"]'); // p8：解4（開始1、▶3回）
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="next"]', { timeout: 10000 });
   await check('最終ステージ: 見出しは出ない', async () =>
