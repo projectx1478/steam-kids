@@ -1,6 +1,5 @@
 // unfold-01（展開図キューブ・unfold-cube）：intro 切替 → p1 で枚数不足は進まない → 重なる1マスで失敗(2マス点滅) → 消して正解 → つぎへ(Issue #289)。
 export const name = 'UNFOLD01 展開図キューブ: intro切替・枚数不足は進まない・失敗後もマスが残る・正解でクリア→つぎへ(Issue #289)';
-import { enterPlay } from '../helpers.mjs';
 
 const cell = (x, y) => `.uf-cell[data-x="${x}"][data-y="${y}"]`;
 const msg = (page) => page.textContent('[data-unfold-msg]').then((t) => t.trim());
@@ -10,7 +9,6 @@ const has = async (page, x, y, c) => (await cls(page, x, y)).split(/\s+/).includ
 export default async function run({ page, check }) {
   await page.setViewportSize({ width: 360, height: 640 });
   await page.goto('/index.html?lesson=unfold-01-cube');
-  await page.click('[data-action="start"]');
   await page.waitForSelector('[data-unfold-intro]');
 
   const shown = () => page.$$eval('.uf-slide', (els) => els.filter((e) => !e.classList.contains('uf-hide')).map((e) => e.dataset.slide));
