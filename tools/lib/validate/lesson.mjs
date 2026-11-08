@@ -27,6 +27,7 @@ import { checkSeesawDemo } from './demo-seesaw.mjs';
 import { validateBuoyancy } from './buoyancy.mjs';
 import { checkStageGen } from './stagegen.mjs';
 import { validateSortOrder } from './sortorder.mjs';
+import { validateUnfold } from './unfold.mjs';
 
 export function validateLesson(fileName, data, longTrialIds = []) {
   const errors = [];
@@ -107,6 +108,10 @@ export function validateLesson(fileName, data, longTrialIds = []) {
   const playSteps = steps.filter((s) => s.kind === 'play');
   if (data.type === 'sort-order') {
     validateSortOrder(playSteps, add, isLong);
+    return errors;
+  }
+  if (data.type === 'unfold-cube') {
+    validateUnfold(playSteps, steps.find((s) => s.kind === 'intro'), add, isLong);
     return errors;
   }
   if (data.type === 'grid-runtime' && (playSteps.length < MIN_PLAY || playSteps.length > maxPlay)) {

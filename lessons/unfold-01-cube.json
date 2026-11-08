@@ -1,0 +1,146 @@
+{
+  "lessonId": "unfold-01-cube",
+  "unitId": "unfold",
+  "title": "てんかいず・はこを つくろう",
+  "type": "unfold-cube",
+  "estimatedMinutes": 8,
+  "steps": [
+    {
+      "stepId": "s1",
+      "kind": "intro",
+      "text": "てんかいずが はこに なるよ",
+      "demo": {
+        "kind": "unfold",
+        "net": [
+          { "x": 0, "y": 0 },
+          { "x": 1, "y": 0 },
+          { "x": 1, "y": 1 },
+          { "x": 2, "y": 1 },
+          { "x": 2, "y": 2 },
+          { "x": 3, "y": 2 }
+        ]
+      }
+    },
+    {
+      "stepId": "p1",
+      "kind": "play",
+      "text": "1ます ぬって はこに しよう",
+      "unfold": {
+        "cols": 5,
+        "rows": 3,
+        "preset": [
+          { "x": 0, "y": 0 },
+          { "x": 1, "y": 0 },
+          { "x": 2, "y": 1 },
+          { "x": 3, "y": 1 },
+          { "x": 4, "y": 1 }
+        ]
+      }
+    },
+    {
+      "stepId": "p2",
+      "kind": "play",
+      "text": "1ます ぬって はこに しよう",
+      "unfold": {
+        "cols": 5,
+        "rows": 3,
+        "preset": [
+          { "x": 1, "y": 0 },
+          { "x": 2, "y": 1 },
+          { "x": 3, "y": 1 },
+          { "x": 4, "y": 1 },
+          { "x": 4, "y": 2 }
+        ]
+      }
+    },
+    {
+      "stepId": "p3",
+      "kind": "play",
+      "text": "2ます ぬって はこに しよう",
+      "unfold": {
+        "cols": 5,
+        "rows": 3,
+        "preset": [
+          { "x": 0, "y": 0 },
+          { "x": 1, "y": 0 },
+          { "x": 2, "y": 1 },
+          { "x": 3, "y": 1 }
+        ]
+      }
+    },
+    {
+      "stepId": "p4",
+      "kind": "play",
+      "text": "2ます ぬって はこに しよう",
+      "unfold": {
+        "cols": 5,
+        "rows": 3,
+        "preset": [
+          { "x": 1, "y": 0 },
+          { "x": 2, "y": 1 },
+          { "x": 3, "y": 1 },
+          { "x": 3, "y": 2 }
+        ]
+      }
+    },
+    {
+      "stepId": "p5",
+      "kind": "play",
+      "text": "3ます ぬって はこに しよう",
+      "unfold": {
+        "cols": 5,
+        "rows": 3,
+        "preset": [
+          { "x": 1, "y": 0 },
+          { "x": 3, "y": 1 },
+          { "x": 4, "y": 1 }
+        ]
+      }
+    },
+    {
+      "stepId": "p6",
+      "kind": "play",
+      "text": "3ます ぬって はこに しよう",
+      "unfold": {
+        "cols": 5,
+        "rows": 3,
+        "preset": [
+          { "x": 2, "y": 0 },
+          { "x": 2, "y": 1 },
+          { "x": 3, "y": 1 }
+        ]
+      }
+    },
+    {
+      "stepId": "p7",
+      "kind": "play",
+      "text": "4ます ぬって はこに しよう",
+      "unfold": {
+        "cols": 5,
+        "rows": 3,
+        "preset": [
+          { "x": 2, "y": 0 },
+          { "x": 2, "y": 1 }
+        ]
+      }
+    },
+    {
+      "stepId": "p8",
+      "kind": "play",
+      "text": "4ます ぬって はこに しよう",
+      "unfold": {
+        "cols": 5,
+        "rows": 3,
+        "preset": [
+          { "x": 2, "y": 1 },
+          { "x": 3, "y": 1 }
+        ]
+      }
+    },
+    {
+      "stepId": "s2",
+      "kind": "summary",
+      "text": "てんかいずで はこが できたね"
+    }
+  ]
+}

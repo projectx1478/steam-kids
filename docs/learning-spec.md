@@ -24,7 +24,7 @@
 | `connect` | つなぐ | 回路、食物連鎖、対応関係 |
 | `build` | くみたて | 実験の条件設計、式づくり |
 
-実装済みは `grid-runtime`・`predict-slider`（シーソー「つりあい」。下記）・`sort-order`（レシピの順番。sort-01。Issue #292。カードを順に並べて「ためす」。順序の制約〔`before`〕を満たせば正解で、違反は結果アニメ＋該当の2枚の点滅で気づかせる。文言なし。判定は`js/engine-sortorder.js`、描画は`js/ui-sortorder.js`）。`sort-order`も grid-runtime の最短手数規則の適用外（前例はうかぶ面。下記）で、枚数の非減少などを`tools/lib/validate/sortorder.mjs`が検証する（`docs/lesson-schema.md`）。予想ステップ（`kind: "predict"`）は将来の教材型向けに語彙・実装
+実装済みは `grid-runtime`・`predict-slider`（シーソー「つりあい」。下記）・`sort-order`（レシピの順番。sort-01。Issue #292。カードを順に並べて「ためす」。順序の制約〔`before`〕を満たせば正解で、違反は結果アニメ＋該当の2枚の点滅で気づかせる。文言なし。判定は`js/engine-sortorder.js`、描画は`js/ui-sortorder.js`）。`sort-order`も grid-runtime の最短手数規則の適用外（前例はうかぶ面。下記）で、枚数の非減少などを`tools/lib/validate/sortorder.mjs`が検証する（`docs/lesson-schema.md`）。`unfold-cube`（てんかいず・はこを つくろう。unfold-01。Issue #289。5×3の格子に6マスを塗って立方体の展開図にし「ためす」。判定は`js/engine-unfold.js`、描画は`js/ui-unfold.js`。違反は点滅で気づかせ、枚数の過不足だけ結果帯に文言を出す）も最短手数規則の適用外（grid でない。前例は sort-order）で、`tools/lib/validate/unfold.mjs`が検証する。予想ステップ（`kind: "predict"`）は将来の教材型向けに語彙・実装
 （`js/ui-predict.js`）のみ残し、現行レッスンでは使わない（Issue #104でよそうの選択肢UIを全廃）。
 
 ## predict-slider 仕様（シーソーで つりあい。Issue #150）

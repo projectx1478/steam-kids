@@ -81,11 +81,11 @@ UI規則（受け入れ条件。すべて判定可能な数値条件とする）
 | seedPick | `#gear-btn` | `#gear-btn` | `#menu-home` `#menu-close` | 同上 |
 | play | なし | `[data-sk-screen="bird-lane"] [data-action="menu"]` | `#menu-home` `#menu-close` | 同上＋いまの ばしょ |
 | teko | `#back-btn` `#gear-btn` | `#gear-btn` | `#menu-home` `#menu-close` | 同上 |
-| sortOrder | `#back-btn` `#gear-btn` | `#gear-btn` | `#menu-home` `#menu-close` | 同上 |
+| sortOrder | `#back-btn` `#gear-btn` | `#gear-btn` | `#menu-home` `#menu-close` | 同上（unfold-cube の play も同じ） |
 | tutorial | なし | `[data-action="menu"]` | `#menu-home` `#menu-close` | 同上＋いまの ばしょ |
 | summary | `#back-btn` `#gear-btn` | `#gear-btn` | `#menu-close` | とじる（離れるは出さない） |
 
-⚙の名前は全画面「せってい」。離れるは確認あり＝play・teko・sortOrder、なし＝そのほか。ヘッダの 🏠（旧 `#home-btn`）は #574 段Bで除去済み（離れるは⚙メニューの `#menu-home`）。sort-order 以外の play の⚙は吹き出し欄の右端（顔の右、間16px、64×64。`createOpScreen` の `gear`。#574 段C）。シーソー（teko）・うかぶ面・予想・並べかえ（sort-order）の play はヘッダの⚙のまま（欄に⚙を出すのは `gear` を渡す play だけ。sortOrder の行は play の中でヘッダ（`#back-btn` `#gear-btn`）が残る型）。同じ画面に⚙が2つ出ない。
+⚙の名前は全画面「せってい」。離れるは確認あり＝play・teko・sortOrder（unfold-cube の play を含む）、なし＝そのほか。ヘッダの 🏠（旧 `#home-btn`）は #574 段Bで除去済み（離れるは⚙メニューの `#menu-home`）。sort-order 以外の play の⚙は吹き出し欄の右端（顔の右、間16px、64×64。`createOpScreen` の `gear`。#574 段C）。シーソー（teko）・うかぶ面・予想・並べかえ（sort-order）・展開図キューブ（unfold-cube）の play はヘッダの⚙のまま（欄に⚙を出すのは `gear` を渡す play だけ。sortOrder の行は play の中でヘッダ（`#back-btn` `#gear-btn`）が残る型）。同じ画面に⚙が2つ出ない。
 
 うかぶ面の数字：盤の数字は白の太字・濃い茶の縁・丸の中（おもり＝重さ、ふうせん＝うく力、ロボットの右肩の青緑の丸＝「↑」とロボットのうく力）。シーソーのおもさの数字と同じ見た目にそろえる。単位や記号は足さない。
 

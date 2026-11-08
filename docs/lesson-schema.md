@@ -184,6 +184,19 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 - 面ごとの検査：正解が1通り以上（循環なし）、`cards`の配列順は不正解、各`before`は必須（外すと正解が増える）、制約（`before`）に出ないカードは1枚まで、同じ`cards`＋`before`の面の重複なし
 - レッスン全体の検査（`tools/lib/validate/sortorder.mjs`）：`longTrialIds`に載せる、play は8面、枚数は非減少、正解が複数ある面（全順序でない面）が1つ以上、制約に出ないカードのある面は全面で1面まで。grid-runtime の最短手数規則（最短手数の非減少・maxCommands）は適用外
 
+### `unfold-cube`の`play`（てんかいず・はこを つくろう。Issue #289）
+
+`type: "unfold-cube"`のレッスンは`kind: "play"`に`unfold`を持つ。`solution`・`start`・`goal`・`gen`・色は持たない（正解は`preset`から導く）。
+```json
+{ "stepId": "p1", "kind": "play", "text": "1ます ぬって はこに しよう",
+  "unfold": { "cols": 5, "rows": 3,
+    "preset": [{ "x": 0, "y": 0 }, { "x": 1, "y": 0 }, { "x": 2, "y": 1 }, { "x": 3, "y": 1 }, { "x": 4, "y": 1 }] } }
+```
+- `cols`・`rows`：5×3固定。`preset`：1〜5枚の`{x,y}`（格子内・重複なし。子どもは消せない）。正解＝`preset`を含み、立方体の展開図（回転・反転・平行移動を同一視した11種）になる格子内の6マス集合
+- `intro`の`demo`は`{ "kind": "unfold", "net": [{x,y}×6] }`（必須）。`net`は格子内・重複なしの展開図で、どの面の`preset`も含まない（本番と同じ盤を見せない）。`kind:"unfold"`は unfold-cube 以外では不合格
+- 面ごとの検査（`tools/lib/validate/unfold.mjs`の`validateUnfoldFace`）：`preset`が1〜5枚（0枚と6枚は不合格）、連結可能、preset を含む正解が1通り以上、必須性（preset を全部外した正解数＞正解数）、盤が立方体の展開図か（折り検査）
+- レッスン全体の検査（`validateUnfold`）：`longTrialIds`に載せる、play は8面、`preset`枚数は非増加（＝正解数は非減少）、同じ`preset`の面の重複なし。`intro.demo`は`checkUnfoldDemo`。grid-runtime の最短手数規則は適用外
+
 ### `tutorial`（なぞり操作型チュートリアル）
 
 各レッスンで新しい操作が初登場する時、`intro`直後かつ最初の`play`より前に0〜1個置く
