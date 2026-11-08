@@ -15,6 +15,7 @@ import { renderGrid, prefersReducedMotion } from './ui-grid.js';
 import { renderCommandQueue } from './ui-commands.js';
 import { playAnimation, setActiveAnimation } from './ui-step.js';
 import { play as playSfx } from './sfx.js';
+import { createSeesawDemoDriver } from './ui-demo-seesaw.js';
 
 const DEMO_CELL = 40;
 // 高さ479px以下の画面（844×390など）は下端バー（Issue #551）の分だけ縦が足りないため、マスを小さくする。
@@ -38,10 +39,12 @@ function toChip(entry) {
 // demo: { grid, start, goal, walls, items?, commands, showCommands?, fixFrom? }（lessons/*.jsonのintro.demo）。
 // opts.once=true なら初回の1回だけ再生して止まる（既習レッスンの短い導入。Issue #269）。
 export function renderGoalDemo(container, demo, opts = {}) {
-  const spec = boardSpec(demo);
+  // demo.kind === 'seesaw'（teko-01 の intro。Issue #679）は盤面の描画と1周の動きだけ js/ui-demo-seesaw.js に任せる。
+  const isSeesaw = demo.kind === 'seesaw';
+  const spec = isSeesaw ? { items: [] } : boardSpec(demo);
   const wrap = document.createElement('div');
   wrap.className = 'demo-widget flex flex-col items-center gap-2 my-2';
-  wrap.dataset.demo = 'goal';
+  wrap.dataset.demo = isSeesaw ? 'seesaw' : 'goal';
 
   let queueEl = null;
   if (demo.showCommands || demo.fixFrom) {
@@ -51,10 +54,11 @@ export function renderGoalDemo(container, demo, opts = {}) {
   }
 
   const boardOuter = document.createElement('div');
-  boardOuter.className = 'relative';
+  boardOuter.className = isSeesaw ? 'relative w-full' : 'relative';
   wrap.appendChild(boardOuter);
   const boardWrap = document.createElement('div');
   boardOuter.appendChild(boardWrap);
+  const seesawDriver = isSeesaw ? createSeesawDemoDriver(boardWrap, demo) : null;
 
   // readyBadge: 初回自動再生前の1秒だけ盤面中央に出す「よーい…」（Issue #107）。
   const readyBadge = document.createElement('div');
@@ -78,6 +82,11 @@ export function renderGoalDemo(container, demo, opts = {}) {
 
   let view = null;
   function draw(playerPos) {
+    if (seesawDriver) {
+      seesawDriver.draw();
+      view = seesawDriver.view;
+      return;
+    }
     boardWrap.innerHTML = '';
     const { el, view: v } = renderGrid({ ...spec, playerPos, labels: [], cellSize: demoCell() });
     boardWrap.appendChild(el);
@@ -99,6 +108,11 @@ export function renderGoalDemo(container, demo, opts = {}) {
   let lastRound = -1;
 
   function runPhase(commands, onDone) {
+    if (seesawDriver) {
+      subAnim = seesawDriver;
+      seesawDriver.run(onDone);
+      return;
+    }
     lastRound = -1;
     setQueue(commands, -1);
     subAnim = playAnimation(

@@ -225,3 +225,31 @@ for (const [name, expected, plays] of rightBoards) {
     assert.equal(r.code, expected.length === 0 ? 0 : 1, r.out);
   });
 }
+
+// 紹介デモ（intro.demo の kind: "seesaw"。Issue #679）：合格1種・不合格7種。盤は review/design/679/boards の写し。
+const seesawDemo = { kind: 'seesaw', seesaw: { notches: 4, left: [{ robots: 1, pos: 3 }], mover: { robots: 1, start: 1 } }, solution: 3 };
+const setDemo = (demo) => (l) => (l.steps.find((s) => s.stepId === 's1').demo = demo);
+const replaceLesson = (file, demo) => (l) => {
+  const other = JSON.parse(readFileSync(file, 'utf-8'));
+  other.steps.find((s) => s.kind === 'intro').demo = demo;
+  for (const k of Object.keys(l)) delete l[k];
+  Object.assign(l, other);
+};
+const gridDemo = { grid: { cols: 4, rows: 4 }, start: { x: 3, y: 3 }, goal: { x: 0, y: 0 }, walls: [], commands: ['left', 'up'], showCommands: true };
+const demoCases = [
+  ['pass-1', null, setDemo(seesawDemo)],
+  ['fail-1 solutionがつりあわない', 'デモのsolution', setDemo({ ...seesawDemo, solution: 2 })],
+  ['fail-2 本番p1と同じ盤', 'デモのネタバレ', setDemo({ ...seesawDemo, seesaw: { ...seesawDemo.seesaw, left: [{ robots: 1, pos: 2 }] }, solution: 2 })],
+  ['fail-3 grid形キーの混在', 'デモの形', setDemo({ ...seesawDemo, ...gridDemo })],
+  ['fail-4 未知のキー・pos 0・範囲外', 'デモのseesaw', setDemo({ ...seesawDemo, foo: 1, seesaw: { notches: 7, left: [{ robots: 1, pos: 0 }], mover: { robots: 1, start: 1 } } })],
+  ['fail-5 buoyancyにdemo', 'デモの形', replaceLesson('lessons/teko-07-ukabu.json', seesawDemo)],
+  ['fail-6 grid教材にkind', 'デモの形', replaceLesson('lessons/cmd-01-susumu.json', seesawDemo)],
+  ['fail-7 tekoのintroにkindの無いgrid形', 'デモの形', setDemo(gridDemo)],
+];
+for (const [label, rule, mutate] of demoCases) {
+  test(`validate-lessons: 紹介デモ ${label}`, () => {
+    const r = validate(mutate);
+    if (rule === null) assert.equal(r.code, 0, r.out);
+    else assert.equal(r.code === 1 && r.out.includes(rule), true, `${label}\n${r.out}`);
+  });
+}

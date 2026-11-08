@@ -39,6 +39,11 @@ function boxProblems(entry) {
 function checkDemo(intro, playSteps, add) {
   const demo = intro?.demo;
   if (!demo) return;
+  // kind は seesaw 形（predict-slider の intro。Issue #679）の判別キー。grid 教材・tracks[].intro には書けない。
+  if (demo.kind !== undefined) {
+    add('デモの形', `stepId="${intro.stepId}" のdemo に kind=${JSON.stringify(demo.kind)} は書けない（kind は teko のシーソー教材の intro だけ）`);
+    return;
+  }
   const grid = demo.grid || {};
   const walls = Array.isArray(demo.walls) ? demo.walls : [];
   const wallKeySet = new Set(walls.map((w) => `${w.x},${w.y}`));
