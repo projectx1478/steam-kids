@@ -37,7 +37,7 @@ test('実物の docs/ui-rules.md の表が読め、全画面が揃う', () => {
   const rows = parseGearTable(readFileSync(new URL('../docs/ui-rules.md', import.meta.url), 'utf8'));
   assert.deepEqual(
     rows.map((r) => r.screen),
-    ['title', 'map', 'intro', 'predict', 'seedPick', 'play', 'teko', 'tutorial', 'summary']
+    ['title', 'map', 'intro', 'predict', 'seedPick', 'play', 'teko', 'sortOrder', 'tutorial', 'summary']
   );
   for (const r of rows) {
     assert.ok(r.gear, `${r.screen}: ⚙位置が空`);
