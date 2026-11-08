@@ -12,6 +12,7 @@ import { renderGoalDemo } from './ui-demo.js';
 import { renderPlay } from './ui-play.js';
 import { renderSeesaw } from './ui-seesaw.js';
 import { renderSortOrder } from './ui-sortorder.js';
+import { renderUnfold, renderUnfoldIntro } from './ui-unfold.js';
 import { renderBuoyancy } from './ui-buoyancy.js';
 import { renderPredict } from './ui-predict.js';
 import { renderTutorial, isTutorialDone } from './ui-tutorial.js';
@@ -111,7 +112,7 @@ function headerEls() {
 
 // ヘッダ・点列をメニュー内へ寄せる対象画面（命令パレットのある play〔シーソー除く〕と tutorial。Issue #467）。
 function isCompactStep(step) {
-  return step.kind === 'tutorial' || (step.kind === 'play' && S.lesson.type !== 'predict-slider' && S.lesson.type !== 'sort-order');
+  return step.kind === 'tutorial' || (step.kind === 'play' && S.lesson.type !== 'predict-slider' && S.lesson.type !== 'sort-order' && S.lesson.type !== 'unfold-cube');
 }
 
 // 区分チップの文言。playが複数ステージ(だんだん難易度を上げる構成)を持つ時は
@@ -436,6 +437,7 @@ function renderStep() {
   if (step.kind === 'intro') renderIntro(root, step);
   else if (step.kind === 'predict') renderPredict(root, step);
   else if (step.kind === 'play' && S.lesson.type === 'sort-order') renderSortOrder(root, step);
+  else if (step.kind === 'play' && S.lesson.type === 'unfold-cube') renderUnfold(root, step);
   else if (step.kind === 'play') (S.lesson.type === 'predict-slider' ? (step.buoyancy ? renderBuoyancy : renderSeesaw) : renderPlay)(root, step);
   else if (step.kind === 'tutorial') renderTutorial(root, step);
   else if (step.kind === 'summary') renderSummary(root);
@@ -686,7 +688,9 @@ function renderIntro(root, step) {
   // ロボットが正解の道をたどってゴールへ到達する完成イメージ（本番とは別のstart/goal。
   // Issue #97）。demoが無い教材型は対象外。
   // 既習のレッスン（isIntroKnown）は1回だけ再生して止める（Issue #269）。
-  if (step.demo) {
+  if (step.demo?.kind === 'unfold') {
+    renderUnfoldIntro(body, step.demo);
+  } else if (step.demo) {
     renderGoalDemo(body, step.demo, { once: isIntroKnown(S.units, S.lesson.lessonId, isLessonCleared) });
   }
   renderStagePicker(root);
