@@ -77,7 +77,7 @@ export function renderSummary(root) {
   const playStepIds = S.lesson.steps.filter((s) => s.kind === 'play').map((s) => s.stepId);
   const lastPlay = S.lesson.steps.filter((s) => s.kind === 'play').at(-1);
   let shortest;
-  if (lastPlay && S.lesson.type !== 'predict-slider') {
+  if (lastPlay && S.lesson.type !== 'predict-slider' && S.lesson.type !== 'sort-order') {
     const spec = playSpecOf(lastPlay);
     // repeatBoxはループ込みの最短性を求めない（shortest未定義＝「いちばん みじかい」を出さない。Issue #66）。
     // condBlockも同様に最短を出さない（Issue #291）。

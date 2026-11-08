@@ -11,6 +11,7 @@ import { renderInto } from './text-render.js';
 import { renderGoalDemo } from './ui-demo.js';
 import { renderPlay } from './ui-play.js';
 import { renderSeesaw } from './ui-seesaw.js';
+import { renderSortOrder } from './ui-sortorder.js';
 import { renderBuoyancy } from './ui-buoyancy.js';
 import { renderPredict } from './ui-predict.js';
 import { renderTutorial, isTutorialDone } from './ui-tutorial.js';
@@ -110,7 +111,7 @@ function headerEls() {
 
 // ヘッダ・点列をメニュー内へ寄せる対象画面（命令パレットのある play〔シーソー除く〕と tutorial。Issue #467）。
 function isCompactStep(step) {
-  return step.kind === 'tutorial' || (step.kind === 'play' && S.lesson.type !== 'predict-slider');
+  return step.kind === 'tutorial' || (step.kind === 'play' && S.lesson.type !== 'predict-slider' && S.lesson.type !== 'sort-order');
 }
 
 // 区分チップの文言。playが複数ステージ(だんだん難易度を上げる構成)を持つ時は
@@ -434,6 +435,7 @@ function renderStep() {
   renderStepDots(root);
   if (step.kind === 'intro') renderIntro(root, step);
   else if (step.kind === 'predict') renderPredict(root, step);
+  else if (step.kind === 'play' && S.lesson.type === 'sort-order') renderSortOrder(root, step);
   else if (step.kind === 'play') (S.lesson.type === 'predict-slider' ? (step.buoyancy ? renderBuoyancy : renderSeesaw) : renderPlay)(root, step);
   else if (step.kind === 'tutorial') renderTutorial(root, step);
   else if (step.kind === 'summary') renderSummary(root);
