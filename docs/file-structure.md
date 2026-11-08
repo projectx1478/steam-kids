@@ -21,9 +21,11 @@ js/
   gimmicks/rollballs.js # たま（転がす球）・おとし穴。rollBalls・pits。仕様は docs/gimmicks.md（Issue #287）
   engine-generate.js # シードからgrid-runtime盤面を生成する純粋関数（PRNG・制約判定・予備盤面。Issue #68）
   engine-sortorder.js # sort-order（レシピの順番）の順序制約の純粋関数（Issue #292）
+  engine-unfold.js # unfold-cube（展開図キューブ）の折り検査・正解列挙の純粋関数（Issue #289）
   engine-seesaw.js # predict-slider（シーソー）の純粋関数（おもさ×きょりの傾き判定。Issue #150）
   ui-seesaw.js # シーソーplay画面の描画（Issue #150）
   ui-sortorder.js # sort-order（レシピの順番）のplay画面の描画（Issue #292）
+  ui-unfold.js # unfold-cube（展開図キューブ）のplay画面とintroの描画（Issue #289）
   ui-seesaw-draw.js # シーソーの描画ヘルパー（定数・ロボット・数字・盤面SVG。本編とデモが共用。Issue #679）
   ui-demo-seesaw.js # introのシーソー紹介デモ（demo.kind: "seesaw"の盤面描画と1周の動き。Issue #679）
   engine-buoyancy.js # predict-slider（うかぶ面）の純粋関数（net判定・つりあう組・難易度。Issue #288）
