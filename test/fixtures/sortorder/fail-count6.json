@@ -1,0 +1,14 @@
+{
+  "stepId": "p1", "kind": "play", "text": "れいだい",
+  "sortOrder": {
+    "cards": [
+      { "id": "f", "icon": "🍽️", "text": "ろくばんめ" },
+      { "id": "e", "icon": "🥚", "text": "ごばんめ" },
+      { "id": "d", "icon": "🍳", "text": "よばんめ" },
+      { "id": "c", "icon": "🥕", "text": "さんばんめ" },
+      { "id": "b", "icon": "🍞", "text": "にばんめ" },
+      { "id": "a", "icon": "🧈", "text": "いちばんめ" }
+    ],
+    "before": [ { "a": "a", "b": "b" }, { "a": "b", "b": "c" }, { "a": "c", "b": "d" }, { "a": "d", "b": "e" }, { "a": "e", "b": "f" } ]
+  }
+}

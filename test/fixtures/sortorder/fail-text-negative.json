@@ -1,0 +1,11 @@
+{
+  "stepId": "p1", "kind": "play", "text": "れいだい",
+  "sortOrder": {
+    "cards": [
+      { "id": "c", "icon": "🥕", "text": "さん" },
+      { "id": "a", "icon": "🥚", "text": "まぜない" },
+      { "id": "b", "icon": "🍳", "text": "に" }
+    ],
+    "before": [ { "a": "a", "b": "b" }, { "a": "b", "b": "c" } ]
+  }
+}
