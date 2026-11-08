@@ -1,0 +1,12 @@
+{
+  "stepId": "p4", "kind": "play", "text": "サンドイッチを つくろう",
+  "sortOrder": {
+    "cards": [
+      { "id": "d", "icon": "🥪", "text": "はんぶんに きる" },
+      { "id": "c", "icon": "🥓", "text": "ハムを のせる" },
+      { "id": "b", "icon": "🧈", "text": "バターを ぬる" },
+      { "id": "a", "icon": "🍞", "text": "パンを ならべる" }
+    ],
+    "before": [ { "a": "a", "b": "b", "fail": "spill" }, { "a": "a", "b": "c", "fail": "spill" }, { "a": "b", "b": "d" }, { "a": "c", "b": "d" } ]
+  }
+}

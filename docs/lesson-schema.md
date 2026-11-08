@@ -165,6 +165,25 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 - 式は `net = base + balloons×lift − weights×mass`。startで`net≠0`、つりあう組（net=0）が1つ以上
 - `solution`（必須）：軸が1つ＝整数（その軸の個数）、軸が2つ＝`[おもり, ふうせん]`。つりあう組のどれか
 
+### `sort-order`の`play`（レシピの順番。Issue #292）
+
+`type: "sort-order"`のレッスンは`kind: "play"`に`sortOrder`を持つ。`solution`・`start`・`goal`・`gen`は持たない（正解は`before`から導く）。
+```json
+{ "stepId": "p1", "kind": "play", "text": "たまごやきを つくろう",
+  "sortOrder": {
+    "cards": [
+      { "id": "sara", "icon": "🍽️", "text": "おさらに のせる" },
+      { "id": "wa", "icon": "🥚", "text": "たまごを わる" },
+      { "id": "yaku", "icon": "🍳", "text": "フライパンで やく" }
+    ],
+    "before": [{ "a": "wa", "b": "yaku", "fail": "raw" }, { "a": "yaku", "b": "sara", "fail": "empty" }]
+  } }
+```
+- `cards`：3〜5枚。トレイの初期の並び＝配列順。`id`は英数字で重複不可、`icon`は絵文字1字（グラフィム1つ）、`text`は`step.text`と同じ検査（ルビ外の漢字・配当表・展開後20字以内・否定語）に加えて「ない」も不可
+- `before`：1本以上。`a`が`b`より前（`a`・`b`は`cards`の`id`で別のカード）。並びが全`before`を満たせば正解。違反が複数なら`before`の配列順で最初の1つを返す。`fail`（省略可）は`burn`・`spill`・`raw`・`empty`（結果アニメの種類）。無ければ首をかしげるだけ。どちらも違反の2枚を点滅する
+- 面ごとの検査：正解が1通り以上（循環なし）、`cards`の配列順は不正解、各`before`は必須（外すと正解が増える）、制約（`before`）に出ないカードは1枚まで、同じ`cards`＋`before`の面の重複なし
+- レッスン全体の検査（`tools/lib/validate/sortorder.mjs`）：`longTrialIds`に載せる、play は8面、枚数は非減少、正解が複数ある面（全順序でない面）が1つ以上、制約に出ないカードのある面は全面で1面まで。grid-runtime の最短手数規則（最短手数の非減少・maxCommands）は適用外
+
 ### `tutorial`（なぞり操作型チュートリアル）
 
 各レッスンで新しい操作が初登場する時、`intro`直後かつ最初の`play`より前に0〜1個置く

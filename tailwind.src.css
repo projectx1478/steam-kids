@@ -884,7 +884,7 @@ dialog.result-row {
     margin-left: 0.5rem;
   }
   .sk-screen-panel > .sk-screen-actions.sk-screen-actions--play {
-    grid-template-columns: minmax(64px, 1fr) minmax(64px, 1fr) minmax(72px, 1fr) minmax(80px, 1fr);
+    grid-template-columns: minmax(64px, 1fr) minmax(64px, 1fr) minmax(64px, 1fr) minmax(80px, 1fr);
   }
 }
 @media (orientation: landscape) and (min-height: 480px) {
@@ -1111,5 +1111,189 @@ dialog.result-row {
   .title-actions > button {
     min-width: 168px;
     min-height: 64px;
+  }
+}
+
+/* sort-order（レシピの順番。js/ui-sortorder.js・Issue #292）：小鳥の欄64px＋結果帯（盤面・最低64px。本番は点列がステージ側に出て縦が足りないため、見本の72pxから縮めた）＋操作パネル（スロット・カード・ためす/やりなおす）。
+   見本 review/design/292/mock/mock.html の寸法に合わせる。ヘッダは残す（360×640 で余白ゼロのため、縦の寸法を増やさない）。 */
+.sk-screen--sortorder > .sk-screen-panel.sk-screen-panel {
+  gap: 0.375rem;
+  padding: 0.5rem;
+}
+.so-board {
+  flex: 1 1 64px;
+  min-height: 64px;
+  background: #6ee7b7;
+  border-radius: 1rem;
+  padding: 0.5rem;
+  gap: 0.5rem;
+  justify-content: flex-start;
+}
+.so-robot-frame {
+  flex: none;
+  width: 56px;
+  height: 48px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.so-robot {
+  width: 48px;
+  height: 48px;
+  overflow: visible;
+}
+.so-scene-wrap {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.so-scene {
+  height: 100%;
+  max-height: 120px;
+  width: auto;
+  overflow: visible;
+}
+.so-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--so-cols, 3), 64px);
+  gap: 0.5rem;
+  justify-content: center;
+}
+.so-slot,
+.so-card,
+.so-hole {
+  width: 64px;
+  height: 64px;
+  box-sizing: border-box;
+  border-radius: 0.75rem;
+}
+.so-slot {
+  position: relative;
+  background: rgba(255, 255, 255, 0.35);
+  border: 2px dashed #fff;
+}
+.so-no {
+  position: absolute;
+  left: 4px;
+  top: 2px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 0 2px #1e293b;
+  pointer-events: none;
+}
+.so-hole {
+  border: 2px dashed rgba(30, 41, 59, 0.35);
+}
+.so-card {
+  background: #fff;
+  border: 2px solid #1e293b;
+  box-shadow: 0 3px 0 #1e293b;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font: inherit;
+  color: #1e293b;
+  cursor: pointer;
+}
+.so-slot > .so-card {
+  position: absolute;
+  inset: -2px;
+}
+.so-ic {
+  font-size: 24px;
+  line-height: 26px;
+}
+.so-tx {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 12px;
+  white-space: normal;
+  text-align: center;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+/* 違反ペアの2枚：黄橙＋太枠で点滅（赤は使わない） */
+.so-slot.so-wrong > .so-card {
+  border: 5px solid #f59e0b;
+  box-shadow: 0 0 0 2px #1e293b;
+  animation: so-blink 0.5s steps(2, start) infinite;
+}
+@keyframes so-blink {
+  0% {
+    background: #fff;
+  }
+  50% {
+    background: #fdba74;
+  }
+}
+/* 空きスロットが光る（「ためす」を早く押したとき） */
+.so-slot.so-need {
+  border-color: #f59e0b;
+  background: rgba(253, 224, 71, 0.75);
+  box-shadow: 0 0 0 4px #fbbf24;
+}
+@media (prefers-reduced-motion: reduce) {
+  .so-slot.so-wrong > .so-card {
+    animation: none;
+    background: #fdba74;
+  }
+}
+.sk-screen-panel > .sk-screen-actions.sk-screen-actions--sortorder {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  align-items: center;
+  margin-top: 0;
+}
+.so-try {
+  height: 64px;
+  flex: 1;
+  border: 2px solid #1e293b;
+  border-radius: 1rem;
+  background: #0ea5e9;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 800;
+  box-shadow: 0 4px 0 #1e293b;
+}
+.so-reset {
+  height: 64px;
+  min-width: 96px;
+  padding: 0 12px;
+  border: 2px solid #1e293b;
+  border-radius: 1rem;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 3px 0 #1e293b;
+}
+.so-try:disabled,
+.so-reset:disabled {
+  opacity: 0.4;
+  transform: translateY(2px);
+  box-shadow: none;
+}
+/* 横向き：左に小鳥の欄＋結果帯、右に操作パネル。高さの足りない横向き（844×390 等）はスロット・カードを1行に並べる */
+@media (orientation: landscape) {
+  .sk-screen-frame.sk-screen-frame.sk-screen--sortorder {
+    grid-template-columns: minmax(0, 1fr) 400px;
+    grid-template-rows: 64px minmax(72px, 1fr);
+  }
+  .sk-screen--sortorder > .sk-screen-panel.sk-screen-panel {
+    align-self: start;
+  }
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  .sk-screen--sortorder .so-grid {
+    grid-template-columns: repeat(var(--so-n, 5), 64px);
+    gap: 6px;
   }
 }

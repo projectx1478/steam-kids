@@ -1,0 +1,14 @@
+{
+  "description": "不合格：枚数が減る（p3 が5枚、p4 が4枚。3,3,5,4,4,5,5,5）。各面は単独では正常。",
+  "type": "sort-order",
+  "plays": [
+    {"stepId":"p1","sortOrder":{"cards":[{"id":"c1","icon":"🥕","text":"さん"},{"id":"a1","icon":"🥚","text":"いち"},{"id":"b1","icon":"🍳","text":"に"}],"before":[{"a":"a1","b":"b1"},{"a":"b1","b":"c1"}]}},
+    {"stepId":"p2","sortOrder":{"cards":[{"id":"c2","icon":"🥕","text":"さん"},{"id":"a2","icon":"🥚","text":"いち"},{"id":"b2","icon":"🍳","text":"に"}],"before":[{"a":"a2","b":"b2"},{"a":"b2","b":"c2"}]}},
+    {"stepId":"p3","sortOrder":{"cards":[{"id":"e3","icon":"🥕","text":"ご"},{"id":"d3","icon":"🥕","text":"よん"},{"id":"c3","icon":"🥕","text":"さん"},{"id":"b3","icon":"🍳","text":"に"},{"id":"a3","icon":"🥚","text":"いち"}],"before":[{"a":"a3","b":"b3"},{"a":"b3","b":"c3"},{"a":"c3","b":"d3"},{"a":"d3","b":"e3"}]}},
+    {"stepId":"p4","sortOrder":{"cards":[{"id":"d4","icon":"🥕","text":"よん"},{"id":"c4","icon":"🥕","text":"さん"},{"id":"b4","icon":"🍳","text":"に"},{"id":"a4","icon":"🥚","text":"いち"}],"before":[{"a":"a4","b":"b4"},{"a":"a4","b":"c4"},{"a":"b4","b":"d4"},{"a":"c4","b":"d4"}]}},
+    {"stepId":"p5","sortOrder":{"cards":[{"id":"d5","icon":"🥕","text":"よん"},{"id":"c5","icon":"🥕","text":"さん"},{"id":"b5","icon":"🍳","text":"に"},{"id":"a5","icon":"🥚","text":"いち"}],"before":[{"a":"a5","b":"b5"},{"a":"b5","b":"c5"},{"a":"c5","b":"d5"}]}},
+    {"stepId":"p6","sortOrder":{"cards":[{"id":"e6","icon":"🥕","text":"ご"},{"id":"d6","icon":"🥕","text":"よん"},{"id":"c6","icon":"🥕","text":"さん"},{"id":"b6","icon":"🍳","text":"に"},{"id":"a6","icon":"🥚","text":"いち"}],"before":[{"a":"a6","b":"b6"},{"a":"b6","b":"c6"},{"a":"c6","b":"d6"},{"a":"d6","b":"e6"}]}},
+    {"stepId":"p7","sortOrder":{"cards":[{"id":"e7","icon":"🥕","text":"ご"},{"id":"d7","icon":"🥕","text":"よん"},{"id":"c7","icon":"🥕","text":"さん"},{"id":"b7","icon":"🍳","text":"に"},{"id":"a7","icon":"🥚","text":"いち"}],"before":[{"a":"a7","b":"b7"},{"a":"a7","b":"c7"},{"a":"b7","b":"d7"},{"a":"c7","b":"d7"},{"a":"d7","b":"e7"}]}},
+    {"stepId":"p8","sortOrder":{"cards":[{"id":"e8","icon":"🥕","text":"ご"},{"id":"d8","icon":"🥕","text":"よん"},{"id":"c8","icon":"🥕","text":"さん"},{"id":"b8","icon":"🍳","text":"に"},{"id":"a8","icon":"🥚","text":"いち"}],"before":[{"a":"a8","b":"b8"},{"a":"b8","b":"c8"},{"a":"c8","b":"d8"},{"a":"d8","b":"e8"}]}}
+  ]
+}

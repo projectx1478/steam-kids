@@ -1,0 +1,11 @@
+{
+  "stepId": "p1", "kind": "play", "text": "たまごやきを つくろう",
+  "sortOrder": {
+    "cards": [
+      { "id": "c", "icon": "🍽️", "text": "おさらに のせる" },
+      { "id": "a", "icon": "🥚", "text": "たまごを わる" },
+      { "id": "b", "icon": "🍳", "text": "フライパンで やく" }
+    ],
+    "before": [ { "a": "a", "b": "b", "fail": "raw" }, { "a": "b", "b": "c", "fail": "empty" } ]
+  }
+}

@@ -97,3 +97,11 @@ test('layoutProblems: 空の単元・空の大項目を知らせる。レッス�
   assert.deepEqual(layoutProblems(moveLessonToUnit(a, 'a1', 'c')), []);
   assert.equal(layoutProblems(addTrack(i, 'u', 'U')).length, 1);
 });
+
+test('layoutProblems: 公開0でも開発者用・練習があれば問題なし。全部0なら問題あり（#292）', () => {
+  const mk = (u) => ({ tracks: [{ trackId: 't', title: 'T', units: [{ unitId: 'r', title: 'R', ...u }] }] });
+  assert.deepEqual(layoutProblems(mk({ lessonIds: [], devOnlyIds: ['r1'] })), []);
+  assert.deepEqual(layoutProblems(mk({ lessonIds: [], practiceIds: ['p1'] })), []);
+  assert.equal(layoutProblems(mk({ lessonIds: [], devOnlyIds: [] })).length, 1);
+  assert.equal(layoutProblems(mk({ lessonIds: [] })).length, 1);
+});

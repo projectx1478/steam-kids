@@ -177,7 +177,7 @@ export function layoutProblems(index) {
   const out = [];
   for (const t of index.tracks) {
     if (t.units.length === 0) out.push(`大項目「${t.title}」に単元がありません。単元を追加してください`);
-    for (const u of t.units) if (!Array.isArray(u.lessonIds) || u.lessonIds.length === 0) out.push(`単元「${u.title}」に公開レッスンがありません。レッスンを1つ移してください`);
+    for (const u of t.units) if (!Array.isArray(u.lessonIds) || idsOf(u).length === 0) out.push(`単元「${u.title}」のレッスンが空になります。公開レッスンと開発中レッスンを合わせて1つ以上残してください`);
   }
   return out;
 }

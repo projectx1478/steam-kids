@@ -26,6 +26,7 @@ import { validatePractice, validateSeesaw } from './practice-seesaw.mjs';
 import { checkSeesawDemo } from './demo-seesaw.mjs';
 import { validateBuoyancy } from './buoyancy.mjs';
 import { checkStageGen } from './stagegen.mjs';
+import { validateSortOrder } from './sortorder.mjs';
 
 export function validateLesson(fileName, data, longTrialIds = []) {
   const errors = [];
@@ -104,6 +105,10 @@ export function validateLesson(fileName, data, longTrialIds = []) {
 
   // playは2〜4個（だんだん難易度を上げる複数ステージ構成。Issue #104）。長尺試作の一覧IDだけ2〜8個（Issue #319）。
   const playSteps = steps.filter((s) => s.kind === 'play');
+  if (data.type === 'sort-order') {
+    validateSortOrder(playSteps, add, isLong);
+    return errors;
+  }
   if (data.type === 'grid-runtime' && (playSteps.length < MIN_PLAY || playSteps.length > maxPlay)) {
     add('盤面の必須', `kind="play" が${playSteps.length}個（${MIN_PLAY}〜${maxPlay}個である必要がある）`);
   }
