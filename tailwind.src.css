@@ -1436,6 +1436,17 @@ dialog.result-row {
 @media (orientation: landscape) and (max-height: 500px) {
   .uf-slide {
     max-width: 300px;
-    height: 180px;
+    height: 120px;
+  }
+  /* 844×390：unfold-cube の画面だけ、ステップ点列行と #app・main の上下余白を詰めて盤面を収める（Issue #289） */
+  #app:has(.uf-intro, .sk-screen--unfold) {
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+  #app:has(.uf-intro, .sk-screen--unfold) > main {
+    padding-top: 8px;
+  }
+  #app:has(.uf-intro, .sk-screen--unfold) > main > .step-roadmap {
+    display: none;
   }
 }
