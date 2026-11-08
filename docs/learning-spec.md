@@ -24,7 +24,7 @@
 | `connect` | つなぐ | 回路、食物連鎖、対応関係 |
 | `build` | くみたて | 実験の条件設計、式づくり |
 
-実装済みは `grid-runtime` と `predict-slider`（シーソー「つりあい」。下記）。予想ステップ（`kind: "predict"`）は将来の教材型向けに語彙・実装
+実装済みは `grid-runtime`・`predict-slider`（シーソー「つりあい」。下記）・`sort-order`（レシピの順番。sort-01。Issue #292。カードを順に並べて「ためす」。順序の制約〔`before`〕を満たせば正解で、違反は結果アニメ＋該当の2枚の点滅で気づかせる。文言なし。判定は`js/engine-sortorder.js`、描画は`js/ui-sortorder.js`）。`sort-order`も grid-runtime の最短手数規則の適用外（前例はうかぶ面。下記）で、枚数の非減少などを`tools/lib/validate/sortorder.mjs`が検証する（`docs/lesson-schema.md`）。予想ステップ（`kind: "predict"`）は将来の教材型向けに語彙・実装
 （`js/ui-predict.js`）のみ残し、現行レッスンでは使わない（Issue #104でよそうの選択肢UIを全廃）。
 
 ## predict-slider 仕様（シーソーで つりあい。Issue #150）
