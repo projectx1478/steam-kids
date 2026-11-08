@@ -115,7 +115,7 @@ test('検査に通らない保存は 400 で、index.json・退避は変わら�
     const cases = {
       存在しないID: bad((c) => unitOf(c, 'ice').lessonIds.push('no-such-lesson')),
       ID削除: bad((c) => unitOf(c, 'ice').lessonIds.pop()),
-      公開が空: bad((c) => { const u = unitOf(c, 'keys'); u.devOnlyIds = u.lessonIds; u.lessonIds = []; }),
+      公開と開発者だけが両方空: bad((c) => { const u = unitOf(c, 'keys'); u.devOnlyIds = []; u.lessonIds = []; }),
       形が不正: { tracks: 'x' },
     };
     for (const [name, body] of Object.entries(cases)) {
@@ -127,6 +127,19 @@ test('検査に通らない保存は 400 で、index.json・退避は変わら�
   });
   assert.deepEqual(fs.readFileSync(s.indexFile), before);
   assert.equal(backupsOf(s.backupsDir, '').length, 0);
+});
+
+test('#292-4A: 公開が空でも開発者だけのレッスンがあれば保存できる', async () => {
+  const s = setup();
+  await withServer(s, async (port) => {
+    const idx = (await call(port, 'GET', '/api/index')).json;
+    const c = JSON.parse(JSON.stringify(idx));
+    const u = unitOf(c, 'keys');
+    u.devOnlyIds = u.lessonIds;
+    u.lessonIds = [];
+    const r = await call(port, 'PUT', '/api/index', c);
+    assert.equal(r.status, 200, JSON.stringify(r.json));
+  });
 });
 
 test('レッスン保存側の index 拒否は変わらない', async () => {

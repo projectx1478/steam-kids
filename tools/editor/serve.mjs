@@ -515,7 +515,7 @@ export function checkIndexChange(current, next) {
         if (nxt.has(id)) problems.push(`レッスン ${id} が2回出てきます`);
         nxt.set(id, u.unitId);
       }
-      if (!Array.isArray(u.lessonIds) || u.lessonIds.length === 0) problems.push(`単元 ${u.unitId} の公開レッスンが空になります。1つ以上残してください`);
+      if (!Array.isArray(u.lessonIds) || idsOfUnit(u).length === 0) problems.push(`単元 ${u.unitId} のレッスンが空になります。公開レッスンと開発中レッスンを合わせて1つ以上残してください`);
     }
   }
   for (const id of nxt.keys()) if (!cur.has(id)) problems.push(`レッスン ${id} は追加できません（配置の保存では足し引きできません）`);
