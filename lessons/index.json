@@ -1,5 +1,5 @@
 {
-  "longTrialIds": ["cmd-01-susumu-long", "teko-01-tsuriai", "teko-02-tsuriai2", "teko-03-tsuriai3", "teko-04-omosa", "teko-05-ryouhou", "teko-06-practice", "teko-07-ukabu", "teko-08-ukabu2", "teko-09-oukou"],
+  "longTrialIds": ["cmd-01-susumu-long", "teko-01-tsuriai", "teko-02-tsuriai2", "teko-03-tsuriai3", "teko-04-omosa", "teko-05-ryouhou", "teko-06-practice", "teko-07-ukabu", "teko-08-ukabu2", "teko-09-oukou", "sort-01-recipe"],
   "tracks": [
     {
       "trackId": "robot",
@@ -61,6 +61,18 @@
           "lessonIds": ["teko-07-ukabu", "teko-08-ukabu2"],
           "icon": "none",
           "color": "sky"
+        }
+      ]
+    },
+    {
+      "trackId": "procedure",
+      "title": "てじゅんを ならべる",
+      "units": [
+        {
+          "unitId": "recipe",
+          "title": "レシピの じゅんばん",
+          "lessonIds": [],
+          "devOnlyIds": ["sort-01-recipe"]
         }
       ]
     }

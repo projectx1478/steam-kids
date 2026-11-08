@@ -1,0 +1,165 @@
+{
+  "lessonId": "sort-01-recipe",
+  "unitId": "recipe",
+  "title": "レシピの じゅんばん",
+  "type": "sort-order",
+  "estimatedMinutes": 8,
+  "steps": [
+    {
+      "stepId": "s1",
+      "kind": "intro",
+      "text": "レシピを ならべよう"
+    },
+    {
+      "stepId": "p1",
+      "kind": "play",
+      "text": "たまごやきを つくろう",
+      "sortOrder": {
+        "cards": [
+          { "id": "sara", "icon": "🍽️", "text": "おさらに のせる" },
+          { "id": "wa", "icon": "🥚", "text": "たまごを わる" },
+          { "id": "yaku", "icon": "🍳", "text": "フライパンで やく" }
+        ],
+        "before": [
+          { "a": "wa", "b": "yaku", "fail": "raw" },
+          { "a": "yaku", "b": "sara", "fail": "empty" }
+        ]
+      }
+    },
+    {
+      "stepId": "p2",
+      "kind": "play",
+      "text": "ホットケーキを やこう",
+      "sortOrder": {
+        "cards": [
+          { "id": "bata", "icon": "🧈", "text": "バターを のせる" },
+          { "id": "hikku", "icon": "🥞", "text": "ひっくりかえす" },
+          { "id": "nagasu", "icon": "🥣", "text": "たねを ながす" }
+        ],
+        "before": [
+          { "a": "nagasu", "b": "hikku", "fail": "spill" },
+          { "a": "hikku", "b": "bata", "fail": "spill" }
+        ]
+      }
+    },
+    {
+      "stepId": "p3",
+      "kind": "play",
+      "text": "カレーを つくろう",
+      "sortOrder": {
+        "cards": [
+          { "id": "kakeru", "icon": "🍛", "text": "ごはんに かける" },
+          { "id": "nikomu", "icon": "🍲", "text": "にこむ" },
+          { "id": "kiru", "icon": "🥕", "text": "やさいを きる" },
+          { "id": "itame", "icon": "🍳", "text": "いためる" }
+        ],
+        "before": [
+          { "a": "kiru", "b": "itame", "fail": "raw" },
+          { "a": "itame", "b": "nikomu", "fail": "burn" },
+          { "a": "nikomu", "b": "kakeru", "fail": "empty" }
+        ]
+      }
+    },
+    {
+      "stepId": "p4",
+      "kind": "play",
+      "text": "サンドイッチを つくろう",
+      "sortOrder": {
+        "cards": [
+          { "id": "kiru", "icon": "🥪", "text": "はんぶんに きる" },
+          { "id": "ham", "icon": "🥓", "text": "ハムを のせる" },
+          { "id": "nuru", "icon": "🧈", "text": "バターを ぬる" },
+          { "id": "pan", "icon": "🍞", "text": "パンを ならべる" }
+        ],
+        "before": [
+          { "a": "pan", "b": "nuru", "fail": "spill" },
+          { "a": "pan", "b": "ham", "fail": "spill" },
+          { "a": "nuru", "b": "kiru" },
+          { "a": "ham", "b": "kiru" }
+        ]
+      }
+    },
+    {
+      "stepId": "p5",
+      "kind": "play",
+      "text": "ごはんの まえに",
+      "sortOrder": {
+        "cards": [
+          { "id": "eat", "icon": "🍚", "text": "いただきます" },
+          { "id": "fuku", "icon": "🧽", "text": "テーブルを ふく" },
+          { "id": "wash", "icon": "🧼", "text": "てを あらう" },
+          { "id": "oku", "icon": "🥢", "text": "おはしを ならべる" }
+        ],
+        "before": [
+          { "a": "fuku", "b": "oku" },
+          { "a": "oku", "b": "eat" },
+          { "a": "wash", "b": "eat" }
+        ]
+      }
+    },
+    {
+      "stepId": "p6",
+      "kind": "play",
+      "text": "ラーメンを つくろう",
+      "sortOrder": {
+        "cards": [
+          { "id": "drain", "icon": "🥣", "text": "ざるに あげる" },
+          { "id": "boil", "icon": "🫕", "text": "おゆを わかす" },
+          { "id": "negi", "icon": "🧅", "text": "ねぎを のせる" },
+          { "id": "men", "icon": "🍜", "text": "めんを ゆでる" },
+          { "id": "bowl", "icon": "🥡", "text": "どんぶりに いれる" }
+        ],
+        "before": [
+          { "a": "boil", "b": "men", "fail": "raw" },
+          { "a": "men", "b": "drain", "fail": "empty" },
+          { "a": "drain", "b": "bowl", "fail": "spill" },
+          { "a": "bowl", "b": "negi" }
+        ]
+      }
+    },
+    {
+      "stepId": "p7",
+      "kind": "play",
+      "text": "おべんとうを つめよう",
+      "sortOrder": {
+        "cards": [
+          { "id": "tsutsumu", "icon": "🎁", "text": "ふろしきで つつむ" },
+          { "id": "futa", "icon": "🍱", "text": "ふたを しめる" },
+          { "id": "cha", "icon": "🧃", "text": "おちゃを いれる" },
+          { "id": "okazu", "icon": "🥦", "text": "おかずを つめる" },
+          { "id": "gohan", "icon": "🍙", "text": "ごはんを つめる" }
+        ],
+        "before": [
+          { "a": "gohan", "b": "futa", "fail": "empty" },
+          { "a": "okazu", "b": "futa", "fail": "empty" },
+          { "a": "futa", "b": "tsutsumu", "fail": "spill" }
+        ]
+      }
+    },
+    {
+      "stepId": "p8",
+      "kind": "play",
+      "text": "ピザを やこう",
+      "sortOrder": {
+        "cards": [
+          { "id": "yaku", "icon": "🔥", "text": "オーブンで やく" },
+          { "id": "noseru", "icon": "🧀", "text": "チーズを のせる" },
+          { "id": "kiru", "icon": "🔪", "text": "チーズを きる" },
+          { "id": "nuru", "icon": "🍅", "text": "ソースを ぬる" },
+          { "id": "nobasu", "icon": "🫓", "text": "きじを のばす" }
+        ],
+        "before": [
+          { "a": "nobasu", "b": "nuru", "fail": "spill" },
+          { "a": "nuru", "b": "noseru" },
+          { "a": "kiru", "b": "noseru" },
+          { "a": "noseru", "b": "yaku", "fail": "raw" }
+        ]
+      }
+    },
+    {
+      "stepId": "s2",
+      "kind": "summary",
+      "text": "じゅんばんで けっかが かわるよ"
+    }
+  ]
+}
