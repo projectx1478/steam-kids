@@ -9,7 +9,6 @@ import { vibrate } from './ui-commands.js';
 import { play as playSfx, skipClickSfx } from './sfx.js';
 import { createOpScreen } from './ui-screen.js';
 import { showHandHint } from './ui-hand.js';
-import { isLessonCleared } from './ui-picker.js';
 import { goToStep, setBackDisabled, setActiveHandHint, setActiveAnimation } from './ui-step.js';
 import { clearResultBubble } from './ui-reaction.js';
 import { showClearSequence, recordClear } from './ui-clear.js';
@@ -22,7 +21,7 @@ const REDUCED_MS = 300;
 const key = (c) => c.x + ',' + c.y;
 const byYX = (a, b) => a.y - b.y || a.x - b.x;
 
-// 結果の「はこ」（ロボットが持つ。結果の静止絵と intro ②で共用する簡易SVGの部品）。
+// 結果の「はこ」（ロボットが持つ簡易SVGの部品。intro ②は別の立方体 CUBE_SVG を使う）。
 const BOX_G =
   '<g><rect x="16" y="38" width="32" height="22" rx="3" fill="#d6a05a" stroke="#1e293b" stroke-width="2.5"/><rect x="29" y="38" width="6" height="22" fill="#f1d8a8"/></g>';
 
@@ -272,10 +271,18 @@ export function renderUnfold(root, step) {
   showStartCue(boardArea);
   screen.announceQuestion();
 
-  // 未クリアレッスンの最初の面だけ、正解になる空きマスへ指ガイド（文字なし）。
-  if (stageIndex === 0 && !isLessonCleared(S.lesson.lessonId)) {
-    const sol = solutionsOf(cols, rows, preset)[0];
-    const target = sol?.find((c) => !presetKeys.has(key(c)));
+  // 最初の面だけ、開くたびに指ガイド（文字なし・記録しない）。答えを見せないよう、
+  // preset に隣る空きマスのうち正解（solutionsOf の先頭）に含まれないマスを指す。
+  if (stageIndex === 0) {
+    const solKeys = new Set((solutionsOf(cols, rows, preset)[0] || []).map(key));
+    const target = preset
+      .flatMap((c) => [
+        { x: c.x + 1, y: c.y },
+        { x: c.x - 1, y: c.y },
+        { x: c.x, y: c.y + 1 },
+        { x: c.x, y: c.y - 1 },
+      ])
+      .find((c) => c.x >= 0 && c.y >= 0 && c.x < cols && c.y < rows && !presetKeys.has(key(c)) && !solKeys.has(key(c)));
     const el = target && gridEl.querySelector(`.uf-cell[data-x="${target.x}"][data-y="${target.y}"]`);
     if (el) {
       setActiveHandHint(showHandHint({ from: el, mode: 'tap' }));
