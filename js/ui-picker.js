@@ -232,7 +232,8 @@ async function createUnitIsland(unit, lessonStatus, ctx, onPick) {
   title.textContent = unit.title;
   header.appendChild(title);
 
-  if (unit.lessonIds.every((id) => isCleared(lessonStatus, id))) {
+  // 空の単元（公開レッスンが無い。devOnlyIds のみ）では [].every が真になり旗が立つため除く（Issue #709）
+  if (unit.lessonIds.length > 0 && unit.lessonIds.every((id) => isCleared(lessonStatus, id))) {
     const flag = document.createElement('span');
     flag.className = 'unit-flag';
     flag.setAttribute('aria-label', 'たんげんたっせい');
