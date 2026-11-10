@@ -1,12 +1,16 @@
-// teko-08-ukabu2（predict-slider の buoyancy。いろいろなふうせん。開発者画面から入る。Issue #670）：
-// 8面を面ごとの手順で通す。使わない道具がある面、逆向き、ふうせん過多から減らす、大きい答え、360px幅で横にはみ出さない。
+// teko-08-ukabu2（predict-slider の buoyancy。「？の はこを はかろう」。開発者画面から入る。Issue #670・#710）：
+// 8面を道具ボタンで通す（7・8面は2体：水そう2つ、道具は1つのボタンで なし→左→右→なし と巡回）。2面は沈むにもつ、3面は別の組合せ（find:2）、4〜6面は？のはこ、360px幅で横にはみ出さない。
 import { enterPlay } from '../helpers.mjs';
 
-export const name = 'teko-08-flow: teko-08を開発者画面から入り、8面・start値・360px幅(Issue #670)';
+export const name = 'teko-08-flow: teko-08を開発者画面から入り、8面・道具ボタン・360px幅(Issue #670/#710)';
 
-async function click(page, action, n = 1) {
-  for (let k = 0; k < n; k += 1) await page.click(`[data-action="${action}"]`);
-}
+const SOLUTIONS = [['w3', 'b2'], ['b1', 'b2'], ['w1', 'b2'], ['w3', 'b1'], ['w3', 'b2'], ['w2', 'b3'], ['w3', 'b2'], ['w3', 'b2']];
+// 2体の面（p7・p8）の解：[道具 id, 押す回数]。1回＝左、2回＝右。
+const TWO_BODY = {
+  6: [['w2', 1], ['w1', 2], ['w3', 2]],
+  7: [['w1', 1], ['b3', 1], ['w3', 2], ['b1', 2]],
+};
+const SECOND_P3 = ['w2', 'b3'];
 
 async function noOverflow(page, label, check) {
   await page.setViewportSize({ width: 360, height: 640 });
@@ -18,67 +22,66 @@ async function noOverflow(page, label, check) {
   await page.setViewportSize({ width: 1024, height: 640 });
 }
 
-async function robotData(page, key) {
-  return Number(await page.evaluate((k) => document.querySelector('[data-robot]').dataset[k], key));
-}
-
-// 押す回数 → run → 次へ
-async function solve(page, { wp = 0, wm = 0, bp = 0, bm = 0 }, last = false) {
-  await click(page, 'weight-plus', wp);
-  await click(page, 'weight-minus', wm);
-  await click(page, 'balloon-plus', bp);
-  await click(page, 'balloon-minus', bm);
-  await click(page, 'run');
-  const next = last ? 'next' : 'next-stage';
-  await page.waitForSelector(`[data-action="${next}"]`, { timeout: 10000 });
-  if (!last) await click(page, 'next-stage');
-}
-
 export default async function run({ page, check }) {
   await page.goto('/index.html?view=map&dev=1');
   await check('dev：teko-08が並ぶ', async () => (await page.$$('[data-lesson-id="teko-08-ukabu2"]')).length, 1);
 
   await enterPlay(page, 'teko-08-ukabu2');
 
-  // 1面：強いふうせん。(0,0) から
-  await page.waitForSelector('[data-action="balloon-plus"]');
-  await check('p1：おもり0個から始まる', async () => await robotData(page, 'weights'), 0);
-  await check('p1：ふうせん0個から始まる', async () => await robotData(page, 'balloons'), 0);
-  await noOverflow(page, 'p1', check);
-  await solve(page, { wp: 1, bp: 1 });
-
-  // 2面：ふうせんを使わない。+ は有効のまま
-  await page.waitForSelector('[data-action="balloon-plus"]');
-  await check('p2：おもり1個から始まる', async () => await robotData(page, 'weights'), 1);
-  await check('p2：ふうせん＋は有効（使わない道具）', () => page.locator('[data-action="balloon-plus"]').isEnabled(), true);
-  await solve(page, { wp: 1 });
-
-  // 3面
-  await page.waitForSelector('[data-action="balloon-plus"]');
-  await solve(page, { wp: 2, bp: 1 });
-
-  // 4面：逆向き混在（おもり3から減らす）
-  await page.waitForSelector('[data-action="weight-minus"]');
-  await check('p4：おもり3個から始まる', async () => await robotData(page, 'weights'), 3);
-  await solve(page, { wm: 1, bp: 1 });
-
-  // 5面：ふうせん過多から減らす
-  await page.waitForSelector('[data-action="balloon-minus"]');
-  await check('p5：ふうせん2個から始まる', async () => await robotData(page, 'balloons'), 2);
-  await solve(page, { wp: 3, bm: 1 });
-
-  // 6面
-  await page.waitForSelector('[data-action="balloon-plus"]');
-  await solve(page, { wp: 1, bp: 2 });
-
-  // 7面：ふうせん3つから減らしつつ足す
-  await page.waitForSelector('[data-action="balloon-minus"]');
-  await check('p7：ふうせん3個から始まる', async () => await robotData(page, 'balloons'), 3);
-  await solve(page, { wp: 2, bm: 1 });
-
-  // 8面：大きい答え（最終面）
-  await page.waitForSelector('[data-action="balloon-plus"]');
-  await noOverflow(page, 'p8', check);
-  await solve(page, { wp: 4, bp: 1 }, true);
+  for (let i = 0; i < SOLUTIONS.length; i += 1) {
+    const label = `p${i + 1}`;
+    await page.waitForSelector('[data-action^="tool-"]');
+    await check(`${label}：道具ボタンは${i === 6 ? 3 : 4}個`, async () => await page.evaluate(() => document.querySelectorAll('[data-action^="tool-"]').length), i === 6 ? 3 : 4);
+    await check(`${label}：点は無い`, async () => await page.evaluate(() => document.querySelectorAll('[data-dots]').length), 0);
+    if (i === 0 || i === 7) await noOverflow(page, label, check);
+    if (i === 1) {
+      // 2面：何も付けないと にもつが重くて沈む
+      await page.click('[data-action="run"]');
+      await page.waitForSelector('[data-hint="buoyancy"]', { timeout: 10000 });
+      await check('p2：沈むヒント', async () => (await page.textContent('[data-hint="buoyancy"]')).includes('しずんだ'), true);
+      await page.click('[data-action="retry"]');
+      await page.waitForSelector('[data-action="run"]');
+    }
+    if (i >= 3 && i <= 5) {
+      await check(`${label}：？のはこは「？」だけで点も数字も無い`, async () => await page.evaluate(() => {
+        const c = document.querySelector('[data-crate]');
+        return !!c && c.textContent === '？' && !c.querySelector('.bu-dot') && !c.hasAttribute('data-dots');
+      }), true);
+    }
+    if (i >= 6) {
+      await check(`${label}：水そうは2つ`, async () => await page.evaluate(() => document.querySelectorAll('[data-tank]').length), 2);
+      if (i === 6) {
+        // 巡回：1回タップで左（青◀）、2回で右（橙▶）、3回でなし
+        const sideOf = async () => await page.getAttribute('[data-action="tool-w1"]', 'data-side');
+        const seq = [];
+        for (let n = 0; n < 3; n += 1) {
+          await page.click('[data-action="tool-w1"]');
+          seq.push(await sideOf());
+        }
+        await check('p7：道具タップ3回で 左→右→なし と巡回', async () => seq, ['left', 'right', 'none']);
+      }
+      for (const [id, n] of TWO_BODY[i]) for (let k = 0; k < n; k += 1) await page.click(`[data-action="tool-${id}"]`);
+    } else {
+      for (const id of SOLUTIONS[i]) await page.click(`[data-action="tool-${id}"]`);
+    }
+    await page.click('[data-action="run"]');
+    if (i === 2) {
+      // 3面（find:2）：1つ目のぴたりで道具が全部外れ、同じ組は「それは さっきと おなじ」、別の組でクリア
+      const hintText = async () => (await page.textContent('[data-hint="buoyancy"]')) ?? '';
+      await page.waitForFunction(() => document.querySelector('[data-hint="buoyancy"]')?.textContent.includes('べつの くみあわせも あるよ'), null, { timeout: 10000 });
+      await page.waitForFunction(() => document.querySelectorAll('[data-action^="tool-"][aria-pressed="true"]').length === 0, null, { timeout: 10000 });
+      await check('p3：1つ目のぴたりの後はクリアにならず編集に戻る', async () => (await page.$$('[data-action="next-stage"]')).length, 0);
+      for (const id of SOLUTIONS[i]) await page.click(`[data-action="tool-${id}"]`);
+      await page.click('[data-action="run"]');
+      await page.waitForFunction(() => document.querySelector('[data-hint="buoyancy"]')?.textContent.includes('それは さっきと おなじ'), null, { timeout: 10000 });
+      await check('p3：同じ組は「それは さっきと おなじ」', async () => (await hintText()).includes('それは さっきと おなじ'), true);
+      await page.waitForFunction(() => document.querySelectorAll('[data-action^="tool-"][aria-pressed="true"]').length === 0, null, { timeout: 10000 });
+      for (const id of SECOND_P3) await page.click(`[data-action="tool-${id}"]`);
+      await page.click('[data-action="run"]');
+    }
+    const last = i === SOLUTIONS.length - 1;
+    await page.waitForSelector(`[data-action="${last ? 'next' : 'next-stage'}"]`, { timeout: 10000 });
+    if (!last) await page.click('[data-action="next-stage"]');
+  }
   await check('p8：クリアで「つぎへ」が出る', async () => (await page.$$('[data-action="next"]')).length, 1);
 }

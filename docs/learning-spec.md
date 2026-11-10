@@ -34,9 +34,9 @@
 - 失敗は傾きと、試した位置の足あと（うすい印）。ヒントの吹き出しは、同じステージの1回目は『もういちど』だけ、2回目から『こっちが おもいよ』＋大きい矢印（回数はステージごと）。点数・✕は出さない。「ためしなおす」で右のロボットはstartへ戻る
 - 描画は`js/ui-seesaw.js`。描画ヘルパーは`js/ui-seesaw-draw.js`、intro のデモは`js/ui-demo-seesaw.js`。ロボット・表情・紙ふぶき・トースト・指ガイドは既存部品を再利用する（新キャラなし）
 - シーソー面は、playは2〜4個（`p1`〜）。難易度＝|左の固定ロボットのおもさ合計（robots×pos）− 右の固定ロボットのおもさ合計|（`right`が無ければ左の合計）が非減少。1ステージの解は1つ以上、startではつりあわない（`tools/validate-lessons.mjs`が検証）
-- うかぶ面（`play.buoyancy`。Issue #288）は predict-slider の一種。おもり・ふうせんを − ＋ で変えて「ためす」と、浮く／沈む／ぴたり（つりあえばクリア）を見る。`net = base + balloons×lift − weights×mass`（整数のみ）。描画は`js/ui-buoyancy.js`、判定は`js/engine-buoyancy.js`。盤には数字を添える。おもりの丸の中に重さ（`mass`）、ふうせんの丸の中にうく力（`lift`）、ロボットの右肩の青緑の丸に「↑」と`base`（ロボットだけのうく力）を、白の太字（縁は濃い茶）で出す。単位や説明の文字は付けない。
+- うかぶ面（`play.buoyancy`。Issue #288・#710）は predict-slider の一種。道具（おもり・ふうせん）をボタンで付け外しして「ためす」（またはロボットを下へ押し込んで離す）と、水そうの段目盛の上で浮く／沈む／ぴたり（水面。つりあえばクリア）を見る。1段＝net 1、表示は±6段まで。`net = ring − box.v + Σふうせん − Σおもり`（体ごと、整数のみ）。描画は`js/ui-buoyancy.js`、判定は`js/engine-buoyancy.js`。盤に数字は出さない。道具・うきわは値に比例した大きさで、レッスン1の前半4面（`dots:true`）だけ点（●）の数を添える。「？のはこ」は大きさ・点を同じにし、「ためす」の高さから重さを割り出す。
 - うかぶ面のレッスン（teko-07・teko-08）は単元`ukabu`（大項目`float`「うかぶ しずむ」）に置き、公開レッスンとして通しの順で開く。
-- うかぶ面は grid-runtime の最短手数規則（最短手数の非減少・maxCommands・勾配p1<p2<p3）の適用外。命令を並べないので maxCommands・groupRepeats・最短手数を持たない。代わりに「つりあう組が1つ以上」「startではつりあわない」「難易度（つりあう組のおもり＋ふうせんの最大）がステージごとに非減少」を `tools/validate-lessons.mjs` が検証する
+- うかぶ面は grid-runtime の最短手数規則（最短手数の非減少・maxCommands・勾配p1<p2<p3）の適用外。命令を並べないので maxCommands・groupRepeats・最短手数を持たない。代わりに「つりあう組の数 S が find（省略時1）と一致」「何も付けない開始ではつりあわない」「道具は最大4個」「難易度＝組の数 N（1体 2^n・2体 3^n）がステージごとに非減少」「n=4 の面で期待試行 (N+1)/(S+1)≥5.5（`dots:true` の面を除く）」を `tools/validate-lessons.mjs` が検証する
 - イベントは既存の`run`（payload `{ pos }`）・`retry`・`stage_clear`・`clear`を使い、新種別は作らない
 
 ## grid-runtime 仕様

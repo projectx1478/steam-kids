@@ -1,33 +1,79 @@
-// predict-slider（うかぶ・しずむ。play.buoyancy）の検証（Issue #288）。
-import { buoyancy, solutionPairs, difficulty } from '../../../js/engine-buoyancy.js';
+// predict-slider（うかぶ・しずむ。play.buoyancy）の検証（Issue #288・#710）。
+import { enumerate, difficulty, toolOf } from '../../../js/engine-buoyancy.js';
 import { MIN_PLAY, MAX_PLAY, isObj } from './common.mjs';
 
-const SPEC_KEYS = ['base', 'mass', 'lift', 'weights', 'balloons'];
-const AXIS_KEYS = ['start', 'max'];
+const SPEC_KEYS = ['bodies', 'tools', 'dots', 'find'];
+const OLD_KEYS = ['base', 'mass', 'lift', 'weights', 'balloons'];
+const BODY_KEYS = ['ring', 'box'];
+const BOX_KEYS = ['v', 'hidden'];
+const MIN_RATIO = 5.5;
 const inRange = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
 
-// 軸（weights／balloons）の形が正しいか。NGなら理由の配列を返す。
-function axisProblems(name, axis, maxLimit) {
-  if (!isObj(axis)) return [`${name} が { start, max } のオブジェクトでない`];
+// 1体の形が正しいか。NGなら理由の配列を返す。
+function bodyProblems(body) {
+  if (!isObj(body)) return ['bodies の要素がオブジェクトでない'];
   const problems = [];
-  for (const k of Object.keys(axis)) if (!AXIS_KEYS.includes(k)) problems.push(`${name} に未知キー「${k}」がある`);
-  if (!inRange(axis.max, 1, maxLimit)) problems.push(`${name}.max=${JSON.stringify(axis.max)} が1〜${maxLimit}の整数でない`);
-  else if (!inRange(axis.start, 0, axis.max)) problems.push(`${name}.start=${JSON.stringify(axis.start)} が0〜max(${axis.max})の整数でない`);
-  else if (!Number.isInteger(axis.start)) problems.push(`${name}.start が整数でない`);
+  for (const k of Object.keys(body)) if (!BODY_KEYS.includes(k)) problems.push(`bodies に未知キー「${k}」がある`);
+  if (![2, 4, 6].includes(body.ring)) problems.push(`ring=${JSON.stringify(body.ring)} が2・4・6のどれかでない`);
+  if ('box' in body) {
+    const box = body.box;
+    if (!isObj(box)) problems.push('box がオブジェクトでない');
+    else {
+      for (const k of Object.keys(box)) if (!BOX_KEYS.includes(k)) problems.push(`box に未知キー「${k}」がある`);
+      if (!inRange(box.v, 1, 6)) problems.push(`box.v=${JSON.stringify(box.v)} が1〜6の整数でない`);
+      if ('hidden' in box && box.hidden !== true) problems.push('box.hidden は true だけ書ける');
+    }
+  }
   return problems;
 }
 
-function solutionOk(play, spec, found) {
-  const s = play.solution;
-  const two = Boolean(spec.weights && spec.balloons);
-  let pair = null;
-  if (two) {
-    if (Array.isArray(s) && s.length === 2 && s.every(Number.isInteger)) pair = { weights: s[0], balloons: s[1] };
-  } else if (Number.isInteger(s)) {
-    pair = spec.weights ? { weights: s, balloons: 0 } : { weights: 0, balloons: s };
+function specProblems(spec) {
+  const problems = [];
+  for (const k of Object.keys(spec)) {
+    if (OLD_KEYS.includes(k)) problems.push(`旧形式のキー「${k}」は書けない（bodies と tools を使う）`);
+    else if (!SPEC_KEYS.includes(k)) problems.push(`未知キー「${k}」がある`);
   }
-  if (!pair) return 'の形が面の軸の数に合わない（軸1つ＝整数、軸2つ＝[おもり, ふうせん]）';
-  if (!found.some((f) => f.weights === pair.weights && f.balloons === pair.balloons)) return 'がつりあう組に含まれない';
+  if (!Array.isArray(spec.bodies) || spec.bodies.length < 1 || spec.bodies.length > 2) problems.push('bodies が長さ1か2の配列でない');
+  else {
+    for (const b of spec.bodies) problems.push(...bodyProblems(b));
+    if (spec.bodies.length === 2) {
+      if (spec.bodies.some((b) => isObj(b) && isObj(b.box) && 'hidden' in b.box)) problems.push('2体の面では box.hidden を使えない');
+      if (spec.find === 2) problems.push('find:2 は1体の面だけ');
+    }
+  }
+  const tools = spec.tools;
+  if (!Array.isArray(tools) || tools.length < 2 || tools.length > 4) problems.push('tools が長さ2〜4の配列でない');
+  else {
+    for (const t of tools) if (!toolOf(t)) problems.push(`tools の「${JSON.stringify(t)}」が w1〜w3・b1〜b3 のどれでもない`);
+    if (new Set(tools).size !== tools.length) problems.push('tools に重複がある');
+  }
+  if ('dots' in spec && typeof spec.dots !== 'boolean') problems.push('dots が真偽値でない');
+  if ('find' in spec && spec.find !== 1 && spec.find !== 2) problems.push(`find=${JSON.stringify(spec.find)} が1か2でない`);
+  return problems;
+}
+
+// solution が道具 id の配列で、つりあう組のどれかと一致するか（順不同）。NGなら理由を返す。
+function solutionNg(solution, spec, solutions) {
+  if (spec.bodies.length === 2) {
+    // 2体は [{ tool, body: 0|1 }] の配列。つりあう組のどれかと一致する（順不同）。
+    const okItem = (a) => isObj(a) && spec.tools.includes(a.tool) && (a.body === 0 || a.body === 1);
+    if (!Array.isArray(solution) || !solution.every(okItem)) return 'が { tool, body } の配列でない（2体）';
+    if (new Set(solution.map((a) => a.tool)).size !== solution.length) return 'に同じ道具が2回ある（2体）';
+    const keyOf = (arr) => arr.map((a) => `${a.tool}:${a.body}`).sort().join(',');
+    return solutions.some((s) => keyOf(s) === keyOf(solution)) ? null : 'がつりあう組に含まれない（2体）';
+  }
+  if (spec.find === 2) {
+    // find:2 は道具 id の配列の配列。つりあう組と過不足なく一致する（順不同）。
+    if (!Array.isArray(solution) || !solution.every(Array.isArray)) return 'が道具 id の配列の配列でない（find:2）';
+    const keyOf = (a) => [...a].sort().join(',');
+    const want = solutions.map(keyOf).sort().join('|');
+    const got = solution.map(keyOf).sort().join('|');
+    return want === got ? null : 'がつりあう組と一致しない（find:2）';
+  }
+  if (!Array.isArray(solution) || !solution.every((t) => typeof t === 'string')) return 'が道具 id の配列でない';
+  if (!solution.every((t) => spec.tools.includes(t)) || new Set(solution).size !== solution.length) return 'が tools の道具の重複しない組でない';
+  const key = [...solution].sort().join(',');
+  if (!solutions.some((s) => [...s].sort().join(',') === key)) return 'がつりあう組に含まれない';
   return null;
 }
 
@@ -43,28 +89,24 @@ function validateBuoyancy(playSteps, add, maxPlay = MAX_PLAY) {
       add('buoyancy', `${label} のbuoyancyがオブジェクトでない`);
       continue;
     }
-    const problems = [];
-    for (const k of Object.keys(spec)) if (!SPEC_KEYS.includes(k)) problems.push(`未知キー「${k}」がある`);
-    if (!inRange(spec.base, 0, 8)) problems.push(`base=${JSON.stringify(spec.base)} が0〜8の整数でない`);
-    if ('mass' in spec && !inRange(spec.mass, 1, 3)) problems.push(`mass=${JSON.stringify(spec.mass)} が1〜3の整数でない`);
-    if ('lift' in spec && !inRange(spec.lift, 1, 3)) problems.push(`lift=${JSON.stringify(spec.lift)} が1〜3の整数でない`);
-    if (!('weights' in spec) && !('balloons' in spec)) problems.push('weights も balloons も無い（どちらかは必須）');
-    if ('weights' in spec) problems.push(...axisProblems('weights', spec.weights, 4));
-    if ('balloons' in spec) problems.push(...axisProblems('balloons', spec.balloons, 3));
+    const problems = specProblems(spec);
     if (problems.length > 0) {
       for (const p of problems) add('buoyancy', `${label} の${p}`);
       continue;
     }
-    const found = solutionPairs(spec);
-    if (found.length === 0) add('解の個数', `${label} のつりあう組が0個（1つ以上必要）`);
+    const { N, solutions } = enumerate(spec);
+    const S = solutions.length;
+    const find = spec.find ?? 1;
+    if (S !== find) add('解の個数', `${label} のつりあう組が${S}個（${find}個である必要がある）`);
     if (!('solution' in play)) {
       add('solution', `${label} のsolutionが無い（必須）`);
-    } else if (found.length > 0) {
-      const ng = solutionOk(play, spec, found);
+    } else if (S > 0) {
+      const ng = solutionNg(play.solution, spec, solutions);
       if (ng) add('solution', `${label} のsolution=${JSON.stringify(play.solution)} ${ng}`);
     }
-    if (buoyancy(spec, spec.weights?.start ?? 0, spec.balloons?.start ?? 0).dir === 0) {
-      add('start', `${label} がstartの時点でつりあっている`);
+    if (solutions.some((s) => s.length === 0)) add('start', `${label} が何も付けない時点でつりあっている`);
+    if (spec.dots !== true && (N + 1) / (S + 1) < MIN_RATIO) {
+      add('当てずっぽう', `${label} の期待試行 (N+1)/(S+1)=${((N + 1) / (S + 1)).toFixed(1)} が${MIN_RATIO}未満（点なしの面は当てずっぽうで解ける）`);
     }
     const d = difficulty(spec);
     if (d < prevDifficulty) add('難易度', `${label} の難易度(${d})が前のステージ(${prevDifficulty})より小さい`);
