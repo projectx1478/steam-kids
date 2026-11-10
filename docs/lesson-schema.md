@@ -199,6 +199,28 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 - 面ごとの検査（`tools/lib/validate/unfold.mjs`の`validateUnfoldFace`）：`preset`が1〜5枚（0枚と6枚は不合格）、連結可能、preset を含む正解が1通り以上、必須性（preset を全部外した正解数＞正解数）、盤が立方体の展開図か（折り検査）
 - レッスン全体の検査（`validateUnfold`）：`longTrialIds`に載せる、play は8面、`preset`枚数は非増加（＝正解数は非減少）、同じ`preset`の面の重複なし。`intro.demo`は`checkUnfoldDemo`。grid-runtime の最短手数規則は適用外
 
+### `build-egg`の`play`（たまごの道。Issue #290）
+
+`type: "build-egg"`のレッスンは`kind: "play"`に`egg`を持つ。`play`直下に`start`・`goal`・`grid`は置かない（全走査が盤として拾うため）。`kind: "intro"`は`demo`を持たない。検査は`tools/lib/validate/egg.mjs`（形・範囲＝`checkEggFace`、盤の性質＝`engine-egg.js`の`solve`、レッスン全体＝`validateEgg`）、再生は`js/engine-egg.js`の`simulate`。
+
+| フィールド | 形・範囲 | 意味 | 検査名 |
+| --- | --- | --- | --- |
+| `egg` | object | 面の盤の本体 | `eggの形` |
+| `egg.grid` | `{cols, rows}`＝5と5のみ | 格子。セル64px（高さ500px以下の横向きと360×640は48px。`docs/ui-rules.md`） | `gridの範囲` |
+| `egg.egg` | `{col}`＝0〜cols−1 | たまごの落下開始の列（row −1から1ステップで row 0 へ）。`row`は持たない | `eggの列` |
+| `egg.nests` | `[{col,row,correct}]`＝2〜3個、`row = rows−1`、`correct:true`はちょうど1個 | 巣。`correct`の巣に入れば`nest`、他は`wrongNest` | `nestsの数`・`nestの位置`・`正解の巣` |
+| `egg.obstacles` | `[{col,row}]`＝0〜6個、格子内。省略時`[]` | 石。当たると向きを反転。巣と重ならない | `obstaclesの範囲` |
+| `egg.places` | `[{col,row}]`＝面1は4点、面2〜8は8〜12点 | 板を置ける点。障害物・巣と重ならない | `placesの数`・`placesが格子外`・`placesが障害物か巣と重なる` |
+| `egg.limit` | 整数1〜3 | 板の上限（全探索の深さ） | `limit範囲` |
+| `egg.tools.angles` | `["/","\\","-","\|"]`と完全一致 | 板の4向き。indexが`solution.angle` | `anglesの値` |
+| `egg.solution` | `[{col,row,angle}]`＝長さ`minParts`、`angle`は0〜3 | 代表解（画面には出さない） | `solutionが再生で失敗`・`冗長な部品`・`solutionがminPartsと不一致`・`solutionがplacesに無い` |
+| `egg.minParts` | 整数1〜limit | 最小の板の枚数。全探索の最小と一致、面の順に非減少 | `宣言minPartsと不一致`・`minPartsが前の面より減る` |
+| `egg.maxSteps` | 600のみ（`MAX_STEPS`） | 再生の打ち切り。超えたら`timeout` | `maxStepsの値` |
+
+- 結果は`nest`／`wrongNest`／`fall`（格子の外へ落ちる）／`timeout`（600ステップで止まらない）。整数のみ・乱数なしの決定論
+- レッスン全体の検査（`validateEgg`）：play は8面ちょうど（`盤面の必須`）、`longTrialIds`に載せる（`長尺試作`）、何も置かず`nest`にならない（`何も置かなくて成功`）、解が1つ以上ある（`解なし`）、面の重複なし（`面の重複`）、最小サイズの解が複数ある面が1面以上（`別解の面`）、`EGG_TEXT`の文言検査（`文言`。20字・否定語・ルビ外の漢字なし）。grid-runtime の最短手数規則は適用外（`minParts`の全探索・非減少・必須性で守る）
+- `seedPick`は持てない（`longTrialIds`と併用不可）
+
 ### `tutorial`（なぞり操作型チュートリアル）
 
 各レッスンで新しい操作が初登場する時、`intro`直後かつ最初の`play`より前に0〜1個置く
@@ -399,6 +421,7 @@ MustMatterは、ギミックモジュールの`strip(spec)`（ギミックを除
   ゴール到達＋全item回収になること。`fixFrom`はそのまま実行してもゴールに到達しないこと。
   `start`/`goal`の組が本番`play`のいずれのステージとも一致しないこと（ネタバレ防止。Issue #104）
 - seesaw 形の`intro.demo`は`balance`が真になる`solution`を持ち、本番 play と同一盤でないこと。
+- `type: "build-egg"`は`play.egg`を持ち、`tools/lib/validate/egg.mjs`の検査（上の`build-egg`の節）に通ること。
 - `text` に否定語（「ちがう」「まちがい」「ざんねん」）が含まれないこと（ひらがな展開後の
   文字列で判定。`docs/authoring-rules.md`）
 - `text` のルビ記法 `{漢字|よみ}` 外に生の漢字が無いこと、ルビ内の漢字が

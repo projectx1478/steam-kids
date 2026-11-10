@@ -14,7 +14,7 @@
 
 ## 教材型
 
-エンジンが持つ操作部品。**型は5つで打ち止めとし、以降はJSONで表現する。**
+エンジンが持つ操作部品。**型は5つで打ち止めとし、以降はJSONで表現する。**`sort-order`・`unfold-cube`・`build-egg` は教材ごとの `type` 値で、表の型を数え直さない（`build-egg` は表の `build` の実装）。
 
 | ID | 型 | 想定単元 |
 | --- | --- | --- |
@@ -22,9 +22,9 @@
 | `predict-slider` | 連続量を動かして結果を予想 | てこ、電流、濃度、比例、速さ |
 | `sort-order` | 仕分け・並べ替え | 分類、手順、時系列 |
 | `connect` | つなぐ | 回路、食物連鎖、対応関係 |
-| `build` | くみたて | 実験の条件設計、式づくり |
+| `build` | くみたて | 実験の条件設計、式づくり、たまごの道（`build-egg`） |
 
-実装済みは `grid-runtime`・`predict-slider`（シーソー「つりあい」。下記）・`sort-order`（レシピの順番。sort-01。Issue #292。カードを順に並べて「ためす」。順序の制約〔`before`〕を満たせば正解で、違反は結果アニメ＋該当の2枚の点滅で気づかせる。文言なし。判定は`js/engine-sortorder.js`、描画は`js/ui-sortorder.js`）。`sort-order`も grid-runtime の最短手数規則の適用外（前例はうかぶ面。下記）で、枚数の非減少などを`tools/lib/validate/sortorder.mjs`が検証する（`docs/lesson-schema.md`）。`unfold-cube`（てんかいず・はこを つくろう。unfold-01。Issue #289。5×3の格子に6マスを塗って立方体の展開図にし「ためす」。判定は`js/engine-unfold.js`、描画は`js/ui-unfold.js`。違反は点滅で気づかせ、枚数の過不足だけ結果帯に文言を出す）も最短手数規則の適用外（grid でない。前例は sort-order）で、`tools/lib/validate/unfold.mjs`が検証する。予想ステップ（`kind: "predict"`）は将来の教材型向けに語彙・実装
+実装済みは `grid-runtime`・`predict-slider`（シーソー「つりあい」。下記）・`sort-order`（レシピの順番。sort-01。Issue #292。カードを順に並べて「ためす」。順序の制約〔`before`〕を満たせば正解で、違反は結果アニメ＋該当の2枚の点滅で気づかせる。文言なし。判定は`js/engine-sortorder.js`、描画は`js/ui-sortorder.js`）。`sort-order`も grid-runtime の最短手数規則の適用外（前例はうかぶ面。下記）で、枚数の非減少などを`tools/lib/validate/sortorder.mjs`が検証する（`docs/lesson-schema.md`）。`unfold-cube`（てんかいず・はこを つくろう。unfold-01。Issue #289。5×3の格子に6マスを塗って立方体の展開図にし「ためす」。判定は`js/engine-unfold.js`、描画は`js/ui-unfold.js`。違反は点滅で気づかせ、枚数の過不足だけ結果帯に文言を出す）も最短手数規則の適用外（grid でない。前例は sort-order）で、`tools/lib/validate/unfold.mjs`が検証する。`build-egg`（たまごの道。egg-01。Issue #290。5×5の格子の点をタップして板を置き〔再タップで4向き〕、「ためす」でたまごを落とす。決定論の再生で巣に入れば正解。判定は`js/engine-egg.js`、描画は`js/ui-egg.js`。失敗は軌跡と落下位置で気づかせ、文言は事実のみ）も最短手数規則の適用外（grid でない。前例は sort-order）で、`tools/lib/validate/egg.mjs`が検証する。予想ステップ（`kind: "predict"`）は将来の教材型向けに語彙・実装
 （`js/ui-predict.js`）のみ残し、現行レッスンでは使わない（Issue #104でよそうの選択肢UIを全廃）。
 
 ## predict-slider 仕様（シーソーで つりあい。Issue #150）
