@@ -77,6 +77,23 @@ export default async function run({ page, check }) {
     await check(`${label}：点は4面まで`, () => stageDots, i < 4);
     if (i === 4) await check('p5：道具ボタンは4個', async () => await count(page, '[data-action^="tool-"]'), 4);
     if (i === 3 || i === 7) await noOverflow(page, label, check);
+    if (i === 1) {
+      // 押し込み：w1だけ付けてロボットを下へ押して離すと「ためす」と同じ結果（浮く失敗）が出る
+      await page.click(tool('w1'));
+      const box = await page.locator('[data-robot]').first().boundingBox();
+      const x = box.x + box.width / 2;
+      const y = box.y + box.height / 2;
+      await page.mouse.move(x, y);
+      await page.mouse.down();
+      await page.mouse.move(x, y + 30, { steps: 5 });
+      await page.mouse.up();
+      await page.waitForSelector('[data-hint="buoyancy"]', { timeout: 10000 });
+      await page.waitForSelector('[data-action="retry"]', { timeout: 10000 });
+      await check('p2：押し込みで結果が出る（ヒントに「うかんだ」）', async () => (await page.textContent('[data-hint="buoyancy"]')).includes('うかんだ'), true);
+      await page.click('[data-action="retry"]');
+      await page.waitForSelector('[data-action="run"]');
+      await page.click(tool('w1'));
+    }
     await tap(page, SOLUTIONS[i]);
     await page.click('[data-action="run"]');
     if (i === 7) {

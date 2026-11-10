@@ -20,6 +20,8 @@ const LEVEL_MAX = 6; // 段目盛は ±6 段。これを超える net は端で�
 const STEPS = LEVEL_MAX * 2 + 2; // 水そうの高さを割る数（上下に半段ずつの余白＋13本の目盛）
 const MOVE_MS = 900;
 const HINT_MESSAGE = { 1: 'ぷかっと うかんだよ ▲', '-1': 'ずーんと しずんだよ ▼' };
+const PUSH_MIN = 12; // 押し込みが発火する最小の距離（px）
+const PUSH_MAX = 60; // 押し込める最大の距離（px）
 const FOUND_MS = 1500; // find:2 の面で、ぴたりの後に道具を外して編集へ戻るまでの間
 const TOOL_NAME = { w: 'おもり', b: 'ふうせん' };
 
@@ -359,13 +361,58 @@ export function renderBuoyancy(root, step) {
     resetBoard(true);
   }
 
+  // 押し込み：ロボットを指で下へ押し、離すと「ためす」と同じ run() が走る。edit のときだけ受け、pointerId は1本。
+  // 動かさず（PUSH_MIN 未満で）離したとき、pointercancel、道具・ためすボタンの操作では位置を戻して run しない。
+  let push = null; // { id, el, startY, dy }
+  const pushTop = (el, dy) => {
+    el.style.transition = 'none';
+    el.style.top = `calc(${topOf(0)} + ${dy}px)`;
+  };
+  function cancelPush() {
+    if (!push) return;
+    const { el } = push;
+    push = null;
+    pushTop(el, 0);
+  }
+  robots.forEach((el) => {
+    el.style.touchAction = 'none';
+    el.addEventListener('pointerdown', (ev) => {
+      if (local.phase !== 'edit' || push) return;
+      push = { id: ev.pointerId, el, startY: ev.clientY, dy: 0 };
+      setActiveHandHint(null);
+      el.setPointerCapture?.(ev.pointerId);
+    });
+    el.addEventListener('pointermove', (ev) => {
+      if (!push || push.id !== ev.pointerId || push.el !== el) return;
+      push.dy = Math.max(0, Math.min(PUSH_MAX, ev.clientY - push.startY));
+      pushTop(el, push.dy);
+    });
+    el.addEventListener('pointerup', (ev) => {
+      if (!push || push.id !== ev.pointerId || push.el !== el) return;
+      const moved = push.dy >= PUSH_MIN;
+      if (moved && local.phase === 'edit') {
+        // 押した位置から結果の位置へ動かす（reduced-motion は transition なしで即時）。
+        push = null;
+        run();
+      } else cancelPush();
+    });
+    el.addEventListener('pointercancel', (ev) => {
+      if (push && push.id === ev.pointerId) cancelPush();
+    });
+  });
+
   for (const [id, b] of toolBtns) {
     b.addEventListener('click', () => {
+      cancelPush();
       vibrate();
       toggleTool(id);
     });
   }
-  runBtn.addEventListener('click', () => (runBtn.dataset.action === 'retry' ? retry() : run()));
+  runBtn.addEventListener('click', () => {
+    cancelPush();
+    if (runBtn.dataset.action === 'retry') retry();
+    else run();
+  });
 
   screen.renderQuestion();
   showNormalActions();

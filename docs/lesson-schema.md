@@ -152,18 +152,20 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 `mover.maxRobots`（2〜6。あれば重さを − ＋ で1〜maxRobotsに変える。省略＝重さ固定）、`mover.fixedPos`（あれば位置は固定で`start`と同じ値。`maxRobots`が要る）。`left[].robots`（固定ロボットの1つの山）は1〜6体。
 `seesaw.right`（任意。`left`と同じ形。空配列は不可。同じ位置に2山は不可。`mover.start`・`solution`の位置は`right`の位置と別）。未知のキーは不可（`seesaw`は`notches`・`left`・`right`・`mover`、`mover`は`robots`・`start`・`maxRobots`・`fixedPos`・`side`だけ）。`mover`は単体、またはちょうど2要素の配列（動かすロボット2組。要素は`robots`・`start`・`side`だけで、`maxRobots`・`fixedPos`は書けない。体数は違い、`start`は別の位置）。配列のとき`solution`は`[1組目の位置, 2組目の位置]`で、解（`solutionSets`）は1〜3件、どちらか1組だけでもつりあう面は不可（`必須性`）。`mover.side`は`"right"`（省略時）または`"both"`。`"both"`の面は支点の左にも置け（負の位置。`solution`の位置も負になりうる）、`start`・`solution`の位置は固定ロボット（`right`は+pos、`left`は−pos）と別。
 
-### `predict-slider`の`play`（うかぶ面。Issue #288）
+### `predict-slider`の`play`（うかぶ面。Issue #288・#710）
 
 `kind: "play"`に`seesaw`の代わりに`buoyancy`と`solution`を持つ（同じレッスンに`seesaw`と混在させない。未知のキーは不可）。
 ```json
-{ "stepId": "p3", "kind": "play", "text": "ふうせんも つかおう",
-  "buoyancy": { "base": 2, "mass": 3, "lift": 2, "weights": { "start": 1, "max": 3 }, "balloons": { "start": 0, "max": 3 } },
-  "solution": [2, 2] }
+{ "stepId": "p7", "kind": "play", "text": "おもりと ふうせんを くみあわせよう",
+  "buoyancy": { "bodies": [{ "ring": 2, "box": { "v": 3 } }], "tools": ["w2", "w3", "b2", "b3"] },
+  "solution": ["w2", "b3"] }
 ```
-- `base`：整数0〜8（必須）。`mass`・`lift`：整数1〜3（省略時1。おもり／ふうせん1個の力）
-- `weights`：`{ start, max }`（max 1〜4、start 0〜max）、`balloons`：`{ start, max }`（max 1〜3、start 0〜max）。どちらかは必須（省略した軸は無し）
-- 式は `net = base + balloons×lift − weights×mass`。startで`net≠0`、つりあう組（net=0）が1つ以上
-- `solution`（必須）：軸が1つ＝整数（その軸の個数）、軸が2つ＝`[おもり, ふうせん]`。つりあう組のどれか
+- `bodies`（必須）：長さ1または2の配列。各要素は`ring`（2|4|6。うきわ）と`box`（省略可。`{ v: 1〜6の整数, hidden?: true }`。`hidden`は「？のはこ」で、1体の面だけ）
+- `tools`（必須）：`"w1"|"w2"|"w3"|"b1"|"b2"|"b3"`（w＝おもり、b＝ふうせん、数字＝値）の文字列の配列。長さ2〜4、重複なし
+- `find`（省略時1）：つりあう組の数。2は1体の面だけ（別の組合せをもう1つ見つける）。`dots`（省略時 false）：true の面は道具・うきわ・にもつに点（●）の数を添える
+- 式は `net = ring − box.v + Σ付けたふうせん − Σ付けたおもり`（体ごと）。何も付けない開始で全体が同時に0にならない。つりあう組の数 S が`find`と一致。水そうの表示は±6段まで（超える net は端で止める）。盤に数字は出さない
+- `solution`（必須）：`find` 1 の1体は道具 id の配列、`find` 2 は道具 id の配列の配列、2体は`[{ "tool": "w2", "body": 0 }, …]`
+- 旧キー（`base`・`mass`・`lift`・`weights`・`balloons`）は受け付けない
 
 ### `sort-order`の`play`（レシピの順番。Issue #292）
 
