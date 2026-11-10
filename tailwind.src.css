@@ -1147,6 +1147,36 @@ dialog.result-row {
 .sk-screen--buoyancy .bu-tool--on .bu-badge {
   display: block;
 }
+/* 2体の面：水そうを左右2つ。道具は 青◀（左）／橙▶（右）のしるしで巡回する。 */
+.sk-screen--buoyancy .bu-boards--two {
+  gap: 0.5rem;
+}
+.sk-screen--buoyancy .bu-boards--two .bu-tank {
+  min-width: 0;
+  max-width: 220px;
+}
+.sk-screen--buoyancy .bu-tank--l {
+  border-color: #2563eb;
+}
+.sk-screen--buoyancy .bu-tank--r {
+  border-color: #f97316;
+}
+.sk-screen--buoyancy .bu-tool--l {
+  background: #dbeafe;
+  border-color: #2563eb;
+}
+.sk-screen--buoyancy .bu-tool--l .bu-badge {
+  display: block;
+  background: #2563eb;
+}
+.sk-screen--buoyancy .bu-tool--r {
+  background: #ffedd5;
+  border-color: #f97316;
+}
+.sk-screen--buoyancy .bu-tool--r .bu-badge {
+  display: block;
+  background: #f97316;
+}
 
 /* predict（Issue #355）：命令の行（predict-command-row）を問い文と盤面の間に置き、ボタン行 sk-screen-actions--predict は
    縦向きは nowrap の1行、横向きは1列に縦積みにする。 */

@@ -33,8 +33,14 @@ function specProblems(spec) {
     if (OLD_KEYS.includes(k)) problems.push(`旧形式のキー「${k}」は書けない（bodies と tools を使う）`);
     else if (!SPEC_KEYS.includes(k)) problems.push(`未知キー「${k}」がある`);
   }
-  if (!Array.isArray(spec.bodies) || spec.bodies.length !== 1) problems.push('bodies が長さ1の配列でない');
-  else problems.push(...bodyProblems(spec.bodies[0]));
+  if (!Array.isArray(spec.bodies) || spec.bodies.length < 1 || spec.bodies.length > 2) problems.push('bodies が長さ1か2の配列でない');
+  else {
+    for (const b of spec.bodies) problems.push(...bodyProblems(b));
+    if (spec.bodies.length === 2) {
+      if (spec.bodies.some((b) => isObj(b) && isObj(b.box) && 'hidden' in b.box)) problems.push('2体の面では box.hidden を使えない');
+      if (spec.find === 2) problems.push('find:2 は1体の面だけ');
+    }
+  }
   const tools = spec.tools;
   if (!Array.isArray(tools) || tools.length < 2 || tools.length > 4) problems.push('tools が長さ2〜4の配列でない');
   else {
@@ -48,6 +54,14 @@ function specProblems(spec) {
 
 // solution が道具 id の配列で、つりあう組のどれかと一致するか（順不同）。NGなら理由を返す。
 function solutionNg(solution, spec, solutions) {
+  if (spec.bodies.length === 2) {
+    // 2体は [{ tool, body: 0|1 }] の配列。つりあう組のどれかと一致する（順不同）。
+    const okItem = (a) => isObj(a) && spec.tools.includes(a.tool) && (a.body === 0 || a.body === 1);
+    if (!Array.isArray(solution) || !solution.every(okItem)) return 'が { tool, body } の配列でない（2体）';
+    if (new Set(solution.map((a) => a.tool)).size !== solution.length) return 'に同じ道具が2回ある（2体）';
+    const keyOf = (arr) => arr.map((a) => `${a.tool}:${a.body}`).sort().join(',');
+    return solutions.some((s) => keyOf(s) === keyOf(solution)) ? null : 'がつりあう組に含まれない（2体）';
+  }
   if (spec.find === 2) {
     // find:2 は道具 id の配列の配列。つりあう組と過不足なく一致する（順不同）。
     if (!Array.isArray(solution) || !solution.every(Array.isArray)) return 'が道具 id の配列の配列でない（find:2）';

@@ -7,9 +7,9 @@
   "steps": [
     { "stepId": "s1", "kind": "intro", "text": "みずに うかべて みよう" },
     { "stepId": "p1", "kind": "play", "text": "おもりで ぴたりと とめよう", "buoyancy": { "bodies": [{ "ring": 2 }], "tools": ["w1", "w2"], "dots": true }, "solution": ["w2"] },
-    { "stepId": "p2", "kind": "play", "text": "ふうせんで うかせよう", "buoyancy": { "bodies": [{ "ring": 2, "box": { "v": 3 } }], "tools": ["b1", "b2"], "dots": true }, "solution": ["b1"] },
     { "stepId": "p3", "kind": "play", "text": "どれを つけると ぴたり？", "buoyancy": { "bodies": [{ "ring": 2, "box": { "v": 3 } }], "tools": ["w2", "w3", "b2", "b3"] }, "solution": ["w2", "b3"] },
     { "stepId": "p4", "kind": "play", "text": "ぴたりは ふたつ あるよ", "buoyancy": { "bodies": [{ "ring": 4 }], "tools": ["w1", "w2", "w3", "b1"], "find": 2 }, "solution": [["w1", "w3"], ["w2", "w3", "b1"]] },
+    { "stepId": "p5", "kind": "play", "text": "ふたりを ぴたりに しよう", "buoyancy": { "bodies": [{ "ring": 2 }, { "ring": 4 }], "tools": ["w1", "w2", "w3"] }, "solution": [{ "tool": "w2", "body": 0 }, { "tool": "w1", "body": 1 }, { "tool": "w3", "body": 1 }] },
     { "stepId": "s2", "kind": "summary", "text": "かるいと うかぶよ" }
   ]
 }

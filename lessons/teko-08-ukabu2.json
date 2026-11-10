@@ -12,8 +12,8 @@
     { "stepId": "p4", "kind": "play", "text": "？の はこを はかって みよう", "buoyancy": { "bodies": [{ "ring": 4, "box": { "v": 2, "hidden": true } }], "tools": ["w1", "w3", "b1", "b3"] }, "solution": ["w3", "b1"] },
     { "stepId": "p5", "kind": "play", "text": "？の はこの おもさは？", "buoyancy": { "bodies": [{ "ring": 4, "box": { "v": 3, "hidden": true } }], "tools": ["w2", "w3", "b2", "b3"] }, "solution": ["w3", "b2"] },
     { "stepId": "p6", "kind": "play", "text": "？を みつけて ぴたりに しよう", "buoyancy": { "bodies": [{ "ring": 4, "box": { "v": 5, "hidden": true } }], "tools": ["w2", "w3", "b2", "b3"] }, "solution": ["w2", "b3"] },
-    { "stepId": "p7", "kind": "play", "text": "どれを つけると ぴたり？", "buoyancy": { "bodies": [{ "ring": 2, "box": { "v": 1 } }], "tools": ["w2", "w3", "b2", "b3"] }, "solution": ["w3", "b2"] },
-    { "stepId": "p8", "kind": "play", "text": "どれを つけると ぴたり？", "buoyancy": { "bodies": [{ "ring": 2, "box": { "v": 1 } }], "tools": ["w2", "w3", "b2", "b3"] }, "solution": ["w3", "b2"] },
+    { "stepId": "p7", "kind": "play", "text": "ふたりを ぴたりに しよう", "buoyancy": { "bodies": [{ "ring": 2 }, { "ring": 4 }], "tools": ["w1", "w2", "w3"] }, "solution": [{ "tool": "w2", "body": 0 }, { "tool": "w1", "body": 1 }, { "tool": "w3", "body": 1 }] },
+    { "stepId": "p8", "kind": "play", "text": "どっちに つける？ふたりとも ぴたり", "buoyancy": { "bodies": [{ "ring": 2, "box": { "v": 4 } }, { "ring": 4, "box": { "v": 2 } }], "tools": ["w1", "w3", "b1", "b3"] }, "solution": [{ "tool": "w1", "body": 0 }, { "tool": "b3", "body": 0 }, { "tool": "w3", "body": 1 }, { "tool": "b1", "body": 1 }] },
     { "stepId": "s2", "kind": "summary", "text": "おもさと ちからで きまるよ" }
   ]
 }

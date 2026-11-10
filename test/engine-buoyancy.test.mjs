@@ -22,15 +22,14 @@ test('engine-buoyancy: net ＝ ring − box + ふうせん − おもり', () =>
 });
 
 test('engine-buoyancy: buoyancy の符号表（浮く／ぴたり／沈む）', () => {
-  assert.deepEqual(buoyancy(specs[0], []), { net: 2, dir: 1 });
-  assert.deepEqual(buoyancy(specs[0], ['w2']), { net: 0, dir: 0 });
-  assert.deepEqual(buoyancy(specs[0], ['w1', 'w2']), { net: -1, dir: -1 });
+  assert.deepEqual(buoyancy(specs[0], []), { net: 2, nets: [2], dir: 1 });
+  assert.deepEqual(buoyancy(specs[0], ['w2']), { net: 0, nets: [0], dir: 0 });
+  assert.deepEqual(buoyancy(specs[0], ['w1', 'w2']), { net: -1, nets: [-1], dir: -1 });
 });
 
 test('engine-buoyancy: enumerate は全組合せ N=2^n とつりあう組を返す', () => {
   assert.deepEqual(enumerate(specs[0]), { N: 4, solutions: [['w2']] });
-  assert.deepEqual(enumerate(specs[1]), { N: 4, solutions: [['b1']] });
-  assert.deepEqual(enumerate(specs[2]), { N: 16, solutions: [['w2', 'b3']] });
+  assert.deepEqual(enumerate(specs[1]), { N: 16, solutions: [['w2', 'b3']] });
 });
 
 test('engine-buoyancy: つりあう組が無ければ空', () => {
@@ -38,12 +37,24 @@ test('engine-buoyancy: つりあう組が無ければ空', () => {
 });
 
 test('engine-buoyancy: find:2 は つりあう組が2つ、？のはこも値で計算する', () => {
-  assert.equal(specs[3].find, 2);
-  assert.deepEqual(enumerate(specs[3]), { N: 16, solutions: [['w1', 'w3'], ['w2', 'w3', 'b1']] });
+  assert.equal(specs[2].find, 2);
+  assert.deepEqual(enumerate(specs[2]), { N: 16, solutions: [['w1', 'w3'], ['w2', 'w3', 'b1']] });
   const hidden = { bodies: [{ ring: 4, box: { v: 2, hidden: true } }], tools: ['w1', 'w3', 'b1', 'b3'] };
   assert.deepEqual(enumerate(hidden), { N: 16, solutions: [['w3', 'b1']] });
 });
 
-test('engine-buoyancy: difficulty は 4,4,16,16', () => {
-  assert.deepEqual(specs.map(difficulty), [4, 4, 16, 16]);
+test('engine-buoyancy: difficulty は 4,16,16,27（2体は3^n）', () => {
+  assert.deepEqual(specs.map(difficulty), [4, 16, 16, 27]);
+});
+
+test('engine-buoyancy: 2体は なし／左／右 の3^n を調べ、全体がぴたりの組だけ返す', () => {
+  assert.equal(specs[3].bodies.length, 2);
+  assert.deepEqual(enumerate(specs[3]), {
+    N: 27,
+    solutions: [[{ tool: 'w1', body: 1 }, { tool: 'w2', body: 0 }, { tool: 'w3', body: 1 }]],
+  });
+  const left = [{ tool: 'w2', body: 0 }];
+  assert.deepEqual(buoyancy(specs[3], left), { net: 4, nets: [0, 4], dir: 1 });
+  assert.deepEqual(buoyancy(specs[3], [...left, { tool: 'w1', body: 1 }, { tool: 'w3', body: 1 }]), { net: 0, nets: [0, 0], dir: 0 });
+  assert.deepEqual(buoyancy(specs[3], [{ tool: 'w3', body: 0 }]), { net: -1, nets: [-1, 4], dir: -1 });
 });

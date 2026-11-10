@@ -63,7 +63,8 @@ function toolIconHtml(kind, v) {
 
 export function renderBuoyancy(root, step) {
   const spec = step.buoyancy;
-  const body = spec.bodies[0];
+  const bodies = spec.bodies;
+  const two = bodies.length === 2;
   const dots = spec.dots === true;
 
   const playSteps = S.lesson.steps.filter((s) => s.kind === 'play');
@@ -71,8 +72,12 @@ export function renderBuoyancy(root, step) {
   const isFinalStage = stageIndex === playSteps.length - 1;
 
   // on：付いている道具 id の集合。表示・判定の順は spec.tools の並びにそろえる。
-  const local = { on: new Set(), phase: 'edit', timer: null };
+  // side：2体の面で、付いている道具の置き場所（0＝左／1＝右）。on にある道具だけ持つ。
+  const local = { on: new Set(), side: new Map(), phase: 'edit', timer: null };
   const attached = () => spec.tools.filter((id) => local.on.has(id));
+  // 判定に渡す形。1体は道具 id の配列、2体は { tool, body } の配列。
+  const assignment = () => (two ? attached().map((tool) => ({ tool, body: local.side.get(tool) })) : attached());
+  const idsOn = (i) => attached().filter((id) => !two || local.side.get(id) === i);
 
   const screen = createOpScreen({ root, question: step.text ?? 'ぴったり とまる ところは？', stepKey: `${S.lesson.lessonId}:${step.stepId}` });
   const { frame: opScreen, boardArea, actions: actionsEl, bird } = screen;
@@ -85,26 +90,30 @@ export function renderBuoyancy(root, step) {
     const zero = k === 0 ? ' bu-tick--zero' : '';
     ticks += `<div class="bu-tick bu-tick--l${zero}" data-tick="${k}" style="top:${topOf(k)}"></div><div class="bu-tick bu-tick--r${zero}" style="top:${topOf(k)}"></div>`;
   }
-  boardArea.innerHTML = `<div class="bu-boards"><div class="bu-tank" data-tank aria-hidden="true">
+  const tankHtml = (i) => `<div class="bu-tank${two ? (i === 0 ? ' bu-tank--l' : ' bu-tank--r') : ''}" data-tank data-body="${i}" aria-hidden="true">
     <div class="bu-water"></div>${ticks}
     <div data-fail-lines></div>
     <div class="bu-cluster" data-robot style="top:${topOf(0)}"><div data-bob></div></div>
-  </div></div>`;
-  const tank = boardArea.querySelector('[data-tank]');
-  const failLines = tank.querySelector('[data-fail-lines]');
-  const robot = tank.querySelector('[data-robot]');
-  const bob = tank.querySelector('[data-bob]');
-  let bobAnim = null;
+  </div>`;
+  boardArea.innerHTML = `<div class="bu-boards${two ? ' bu-boards--two' : ''}">${bodies.map((_, i) => tankHtml(i)).join('')}</div>`;
+  const boards = boardArea.querySelector('.bu-boards');
+  const tanks = [...boards.querySelectorAll('[data-tank]')];
+  const failLines = tanks.map((t) => t.querySelector('[data-fail-lines]'));
+  const robots = tanks.map((t) => t.querySelector('[data-robot]'));
+  const bobs = tanks.map((t) => t.querySelector('[data-bob]'));
+  let bobAnims = [];
 
   const view = {
     confetti: screenConfetti,
-    setMood: (mood) => setMoodIn(tank, mood),
+    setMood: (mood) => setMoodIn(boards, mood),
     celebrateDance() {
       if (prefersReducedMotion()) return;
-      bob.animate?.(
-        [{ transform: 'translateY(0)' }, { transform: 'translateY(-16px)' }, { transform: 'translateY(0)' }, { transform: 'translateY(-10px)' }, { transform: 'translateY(0)' }],
-        { duration: 700, easing: 'ease-in-out' }
-      );
+      for (const bob of bobs) {
+        bob.animate?.(
+          [{ transform: 'translateY(0)' }, { transform: 'translateY(-16px)' }, { transform: 'translateY(0)' }, { transform: 'translateY(-10px)' }, { transform: 'translateY(0)' }],
+          { duration: 700, easing: 'ease-in-out' }
+        );
+      }
     },
   };
 
@@ -137,7 +146,14 @@ export function renderBuoyancy(root, step) {
     for (const [id, b] of toolBtns) {
       b.disabled = !editing;
       const on = local.on.has(id);
-      b.classList.toggle('bu-tool--on', on);
+      const side = two && on ? local.side.get(id) : -1;
+      b.classList.toggle('bu-tool--on', on && !two);
+      b.classList.toggle('bu-tool--l', side === 0);
+      b.classList.toggle('bu-tool--r', side === 1);
+      if (two) {
+        b.dataset.side = side === 0 ? 'left' : side === 1 ? 'right' : 'none';
+        b.firstElementChild.textContent = side === 0 ? '◀' : '▶';
+      }
       b.setAttribute('aria-pressed', String(on));
     }
     runBtn.disabled = local.phase === 'running';
@@ -154,66 +170,91 @@ export function renderBuoyancy(root, step) {
   }
 
   function startBob() {
-    bobAnim?.cancel();
-    bobAnim = null;
-    if (prefersReducedMotion() || !bob.animate) return;
-    bobAnim = bob.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-4px)' }, { transform: 'translateY(0)' }], {
-      duration: 1800,
-      iterations: Infinity,
-      easing: 'ease-in-out',
-    });
+    for (const a of bobAnims) a.cancel();
+    bobAnims = [];
+    if (prefersReducedMotion()) return;
+    for (const bob of bobs) {
+      if (!bob.animate) continue;
+      bobAnims.push(
+        bob.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-4px)' }, { transform: 'translateY(0)' }], {
+          duration: 1800,
+          iterations: Infinity,
+          easing: 'ease-in-out',
+        })
+      );
+    }
   }
 
-  // ロボット・うきわ・にもつ・付いた道具を描く（ふうせんはロボットの上、おもりは下）。
+  // ロボット・うきわ・にもつ・付いた道具を描く（ふうせんはロボットの上、おもりは下）。2体は水そうごとに、その体の道具だけ。
   function drawRobot() {
-    const ids = attached();
-    const balloons = ids.filter((id) => toolOf(id).kind === 'b').map((id) => balloonHtml(toolOf(id).v));
-    const weights = ids.filter((id) => toolOf(id).kind === 'w').map((id) => weightHtml(toolOf(id).v));
-    bob.innerHTML = `<div class="bu-above">${balloons.join('')}</div>${ringHtml(body.ring, dots)}<svg class="bu-robot" viewBox="0 0 64 64" aria-hidden="true">${shapeSvg('player')}</svg>${crateHtml(body.box, dots)}<div class="bu-below">${weights.join('')}</div>`;
-    robot.dataset.tools = ids.join(',');
+    bodies.forEach((body, i) => {
+      const ids = idsOn(i);
+      const balloons = ids.filter((id) => toolOf(id).kind === 'b').map((id) => balloonHtml(toolOf(id).v));
+      const weights = ids.filter((id) => toolOf(id).kind === 'w').map((id) => weightHtml(toolOf(id).v));
+      bobs[i].innerHTML = `<div class="bu-above">${balloons.join('')}</div>${ringHtml(body.ring, dots)}<svg class="bu-robot" viewBox="0 0 64 64" aria-hidden="true">${shapeSvg('player')}</svg>${crateHtml(body.box, dots)}<div class="bu-below">${weights.join('')}</div>`;
+      robots[i].dataset.tools = ids.join(',');
+    });
     updateControls();
   }
 
-  function move(net) {
-    const level = clampLevel(net);
-    robot.style.transition = prefersReducedMotion() ? 'none' : `top ${MOVE_MS}ms ease-in-out`;
-    robot.style.top = topOf(level);
-    robot.dataset.level = String(level);
-    return level;
+  function move(nets) {
+    return nets.map((net, i) => {
+      const level = clampLevel(net);
+      robots[i].style.transition = prefersReducedMotion() ? 'none' : `top ${MOVE_MS}ms ease-in-out`;
+      robots[i].style.top = topOf(level);
+      robots[i].dataset.level = String(level);
+      return level;
+    });
   }
 
+  // 1体は なし⇔付く。2体は なし→左→右→なし と巡回する。
   function toggleTool(id) {
     if (local.phase !== 'edit') {
       skipClickSfx();
       return;
     }
-    if (local.on.has(id)) local.on.delete(id);
-    else local.on.add(id);
+    if (!two) {
+      if (local.on.has(id)) local.on.delete(id);
+      else local.on.add(id);
+    } else if (!local.on.has(id)) {
+      local.on.add(id);
+      local.side.set(id, 0);
+    } else if (local.side.get(id) === 0) {
+      local.side.set(id, 1);
+    } else {
+      local.on.delete(id);
+      local.side.delete(id);
+    }
     drawRobot();
   }
 
-  // 失敗した高さの点線を水そうの壁へ残す（面の中で累積。同じ高さは1本）。
-  function addFailLine(level) {
-    if (failLines.querySelector(`[data-fail-line="${level}"]`)) return;
+  // 失敗した高さの点線を、その水そうの壁へ残す（面の中で累積。同じ高さは1本）。
+  function addFailLine(i, level) {
+    if (failLines[i].querySelector(`[data-fail-line="${level}"]`)) return;
     const line = document.createElement('div');
     line.className = 'bu-fail';
     line.dataset.failLine = String(level);
     line.style.top = topOf(level);
-    failLines.appendChild(line);
+    failLines[i].appendChild(line);
   }
 
   function resetBoard(clearTools) {
     local.phase = 'edit';
-    if (clearTools) local.on.clear();
-    robot.style.transition = 'none';
-    robot.style.top = topOf(0);
-    robot.dataset.level = '0';
-    setMoodIn(tank, 'normal');
+    if (clearTools) {
+      local.on.clear();
+      local.side.clear();
+    }
+    for (const robot of robots) {
+      robot.style.transition = 'none';
+      robot.style.top = topOf(0);
+      robot.dataset.level = '0';
+    }
+    setMoodIn(boards, 'normal');
     drawRobot();
     startBob();
   }
 
-  function finishRun(result, level) {
+  function finishRun(result, levels) {
     local.timer = null;
     setActiveAnimation(null);
     setBackDisabled(false);
@@ -266,9 +307,12 @@ export function renderBuoyancy(root, step) {
     local.phase = 'failed';
     setRunMode('retry');
     updateControls();
-    addFailLine(level);
+    // ぴたりでない水そうにだけ線を残す（2体で片方がぴたりなら、その水そうには残さない）。
+    result.nets.forEach((net, i) => {
+      if (net !== 0) addFailLine(i, levels[i]);
+    });
     playSfx('tryAgain');
-    setMoodIn(tank, 'puzzled');
+    setMoodIn(boards, 'puzzled');
     shakeBoard(boardArea);
     showHint(null, { bird, kind: 'buoyancy', message: HINT_MESSAGE[result.dir] });
   }
@@ -280,16 +324,16 @@ export function renderBuoyancy(root, step) {
     setActiveHandHint(null);
     clearResultBubble(bird);
     vibrate();
-    const ids = attached();
-    logEvent('run', { tools: ids });
+    const assign = assignment();
+    logEvent('run', { tools: two ? assign.map((a) => `${a.tool}@${a.body}`) : assign });
     playSfx('run');
     setBackDisabled(true);
-    bobAnim?.cancel();
-    bobAnim = null;
-    const result = buoyancy(spec, ids);
-    const level = move(result.net);
+    for (const a of bobAnims) a.cancel();
+    bobAnims = [];
+    const result = buoyancy(spec, assign);
+    const levels = move(result.nets);
     const delay = prefersReducedMotion() ? 0 : MOVE_MS + 100;
-    local.timer = setTimeout(() => finishRun(result, level), delay);
+    local.timer = setTimeout(() => finishRun(result, levels), delay);
     setActiveAnimation({
       cancel() {
         clearTimeout(local.timer);
@@ -310,7 +354,7 @@ export function renderBuoyancy(root, step) {
     vibrate();
     showNormalActions();
     clearResultBubble(bird);
-    failLines.innerHTML = '';
+    for (const fl of failLines) fl.innerHTML = '';
     foundKeys.clear();
     resetBoard(true);
   }

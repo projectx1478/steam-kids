@@ -1,10 +1,15 @@
 // teko-08-ukabu2（predict-slider の buoyancy。「？の はこを はかろう」。開発者画面から入る。Issue #670・#710）：
-// 8面を道具ボタンで通す（7・8面は段3で置き換わるまでの暫定の値）。2面は沈むにもつ、3面は別の組合せ（find:2）、4〜6面は？のはこ、360px幅で横にはみ出さない。
+// 8面を道具ボタンで通す（7・8面は2体：水そう2つ、道具は1つのボタンで なし→左→右→なし と巡回）。2面は沈むにもつ、3面は別の組合せ（find:2）、4〜6面は？のはこ、360px幅で横にはみ出さない。
 import { enterPlay } from '../helpers.mjs';
 
 export const name = 'teko-08-flow: teko-08を開発者画面から入り、8面・道具ボタン・360px幅(Issue #670/#710)';
 
 const SOLUTIONS = [['w3', 'b2'], ['b1', 'b2'], ['w1', 'b2'], ['w3', 'b1'], ['w3', 'b2'], ['w2', 'b3'], ['w3', 'b2'], ['w3', 'b2']];
+// 2体の面（p7・p8）の解：[道具 id, 押す回数]。1回＝左、2回＝右。
+const TWO_BODY = {
+  6: [['w2', 1], ['w1', 2], ['w3', 2]],
+  7: [['w1', 1], ['b3', 1], ['w3', 2], ['b1', 2]],
+};
 const SECOND_P3 = ['w2', 'b3'];
 
 async function noOverflow(page, label, check) {
@@ -26,7 +31,7 @@ export default async function run({ page, check }) {
   for (let i = 0; i < SOLUTIONS.length; i += 1) {
     const label = `p${i + 1}`;
     await page.waitForSelector('[data-action^="tool-"]');
-    await check(`${label}：道具ボタンは4個`, async () => await page.evaluate(() => document.querySelectorAll('[data-action^="tool-"]').length), 4);
+    await check(`${label}：道具ボタンは${i === 6 ? 3 : 4}個`, async () => await page.evaluate(() => document.querySelectorAll('[data-action^="tool-"]').length), i === 6 ? 3 : 4);
     await check(`${label}：点は無い`, async () => await page.evaluate(() => document.querySelectorAll('[data-dots]').length), 0);
     if (i === 0 || i === 7) await noOverflow(page, label, check);
     if (i === 1) {
@@ -43,7 +48,22 @@ export default async function run({ page, check }) {
         return !!c && c.textContent === '？' && !c.querySelector('.bu-dot') && !c.hasAttribute('data-dots');
       }), true);
     }
-    for (const id of SOLUTIONS[i]) await page.click(`[data-action="tool-${id}"]`);
+    if (i >= 6) {
+      await check(`${label}：水そうは2つ`, async () => await page.evaluate(() => document.querySelectorAll('[data-tank]').length), 2);
+      if (i === 6) {
+        // 巡回：1回タップで左（青◀）、2回で右（橙▶）、3回でなし
+        const sideOf = async () => await page.getAttribute('[data-action="tool-w1"]', 'data-side');
+        const seq = [];
+        for (let n = 0; n < 3; n += 1) {
+          await page.click('[data-action="tool-w1"]');
+          seq.push(await sideOf());
+        }
+        await check('p7：道具タップ3回で 左→右→なし と巡回', async () => seq, ['left', 'right', 'none']);
+      }
+      for (const [id, n] of TWO_BODY[i]) for (let k = 0; k < n; k += 1) await page.click(`[data-action="tool-${id}"]`);
+    } else {
+      for (const id of SOLUTIONS[i]) await page.click(`[data-action="tool-${id}"]`);
+    }
     await page.click('[data-action="run"]');
     if (i === 2) {
       // 3面（find:2）：1つ目のぴたりで道具が全部外れ、同じ組は「それは さっきと おなじ」、別の組でクリア
