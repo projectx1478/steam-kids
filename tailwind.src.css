@@ -1679,3 +1679,198 @@ dialog.result-row {
     display: none;
   }
 }
+
+/* build-egg（たまごの みち。js/ui-egg.js・Issue #290）：骨格は sort-order と共用。5×5 の格子（セル --egg-c）の上に、たまごの余白行（高さ＝セル1行）。
+   セル64px。高さ500px以下の横向きと 360×640（縦で高さ700px以下）は48px（格子244×244）・点列を隠す・余白4px（docs/ui-rules.md の例外）。 */
+.sk-screen--egg {
+  --egg-c: 64px;
+}
+@media (orientation: portrait) and (max-height: 700px), (orientation: landscape) and (max-height: 500px) {
+  .sk-screen--egg {
+    --egg-c: 48px;
+  }
+  #app:has(.sk-screen--egg) > main > .step-roadmap {
+    display: none;
+  }
+}
+.sk-screen--egg > .sk-screen-board {
+  flex: none;
+}
+.egg-wrap {
+  position: relative;
+  flex: none;
+  width: calc(var(--egg-c) * var(--egg-cols, 5) + 4px);
+}
+.egg-row {
+  height: var(--egg-c);
+}
+.egg-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--egg-cols, 5), var(--egg-c));
+  grid-auto-rows: var(--egg-c);
+  background: #fff;
+  border: 2px solid #1e293b;
+  border-radius: 8px;
+}
+.egg-cell {
+  position: relative;
+  box-sizing: border-box;
+  width: var(--egg-c);
+  height: var(--egg-c);
+  padding: 0;
+  border: 1px solid #cbd5e1;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+button.egg-cell {
+  cursor: pointer;
+}
+.egg-cell.egg-place::after {
+  content: '';
+  width: calc(var(--egg-c) * 0.34);
+  height: calc(var(--egg-c) * 0.34);
+  border-radius: 50%;
+  background: #bfd7f2;
+  opacity: 0.75;
+}
+.egg-cell.egg-place-full::after {
+  display: none;
+}
+.egg-cell > svg,
+.egg-plate,
+.egg-plate > svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.egg-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(var(--egg-c) * var(--egg-cols, 5));
+  height: calc(var(--egg-c) * var(--egg-rows, 5));
+  pointer-events: none;
+  z-index: 2;
+}
+.egg-traj {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.egg-egg {
+  position: absolute;
+  width: var(--egg-c);
+  height: var(--egg-c);
+}
+.egg-egg > svg {
+  width: 100%;
+  height: 100%;
+}
+.egg-egg.egg-in-nest {
+  transform: scale(0.7) translateY(-8%);
+}
+.egg-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 12px 0 8px;
+  border-radius: 1rem;
+  background: #fff;
+}
+.egg-robot-frame {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.egg-robot {
+  width: 40px;
+  height: 40px;
+  overflow: visible;
+}
+.egg-msg {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 800;
+  color: #1e293b;
+}
+.sk-screen--egg > .sk-screen-panel > .sk-screen-actions.sk-screen-actions--sortorder {
+  gap: 32px;
+  justify-content: center;
+}
+.egg-try {
+  width: 160px;
+  height: 48px;
+  border: 2px solid #1e293b;
+  border-radius: 1rem;
+  background: #22c55e;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 800;
+  box-shadow: 0 4px 0 #1e293b;
+}
+.egg-undo {
+  width: 96px;
+  height: 48px;
+  border: 2px solid #1e293b;
+  border-radius: 1rem;
+  background: #fff;
+  color: #1e293b;
+  font-size: 18px;
+  font-weight: 800;
+  box-shadow: 0 3px 0 #1e293b;
+}
+.egg-try:disabled,
+.egg-undo:disabled {
+  opacity: 0.4;
+  transform: translateY(2px);
+  box-shadow: none;
+}
+/* 横並び：左に格子（たまごの余白行つき）、右に小鳥の欄・結果・ボタン。縦の高さを格子1本分に抑える */
+@media (orientation: landscape) {
+  .sk-screen-frame.sk-screen-frame.sk-screen--egg {
+    grid-template-columns: calc(var(--egg-c) * 5 + 4px) minmax(0, 360px);
+    grid-template-rows: 64px auto;
+    justify-content: center;
+    column-gap: 24px;
+    align-content: start;
+  }
+  .sk-screen--egg.sk-screen--egg.sk-screen--egg.sk-screen-frame > .sk-screen-bird {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .sk-screen--egg.sk-screen--egg.sk-screen--egg.sk-screen-frame > .sk-screen-board {
+    grid-column: 1;
+    grid-row: 1 / span 3;
+    align-self: start;
+  }
+  .sk-screen--egg.sk-screen--egg.sk-screen--egg.sk-screen-frame > .sk-screen-panel {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: start;
+  }
+  .sk-screen--egg > .sk-screen-panel > .sk-screen-actions.sk-screen-actions--sortorder {
+    gap: 24px;
+  }
+}
+/* 高さ500px以下の横向き：#app・main の上下余白を詰める（unfold-cube と同じ形。ヘッダは残す） */
+@media (orientation: landscape) and (max-height: 500px) {
+  #app:has(.sk-screen--egg) {
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+  #app:has(.sk-screen--egg) > main {
+    padding-top: 8px;
+  }
+}
