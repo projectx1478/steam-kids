@@ -31,6 +31,7 @@ const APP_SHELL = [
   "./js/engine-buoyancy.js",
   "./js/engine-sortorder.js",
   "./js/engine-unfold.js",
+  "./js/engine-egg.js",
   "./js/engine-seesaw.js",
   "./js/engine-seesaw-gen.js",
   "./js/events.js",

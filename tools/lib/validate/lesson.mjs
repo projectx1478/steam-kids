@@ -28,6 +28,7 @@ import { validateBuoyancy } from './buoyancy.mjs';
 import { checkStageGen } from './stagegen.mjs';
 import { validateSortOrder } from './sortorder.mjs';
 import { validateUnfold } from './unfold.mjs';
+import { validateEgg } from './egg.mjs';
 
 export function validateLesson(fileName, data, longTrialIds = []) {
   const errors = [];
@@ -112,6 +113,10 @@ export function validateLesson(fileName, data, longTrialIds = []) {
   }
   if (data.type === 'unfold-cube') {
     validateUnfold(playSteps, steps.find((s) => s.kind === 'intro'), add, isLong);
+    return errors;
+  }
+  if (data.type === 'build-egg') {
+    validateEgg(playSteps, add, isLong);
     return errors;
   }
   if (data.type === 'grid-runtime' && (playSteps.length < MIN_PLAY || playSteps.length > maxPlay)) {
