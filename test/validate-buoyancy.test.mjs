@@ -57,7 +57,12 @@ const ngCases = [
   ['solution が tools に無い id', 'solution', (l, p) => { p.solution = ['w1']; }],
   ['何も付けない時点でつりあう', 'start', (l, p) => { p.buoyancy.bodies[0].box.v = 2; }],
   ['点なしで期待試行が低い', '当てずっぽう', (l, p) => { p.buoyancy = { bodies: [{ ring: 2 }], tools: ['w1', 'w2'] }; p.solution = ['w2']; }],
-  ['難易度が下がる', '難易度', (l) => { l.steps = [l.steps[0], l.steps[3], l.steps[2], l.steps[1], l.steps[4]]; }],
+  ['難易度が下がる', '難易度', (l) => { l.steps = [l.steps[0], l.steps[3], l.steps[2], l.steps[1], l.steps[4], l.steps[5]]; }],
+  ['find が3', 'buoyancy', (l, p) => { p.buoyancy.find = 3; }],
+  ['find:2 なのにつりあう組が1個', '解の個数', (l, p) => { p.buoyancy.find = 2; }],
+  ['find:2 の solution が片方だけ', 'solution', (l) => { const p4 = l.steps.find((s) => s.stepId === 'p4'); p4.solution = [['w1', 'w3']]; }],
+  ['find:2 の solution が配列の配列でない', 'solution', (l) => { const p4 = l.steps.find((s) => s.stepId === 'p4'); p4.solution = ['w1', 'w3']; }],
+  ['find 無しで solution が配列の配列', 'solution', (l, p) => { p.solution = [['w2', 'b3']]; }],
   ['seesaw と混在', 'seesawとbuoyancyの混在', (l) => {
     const p1 = l.steps.find((s) => s.stepId === 'p1');
     delete p1.buoyancy;

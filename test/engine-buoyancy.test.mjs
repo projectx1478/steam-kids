@@ -37,6 +37,13 @@ test('engine-buoyancy: つりあう組が無ければ空', () => {
   assert.deepEqual(enumerate({ bodies: [{ ring: 6 }], tools: ['b1', 'b2'] }).solutions, []);
 });
 
-test('engine-buoyancy: difficulty は 4,4,16', () => {
-  assert.deepEqual(specs.map(difficulty), [4, 4, 16]);
+test('engine-buoyancy: find:2 は つりあう組が2つ、？のはこも値で計算する', () => {
+  assert.equal(specs[3].find, 2);
+  assert.deepEqual(enumerate(specs[3]), { N: 16, solutions: [['w1', 'w3'], ['w2', 'w3', 'b1']] });
+  const hidden = { bodies: [{ ring: 4, box: { v: 2, hidden: true } }], tools: ['w1', 'w3', 'b1', 'b3'] };
+  assert.deepEqual(enumerate(hidden), { N: 16, solutions: [['w3', 'b1']] });
+});
+
+test('engine-buoyancy: difficulty は 4,4,16,16', () => {
+  assert.deepEqual(specs.map(difficulty), [4, 4, 16, 16]);
 });

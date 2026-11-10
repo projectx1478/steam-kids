@@ -5,7 +5,8 @@ import { enterPlay } from '../helpers.mjs';
 export const name = 'teko-07-flow: teko-07を開発者画面から入り、8面・道具ボタン・点線・点(1〜4面)・360px幅(Issue #288/#670/#710)';
 
 // 8面の解（道具 id）。8面は段2で置き換わるまでの暫定の値。
-const SOLUTIONS = [['w2'], ['w1', 'w3'], ['b1'], ['w1', 'w3'], ['w3', 'b1'], ['w1', 'w2'], ['w2', 'b3'], ['w3', 'b2']];
+const SOLUTIONS = [['w2'], ['w1', 'w3'], ['b1'], ['w1', 'w3'], ['w3', 'b1'], ['w1', 'w2'], ['w2', 'b3'], ['w1', 'w3']];
+const SECOND_P8 = ['w2', 'w3', 'b1'];
 
 const tool = (id) => `[data-action="tool-${id}"]`;
 
@@ -78,7 +79,15 @@ export default async function run({ page, check }) {
     if (i === 3 || i === 7) await noOverflow(page, label, check);
     await tap(page, SOLUTIONS[i]);
     await page.click('[data-action="run"]');
-    const last = i === SOLUTIONS.length - 1;
+    if (i === 7) {
+      // 8面（find:2）：1つ目のぴたりで道具が全部外れ、別の組でクリア
+      await page.waitForFunction(() => document.querySelector('[data-hint="buoyancy"]')?.textContent.includes('べつの くみあわせも あるよ'), null, { timeout: 10000 });
+      await page.waitForFunction(() => document.querySelectorAll('[data-action^="tool-"][aria-pressed="true"]').length === 0, null, { timeout: 10000 });
+      await check('p8：1つ目のぴたりの後はクリアにならず編集に戻る', async () => (await page.$$('[data-action="next-stage"]')).length, 0);
+      await tap(page, SECOND_P8);
+      await page.click('[data-action="run"]');
+    }
+    const last =i === SOLUTIONS.length - 1;
     await page.waitForSelector(`[data-action="${last ? 'next' : 'next-stage'}"]`, { timeout: 10000 });
     if (!last) await page.click('[data-action="next-stage"]');
   }

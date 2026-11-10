@@ -2,7 +2,7 @@
 import { enumerate, difficulty, toolOf } from '../../../js/engine-buoyancy.js';
 import { MIN_PLAY, MAX_PLAY, isObj } from './common.mjs';
 
-const SPEC_KEYS = ['bodies', 'tools', 'dots'];
+const SPEC_KEYS = ['bodies', 'tools', 'dots', 'find'];
 const OLD_KEYS = ['base', 'mass', 'lift', 'weights', 'balloons'];
 const BODY_KEYS = ['ring', 'box'];
 const BOX_KEYS = ['v', 'hidden'];
@@ -42,11 +42,20 @@ function specProblems(spec) {
     if (new Set(tools).size !== tools.length) problems.push('tools に重複がある');
   }
   if ('dots' in spec && typeof spec.dots !== 'boolean') problems.push('dots が真偽値でない');
+  if ('find' in spec && spec.find !== 1 && spec.find !== 2) problems.push(`find=${JSON.stringify(spec.find)} が1か2でない`);
   return problems;
 }
 
 // solution が道具 id の配列で、つりあう組のどれかと一致するか（順不同）。NGなら理由を返す。
 function solutionNg(solution, spec, solutions) {
+  if (spec.find === 2) {
+    // find:2 は道具 id の配列の配列。つりあう組と過不足なく一致する（順不同）。
+    if (!Array.isArray(solution) || !solution.every(Array.isArray)) return 'が道具 id の配列の配列でない（find:2）';
+    const keyOf = (a) => [...a].sort().join(',');
+    const want = solutions.map(keyOf).sort().join('|');
+    const got = solution.map(keyOf).sort().join('|');
+    return want === got ? null : 'がつりあう組と一致しない（find:2）';
+  }
   if (!Array.isArray(solution) || !solution.every((t) => typeof t === 'string')) return 'が道具 id の配列でない';
   if (!solution.every((t) => spec.tools.includes(t)) || new Set(solution).size !== solution.length) return 'が tools の道具の重複しない組でない';
   const key = [...solution].sort().join(',');
@@ -73,7 +82,8 @@ function validateBuoyancy(playSteps, add, maxPlay = MAX_PLAY) {
     }
     const { N, solutions } = enumerate(spec);
     const S = solutions.length;
-    if (S !== 1) add('解の個数', `${label} のつりあう組が${S}個（1個である必要がある）`);
+    const find = spec.find ?? 1;
+    if (S !== find) add('解の個数', `${label} のつりあう組が${S}個（${find}個である必要がある）`);
     if (!('solution' in play)) {
       add('solution', `${label} のsolutionが無い（必須）`);
     } else if (S > 0) {

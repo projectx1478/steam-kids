@@ -20,6 +20,7 @@ const LEVEL_MAX = 6; // 段目盛は ±6 段。これを超える net は端で�
 const STEPS = LEVEL_MAX * 2 + 2; // 水そうの高さを割る数（上下に半段ずつの余白＋13本の目盛）
 const MOVE_MS = 900;
 const HINT_MESSAGE = { 1: 'ぷかっと うかんだよ ▲', '-1': 'ずーんと しずんだよ ▼' };
+const FOUND_MS = 1500; // find:2 の面で、ぴたりの後に道具を外して編集へ戻るまでの間
 const TOOL_NAME = { w: 'おもり', b: 'ふうせん' };
 
 const clampLevel = (net) => Math.max(-LEVEL_MAX, Math.min(LEVEL_MAX, net));
@@ -143,6 +144,7 @@ export function renderBuoyancy(root, step) {
   }
 
   let clearSequence = null;
+  const foundKeys = new Set(); // find:2 の面で、ぴたりになった組（道具 id を並べ替えて連結）
 
   function showNormalActions() {
     clearSequence?.dispose();
@@ -215,6 +217,31 @@ export function renderBuoyancy(root, step) {
     local.timer = null;
     setActiveAnimation(null);
     setBackDisabled(false);
+    if (result.dir === 0 && spec.find === 2) {
+      const key = attached().slice().sort().join(',');
+      const again = foundKeys.has(key);
+      foundKeys.add(key);
+      if (foundKeys.size < 2) {
+        // 1つ目のぴたり、または1つ目と同じ組。道具を全部外して編集へ戻す（前の組は見せない）。
+        local.phase = 'found';
+        updateControls();
+        showHint(null, { bird, kind: 'buoyancy', message: again ? 'それは さっきと おなじ' : 'べつの くみあわせも あるよ' });
+        setBackDisabled(true);
+        local.timer = setTimeout(() => {
+          local.timer = null;
+          setActiveAnimation(null);
+          setBackDisabled(false);
+          resetBoard(true);
+        }, FOUND_MS);
+        setActiveAnimation({
+          cancel() {
+            clearTimeout(local.timer);
+            setBackDisabled(false);
+          },
+        });
+        return;
+      }
+    }
     if (result.dir === 0) {
       local.phase = 'cleared';
       updateControls();
@@ -284,6 +311,7 @@ export function renderBuoyancy(root, step) {
     showNormalActions();
     clearResultBubble(bird);
     failLines.innerHTML = '';
+    foundKeys.clear();
     resetBoard(true);
   }
 

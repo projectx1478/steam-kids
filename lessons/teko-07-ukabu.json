@@ -13,7 +13,7 @@
     { "stepId": "p5", "kind": "play", "text": "てんが きえたよ たかさを みよう", "buoyancy": { "bodies": [{ "ring": 2 }], "tools": ["w1", "w3", "b1", "b3"] }, "solution": ["w3", "b1"] },
     { "stepId": "p6", "kind": "play", "text": "いちど ためして たかさを みよう", "buoyancy": { "bodies": [{ "ring": 4, "box": { "v": 1 } }], "tools": ["w1", "w2", "b1", "b2"] }, "solution": ["w1", "w2"] },
     { "stepId": "p7", "kind": "play", "text": "おもりと ふうせんを くみあわせよう", "buoyancy": { "bodies": [{ "ring": 2, "box": { "v": 3 } }], "tools": ["w2", "w3", "b2", "b3"] }, "solution": ["w2", "b3"] },
-    { "stepId": "p8", "kind": "play", "text": "どれを つけると ぴたり？", "buoyancy": { "bodies": [{ "ring": 2, "box": { "v": 1 } }], "tools": ["w2", "w3", "b2", "b3"] }, "solution": ["w3", "b2"] },
+    { "stepId": "p8", "kind": "play", "text": "ぴたりは ふたつ あるよ", "buoyancy": { "bodies": [{ "ring": 4 }], "tools": ["w1", "w2", "w3", "b1"], "find": 2 }, "solution": [["w1", "w3"], ["w2", "w3", "b1"]] },
     { "stepId": "s2", "kind": "summary", "text": "かるいと うかぶよ" }
   ]
 }
