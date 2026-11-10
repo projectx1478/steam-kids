@@ -31,10 +31,12 @@ export function checkEggFace(play, add, label = '', index = 0, prevMin = 0) {
   const isPt = (p) => isObj(p) && isInt(p.col) && isInt(p.row);
   const inG = (p) => isPt(p) && p.col >= 0 && p.col < cols && p.row >= 0 && p.row < rows;
   if (!isInt(e.col) || e.col < 0 || e.col >= cols || 'row' in e) { bad('eggの列', `egg.col=${JSON.stringify(e.col)}`); return null; }
-  for (const f of ['nests', 'obstacles', 'places']) {
-    if (!Array.isArray(e[f]) || e[f].some((p) => !isPt(p))) { bad('eggの形', `${f} が{col,row}の配列でない`); return null; }
+  const obsRaw = e.obstacles === undefined ? [] : e.obstacles; // 省略は []
+  for (const [f, v] of [['nests', e.nests], ['obstacles', obsRaw], ['places', e.places]]) {
+    if (!Array.isArray(v) || v.some((p) => !isPt(p))) { bad('eggの形', `${f} が{col,row}の配列でない`); return null; }
   }
-  const { nests, obstacles: obs, places: pl } = e;
+  const { nests, places: pl } = e;
+  const obs = obsRaw;
   if (nests.length < 2 || nests.length > 3) bad('nestsの数', `${nests.length}個`);
   if (nests.some((x) => x.row !== rows - 1 || !inG(x))) bad('nestの位置', '下段でない巣がある');
   if (new Set(nests.map((x) => key(x.col, x.row))).size !== nests.length) bad('nestの位置', '座標の重複');
@@ -47,7 +49,8 @@ export function checkEggFace(play, add, label = '', index = 0, prevMin = 0) {
   if (new Set(obs.map((o) => key(o.col, o.row))).size !== obs.length) bad('obstaclesの範囲', '重複');
   for (const p of pl) if (!inG(p)) bad('placesが格子外', `(${p.col},${p.row})`);
   const distinct = new Set(pl.map((p) => key(p.col, p.row))).size;
-  if (index === 1 ? distinct !== 4 : distinct < 8 || distinct > 12) bad('placesの数', `${distinct}点(重複を除く)`);
+  if (distinct !== pl.length) bad('placesの数', `重複がある（${pl.length}点中 重複を除くと${distinct}点）`);
+  else if (index === 1 ? distinct !== 4 : distinct < 8 || distinct > 12) bad('placesの数', `${distinct}点`);
   const occupied = new Set([...nestKeys, ...obs.map((o) => key(o.col, o.row))]);
   for (const p of pl) if (occupied.has(key(p.col, p.row))) bad('placesが障害物か巣と重なる', `(${p.col},${p.row})`);
   if (!isInt(e.limit) || e.limit < 1 || e.limit > 3) bad('limit範囲', String(e.limit));

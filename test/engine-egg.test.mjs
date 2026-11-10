@@ -65,15 +65,36 @@ test('validate：合格盤8面が合格（minParts 非減少）', () => {
   });
 });
 
-test('validate：ng 盤6枚が期待の検査名で不合格', () => {
+test('validate：ng 盤8枚が期待の検査名で不合格', () => {
   const ngs = names.filter((n) => n.startsWith('ng-'));
-  assert.equal(ngs.length, 6);
+  assert.equal(ngs.length, 8);
   for (const n of ngs) {
     const b = load(n);
     const [errs, add] = collect();
     checkEggFace(b, add, '', b.face, b.prevMinParts || 0);
     assert.ok(errs.some((e) => e.rule === b.expect), `${n}: 期待=${b.expect} 実際=${errs.map((e) => e.rule).join('|') || '合格'}`);
   }
+});
+
+test('validate：重複除きが範囲内でも places の重複は「placesの数」で落ちる（面2相当は重複除き8点）', () => {
+  const b = load('ng-places-duplicate-face2');
+  assert.equal(new Set(b.egg.places.map((p) => `${p.col},${p.row}`)).size, 8);
+  const [errs, add] = collect();
+  checkEggFace(b, add, '', b.face, 0);
+  assert.deepEqual(errs.map((e) => e.rule), ['placesの数']);
+});
+
+test('validate：obstacles 省略は [] として受け、配列でない値は「eggの形」で落ちる', () => {
+  const base = stages[0].egg; // 面1は obstacles が []
+  const noObs = { ...base };
+  delete noObs.obstacles;
+  const [errs, add] = collect();
+  checkEggFace({ egg: noObs }, add, '', 1, 0);
+  assert.deepEqual(errs, []);
+  assert.deepEqual(simulate(noObs, noObs.solution), simulate(base, base.solution));
+  const [errs2, add2] = collect();
+  checkEggFace({ egg: { ...base, obstacles: 'x' } }, add2, '', 1, 0);
+  assert.ok(errs2.some((e) => e.rule === 'eggの形'));
 });
 
 test('validate：solution を1枚外すと失敗する（必須性。8面すべて）', () => {

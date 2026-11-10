@@ -34,7 +34,7 @@ const key = (c, r) => r * 10 + c;
 export function simulate(egg, placements) {
   const { cols, rows } = egg.grid;
   const plate = new Map(placements.map((p) => [key(p.col, p.row), p.angle]));
-  const block = new Set(egg.obstacles.map((o) => key(o.col, o.row)));
+  const block = new Set((egg.obstacles || []).map((o) => key(o.col, o.row)));
   const nest = new Map(egg.nests.map((n) => [key(n.col, n.row), n.correct ? 'nest' : 'wrongNest']));
   let c = egg.col;
   let r = -1;

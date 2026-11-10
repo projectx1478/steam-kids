@@ -207,7 +207,7 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 | --- | --- | --- | --- |
 | `egg` | object | 面の盤の本体 | `eggの形` |
 | `egg.grid` | `{cols, rows}`＝5と5のみ | 格子。セル64px（高さ500px以下の横向きと360×640は48px。`docs/ui-rules.md`） | `gridの範囲` |
-| `egg.egg` | `{col}`＝0〜cols−1 | たまごの落下開始の列（row −1から1ステップで row 0 へ）。`row`は持たない | `eggの列` |
+| `egg.col` | 整数＝0〜cols−1 | たまごの落下開始の列（row −1から1ステップで row 0 へ）。`row`は持たない | `eggの列` |
 | `egg.nests` | `[{col,row,correct}]`＝2〜3個、`row = rows−1`、`correct:true`はちょうど1個 | 巣。`correct`の巣に入れば`nest`、他は`wrongNest` | `nestsの数`・`nestの位置`・`正解の巣` |
 | `egg.obstacles` | `[{col,row}]`＝0〜6個、格子内。省略時`[]` | 石。当たると向きを反転。巣と重ならない | `obstaclesの範囲` |
 | `egg.places` | `[{col,row}]`＝面1は4点、面2〜8は8〜12点 | 板を置ける点。障害物・巣と重ならない | `placesの数`・`placesが格子外`・`placesが障害物か巣と重なる` |
