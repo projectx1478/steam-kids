@@ -1,0 +1,837 @@
+{
+  "lessonId": "egg-01-michi",
+  "unitId": "egg",
+  "title": "たまごの みち",
+  "type": "build-egg",
+  "estimatedMinutes": 8,
+  "steps": [
+    {
+      "stepId": "s1",
+      "kind": "intro",
+      "text": "たまごを すに とどけよう"
+    },
+    {
+      "stepId": "p1",
+      "kind": "play",
+      "text": "たまごを すに いれよう",
+      "egg": {
+        "col": 3,
+        "grid": {
+          "cols": 5,
+          "rows": 5
+        },
+        "nests": [
+          {
+            "col": 4,
+            "row": 4,
+            "correct": true
+          },
+          {
+            "col": 1,
+            "row": 4,
+            "correct": false
+          }
+        ],
+        "obstacles": [],
+        "places": [
+          {
+            "col": 3,
+            "row": 0
+          },
+          {
+            "col": 0,
+            "row": 2
+          },
+          {
+            "col": 2,
+            "row": 3
+          },
+          {
+            "col": 3,
+            "row": 4
+          }
+        ],
+        "limit": 1,
+        "tools": {
+          "angles": [
+            "/",
+            "\\",
+            "-",
+            "|"
+          ]
+        },
+        "maxSteps": 600,
+        "solution": [
+          {
+            "col": 3,
+            "row": 4,
+            "angle": 1
+          }
+        ],
+        "minParts": 1
+      }
+    },
+    {
+      "stepId": "p2",
+      "kind": "play",
+      "text": "いたの むきを かえてみよう",
+      "egg": {
+        "col": 3,
+        "grid": {
+          "cols": 5,
+          "rows": 5
+        },
+        "nests": [
+          {
+            "col": 2,
+            "row": 4,
+            "correct": true
+          },
+          {
+            "col": 1,
+            "row": 4,
+            "correct": false
+          }
+        ],
+        "obstacles": [
+          {
+            "col": 1,
+            "row": 0
+          }
+        ],
+        "places": [
+          {
+            "col": 3,
+            "row": 0
+          },
+          {
+            "col": 3,
+            "row": 1
+          },
+          {
+            "col": 1,
+            "row": 2
+          },
+          {
+            "col": 0,
+            "row": 3
+          },
+          {
+            "col": 3,
+            "row": 3
+          },
+          {
+            "col": 0,
+            "row": 4
+          },
+          {
+            "col": 3,
+            "row": 4
+          },
+          {
+            "col": 4,
+            "row": 4
+          }
+        ],
+        "limit": 1,
+        "tools": {
+          "angles": [
+            "/",
+            "\\",
+            "-",
+            "|"
+          ]
+        },
+        "maxSteps": 600,
+        "solution": [
+          {
+            "col": 3,
+            "row": 4,
+            "angle": 0
+          }
+        ],
+        "minParts": 1
+      }
+    },
+    {
+      "stepId": "p3",
+      "kind": "play",
+      "text": "いしを よけて すに いれよう",
+      "egg": {
+        "col": 3,
+        "grid": {
+          "cols": 5,
+          "rows": 5
+        },
+        "nests": [
+          {
+            "col": 2,
+            "row": 4,
+            "correct": true
+          },
+          {
+            "col": 1,
+            "row": 4,
+            "correct": false
+          }
+        ],
+        "obstacles": [
+          {
+            "col": 0,
+            "row": 0
+          },
+          {
+            "col": 0,
+            "row": 3
+          },
+          {
+            "col": 4,
+            "row": 3
+          },
+          {
+            "col": 1,
+            "row": 1
+          }
+        ],
+        "places": [
+          {
+            "col": 1,
+            "row": 0
+          },
+          {
+            "col": 4,
+            "row": 0
+          },
+          {
+            "col": 0,
+            "row": 1
+          },
+          {
+            "col": 3,
+            "row": 1
+          },
+          {
+            "col": 0,
+            "row": 2
+          },
+          {
+            "col": 2,
+            "row": 2
+          },
+          {
+            "col": 3,
+            "row": 2
+          },
+          {
+            "col": 1,
+            "row": 3
+          },
+          {
+            "col": 2,
+            "row": 3
+          },
+          {
+            "col": 3,
+            "row": 4
+          }
+        ],
+        "limit": 1,
+        "tools": {
+          "angles": [
+            "/",
+            "\\",
+            "-",
+            "|"
+          ]
+        },
+        "maxSteps": 600,
+        "solution": [
+          {
+            "col": 3,
+            "row": 4,
+            "angle": 0
+          }
+        ],
+        "minParts": 1
+      }
+    },
+    {
+      "stepId": "p4",
+      "kind": "play",
+      "text": "まわりみちで すに いれよう",
+      "egg": {
+        "col": 3,
+        "grid": {
+          "cols": 5,
+          "rows": 5
+        },
+        "nests": [
+          {
+            "col": 4,
+            "row": 4,
+            "correct": true
+          },
+          {
+            "col": 1,
+            "row": 4,
+            "correct": false
+          }
+        ],
+        "obstacles": [
+          {
+            "col": 4,
+            "row": 0
+          },
+          {
+            "col": 1,
+            "row": 3
+          },
+          {
+            "col": 0,
+            "row": 3
+          },
+          {
+            "col": 1,
+            "row": 1
+          },
+          {
+            "col": 4,
+            "row": 2
+          },
+          {
+            "col": 2,
+            "row": 1
+          }
+        ],
+        "places": [
+          {
+            "col": 1,
+            "row": 0
+          },
+          {
+            "col": 3,
+            "row": 0
+          },
+          {
+            "col": 0,
+            "row": 1
+          },
+          {
+            "col": 4,
+            "row": 1
+          },
+          {
+            "col": 1,
+            "row": 2
+          },
+          {
+            "col": 2,
+            "row": 2
+          },
+          {
+            "col": 2,
+            "row": 3
+          },
+          {
+            "col": 0,
+            "row": 4
+          },
+          {
+            "col": 2,
+            "row": 4
+          },
+          {
+            "col": 3,
+            "row": 4
+          }
+        ],
+        "limit": 1,
+        "tools": {
+          "angles": [
+            "/",
+            "\\",
+            "-",
+            "|"
+          ]
+        },
+        "maxSteps": 600,
+        "solution": [
+          {
+            "col": 3,
+            "row": 4,
+            "angle": 1
+          }
+        ],
+        "minParts": 1
+      }
+    },
+    {
+      "stepId": "p5",
+      "kind": "play",
+      "text": "いたを にまい つかおう",
+      "egg": {
+        "col": 0,
+        "grid": {
+          "cols": 5,
+          "rows": 5
+        },
+        "nests": [
+          {
+            "col": 3,
+            "row": 4,
+            "correct": true
+          },
+          {
+            "col": 4,
+            "row": 4,
+            "correct": false
+          }
+        ],
+        "obstacles": [
+          {
+            "col": 0,
+            "row": 3
+          },
+          {
+            "col": 3,
+            "row": 1
+          },
+          {
+            "col": 4,
+            "row": 1
+          },
+          {
+            "col": 0,
+            "row": 1
+          }
+        ],
+        "places": [
+          {
+            "col": 0,
+            "row": 0
+          },
+          {
+            "col": 4,
+            "row": 0
+          },
+          {
+            "col": 1,
+            "row": 1
+          },
+          {
+            "col": 2,
+            "row": 1
+          },
+          {
+            "col": 2,
+            "row": 2
+          },
+          {
+            "col": 3,
+            "row": 2
+          },
+          {
+            "col": 2,
+            "row": 3
+          },
+          {
+            "col": 4,
+            "row": 3
+          },
+          {
+            "col": 1,
+            "row": 4
+          },
+          {
+            "col": 2,
+            "row": 4
+          }
+        ],
+        "limit": 2,
+        "tools": {
+          "angles": [
+            "/",
+            "\\",
+            "-",
+            "|"
+          ]
+        },
+        "maxSteps": 600,
+        "solution": [
+          {
+            "col": 0,
+            "row": 0,
+            "angle": 1
+          },
+          {
+            "col": 2,
+            "row": 4,
+            "angle": 1
+          }
+        ],
+        "minParts": 2
+      }
+    },
+    {
+      "stepId": "p6",
+      "kind": "play",
+      "text": "にまいの いたで すに いれよう",
+      "egg": {
+        "col": 3,
+        "grid": {
+          "cols": 5,
+          "rows": 5
+        },
+        "nests": [
+          {
+            "col": 0,
+            "row": 4,
+            "correct": true
+          },
+          {
+            "col": 2,
+            "row": 4,
+            "correct": false
+          }
+        ],
+        "obstacles": [
+          {
+            "col": 3,
+            "row": 3
+          },
+          {
+            "col": 2,
+            "row": 3
+          },
+          {
+            "col": 2,
+            "row": 1
+          }
+        ],
+        "places": [
+          {
+            "col": 0,
+            "row": 0
+          },
+          {
+            "col": 1,
+            "row": 0
+          },
+          {
+            "col": 2,
+            "row": 0
+          },
+          {
+            "col": 3,
+            "row": 0
+          },
+          {
+            "col": 0,
+            "row": 1
+          },
+          {
+            "col": 3,
+            "row": 1
+          },
+          {
+            "col": 4,
+            "row": 1
+          },
+          {
+            "col": 4,
+            "row": 2
+          },
+          {
+            "col": 0,
+            "row": 3
+          },
+          {
+            "col": 4,
+            "row": 3
+          },
+          {
+            "col": 1,
+            "row": 4
+          },
+          {
+            "col": 3,
+            "row": 4
+          }
+        ],
+        "limit": 2,
+        "tools": {
+          "angles": [
+            "/",
+            "\\",
+            "-",
+            "|"
+          ]
+        },
+        "maxSteps": 600,
+        "solution": [
+          {
+            "col": 3,
+            "row": 0,
+            "angle": 0
+          },
+          {
+            "col": 1,
+            "row": 4,
+            "angle": 0
+          }
+        ],
+        "minParts": 2
+      }
+    },
+    {
+      "stepId": "p7",
+      "kind": "play",
+      "text": "いたを ふやして みよう",
+      "egg": {
+        "col": 4,
+        "grid": {
+          "cols": 5,
+          "rows": 5
+        },
+        "nests": [
+          {
+            "col": 3,
+            "row": 4,
+            "correct": true
+          },
+          {
+            "col": 1,
+            "row": 4,
+            "correct": false
+          },
+          {
+            "col": 0,
+            "row": 4,
+            "correct": false
+          }
+        ],
+        "obstacles": [
+          {
+            "col": 1,
+            "row": 0
+          },
+          {
+            "col": 1,
+            "row": 1
+          },
+          {
+            "col": 4,
+            "row": 2
+          },
+          {
+            "col": 3,
+            "row": 3
+          }
+        ],
+        "places": [
+          {
+            "col": 2,
+            "row": 0
+          },
+          {
+            "col": 3,
+            "row": 0
+          },
+          {
+            "col": 4,
+            "row": 0
+          },
+          {
+            "col": 2,
+            "row": 1
+          },
+          {
+            "col": 3,
+            "row": 1
+          },
+          {
+            "col": 1,
+            "row": 2
+          },
+          {
+            "col": 2,
+            "row": 2
+          },
+          {
+            "col": 3,
+            "row": 2
+          },
+          {
+            "col": 2,
+            "row": 3
+          },
+          {
+            "col": 4,
+            "row": 3
+          },
+          {
+            "col": 2,
+            "row": 4
+          },
+          {
+            "col": 4,
+            "row": 4
+          }
+        ],
+        "limit": 3,
+        "tools": {
+          "angles": [
+            "/",
+            "\\",
+            "-",
+            "|"
+          ]
+        },
+        "maxSteps": 600,
+        "solution": [
+          {
+            "col": 4,
+            "row": 0,
+            "angle": 0
+          },
+          {
+            "col": 2,
+            "row": 4,
+            "angle": 1
+          }
+        ],
+        "minParts": 2
+      }
+    },
+    {
+      "stepId": "p8",
+      "kind": "play",
+      "text": "さんまいの いたで すに いれよう",
+      "egg": {
+        "col": 0,
+        "grid": {
+          "cols": 5,
+          "rows": 5
+        },
+        "nests": [
+          {
+            "col": 3,
+            "row": 4,
+            "correct": true
+          },
+          {
+            "col": 4,
+            "row": 4,
+            "correct": false
+          },
+          {
+            "col": 2,
+            "row": 4,
+            "correct": false
+          }
+        ],
+        "obstacles": [
+          {
+            "col": 0,
+            "row": 2
+          },
+          {
+            "col": 4,
+            "row": 0
+          },
+          {
+            "col": 0,
+            "row": 3
+          },
+          {
+            "col": 1,
+            "row": 1
+          }
+        ],
+        "places": [
+          {
+            "col": 0,
+            "row": 0
+          },
+          {
+            "col": 3,
+            "row": 0
+          },
+          {
+            "col": 0,
+            "row": 1
+          },
+          {
+            "col": 2,
+            "row": 1
+          },
+          {
+            "col": 3,
+            "row": 1
+          },
+          {
+            "col": 1,
+            "row": 2
+          },
+          {
+            "col": 2,
+            "row": 2
+          },
+          {
+            "col": 3,
+            "row": 2
+          },
+          {
+            "col": 4,
+            "row": 2
+          },
+          {
+            "col": 2,
+            "row": 3
+          },
+          {
+            "col": 4,
+            "row": 3
+          },
+          {
+            "col": 0,
+            "row": 4
+          }
+        ],
+        "limit": 3,
+        "tools": {
+          "angles": [
+            "/",
+            "\\",
+            "-",
+            "|"
+          ]
+        },
+        "maxSteps": 600,
+        "solution": [
+          {
+            "col": 0,
+            "row": 0,
+            "angle": 1
+          },
+          {
+            "col": 2,
+            "row": 1,
+            "angle": 0
+          },
+          {
+            "col": 3,
+            "row": 1,
+            "angle": 1
+          }
+        ],
+        "minParts": 3
+      }
+    },
+    {
+      "stepId": "s2",
+      "kind": "summary",
+      "text": "たまごを すに とどけられたね"
+    }
+  ]
+}
