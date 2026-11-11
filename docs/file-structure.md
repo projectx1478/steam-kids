@@ -26,6 +26,7 @@ js/
   engine-seesaw.js # predict-slider（シーソー）の純粋関数（おもさ×きょりの傾き判定。Issue #150）
   ui-seesaw.js # シーソーplay画面の描画（Issue #150）
   ui-egg.js # build-egg のplay画面の描画（Issue #290）
+  ui-read.js # 「めいれいを よむ」面（play.read）の描画（Issue #723 の試作）
   ui-sortorder.js # sort-order（レシピの順番）のplay画面の描画（Issue #292）
   ui-unfold.js # unfold-cube（展開図キューブ）のplay画面とintroの描画（Issue #289）
   ui-seesaw-draw.js # シーソーの描画ヘルパー（定数・ロボット・数字・盤面SVG。本編とデモが共用。Issue #679）
