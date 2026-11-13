@@ -4,6 +4,8 @@
 
 役割：人は「選ぶ・見る」、AIは「調べる・案を出す・反対する」。調査・相談の決まりは`docs/ai-consulting-rules.md`。成果物は各プロジェクトの`docs/plan/`に置き、雛形は`docs/templates/`からコピーする。
 
+使い分け：作るものが未定なら本ファイル（`/kickoff`）。作るものが決まった後の機能・改善の方向決めは`docs/agents/discovery.md`（`/discover`）、週次の進め方の判断は`/consult`。
+
 ## 段0 問いを立てる（`/kickoff`前半）
 
 - AIが10問で人に聞く（選択肢付き、3回に分けて）
