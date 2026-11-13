@@ -1874,3 +1874,116 @@ button.egg-cell {
     padding-top: 8px;
   }
 }
+
+/* 「めいれいを よむ」面（js/ui-read.js。Issue #723 の試作）。
+   命令は紙の札（見るだけ）にして、play の木のトレイ（組む場所）と見た目を分ける。 */
+[data-read-board] {
+  touch-action: none; /* なぞる操作で画面がスクロールしないようにする */
+}
+.rd-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  padding: 6px 10px 10px;
+  border: 2px solid #d9b98a;
+  border-radius: 14px;
+  background: #fffdf5;
+  box-shadow: 0 3px 0 #c9a26b;
+}
+.rd-card-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #7c5a2a;
+}
+.rd-queue {
+  padding: 8px 2px 2px 8px; /* 番号の札（左上にはみ出す）が切れない余白 */
+}
+.rd-queue .command-chip {
+  cursor: pointer;
+}
+.rd-chip-read {
+  opacity: 0.45;
+}
+.rd-chip-read::after {
+  content: '✓';
+  position: absolute;
+  right: 3px;
+  bottom: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #0369a1;
+}
+.rd-chip-fork {
+  outline: 4px solid #f59e0b;
+  outline-offset: 2px;
+}
+.rd-actions.rd-actions {
+  align-items: center;
+}
+.rd-stand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 64px;
+  min-height: 64px;
+  border: 2px dashed #c9a26b;
+  border-radius: 12px;
+  background: #fff8e7;
+}
+.rd-stand > svg {
+  width: 48px;
+  height: 48px;
+}
+.rd-stand[data-placed='true'] > svg {
+  opacity: 0.25;
+}
+.rd-trail {
+  position: absolute;
+  pointer-events: none;
+  border: 4px solid #f59e0b;
+  border-radius: 9999px;
+  background: rgba(253, 230, 138, 0.35);
+}
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes rd-bob {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-4px);
+    }
+  }
+  .rd-stand[data-placed='false'] > svg {
+    animation: rd-bob 1.6s ease-in-out infinite;
+  }
+  @keyframes rd-ring-in {
+    from {
+      transform: scale(0.4);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+  .rd-trail:last-of-type {
+    animation: rd-ring-in 160ms ease-out;
+  }
+  @keyframes rd-fork {
+    0%,
+    100% {
+      outline-color: #f59e0b;
+    }
+    50% {
+      outline-color: #fde68a;
+    }
+  }
+  .rd-chip-fork {
+    animation: rd-fork 1s ease-in-out 3;
+  }
+}

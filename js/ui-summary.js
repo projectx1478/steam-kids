@@ -80,8 +80,8 @@ export function renderSummary(root) {
   if (lastPlay && S.lesson.type !== 'predict-slider' && S.lesson.type !== 'sort-order' && S.lesson.type !== 'unfold-cube' && S.lesson.type !== 'build-egg') {
     const spec = playSpecOf(lastPlay);
     // repeatBoxはループ込みの最短性を求めない（shortest未定義＝「いちばん みじかい」を出さない。Issue #66）。
-    // condBlockも同様に最短を出さない（Issue #291）。
-    if (!lastPlay.repeatBox && !lastPlay.condBlock) shortest = lastPlay.groupRepeats ? shortestChips(spec) : shortestSteps(spec);
+    // condBlockも同様に最短を出さない（Issue #291）。read（めいれいを よむ）は命令を組まないので出さない（Issue #723）。
+    if (!lastPlay.repeatBox && !lastPlay.condBlock && !lastPlay.read) shortest = lastPlay.groupRepeats ? shortestChips(spec) : shortestSteps(spec);
   }
   const sinceTs = currentAttemptSinceTs(events, lessonId);
   const cards = lessonAchievements(events, lessonId, sinceTs, { shortest, playStepIds });

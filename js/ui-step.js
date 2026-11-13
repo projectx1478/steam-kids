@@ -14,6 +14,7 @@ import { renderSeesaw } from './ui-seesaw.js';
 import { renderSortOrder } from './ui-sortorder.js';
 import { renderUnfold, renderUnfoldIntro } from './ui-unfold.js';
 import { renderEgg } from './ui-egg.js';
+import { renderRead } from './ui-read.js';
 import { renderBuoyancy } from './ui-buoyancy.js';
 import { renderPredict } from './ui-predict.js';
 import { renderTutorial, isTutorialDone } from './ui-tutorial.js';
@@ -440,6 +441,7 @@ function renderStep() {
   else if (step.kind === 'play' && S.lesson.type === 'sort-order') renderSortOrder(root, step);
   else if (step.kind === 'play' && S.lesson.type === 'unfold-cube') renderUnfold(root, step);
   else if (step.kind === 'play' && S.lesson.type === 'build-egg') renderEgg(root, step);
+  else if (step.kind === 'play' && S.lesson.type === 'grid-runtime' && step.read) renderRead(root, step);
   else if (step.kind === 'play') (S.lesson.type === 'predict-slider' ? (step.buoyancy ? renderBuoyancy : renderSeesaw) : renderPlay)(root, step);
   else if (step.kind === 'tutorial') renderTutorial(root, step);
   else if (step.kind === 'summary') renderSummary(root);

@@ -199,6 +199,15 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 - 面ごとの検査（`tools/lib/validate/unfold.mjs`の`validateUnfoldFace`）：`preset`が1〜5枚（0枚と6枚は不合格）、連結可能、preset を含む正解が1通り以上、必須性（preset を全部外した正解数＞正解数）、盤が立方体の展開図か（折り検査）
 - レッスン全体の検査（`validateUnfold`）：`longTrialIds`に載せる、play は8面、`preset`枚数は非増加（＝正解数は非減少）、同じ`preset`の面の重複なし。`intro.demo`は`checkUnfoldDemo`。grid-runtime の最短手数規則は適用外
 
+### `grid-runtime`の`play`の`read`（めいれいを よむ。Issue #723 の試作・devOnly）
+
+- `read: { programs: [[命令…],[…],[…]] }`。命令列は見るだけで編集できない。子どもは盤面をタップして旗を置き、「じっこう」で確かめる。ロボットの止まったマス＝旗ならクリア。
+- 旗の置き方は2つ：マスをタップ（止まるマスだけ）／ロボットから指でなぞる（通る道に輪が残り、最後のマスに旗）。命令のチップをタップすると「ここまで よんだ」の印が付く。「はた立て」を押すと旗と輪を戻す。
+- 外すと、旗に「よそう」・止まったマスに「けっか」の印と足あとが残る。「ためしなおす」で命令列が次の1本へ替わる（3本を順に回す）。
+- 道をなぞっていて外したときは、足あとと最初に分かれたマスと、その手を出した命令が光る。道も止まるマスも合えば「みちも ぴったり！」。
+- 検査（`tools/lib/validate/read.mjs`）：命令列は3本・各3〜10手／どれも壁にぶつからない／止まるマスが互いに違い、スタートとも違う／1本目の止まるマス＝`goal`（`solution`も1本目と同じにする）／`initialCommands`・`groupRepeats`・`maxPauses`と併用しない。
+- `goal`・`solution`・`maxCommands`は、既存の grid の検査を通すために1本目の値を書く（画面には出ない）。描画は`js/ui-read.js`。作り方の記録は`docs/build-notes-read.md`。
+
 ### `build-egg`の`play`（たまごの道。Issue #290）
 
 `type: "build-egg"`のレッスンは`kind: "play"`に`egg`を持つ。`play`直下に`start`・`goal`・`grid`は置かない（全走査が盤として拾うため）。`kind: "intro"`は`demo`を持たない。検査は`tools/lib/validate/egg.mjs`（形・範囲＝`checkEggFace`、盤の性質＝`engine-egg.js`の`solve`、レッスン全体＝`validateEgg`）、再生は`js/engine-egg.js`の`simulate`。

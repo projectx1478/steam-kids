@@ -29,6 +29,7 @@ import { checkStageGen } from './stagegen.mjs';
 import { validateSortOrder } from './sortorder.mjs';
 import { validateUnfold } from './unfold.mjs';
 import { validateEgg } from './egg.mjs';
+import { checkRead } from './read.mjs';
 
 export function validateLesson(fileName, data, longTrialIds = []) {
   const errors = [];
@@ -205,6 +206,7 @@ export function validateLesson(fileName, data, longTrialIds = []) {
     }
 
     const solutionChips = checkSolution(play, add, label);
+    if ('read' in play && boardOk) checkRead(play, add, label);
 
     let dist = null;
     if (play.repeatBox === true) {
