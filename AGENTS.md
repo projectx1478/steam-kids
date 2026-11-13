@@ -10,6 +10,9 @@
 - `docs/agents/doc-limits.md`：AGENTS.md・PROJECT.md・SESSION.md等の文書字数上限の確認、削減、分割
 - `docs/agents/parallel.md`：複数エージェント同時稼働、ブランチ接頭辞、worktree分離
 - `docs/agents/verification.md`：設計案の検証計画作成、AI代理実機確認の設計・実施
+- `docs/kickoff-process.md`：新規プロジェクトの立ち上げ・段の切り替え（AIへの調査・相談の決まりは`docs/ai-consulting-rules.md`）
+- `docs/agents/discovery.md`：新機能・改善の方向を決める前の発見フェーズ（問診＋Web調査→提案カード）
+- `docs/agents/dev-flow.md`：Issueの設計、`ready`のIssueの実装、Issueラベルによる状態とオプション
 
 ## 起動時の必須手順
 

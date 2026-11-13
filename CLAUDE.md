@@ -12,7 +12,6 @@ Claude Code固有の追加ルールのみを記載する（共通ルールはAGE
 
 ## GitHub運用（Claude Code補足）
 GitHub操作ツールは都度ToolSearchせず初回にまとめて取得する。
-- 例外：エディタ（tools/editor）の「公開」ボタンは、`lessons/` の変更だけのPRを作り `gh pr merge --auto --squash` を予約する。押下を人のマージ判断とみなす（CI緑で自動マージ）。AIは押さない。ブランチは `editor/publish-YYYYMMDDHHMMSS`（docs/agents/parallel.md の接頭辞の例外）。
 
 ## hooks
 `.claude/settings.json`のPreToolUse/PostToolUseフックが`.claude/hooks/check-file-size.sh`（処理本体は全ツール共通の`scripts/check-file-size.sh`）を呼び、ファイルサイズ・ドキュメント字数超過を警告する（ブロックはしない）。

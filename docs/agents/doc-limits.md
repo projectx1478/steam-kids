@@ -5,6 +5,7 @@ AGENTS.mdの索引から参照される。AGENTS.md／CLAUDE.md／PROJECT.md／S
 ## 目安上限
 
 - AGENTS.md 8,000字／CLAUDE.md 4,000字／PROJECT.md 12,000字／SESSION.md 6,000字。超過は内容を削るシグナル（1項目1行、120字超は削るか理由・経緯をPR/Issueへ移す）
+- 進め方の文書（目安）：`docs/kickoff-process.md` 3,000字（1段あたり約500字）／`docs/ai-consulting-rules.md` 1,500字／`docs/templates/*.md` 各1,500字／`.claude/commands/*.md`・`.claude/agents/*.md` 各2,000字
 - ファイルサイズ規則はコード＝行数／ドキュメント＝字数で分ける。コードは目安1000行超で機能単位に分割
 
 ## SESSION.mdの削り方
