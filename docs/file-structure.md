@@ -30,6 +30,7 @@ js/
   ui-sortorder.js # sort-order（レシピの順番）のplay画面の描画（Issue #292）
   ui-unfold.js # unfold-cube（展開図キューブ）のplay画面とintroの描画（Issue #289）
   ui-seesaw-draw.js # シーソーの描画ヘルパー（定数・ロボット・数字・盤面SVG。本編とデモが共用。Issue #679）
+  ui-seesaw-find.js # シーソーの find 面で、見つけた組を盤面の下に並べる列（Issue #722）
   ui-demo-seesaw.js # introのシーソー紹介デモ（demo.kind: "seesaw"の盤面描画と1周の動き。Issue #679）
   engine-buoyancy.js # predict-slider（うかぶ面）の純粋関数（net判定・つりあう組・難易度。Issue #288）
   ui-buoyancy.js # うかぶ面play画面の描画（水槽・おもり・ふうせん。Issue #288）

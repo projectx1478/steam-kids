@@ -152,6 +152,8 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 `mover.maxRobots`（2〜6。あれば重さを − ＋ で1〜maxRobotsに変える。省略＝重さ固定）、`mover.fixedPos`（あれば位置は固定で`start`と同じ値。`maxRobots`が要る）。`left[].robots`（固定ロボットの1つの山）は1〜6体。
 `seesaw.right`（任意。`left`と同じ形。空配列は不可。同じ位置に2山は不可。`mover.start`・`solution`の位置は`right`の位置と別）。未知のキーは不可（`seesaw`は`notches`・`left`・`right`・`mover`、`mover`は`robots`・`start`・`maxRobots`・`fixedPos`・`side`だけ）。`mover`は単体、またはちょうど2要素の配列（動かすロボット2組。要素は`robots`・`start`・`side`だけで、`maxRobots`・`fixedPos`は書けない。体数は違い、`start`は別の位置）。配列のとき`solution`は`[1組目の位置, 2組目の位置]`で、解（`solutionSets`）は1〜3件、どちらか1組だけでもつりあう面は不可（`必須性`）。`mover.side`は`"right"`（省略時）または`"both"`。`"both"`の面は支点の左にも置け（負の位置。`solution`の位置も負になりうる）、`start`・`solution`の位置は固定ロボット（`right`は+pos、`left`は−pos）と別。
 
+`seesaw.find`（省略時1。2〜3。Issue #722 の試作）：つりあう置き方（体数×目盛りの組）を`find`個みつけると通る面。体数も位置も動く1組の面（`mover`が単体で`maxRobots`あり・`fixedPos`なし）だけに書ける。`solutionPairs`の件数が`find`と一致し、`solution`は`[[pos, robots], …]`で全部の組を順不同に並べる（`find`の無い面の`[pos, robots]`とは別の形）。見つけた組は盤面の下に残り（`js/ui-seesaw-find.js`）、同じ置き方は数えず、`find`個そろうまでは盤が最初に戻る。intro の`demo.seesaw`には書けない。例は`lessons/teko-10-zenbu.json`（devOnly）。
+
 ### `predict-slider`の`play`（うかぶ面。Issue #288・#710）
 
 `kind: "play"`に`seesaw`の代わりに`buoyancy`と`solution`を持つ（同じレッスンに`seesaw`と混在させない。未知のキーは不可）。
