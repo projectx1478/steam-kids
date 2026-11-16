@@ -149,6 +149,8 @@ export function initGate({ onUnlock }) {
 
   const lockBtn = document.getElementById('gate-lock-btn');
   if (lockBtn) lockBtn.onclick = relock;
+  // 子ども画面へ戻るリンク。遷移前に必ず施錠し、戻って開き直すと合言葉画面になる（Issue #744）。
+  document.querySelectorAll('.gate-home-link').forEach((a) => a.addEventListener('click', () => lock()));
 
   if (isUnlocked() && hasPasscode()) {
     showApp();
