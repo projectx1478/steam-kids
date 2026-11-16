@@ -2,6 +2,9 @@
 // 動かして置く（＝予想）→「ためす」で支えが外れ、傾きを見る。選択肢UIは使わない（#104を踏襲）。
 // 画面の骨格・ボタン・ヒント・クリア演出は ui-play.js と同じ部品を再利用する。
 import { S } from './state.js';
+import { readPlacement, writePlacement, clearPlacement } from './storage.js';
+import { isTrial } from './trial-lesson.js';
+import { IS_DEV } from './dev-mode.js';
 import { balance, allowedPositions, moversOf } from './engine-seesaw.js';
 import { logEvent } from './events.js';
 import { shapeSvg, setMoodIn, prefersReducedMotion, screenConfetti } from './ui-grid.js';
@@ -41,6 +44,26 @@ export function renderSeesaw(root, step) {
     pos: { get: () => local.poses[local.sel], set: (v) => (local.poses[local.sel] = v) },
     robots: { get: () => local.robotsList[local.sel], set: (v) => (local.robotsList[local.sel] = v) },
   });
+  // 置き方の保存・復元（Issue #745）。試しのレッスンでは読まない・書かない。
+  const lessonId = S.lesson.lessonId;
+  const persistOn = !isTrial() && !IS_DEV;
+  const savePlacement = () => {
+    if (persistOn) writePlacement(lessonId, step.stepId, 'seesaw', { poses: local.poses, robotsList: local.robotsList });
+  };
+  if (persistOn) {
+    const saved = readPlacement(lessonId, step.stepId, 'seesaw');
+    const okRobots = (n, i) => Number.isInteger(n) && n >= 1 && n <= (movers.length === 1 ? (movers[0].maxRobots ?? movers[0].robots) : movers[i].robots);
+    if (
+      saved &&
+      Array.isArray(saved.poses) && saved.poses.length === movers.length &&
+      Array.isArray(saved.robotsList) && saved.robotsList.length === movers.length &&
+      saved.robotsList.every(okRobots) &&
+      saved.poses.every((p, i) => Number.isInteger(p) && allowedPositions(spec, i, saved.poses).includes(p))
+    ) {
+      local.poses = saved.poses.slice();
+      local.robotsList = saved.robotsList.slice();
+    }
+  }
   // 重さが動く面（maxRobots あり）／位置が固定の面（fixedPos あり）。teko-01〜03 はどちらも無い。2組の面はどちらも無い。
   const maxRobots = multi ? null : (movers[0].maxRobots ?? null);
   const posFixed = !multi && movers[0].fixedPos != null;
@@ -183,6 +206,7 @@ export function renderSeesaw(root, step) {
       return;
     }
     local.robots = next;
+    savePlacement();
     drawMover();
   }
 
@@ -207,6 +231,7 @@ export function renderSeesaw(root, step) {
       return;
     }
     local.pos = next;
+    savePlacement();
     if (via === 'drag') playSfx('snap');
     drawMover();
   }
@@ -234,6 +259,7 @@ export function renderSeesaw(root, step) {
   }
 
   function resetBoard() {
+    if (persistOn) clearPlacement(lessonId);
     local.phase = 'edit';
     local.poses = movers.map((m) => m.start);
     local.robotsList = movers.map((m) => m.robots);
@@ -282,6 +308,7 @@ export function renderSeesaw(root, step) {
     }
     if (result.tilt === 0) {
       local.phase = 'cleared';
+      if (persistOn) clearPlacement(lessonId);
       updateControls();
       recordClear({ isFinal: isFinalStage, stageIndex });
       clearSequence?.dispose();

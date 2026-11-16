@@ -166,6 +166,14 @@ export function resetSlot(slot) {
   } catch {
     // 無視
   }
+  try {
+    const placePrefix = keyFor('place.', slot);
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith(placePrefix))
+      .forEach((k) => localStorage.removeItem(k));
+  } catch {
+    // 無視
+  }
   const profile = newProfile();
   writeJSON(keyFor('profile', slot), profile);
   const slots = loadSlots();
@@ -220,6 +228,77 @@ export function writeDraft(lessonId, stepId, commands, ts = Date.now()) {
 
 export function clearDraft(lessonId) {
   removeKey(keyFor(`draft.${lessonId}`, getActiveSlot()));
+}
+
+// 置き方の下書き（Issue #745）。grid 以外5型（seesaw・buoyancy・sortorder・unfold・egg）の置き方。
+// キーは place.<lessonId>（スロット別）、値は {stepId, type, data, ts}。同期（sync・merge）には送らない。
+// data は配列・数値・文字列だけの JSON。2KB 超は保存しない。place. 全体が 100KB を超えたら ts の古い順に消す。
+const PLACE_MAX_BYTES = 2048;
+const PLACE_TOTAL_MAX_BYTES = 102400;
+
+function placeKey(lessonId) {
+  return keyFor(`place.${lessonId}`, getActiveSlot());
+}
+
+export function readPlacement(lessonId, stepId, type, now = Date.now()) {
+  let raw;
+  try {
+    raw = localStorage.getItem(placeKey(lessonId));
+  } catch {
+    return null;
+  }
+  if (raw === null || raw === undefined || raw.length > PLACE_MAX_BYTES * 2) return null;
+  let v;
+  try {
+    v = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  if (v.stepId !== stepId || v.type !== type || typeof v.ts !== 'number') return null;
+  const age = now - v.ts;
+  if (!(age >= 0 && age <= DRAFT_MAX_AGE_MS)) return null;
+  if (v.data === undefined || new TextEncoder().encode(JSON.stringify(v.data)).length > PLACE_MAX_BYTES) return null;
+  return v.data;
+}
+
+export function writePlacement(lessonId, stepId, type, data, ts = Date.now()) {
+  let json;
+  try {
+    json = JSON.stringify({ stepId, type, data, ts });
+  } catch {
+    return;
+  }
+  if (new TextEncoder().encode(json).length > PLACE_MAX_BYTES) return;
+  const key = placeKey(lessonId);
+  try {
+    localStorage.setItem(key, json);
+    const prefix = keyFor('place.', getActiveSlot());
+    const items = Object.keys(localStorage)
+      .filter((k) => k.startsWith(prefix))
+      .map((k) => {
+        const raw = localStorage.getItem(k) ?? '';
+        let t = 0;
+        try {
+          t = JSON.parse(raw)?.ts ?? 0;
+        } catch {
+          // 壊れた値は最古扱いで先に消える
+        }
+        return { k, t, size: new TextEncoder().encode(raw).length };
+      });
+    let total = items.reduce((a, x) => a + x.size, 0);
+    for (const x of items.sort((a, b) => a.t - b.t)) {
+      if (total <= PLACE_TOTAL_MAX_BYTES) break;
+      localStorage.removeItem(x.k);
+      total -= x.size;
+    }
+  } catch {
+    // 容量超過等は諦めるだけ（子ども画面を落とさない）
+  }
+}
+
+export function clearPlacement(lessonId) {
+  removeKey(placeKey(lessonId));
 }
 
 // 最後に手がかりを見せたレッスン（Issue #282）。値は lessonId の文字列1項目。壊れた値・型違いは null。

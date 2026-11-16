@@ -2,6 +2,9 @@
 // 誤りは結果帯の文言なしで、重なる2マス／離れたマスだけが点滅する（赤は使わない）。枚数が6でないときは進まず、結果帯の文言だけ変える。
 // 画面の骨格・クリア演出・戻る系の無効化は sort-order（ui-sortorder.js）と同じ部品を使う。
 import { S } from './state.js';
+import { readPlacement, writePlacement, clearPlacement } from './storage.js';
+import { isTrial } from './trial-lesson.js';
+import { IS_DEV } from './dev-mode.js';
 import { isCubeNet, firstOverlap, disconnectedCells, solutionsOf, CUBE_CELLS } from './engine-unfold.js';
 import { logEvent } from './events.js';
 import { shapeSvg, setMoodIn, prefersReducedMotion, screenConfetti } from './ui-grid.js';
@@ -45,6 +48,22 @@ export function renderUnfold(root, step) {
   const isFinalStage = stageIndex === playSteps.length - 1;
 
   const local = { painted: new Map(), phase: 'edit', wrong: new Set(), timer: null, pips: false };
+
+  // 置き方の保存・復元（Issue #745）。試しのレッスンでは読まない・書かない。盤の範囲内で preset と重ならないマスだけ採用する。
+  const lessonId = S.lesson.lessonId;
+  const persistOn = !isTrial() && !IS_DEV;
+  const savePlacement = () => {
+    if (persistOn) writePlacement(lessonId, step.stepId, 'unfold', { painted: [...local.painted] });
+  };
+  if (persistOn) {
+    const saved = readPlacement(lessonId, step.stepId, 'unfold');
+    const cellOk = (e) =>
+      Array.isArray(e) && e.length === 2 && e[1] && Number.isInteger(e[1].x) && Number.isInteger(e[1].y) &&
+      e[1].x >= 0 && e[1].x < cols && e[1].y >= 0 && e[1].y < rows && e[0] === key(e[1]) && !presetKeys.has(e[0]);
+    if (saved && Array.isArray(saved.painted) && saved.painted.every(cellOk)) {
+      saved.painted.forEach(([k, c]) => local.painted.set(k, { x: c.x, y: c.y }));
+    }
+  }
 
   const screen = createOpScreen({ root, question: step.text, stepKey: `${S.lesson.lessonId}:${step.stepId}` });
   const { frame: opScreen, boardArea, panel, actions: actionsEl, bird } = screen;
@@ -136,6 +155,7 @@ export function renderUnfold(root, step) {
     playSfx('snap');
     if (local.painted.has(k)) local.painted.delete(k);
     else local.painted.set(k, { x, y });
+    savePlacement();
     setMsg(countMsg());
     draw();
   }
@@ -167,6 +187,7 @@ export function renderUnfold(root, step) {
     setBackDisabled(false);
     if (local.pips) {
       local.phase = 'cleared';
+      if (persistOn) clearPlacement(lessonId);
       draw();
       drawBoard(true);
       setMsg('はこが できた！');
@@ -241,6 +262,7 @@ export function renderUnfold(root, step) {
   }
 
   function replayState() {
+    if (persistOn) clearPlacement(lessonId);
     local.painted = new Map();
     local.wrong = new Set();
     local.pips = false;
