@@ -5,6 +5,20 @@
 export const name = 'N1 戻る・リロード: マップ→intro→戻る、リロード後の戻る、dev不変(Issue #739)';
 
 const ID = 'cmd-01-susumu';
+// 現行JSON（p1=上上左左→next-stage で p2。c7-device-back と同じ）を使うため凍結fixtureを外す。
+async function toPlay(page) {
+  await page.click('[data-action="start"]');
+  await page.waitForFunction(() => ['tutorial', 'predict', 'play'].includes(document.querySelector('#stage')?.dataset.step));
+  const first = await page.getAttribute('#stage', 'data-step');
+  if (first === 'tutorial') await page.click('[data-action="skip-tutorial"]');
+  else if (first === 'predict') {
+    await page.click('[data-option="B"]');
+    await page.waitForSelector('[data-action="next"]');
+    await page.click('[data-action="next"]');
+  }
+  await page.waitForFunction(() => document.querySelector('#stage')?.dataset.step === 'play');
+}
+
 const BTN = `.lesson-pick-btn[data-lesson-id="${ID}"]`;
 
 async function seed(page) {
@@ -16,6 +30,7 @@ async function seed(page) {
 }
 
 export default async function run({ page, check }) {
+  await page.unroute(`**/lessons/${ID}.json`);
   const screen = () => page.getAttribute('#stage', 'data-screen');
   const step = () => page.getAttribute('#stage', 'data-step');
   await seed(page);
@@ -44,11 +59,7 @@ export default async function run({ page, check }) {
   // 経路2の続き：もう一度入り、p2 まで進めてリロード
   await page.click(BTN);
   await page.waitForFunction(() => document.querySelector('#stage')?.dataset.step === 'intro');
-  await page.click('[data-action="start"]');
-  await page.waitForSelector('[data-option="B"]');
-  await page.click('[data-option="B"]');
-  await page.click('[data-action="next"]');
-  await page.waitForFunction(() => document.querySelector('#stage')?.dataset.step === 'play');
+  await toPlay(page);
   for (const dir of ['up', 'up', 'left', 'left']) await page.click(`[data-command="${dir}"]`);
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="next-stage"]', { timeout: 8000 });
@@ -64,11 +75,7 @@ export default async function run({ page, check }) {
 
   // 経路3：?lesson= 直開き→p2→リロード
   await page.goto(`/index.html?lesson=${ID}`);
-  await page.click('[data-action="start"]');
-  await page.waitForSelector('[data-option="B"]');
-  await page.click('[data-option="B"]');
-  await page.click('[data-action="next"]');
-  await page.waitForFunction(() => document.querySelector('#stage')?.dataset.step === 'play');
+  await toPlay(page);
   for (const dir of ['up', 'up', 'left', 'left']) await page.click(`[data-command="${dir}"]`);
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="next-stage"]', { timeout: 8000 });
