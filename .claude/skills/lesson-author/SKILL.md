@@ -12,7 +12,8 @@ description: 単元名からgrid-runtimeレッスンJSONを生成し、npm run v
 
 1. 必ず読む: `docs/authoring-rules.md`（文言・表現の禁止事項）、`docs/lesson-schema.md`
    （レッスンJSON・検証ルール）、`docs/learning-spec.md`（教材型・grid-runtime仕様・
-   確定済み単元内容）、既存 `lessons/*.json`（記法の参考例）
+   確定済み単元内容）、既存 `lessons/*.json`（記法の参考例）、
+   `docs/plan/judgment-guide.md` の1章（面の及第点）・2章（ひねりの型）
 2. `docs/learning-spec.md` に対象レッスンの確定値（grid/start/goal/walls等）が既にあれば
    それに従う。無ければ以下を満たすように設計する。
    - PROJECT.md「学習体験の固定仕様」の3原則と `docs/learning-spec.md` の操作モデル（計画型／直接操作型）に全ステップで従い、操作モデルを明記する
