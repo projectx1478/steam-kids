@@ -16,7 +16,6 @@ async function seed(page) {
 }
 
 export default async function run({ page, check }) {
-  await page.unroute(`**/lessons/${ID}.json`);
   const screen = () => page.getAttribute('#stage', 'data-screen');
   const step = () => page.getAttribute('#stage', 'data-step');
   await seed(page);
