@@ -2,6 +2,9 @@
 // 「ためす」で判定する。誤りは結果アニメ（こげる・こぼれる・なまのまま・からっぽ）＋違反ペア2枚の点滅（文言なし）。
 // 画面の骨格・クリア演出・戻る系の無効化はシーソー（ui-seesaw.js）と同じ部品を使う。
 import { S } from './state.js';
+import { readPlacement, writePlacement, clearPlacement } from './storage.js';
+import { isTrial } from './trial-lesson.js';
+import { IS_DEV } from './dev-mode.js';
 import { firstViolation } from './engine-sortorder.js';
 import { logEvent } from './events.js';
 import { shapeSvg, setMoodIn, prefersReducedMotion, screenConfetti } from './ui-grid.js';
@@ -95,6 +98,21 @@ export function renderSortOrder(root, step) {
   const isFinalStage = stageIndex === playSteps.length - 1;
 
   const local = { slots: new Array(n).fill(null), phase: 'edit', wrong: [], timer: null, anims: [], fails: 0 };
+
+  // 置き方の保存・復元（Issue #745）。試しのレッスンでは読まない・書かない。カード id が重複せず cards にあるものだけ採用する。
+  const lessonId = S.lesson.lessonId;
+  const persistOn = !isTrial() && !IS_DEV;
+  const savePlacement = () => {
+    if (persistOn) writePlacement(lessonId, step.stepId, 'sortorder', { slots: local.slots });
+  };
+  if (persistOn) {
+    const saved = readPlacement(lessonId, step.stepId, 'sortorder');
+    const ids = saved && Array.isArray(saved.slots) && saved.slots.length === n ? saved.slots.filter((id) => id !== null) : null;
+    if (ids && ids.every((id) => byId.has(id)) && new Set(ids).size === ids.length) local.slots = saved.slots.slice();
+  }
+  const clearSaved = () => {
+    if (persistOn) clearPlacement(lessonId);
+  };
 
   const screen = createOpScreen({ root, question: step.text, stepKey: `${S.lesson.lessonId}:${step.stepId}` });
   const { frame: opScreen, boardArea, panel, actions: actionsEl, bird } = screen;
@@ -194,6 +212,7 @@ export function renderSortOrder(root, step) {
     vibrate();
     playSfx('snap');
     local.slots[i] = id;
+    savePlacement();
     draw();
   }
 
@@ -205,6 +224,7 @@ export function renderSortOrder(root, step) {
     if (local.phase === 'failed') local.phase = 'edit';
     vibrate();
     local.slots[i] = null; // 穴は詰めない
+    savePlacement();
     draw();
   }
 
@@ -252,6 +272,7 @@ export function renderSortOrder(root, step) {
     const bad = firstViolation(order, before);
     if (!bad) {
       local.phase = 'cleared';
+      clearSaved();
       draw();
       setMoodIn(boardArea, 'happy');
       recordClear({ isFinal: isFinalStage, stageIndex });
@@ -323,6 +344,7 @@ export function renderSortOrder(root, step) {
     logEvent('retry', {});
     clearResultBubble(bird);
     local.slots = new Array(n).fill(null);
+    clearSaved();
     clearWrong();
     local.phase = 'edit';
     setBoard('idle');
@@ -335,6 +357,7 @@ export function renderSortOrder(root, step) {
     clearResultBubble(bird);
     local.fails = 0;
     local.slots = new Array(n).fill(null);
+    clearSaved();
     clearWrong();
     local.phase = 'edit';
     setBoard('idle');

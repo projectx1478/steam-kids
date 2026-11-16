@@ -3,6 +3,9 @@
 // 数字は出さない。値は道具の大きさ（と、dots の面だけ点の数）で伝え、水そうの段目盛（数字なし）で高さを読む。
 // 画面の骨格・ボタン・ヒント・クリア演出は ui-seesaw.js と同じ部品を再利用する。
 import { S } from './state.js';
+import { readPlacement, writePlacement, clearPlacement } from './storage.js';
+import { isTrial } from './trial-lesson.js';
+import { IS_DEV } from './dev-mode.js';
 import { buoyancy, toolOf } from './engine-buoyancy.js';
 import { logEvent } from './events.js';
 import { shapeSvg, setMoodIn, prefersReducedMotion, screenConfetti } from './ui-grid.js';
@@ -76,6 +79,21 @@ export function renderBuoyancy(root, step) {
   // on：付いている道具 id の集合。表示・判定の順は spec.tools の並びにそろえる。
   // side：2体の面で、付いている道具の置き場所（0＝左／1＝右）。on にある道具だけ持つ。
   const local = { on: new Set(), side: new Map(), phase: 'edit', timer: null };
+  // 置き方の保存・復元（Issue #745）。試しのレッスンでは読まない・書かない。道具 id が spec.tools に合うものだけ採用する。
+  const lessonId = S.lesson.lessonId;
+  const persistOn = !isTrial() && !IS_DEV;
+  const savePlacement = () => {
+    if (persistOn) writePlacement(lessonId, step.stepId, 'buoyancy', { on: [...local.on], side: [...local.side] });
+  };
+  if (persistOn) {
+    const saved = readPlacement(lessonId, step.stepId, 'buoyancy');
+    const idsOk = saved && Array.isArray(saved.on) && saved.on.every((id) => spec.tools.includes(id)) && new Set(saved.on).size === saved.on.length;
+    const sideOk = idsOk && Array.isArray(saved.side) && saved.side.every((e) => Array.isArray(e) && e.length === 2 && saved.on.includes(e[0]) && (e[1] === 0 || e[1] === 1));
+    if (sideOk && (!two || saved.on.every((id) => saved.side.some((e) => e[0] === id)))) {
+      saved.on.forEach((id) => local.on.add(id));
+      if (two) saved.side.forEach(([id, b]) => local.side.set(id, b));
+    }
+  }
   const attached = () => spec.tools.filter((id) => local.on.has(id));
   // 判定に渡す形。1体は道具 id の配列、2体は { tool, body } の配列。
   const assignment = () => (two ? attached().map((tool) => ({ tool, body: local.side.get(tool) })) : attached());
@@ -227,6 +245,7 @@ export function renderBuoyancy(root, step) {
       local.on.delete(id);
       local.side.delete(id);
     }
+    savePlacement();
     drawRobot();
   }
 
@@ -243,6 +262,7 @@ export function renderBuoyancy(root, step) {
   function resetBoard(clearTools) {
     local.phase = 'edit';
     if (clearTools) {
+      if (persistOn) clearPlacement(lessonId);
       local.on.clear();
       local.side.clear();
     }
@@ -287,6 +307,7 @@ export function renderBuoyancy(root, step) {
     }
     if (result.dir === 0) {
       local.phase = 'cleared';
+      if (persistOn) clearPlacement(lessonId);
       updateControls();
       recordClear({ isFinal: isFinalStage, stageIndex });
       clearSequence?.dispose();

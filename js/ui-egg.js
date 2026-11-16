@@ -3,6 +3,9 @@
 // 失敗はたまごを割らない：軌跡（直前1回分）と落下位置の印だけを出し、赤は使わない。置いた板は残る。solution は画面に出さない。
 // 画面の骨格・クリア演出・戻る系の無効化は unfold-cube（ui-unfold.js）と同じ部品を使う。
 import { S } from './state.js';
+import { readPlacement, writePlacement, clearPlacement } from './storage.js';
+import { isTrial } from './trial-lesson.js';
+import { IS_DEV } from './dev-mode.js';
 import { simulate, ANGLES, EGG_TEXT } from './engine-egg.js';
 import { logEvent } from './events.js';
 import { shapeSvg, setMoodIn, prefersReducedMotion, screenConfetti } from './ui-grid.js';
@@ -65,6 +68,13 @@ export function renderEgg(root, step) {
 
   // plates: [{col,row,angle}]（置いた順）。trace: 直前1回分の再生結果（{ path, result }）か null。
   const local = { plates: [], phase: 'edit', trace: null, timer: null, ticker: null, skippedAt: 0 };
+
+  // 置き方の保存・復元（Issue #745）。試しのレッスンでは読まない・書かない。置ける場所（places）・向き・枚数上限に合うものだけ採用する。
+  const lessonId = S.lesson.lessonId;
+  const persistOn = !isTrial() && !IS_DEV;
+  const savePlacement = () => {
+    if (persistOn) writePlacement(lessonId, step.stepId, 'egg', { plates: local.plates });
+  };
 
   const screen = createOpScreen({ root, question: step.text, stepKey: `${S.lesson.lessonId}:${step.stepId}` });
   const { frame: opScreen, boardArea, panel, actions: actionsEl, bird } = screen;
@@ -223,6 +233,7 @@ export function renderEgg(root, step) {
     clearTrace();
     if (plate) plate.angle = (plate.angle + 1) % ANGLES.length;
     else local.plates.push({ col: c, row: r, angle: 0 });
+    savePlacement();
     draw();
   }
 
@@ -264,6 +275,7 @@ export function renderEgg(root, step) {
     drawTrace();
     if (result === 'nest') {
       local.phase = 'cleared';
+      if (persistOn) clearPlacement(lessonId);
       eggEl.classList.add('egg-in-nest');
       draw();
       drawRobot('happy');
@@ -337,6 +349,7 @@ export function renderEgg(root, step) {
     clearResultBubble(bird);
     clearTrace();
     local.plates.pop();
+    savePlacement();
     draw();
   }
 
@@ -357,6 +370,7 @@ export function renderEgg(root, step) {
     vibrate();
     showNormalActions();
     clearResultBubble(bird);
+    if (persistOn) clearPlacement(lessonId);
     resetAll();
   }
 
@@ -371,6 +385,21 @@ export function renderEgg(root, step) {
 
   showNormalActions();
   resetAll();
+  if (persistOn) {
+    const saved = readPlacement(lessonId, step.stepId, 'egg');
+    const seen = new Set();
+    const plateOk = (p) => {
+      if (!p || !Number.isInteger(p.col) || !Number.isInteger(p.row) || !Number.isInteger(p.angle)) return false;
+      const k = key(p.col, p.row);
+      if (seen.has(k) || !placeKeys.has(k) || obstacleKeys.has(k)) return false;
+      seen.add(k);
+      return p.angle >= 0 && p.angle < ANGLES.length;
+    };
+    if (saved && Array.isArray(saved.plates) && saved.plates.length <= egg.limit && saved.plates.every(plateOk)) {
+      local.plates = saved.plates.map((p) => ({ col: p.col, row: p.row, angle: p.angle }));
+      draw();
+    }
+  }
   showStartCue(boardArea);
   screen.announceQuestion();
 
