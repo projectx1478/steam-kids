@@ -25,6 +25,7 @@ kids-player（出典コミット`74adf54`）の`service-worker.js`から移植�
 | クロスオリジン(同期API) | 即return（`respondWith`を呼ばない）。SWから再発行せずブラウザに任せる。古い同期結果を誤って返さないため |
 | `lessons/*.json` | ネットワーク優先（`cache: "no-cache"`でHTTPキャッシュ迂回）、失敗時のみキャッシュへフォールバック |
 | 同一オリジンのアプリシェル | ネットワーク優先。`fetch(request, { cache: "no-cache" })` |
+| ページ遷移（request.mode が navigate）のオフライン時 | caches.match を ignoreSearch: true で引く（?view=map・?lesson= を index.html で返す。Issue #738） |
 | オフライン・未キャッシュ | `caches.match()`の結果を`cached \|\| Response.error()`で返す（`undefined`を`respondWith`に渡さない） |
 
 `cache: "no-cache"`はGitHub Pages固有の対策。SW内の`fetch`は既定でHTTPキャッシュを経由するため、
@@ -62,6 +63,10 @@ mainへのマージごとに版付きキャッシュ（アプリシェル・less
 `@fontsource/m-plus-rounded-1c`パッケージ内のjapanese-800.woff2から生成した。文字を追加する場合は
 `js/kanji-grades.js`の配当漢字＋使用するかな・記号を`--text-file`/`--unicodes`に渡して再生成し、
 `fonts/OFL.txt`（ライセンス文）はパッケージのLICENSEをそのままコピーする。
+
+## 公開レッスンの先読み（Issue #738）
+
+install で、アプリシェルの保存の後に `lessons/index.json` と公開レッスン（各単元の `lessonIds`・`practiceIds`）の JSON を保存する。`devOnlyIds` は先読みしない。先読みは失敗しても install を失敗させない（`APP_SHELL` に入れない理由は BGM 音源と同じ）。版が変わるたびに install が走るので、デプロイごとに最新が入る。
 
 ## 更新の反映
 
