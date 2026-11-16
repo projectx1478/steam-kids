@@ -5,6 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { unitsOf } from '../js/index-units.js';
 
 const code = readFileSync(new URL('../service-worker.js', import.meta.url), 'utf8');
 const origin = 'http://localhost';
@@ -167,4 +168,82 @@ test('service-worker: オフライン・未キャッシュでもResponseを返�
   const r = await fireWith(offlineHandler, `${origin}/app.js`, 'GET');
   assert.equal(r.respondWithRejected, false, 'オフライン・未キャッシュの同一オリジンGETでもrespondWithはrejectしない');
   assert.equal(r.respondWithValue instanceof Response, true, 'オフライン・未キャッシュ時はrespondWithにResponseインスタンスが渡る(undefinedにならない)');
+});
+
+// ---- Issue #738: navigateのignoreSearch照合・install時の公開レッスン先読み ----
+
+async function offlineMatchArgs(request) {
+  const calls = [];
+  const matchCaches = {
+    open: async () => fakeCache,
+    match: async (...args) => { calls.push(args); return new Response('index'); },
+  };
+  const h = makeFetchHandler(failingFetch, matchCaches);
+  let p = null;
+  h({ request, respondWith: (x) => { p = x; } });
+  const value = await p;
+  return { calls, value };
+}
+
+test('service-worker: navigateのオフライン照合はignoreSearch:true付きで引く', async () => {
+  const { calls, value } = await offlineMatchArgs({ url: `${origin}/index.html?view=map`, method: 'GET', mode: 'navigate' });
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0][1], { ignoreSearch: true });
+  assert.equal(await value.text(), 'index', 'キャッシュの応答が返る');
+});
+
+test('service-worker: navigateでないGETのオフライン照合は従来どおり（第2引数undefined）', async () => {
+  const { calls } = await offlineMatchArgs({ url: `${origin}/style.css`, method: 'GET', mode: 'no-cors' });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][1], undefined);
+});
+
+const indexText = readFileSync(new URL('../lessons/index.json', import.meta.url), 'utf8');
+const indexJson = JSON.parse(indexText);
+
+function runInstall(fetchImpl) {
+  const puts = [];
+  const cache = {
+    addAll: async () => {},
+    put: async (req) => { puts.push(typeof req === 'string' ? req : req.url); },
+  };
+  const listeners = {};
+  const localSelf = { ...fakeSelf, addEventListener: (type, fn) => { listeners[type] = fn; } };
+  new Function('self', 'fetch', 'caches', code)(localSelf, fetchImpl, { open: async () => cache });
+  let waited = null;
+  listeners.install({ waitUntil: (p) => { waited = p; } });
+  return { puts, waited };
+}
+
+test('service-worker: installは index.json と公開レッスン全件を保存し、devOnlyは保存しない', async () => {
+  const f = async (input) => {
+    const u = typeof input === 'string' ? input : input.url;
+    return new Response(u.endsWith('lessons/index.json') ? indexText : '{}', { status: 200 });
+  };
+  const { puts, waited } = runInstall(f);
+  await waited;
+  const units = unitsOf(indexJson);
+  const expected = new Set(['./lessons/index.json']);
+  for (const u of units) for (const id of [...(u.lessonIds ?? []), ...(u.practiceIds ?? [])]) expected.add(`./lessons/${id}.json`);
+  assert.deepEqual(new Set(puts), expected);
+  const devOnly = units.flatMap((u) => u.devOnlyIds ?? []).filter((id) => !expected.has(`./lessons/${id}.json`));
+  for (const id of devOnly) assert.equal(puts.includes(`./lessons/${id}.json`), false, `devOnly ${id} は先読みしない`);
+});
+
+test('service-worker: installは index.json のfetchがrejectしてもresolveする', async () => {
+  const { waited } = runInstall(failingFetch);
+  await assert.doesNotReject(waited);
+});
+
+test('service-worker: installはレッスン1件が404でも他を保存してresolveする', async () => {
+  const first = unitsOf(indexJson).flatMap((u) => u.lessonIds ?? [])[0];
+  const f = async (input) => {
+    const u = typeof input === 'string' ? input : input.url;
+    if (u.endsWith(`lessons/${first}.json`)) return new Response('nf', { status: 404 });
+    return new Response(u.endsWith('lessons/index.json') ? indexText : '{}', { status: 200 });
+  };
+  const { puts, waited } = runInstall(f);
+  await assert.doesNotReject(waited);
+  assert.equal(puts.includes(`./lessons/${first}.json`), false);
+  assert.equal(puts.length > 2, true, '他の公開レッスンは保存される');
 });

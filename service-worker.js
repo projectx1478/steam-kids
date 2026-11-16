@@ -116,10 +116,40 @@ const APP_SHELL = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL))
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL).then(() => precacheLessons(cache)))
   );
   self.skipWaiting();
 });
+
+// 公開レッスン（各単元の lessonIds・practiceIds）の id。devOnlyIds は読まない（Issue #738）。
+// 単元の取り出しは js/index-units.js の unitsOf と同じ規則（tracks 優先、無ければ units）。SW は module でないため複製する。
+function publicLessonIds(index) {
+  const units = Array.isArray(index?.tracks)
+    ? index.tracks.flatMap((t) => (Array.isArray(t?.units) ? t.units : []))
+    : Array.isArray(index?.units) ? index.units : [];
+  const ids = units.flatMap((u) => [...(u?.lessonIds ?? []), ...(u?.practiceIds ?? [])]);
+  return [...new Set(ids)];
+}
+
+// index.json と公開レッスンを保存する。どれかが失敗しても install は成功させる（未訪問のレッスンがオフラインで開けないだけ）。
+async function precacheLessons(cache) {
+  try {
+    const res = await fetch("./lessons/index.json", { cache: "no-cache" });
+    if (!res.ok) return;
+    const index = await res.clone().json();
+    await cache.put("./lessons/index.json", res);
+    await Promise.all(
+      publicLessonIds(index).map((id) => {
+        const url = `./lessons/${id}.json`;
+        return fetch(url, { cache: "no-cache" })
+          .then((r) => (r.ok ? cache.put(url, r) : undefined))
+          .catch(() => {});
+      })
+    );
+  } catch {
+    // 先読みの失敗は握りつぶす
+  }
+}
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
@@ -185,6 +215,10 @@ self.addEventListener("fetch", (event) => {
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone).catch(() => {}));
         return response;
       })
-      .catch(() => caches.match(event.request).then((cached) => cached || Response.error()))
+      .catch(() =>
+        caches
+          .match(event.request, event.request.mode === "navigate" ? { ignoreSearch: true } : undefined)
+          .then((cached) => cached || Response.error())
+      )
   );
 });
