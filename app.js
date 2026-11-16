@@ -7,7 +7,7 @@ import { displayName } from './js/slot-utils.js';
 import { renderSlotSelect, renderNameEntry } from './js/ui-slots.js';
 import { renderStory } from './js/ui-story.js';
 import { loadLesson } from './js/lesson-loader.js';
-import { initSteps, refreshHeader, mapUrl } from './js/ui-step.js';
+import { initSteps, refreshHeader, mapUrl, createPrimaryButton } from './js/ui-step.js';
 import { push } from './js/sync.js';
 import { registerServiceWorker } from './js/register-sw.js';
 import { renderUnitMap } from './js/ui-picker.js';
@@ -16,7 +16,7 @@ import { renderTrackSelect, playableTrackCount } from './js/ui-tracks.js';
 import { renderTrackIntro } from './js/ui-track-intro.js';
 import { renderTitle } from './js/ui-title.js';
 import { ensureDailyGate } from './js/ui-parental-gate.js';
-import { IS_DEV } from './js/dev-mode.js';
+import { IS_DEV, withDev } from './js/dev-mode.js';
 import { LOAD_ID, mapSearchFor, lessonSearchFor, popstateAction } from './js/nav-history.js';
 import { initMenu } from './js/ui-menu.js';
 import { initBgm, setScene } from './js/bgm.js';
@@ -24,11 +24,20 @@ import { initClickSfx } from './js/sfx.js';
 import { sceneFor } from './js/config.js';
 import { isTrial, composeTrialLesson, readTrialStage, TRIAL_MISSING_MESSAGE } from './js/trial-lesson.js';
 
-function showError() {
+// 読み込み失敗の画面。行き止まりにしないため「もういちど」を必ず置く（Issue #744）。
+// canMap：レッスン単体の失敗のときだけ「マップへ」も出す（一覧の失敗はマップへ行っても同じため出さない）。
+function showError({ canMap = false } = {}) {
+  const stage = document.getElementById('stage');
   const p = document.createElement('p');
   p.className = 'text-2xl text-center py-8';
   p.textContent = 'よみこみ できませんでした';
-  document.getElementById('stage').appendChild(p);
+  stage.appendChild(p);
+  stage.appendChild(createPrimaryButton('もういちど', () => location.reload(), 'error-retry'));
+  if (canMap) {
+    stage.appendChild(createPrimaryButton('マップへ', () => {
+      location.href = withDev('./index.html?view=map');
+    }, 'error-to-map'));
+  }
 }
 
 // ヘッダーの単元名表示用。取得失敗時はnullのままレッスン名のみ表示し、レッスン自体は止めない（Issue #91）。
@@ -62,7 +71,7 @@ async function startLesson(lessonId) {
     });
     if (!IS_DEV) push();
   } catch {
-    showError();
+    showError({ canMap: true });
   }
 }
 

@@ -10,6 +10,8 @@ P2着手時に読む。保護者・教師向けの**読み取り専用**画面�
 保護者ゲート内に置く）。ふりがなは`profile.furigana`（端末内のみ・同期しない）、おとは既存の
 `localStorage['steamkids.sound']`を`js/sfx.js`経由で読み書きする（Issue #93）。
 
+保護者画面（合言葉の設定・入力画面とダッシュボードのヘッダ）には、子ども画面へ戻る`.gate-home-link`「こどもの がめんへ」を置く（48px以上）。押すと`lock()`してから`index.html`へ遷移する（Issue #744）。
+
 画面上部のスロットタブ（`#slot-tabs`）で表示するプレイヤーを切り替える。空き枠はdisabled。
 切替は表示だけで、次に子どもが遊ぶスロット（`steamkids.slots.active`）は変えない（Issue #218）。
 

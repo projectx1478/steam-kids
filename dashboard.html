@@ -5,12 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>ダッシュボード | steam-kids</title>
 <link rel="stylesheet" href="style.css" />
+<link rel="icon" href="icons/icon-192.png" />
 </head>
 <body class="min-h-screen bg-slate-50 p-4">
 <div id="app" class="w-full max-w-3xl mx-auto flex flex-col gap-4">
   <div id="auth-gate" class="fixed inset-0 bg-slate-100 flex items-center justify-center z-50 px-4">
     <div class="bg-white border border-slate-200 rounded-lg shadow-sm p-6 w-full max-w-sm">
       <div id="gate-setup">
+        <a class="gate-home-link flex items-center justify-center min-h-[48px] mb-3 text-sm text-sky-700 underline" href="./index.html">こどもの がめんへ</a>
         <h1 class="text-lg font-bold text-slate-800 mb-1">はじめに合言葉を設定してください</h1>
         <p class="text-sm text-slate-500 mb-4">4文字以上。次回からこの合言葉でダッシュボードに入れます。</p>
         <input id="gate-setup-passcode" type="password" placeholder="合言葉(4文字以上)"
@@ -39,6 +41,7 @@
         </div>
       </div>
       <div id="gate-login" class="hidden">
+        <a class="gate-home-link flex items-center justify-center min-h-[48px] mb-3 text-sm text-sky-700 underline" href="./index.html">こどもの がめんへ</a>
         <h1 class="text-lg font-bold text-slate-800 mb-1">合言葉を入力してください</h1>
         <p class="text-sm text-slate-500 mb-4">保護者・先生向けの画面です。</p>
         <p id="gate-login-hint" class="hidden text-xs text-sky-700 mb-3">
@@ -60,8 +63,11 @@
         <h1 class="text-2xl font-bold text-slate-800">学習ダッシュボード</h1>
         <p class="text-sm text-slate-500">保護者・先生向け。データはこの端末にのみ保存されます。</p>
       </div>
+      <div class="flex items-center gap-2 shrink-0">
+      <a class="gate-home-link flex items-center min-h-[48px] px-3 rounded-lg bg-white shadow text-sm text-sky-700" href="./index.html">こどもの がめんへ</a>
       <button id="gate-lock-btn" type="button" aria-label="ダッシュボードをとじる"
         class="min-w-[48px] min-h-[48px] px-3 rounded-lg bg-white shadow text-sm text-slate-500 shrink-0">とじる</button>
+      </div>
     </header>
     <section id="worker-version-banner"></section>
     <nav id="slot-tabs" class="flex gap-2" aria-label="プレイヤー"></nav>
