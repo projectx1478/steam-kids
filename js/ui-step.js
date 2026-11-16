@@ -26,7 +26,8 @@ import { solutions } from './engine-seesaw.js';
 import { codeToSeed } from './seed-code.js';
 import { isLessonCleared } from './ui-picker.js';
 import { clearedGimmicks, isIntroKnown } from './gimmick-unlock.js';
-import { withDev } from './dev-mode.js';
+import { withDev, IS_DEV } from './dev-mode.js';
+import { LOAD_ID } from './nav-history.js';
 import { isTrial } from './trial-lesson.js';
 import { readResume, writeResume, clearResume } from './storage.js';
 import { setScene } from './bgm.js';
@@ -218,18 +219,19 @@ export function initSteps() {
 
   // 端末の戻る（Android戻る・ブラウザ戻る）も「← もどる」と同じく1ステップ戻す。
   // 各ステップ遷移でhistoryを積み（goToStep）、ここで該当ステップを再描画する（Issue #240）。
-  history.replaceState({ stepIndex: S.stepIndex }, '');
+  history.replaceState({ stepIndex: S.stepIndex, loadId: LOAD_ID }, '');
   window.addEventListener('popstate', (event) => {
+    if (!IS_DEV && event.state?.loadId !== LOAD_ID) return; // 別の読み込みの履歴は app.js が扱う（Issue #739）
     const target = event.state?.stepIndex;
     if (target == null || target === S.stepIndex) return;
     if (headerEls().back.disabled) {
       // 実行アニメーション中は動かさない。履歴だけ現在位置へ戻す。
-      history.pushState({ stepIndex: S.stepIndex }, '');
+      history.pushState({ stepIndex: S.stepIndex, loadId: LOAD_ID }, '');
       return;
     }
     if (hasPlayInProgress()) {
       // playでは端末の戻るでも確認する。履歴を現在位置へ戻してから問う（Issue #542）。
-      history.pushState({ stepIndex: S.stepIndex }, '');
+      history.pushState({ stepIndex: S.stepIndex, loadId: LOAD_ID }, '');
       // 確認の表示中は位置を戻すだけ（連打で確認や遷移が二重にならない）。
       if (leaveConfirmOpen()) return;
       const backward = target < S.stepIndex;
@@ -279,7 +281,7 @@ function enterStep(index, { resumed = false } = {}) {
 // opts.resumed: 「つづきから」で入るときだけtrue。step_enterのpayloadに{resumed:true}を付ける（Issue #242）。
 export function goToStep(nextIndex, opts = {}) {
   const resolvedIndex = resolveStepIndex(nextIndex, nextIndex > S.stepIndex);
-  history.pushState({ stepIndex: resolvedIndex }, '');
+  history.pushState({ stepIndex: resolvedIndex, loadId: LOAD_ID }, '');
   enterStep(resolvedIndex, opts);
 }
 

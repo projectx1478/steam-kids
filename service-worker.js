@@ -50,6 +50,7 @@ const APP_SHELL = [
   "./js/guardian.js",
   "./js/kanji-grades.js",
   "./js/lesson-loader.js",
+  "./js/nav-history.js",
   "./js/merge.js",
   "./js/register-sw.js",
   "./js/seed-code.js",

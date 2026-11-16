@@ -7,7 +7,7 @@ import { displayName } from './js/slot-utils.js';
 import { renderSlotSelect, renderNameEntry } from './js/ui-slots.js';
 import { renderStory } from './js/ui-story.js';
 import { loadLesson } from './js/lesson-loader.js';
-import { initSteps, refreshHeader } from './js/ui-step.js';
+import { initSteps, refreshHeader, mapUrl } from './js/ui-step.js';
 import { push } from './js/sync.js';
 import { registerServiceWorker } from './js/register-sw.js';
 import { renderUnitMap } from './js/ui-picker.js';
@@ -17,6 +17,7 @@ import { renderTrackIntro } from './js/ui-track-intro.js';
 import { renderTitle } from './js/ui-title.js';
 import { ensureDailyGate } from './js/ui-parental-gate.js';
 import { IS_DEV } from './js/dev-mode.js';
+import { LOAD_ID, mapSearchFor, lessonSearchFor, popstateAction } from './js/nav-history.js';
 import { initMenu } from './js/ui-menu.js';
 import { initBgm, setScene } from './js/bgm.js';
 import { initClickSfx } from './js/sfx.js';
@@ -65,6 +66,33 @@ async function startLesson(lessonId) {
   }
 }
 
+// 今の画面が表しているURL。戻る・進むでこれと違うURLに来たら読み直す（Issue #739）。
+let renderedSearch = location.search;
+
+// マップ・ストーリーから始めるとき：今の履歴をマップのURLに書き換え、レッスンのURLを1つ積む（Issue #739）。
+// 端末の戻るで intro から単元マップへ戻り、リロードで同じレッスンの intro へ戻る。
+function startLessonFromMap(lessonId) {
+  if (!IS_DEV) {
+    history.replaceState({ view: 'map' }, '', `./index.html${mapSearchFor(lessonId)}`);
+    history.pushState(null, '', `./index.html${lessonSearchFor(lessonId)}`);
+    renderedSearch = location.search;
+  }
+  return startLesson(lessonId);
+}
+
+window.addEventListener('popstate', (event) => {
+  if (IS_DEV) return;
+  const action = popstateAction({
+    search: location.search,
+    renderedSearch,
+    hasStepIndex: event.state?.stepIndex != null,
+    stateLoadId: event.state?.loadId,
+    loadId: LOAD_ID,
+  });
+  if (action === 'reload') location.reload();
+  else if (action === 'map') location.replace(mapUrl());
+});
+
 async function loadIndex() {
   try {
     const res = await fetch('./lessons/index.json');
@@ -100,7 +128,7 @@ async function renderPicker() {
   // from=<lessonId> があれば、そのレッスンの大項目の単元だけを出す（Issue #616）。不明・条件外は全単元。
   const from = new URLSearchParams(location.search).get('from');
   const trackUnits = multiTrack && from ? trackOfLesson(index, from) : null;
-  await renderUnitMap(stage, trackUnits ?? unitsOf(index), startLesson, onBack);
+  await renderUnitMap(stage, trackUnits ?? unitsOf(index), startLessonFromMap, onBack);
 }
 
 // 大項目選択（Issue #375）。遊べる大項目が1つ以下・dev=1 は従来どおり単元マップへ。
@@ -122,7 +150,7 @@ async function showTrackSelect() {
   await renderTrackSelect(stage, tracks, {
     lessonStatus,
     onPick: (track) => {
-      const toMap = () => renderUnitMap(stage, track.units, startLesson, () => showTrackSelect());
+      const toMap = () => renderUnitMap(stage, track.units, startLessonFromMap, () => showTrackSelect());
       // intro がある大項目だけ、単元マップの前に紹介画面を挟む（Issue #644）。
       if (track.intro) renderTrackIntro(stage, track, { onStart: toMap, onBack: () => showTrackSelect() });
       else toMap();
@@ -154,7 +182,7 @@ async function showSlotSelect(mode) {
       renderNameEntry(stage, (name) => {
         const profile = createSlot(slot, name);
         applySlot(slot);
-        renderStory(stage, displayName(profile.label, slot), () => startLesson(units[0].lessonIds[0]));
+        renderStory(stage, displayName(profile.label, slot), () => startLessonFromMap(units[0].lessonIds[0]));
       });
     },
   });
