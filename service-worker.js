@@ -95,6 +95,7 @@ const APP_SHELL = [
   "./js/ui-seedpick.js",
   "./js/ui-seesaw.js",
   "./js/ui-seesaw-draw.js",
+  "./js/ui-seesaw-find.js",
   "./js/ui-sortorder.js",
   "./js/ui-unfold.js",
   "./js/ui-egg.js",

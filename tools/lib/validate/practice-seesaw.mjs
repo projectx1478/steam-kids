@@ -160,7 +160,10 @@ function solutionPair(play, spec) {
   return Number.isInteger(s) ? { pos: s, robots: spec.mover.robots } : null;
 }
 // 未知キーは不合格（綴り違いを見逃さない。Issue #689）。
-export const SEESAW_KEYS = ['notches', 'left', 'right', 'mover'];
+export const SEESAW_KEYS = ['notches', 'left', 'right', 'mover', 'find'];
+// find（Issue #722。つりあう置き方の数。2〜3）の上限・下限。
+const FIND_MIN = 2;
+const FIND_MAX = 3;
 const MOVER_KEYS = ['robots', 'start', 'maxRobots', 'fixedPos', 'side'];
 // moverの位置（start・fixedPos）：整数で0でない。sideが省略か"right"なら1〜notches、"both"なら−notches〜−1と1〜notches。
 const isPos = (v, spec, mover = spec.mover) => Number.isInteger(v) && v !== 0 && Math.abs(v) <= spec.notches && (v > 0 || mover.side === 'both');
@@ -211,6 +214,27 @@ function validateSeesawMulti(play, spec, label, add) {
   });
   if (balance(spec, movers.map((m) => ({ pos: m.start, robots: m.robots }))).tilt === 0) add('start', `${label} がstartの時点でつりあっている`);
 }
+// find 面（Issue #722）：重さと位置が動く1組の面（maxRobots あり・fixedPos なし）だけ。つりあう組（solutionPairs）が find 個で、
+// solution は [pos, robots] の配列の配列が、つりあう組と過不足なく一致する（順不同）。
+function validateSeesawFind(play, spec, found, label, add) {
+  const { find, mover } = spec;
+  if (!Number.isInteger(find) || find < FIND_MIN || find > FIND_MAX) {
+    add('seesaw', `${label} のfind=${JSON.stringify(find)} が${FIND_MIN}〜${FIND_MAX}の整数でない`);
+    return;
+  }
+  if (Array.isArray(mover) || mover.maxRobots === undefined || mover.fixedPos !== undefined) {
+    add('seesaw', `${label} のfindは、体数も位置も動く1組の面（maxRobotsあり・fixedPosなし）だけに書ける`);
+    return;
+  }
+  if (found.length !== find) add('解の個数', `${label} のつりあう組が${found.length}個（find=${find}と一致する必要がある）`);
+  const s = play.solution;
+  const key = (a) => a.map(([pos, robots]) => `${pos}:${robots}`).sort().join(',');
+  const shapeOk = Array.isArray(s) && s.every((p) => Array.isArray(p) && p.length === 2 && p.every(Number.isInteger));
+  if (!shapeOk || key(s) !== key(found.map((f) => [f.pos, f.robots]))) {
+    add('solution', `${label} のsolution=${JSON.stringify(s)} がつりあう組 [[位置, 体数], …] と一致しない（find面は全部の組を順不同で並べる）`);
+  }
+  if (balance(spec, mover.start, mover.robots).tilt === 0) add('start', `${label} がstartの時点でつりあっている`);
+}
 function validateSeesaw(playSteps, add, maxPlay = MAX_PLAY) {
   if (playSteps.length < MIN_PLAY || playSteps.length > maxPlay) {
     add('盤面の必須', `kind="play" が${playSteps.length}個（${MIN_PLAY}〜${maxPlay}個である必要がある）`);
@@ -247,6 +271,13 @@ function validateSeesaw(playSteps, add, maxPlay = MAX_PLAY) {
       continue;
     }
     const found = solutionPairs(spec);
+    if ('find' in spec) {
+      validateSeesawFind(play, spec, found, label, add);
+      const df = difficulty(spec);
+      if (df < prevDifficulty) add('難易度', `${label} の|左−右|のおもさ合計(${df})が前のステージ(${prevDifficulty})より小さい`);
+      prevDifficulty = df;
+      continue;
+    }
     if (found.length === 0) add('解の個数', `${label} のつりあう組が0個（1つ以上必要）`);
     const given = solutionPair(play, spec);
     if (!given || !found.some((f) => f.pos === given.pos && f.robots === given.robots)) {

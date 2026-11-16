@@ -14,10 +14,12 @@ import { goToStep, setBackDisabled, setActiveHandHint, setActiveAnimation } from
 import { showHint, clearResultBubble } from './ui-reaction.js';
 import { showClearSequence, recordClear } from './ui-clear.js';
 import { BOARD_H, MOVER_COLORS, unitFor, robotsSvg, weightNumSvg, seesawBoardHtml } from './ui-seesaw-draw.js';
+import { createFindStrip } from './ui-seesaw-find.js';
 import { setRetryButton, shakeBoard, showStartCue, bindStartCueDismiss } from './ui-retry.js';
 
 const TILT_DEG = 8;
 const TILT_MS = 900;
+const FOUND_MS = 1500; // find 面で、つりあいを見つけたあと、盤を最初に戻すまでの間
 const HEAVY_MESSAGE = { '-1': '◀ こっちが おもいよ', 1: 'こっちが おもいよ ▶' };
 
 export function renderSeesaw(root, step) {
@@ -42,10 +44,12 @@ export function renderSeesaw(root, step) {
   // 重さが動く面（maxRobots あり）／位置が固定の面（fixedPos あり）。teko-01〜03 はどちらも無い。2組の面はどちらも無い。
   const maxRobots = multi ? null : (movers[0].maxRobots ?? null);
   const posFixed = !multi && movers[0].fixedPos != null;
+  const find = !multi && maxRobots ? (spec.find ?? 1) : 1; // つりあう置き方を find 個みつける面（Issue #722。1＝従来どおり1つで通る）
 
   // 画面の枠は共通部品（js/ui-screen.js。Issue #343）。
   const screen = createOpScreen({ root, question: step.text ?? (multi ? 'ふたりを つりあう ところに おこう' : 'つりあう ところに おこう'), stepKey: `${S.lesson.lessonId}:${step.stepId}` });
   const { frame: opScreen, boardArea, actions: actionsEl, bird } = screen;
+  const foundStrip = find > 1 ? createFindStrip({ panel: screen.panel, before: actionsEl, find }) : null; // 見つけた組（盤面の下）
   bindStartCueDismiss(opScreen, boardArea); // 盤面の最初の操作で「スタート！」を消す（Issue #635）
   actionsEl.classList.add(multi || (maxRobots && !posFixed) ? 'sk-screen-actions--two-row' : 'sk-screen-actions--one-row');
   function renderQuestion() {
@@ -248,6 +252,34 @@ export function renderSeesaw(root, step) {
     setActiveAnimation(null);
     setBackDisabled(false);
     const result = currentBalance();
+    if (result.tilt === 0 && foundStrip) {
+      // find 面：同じ置き方は数えない。find 個そろうまでは、列に残して盤を最初に戻す。
+      const outcome = foundStrip.add(local.pos, local.robots);
+      if (outcome === 'new') playSfx('pickup');
+      if (foundStrip.count() < find) {
+        local.phase = 'found';
+        updateControls();
+        const msg = document.createElement('p');
+        msg.className = 'text-sm font-bold text-slate-700 whitespace-nowrap';
+        msg.textContent = outcome === 'dup' ? 'それは さっきと おなじ' : 'べつの おきかたも あるよ';
+        bird.showBubble(msg, { foundHint: 'true' });
+        setBackDisabled(true);
+        local.timer = setTimeout(() => {
+          local.timer = null;
+          setActiveAnimation(null);
+          setBackDisabled(false);
+          clearResultBubble(bird);
+          resetBoard();
+        }, FOUND_MS);
+        setActiveAnimation({
+          cancel() {
+            clearTimeout(local.timer);
+            setBackDisabled(false);
+          },
+        });
+        return;
+      }
+    }
     if (result.tilt === 0) {
       local.phase = 'cleared';
       updateControls();
@@ -319,6 +351,7 @@ export function renderSeesaw(root, step) {
     showNormalActions();
     clearResultBubble(bird);
     footprints.innerHTML = '';
+    foundStrip?.clear();
     local.fails = 0;
     resetBoard();
   }

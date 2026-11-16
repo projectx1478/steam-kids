@@ -28,7 +28,7 @@ function seesawShapeOk(spec, label, add) {
     return false;
   }
   let ok = true;
-  const unknown = Object.keys(spec).filter((k) => !SEESAW_KEYS.includes(k));
+  const unknown = Object.keys(spec).filter((k) => !SEESAW_KEYS.includes(k) || k === 'find'); // find は本番面だけ（Issue #722）
   if (unknown.length > 0) {
     bad(`seesaw に未知のキー（${unknown.join('・')}）がある`);
     ok = false;
