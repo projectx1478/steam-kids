@@ -25,3 +25,11 @@ export function newHintLesson(order, clearedIds, lastShownId) {
   const next = firstPendingId(order, clearedIds);
   return next === null || next === lastShownId ? null : next;
 }
+
+// 錠を押したときに光らせるレッスン（Issue #742）。requiredIds の最初の未クリアを返し、それが錠なら
+// その前の最前線（firstPendingId）を返す。requiredIds が全クリアなら null。
+export function hintLessonId(order, clearedIds, requiredIds) {
+  const target = requiredIds.find((id) => !clearedIds.has(id));
+  if (target === undefined) return null;
+  return isUnlocked(order, clearedIds, target) ? target : firstPendingId(order, clearedIds);
+}

@@ -26,6 +26,14 @@ export function renderSeedPick(root, step) {
   root.appendChild(keypad);
 
   const startBtn = createPrimaryButton('スタート', () => {
+    if (startBtn.getAttribute('aria-disabled') === 'true') {
+      // 桁が足りないとき：空き桁を1秒だけ枠で光らせる（押せない理由を返す。Issue #742）。
+      const empties = [...slotRow.querySelectorAll('.seed-slot')].filter((el) => !el.dataset.digit);
+      const ring = ['ring-4', 'ring-amber-400', 'ring-offset-2', 'motion-safe:animate-pulse'];
+      empties.forEach((el) => el.classList.add(...ring));
+      setTimeout(() => empties.forEach((el) => el.classList.remove(...ring)), 1000);
+      return;
+    }
     S.seed = slots.join('');
     // 別のマップへ替えた時に、前のマップの命令列の下書きが残らないようにする。
     S.drafts = {};
@@ -49,8 +57,10 @@ export function renderSeedPick(root, step) {
       });
       slotRow.appendChild(slot);
     });
-    startBtn.disabled = slots.some((d) => d === '');
-    startBtn.classList.toggle('opacity-40', startBtn.disabled);
+    const incomplete = slots.some((d) => d === '');
+    if (incomplete) startBtn.setAttribute('aria-disabled', 'true');
+    else startBtn.removeAttribute('aria-disabled');
+    startBtn.classList.toggle('opacity-40', incomplete);
   }
 
   function keyButton(label, extraClass) {

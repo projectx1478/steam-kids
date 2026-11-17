@@ -4,7 +4,8 @@ import { loadLesson } from './lesson-loader.js';
 import { getEvents } from './events.js';
 import { summarize } from './analytics.js';
 import { shapeSvg } from './ui-grid.js';
-import { lessonOrder, isUnlocked, isPracticeUnlocked, firstPendingId } from './unlock.js';
+import { lessonOrder, isUnlocked, isPracticeUnlocked, firstPendingId, hintLessonId } from './unlock.js';
+import { showLockHint } from './ui-lock-hint.js';
 import { IS_DEV } from './dev-mode.js';
 
 // 単元ごとのボタン色とアイコン（Issue #216）。クラス名はTailwindのcontentスキャン用にリテラルで書く。
@@ -148,7 +149,7 @@ function iconSpan(svg, cls) {
 // スタンプはボタン外のsiblingとして重ねる（既存シナリオa5-unit-stamp.mjsのクラス名互換）。
 // opts: { unit, number（単元内番号。れんしゅうはnull）, locked, pending（次に遊ぶ最前線）, cleared, practice }
 async function createLessonStop(lessonId, opts, onPick) {
-  const { unit, number, locked, pending, cleared, practice } = opts;
+  const { unit, number, locked, pending, cleared, practice, onLockedPick } = opts;
   const style = unitStyleOf(unit);
   const wrap = document.createElement('div');
   wrap.className = 'relative inline-block';
@@ -161,7 +162,8 @@ async function createLessonStop(lessonId, opts, onPick) {
     pending ? ' next-pulse' : ''
   }`;
   if (locked) {
-    btn.disabled = true;
+    // 押せない見た目のまま反応を返す（disabled だと click が発火しない。Issue #742）。
+    btn.setAttribute('aria-disabled', 'true');
     btn.dataset.locked = 'true';
   }
 
@@ -185,7 +187,7 @@ async function createLessonStop(lessonId, opts, onPick) {
   btn.appendChild(titleSpan);
   if (locked) btn.appendChild(iconSpan(padlockSvg(), 'inline-block w-5 h-5 shrink-0'));
 
-  btn.addEventListener('click', () => onPick(lessonId));
+  btn.addEventListener('click', () => (locked ? onLockedPick?.(btn) : onPick(lessonId)));
   wrap.appendChild(btn);
 
   if (IS_DEV) {
@@ -253,6 +255,7 @@ async function createUnitIsland(unit, lessonStatus, ctx, onPick) {
           unit,
           number: i + 1,
           locked: !IS_DEV && !isUnlocked(order, clearedIds, lessonId),
+          onLockedPick: (btn) => ctx.onLocked(btn, [order[order.indexOf(lessonId) - 1]]),
           pending: !IS_DEV && lessonId === pendingId,
           cleared: isCleared(lessonStatus, lessonId),
         },
@@ -263,7 +266,7 @@ async function createUnitIsland(unit, lessonStatus, ctx, onPick) {
   const practiceLocked = !IS_DEV && !isPracticeUnlocked(unit, clearedIds);
   for (const lessonId of unit.practiceIds ?? []) {
     list.appendChild(
-      await createLessonStop(lessonId, { unit, number: null, locked: practiceLocked, practice: true }, onPick)
+      await createLessonStop(lessonId, { unit, number: null, locked: practiceLocked, practice: true, onLockedPick: (btn) => ctx.onLocked(btn, unit.lessonIds) }, onPick)
     );
   }
   if (IS_DEV) {
@@ -291,6 +294,12 @@ export async function renderUnitMap(stage, units, onPick, onBack) {
   const order = lessonOrder(units);
   const clearedIds = new Set(order.filter((id) => isCleared(lessonStatus, id)));
   const ctx = { order, clearedIds, pendingId: firstPendingId(order, clearedIds) };
+  // 錠の押下：押した錠がゆれ、先に遊ぶレッスンが光り、ことりが言う（Issue #742。音は鳴らさない）。
+  ctx.onLocked = (lockBtn, requiredIds) => {
+    const id = hintLessonId(order, clearedIds, requiredIds);
+    const target = id ? stage.querySelector(`[data-lesson-id="${id}"]`) : null;
+    showLockHint(lockBtn, target);
+  };
 
   if (IS_DEV) {
     const badge = document.createElement('p');
@@ -306,7 +315,7 @@ export async function renderUnitMap(stage, units, onPick, onBack) {
   const guardedPick = (lessonId) => {
     if (picked) return;
     picked = true;
-    stage.querySelectorAll('[data-lesson-id]').forEach((btn) => {
+    stage.querySelectorAll('[data-lesson-id]:not([data-locked])').forEach((btn) => {
       btn.disabled = true;
     });
     onPick(lessonId);

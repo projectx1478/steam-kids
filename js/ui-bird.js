@@ -3,7 +3,7 @@
 // 顔と吹き出しは盤面の上の固定の欄（laneEl。高さ64px。Issue #544 段1）に並べる。吹き出しは1行表示で、収まらない文は横にスライドして見せる。
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-function createFaceSvg() {
+export function createFaceSvg() {
   const svg = document.createElementNS(SVG_NS, 'svg');
   svg.setAttribute('viewBox', '16 72 120 120');
   svg.setAttribute('width', '40');
