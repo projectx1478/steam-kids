@@ -2,7 +2,7 @@ import { S, initState, applySlot, ensureActiveSlot } from './js/state.js';
 import { loadSlots, createSlot, getActiveSlot, readLastHint, writeLastHint } from './js/storage.js';
 import { getEvents } from './js/events.js';
 import { summarize } from './js/analytics.js';
-import { lessonOrder, newHintLesson } from './js/unlock.js';
+import { lessonOrder, newHintLesson, continueLessonId } from './js/unlock.js';
 import { displayName } from './js/slot-utils.js';
 import { renderSlotSelect, renderNameEntry } from './js/ui-slots.js';
 import { renderStory } from './js/ui-story.js';
@@ -168,6 +168,26 @@ async function showTrackSelect() {
   });
 }
 
+// 「つづきから」：有効スロットの直前のレッスンの intro を直接開く（Issue #740）。無ければ大項目選択へ。
+async function openContinue() {
+  try {
+    const units = await loadUnits();
+    if (units) {
+      const { lessons: lessonStatus } = summarize(getEvents(), Date.now());
+      const order = lessonOrder(units);
+      const clearedIds = new Set(order.filter((id) => lessonStatus[id]?.status === 'cleared'));
+      const id = continueLessonId(getEvents(), order, clearedIds);
+      if (id !== null) {
+        await startLessonFromMap(id);
+        return;
+      }
+    }
+  } catch {
+    // 失敗したら従来の大項目選択へ。
+  }
+  await showTrackSelect();
+}
+
 // タイトル→スロット選択→（名前入力→導入ストーリー→先頭レッスン｜単元マップ）（Issue #218）。
 // スロット選択・導入ストーリーはタイトル画面の入口のためBGMはタイトルのまま（Issue #378 段2）。
 async function showSlotSelect(mode) {
@@ -185,7 +205,7 @@ async function showSlotSelect(mode) {
     onBack: showTitle,
     onContinue: (slot) => {
       applySlot(slot);
-      showTrackSelect();
+      openContinue();
     },
     onNew: (slot) => {
       renderNameEntry(stage, (name) => {
@@ -221,7 +241,13 @@ async function showTitle() {
   renderTitle(document.getElementById('stage'), {
     canContinue: occupied.some(Boolean),
     onNew: () => showSlotSelect('new'),
-    onContinue: () => showSlotSelect('continue'),
+    onContinue: () => {
+      const used = occupied.map((o, i) => (o ? i : -1)).filter((i) => i >= 0);
+      if (used.length === 1) {
+        applySlot(used[0]);
+        openContinue();
+      } else showSlotSelect('continue');
+    },
     hint: hintId !== null,
   });
   if (hintId !== null) {

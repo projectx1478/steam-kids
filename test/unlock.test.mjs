@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { lessonOrder, isUnlocked, isPracticeUnlocked, firstPendingId, newHintLesson, hintLessonId } from '../js/unlock.js';
+import { lessonOrder, isUnlocked, isPracticeUnlocked, firstPendingId, newHintLesson, hintLessonId, continueLessonId } from '../js/unlock.js';
 
 const units = [
   { unitId: 'a', lessonIds: ['a1', 'a2'], practiceIds: ['ap'] },
@@ -95,4 +95,22 @@ test('hintLessonId: 錠の押下で光らせるレッスン（Issue #742）', ()
   assert.equal(hintLessonId(order, new Set(), ['c']), 'a');
   assert.equal(hintLessonId(order, new Set(['a']), ['b', 'c', 'd']), 'b');
   assert.equal(hintLessonId(order, new Set(['a', 'b', 'c', 'd']), ['b']), null);
+});
+
+test('continueLessonId: 直前のレッスンが未クリアならそれ（Issue #740）', () => {
+  const o = ['a', 'b', 'c'];
+  const ev = [{ lessonId: 'a', ts: 1 }, { lessonId: 'b', ts: 3 }, { lessonId: 'a', ts: 2 }];
+  assert.equal(continueLessonId(ev, o, new Set()), 'b');
+});
+
+test('continueLessonId: 直前がクリア済み・order外・event無しは firstPending', () => {
+  const o = ['a', 'b', 'c'];
+  assert.equal(continueLessonId([{ lessonId: 'a', ts: 1 }], o, new Set(['a'])), 'b');
+  assert.equal(continueLessonId([], o, new Set()), 'a');
+  assert.equal(continueLessonId([{ lessonId: 'zzz', ts: 9 }], o, new Set(['a'])), 'b');
+});
+
+test('continueLessonId: 全クリアは null', () => {
+  const o = ['a', 'b', 'c'];
+  assert.equal(continueLessonId([{ lessonId: 'c', ts: 1 }], o, new Set(o)), null);
 });

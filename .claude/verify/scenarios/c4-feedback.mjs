@@ -239,20 +239,20 @@ export default async function run({ page, check }) {
   );
   await check('単元スタンプがlessonIds数(2。cmd-02 は devOnly)だけ表示される', async () => (await page.$$('.unit-progress [data-stamp]')).length, 2);
   await check('つぎの レッスンへボタンが出る', async () => (await page.$$('[data-action="next-lesson"]')).length, 1);
-  // 下端バー（#551）：おわる＝左の副ボタン、つぎへ＝右の主ボタン。大きさ一致は求めず配置を検査する
+  // 下端バー（#551・#740）：マップへ＝左の副ボタン、つぎへ＝右の主ボタン。大きさ一致は求めず配置を検査する
   const barRects = async () => ({
     next: await (await page.$('[data-action="next-lesson"]')).boundingBox(),
-    fin: await (await page.$('[data-action="finish"]')).boundingBox(),
+    fin: await (await page.$('[data-action="back-to-picker"]')).boundingBox(),
   });
-  await check('「おわる」と「つぎへ」が同じ行に並び、おわるが左（#263/#551）', async () => {
+  await check('「マップへ」と「つぎへ」が同じ行に並び、マップへが左（#263/#551/#740）', async () => {
     const { next, fin } = await barRects();
     return Math.abs(next.y + next.height / 2 - (fin.y + fin.height / 2)) < 8 && fin.x < next.x;
   }, true);
-  await check('「おわる」「つぎへ」とも高さ64px以上', async () => {
+  await check('「マップへ」「つぎへ」とも高さ64px以上', async () => {
     const { next, fin } = await barRects();
     return next.height >= 64 && fin.height >= 64;
   }, true);
-  await check('「おわる」と「つぎへ」の間隔が16px以上', async () => {
+  await check('「マップへ」と「つぎへ」の間隔が16px以上', async () => {
     const { next, fin } = await barRects();
     return next.x - (fin.x + fin.width) >= 16;
   }, true);
@@ -308,12 +308,13 @@ export default async function run({ page, check }) {
     async () => !(await page.locator('.achievement-cards').innerText()).includes('いちばん みじかい')
   );
   await check('最終レッスンでは「つぎの レッスンへ」が出ない', async () => (await page.$$('[data-action="next-lesson"]')).length, 0);
-  await check('最終レッスンでも「ほかのレッスンへ」は出る', async () => (await page.$$('[data-action="back-to-picker"]')).length, 1);
-  await check('最終レッスンでも「おわる」は出る', async () => (await page.$$('[data-action="finish"]')).length, 1);
+  await check('最終レッスンでも「マップへ」だけが出る', async () => (await page.$$('[data-action="back-to-picker"]')).length, 1);
+  await check('「おわる」は出ない（#740）', async () => (await page.$$('[data-action="finish"]')).length, 0);
+  await check('まとめでは #back-btn が非表示（#740）', async () => !(await page.isVisible('#back-btn')), true);
   await check('「しま クリア！」という表現は出ない', async () => !(await page.textContent('#stage')).includes('しま クリア'));
-  await page.click('[data-action="finish"]');
+  await page.goto('/index.html');
   await page.waitForSelector('#stage[data-screen="title"]');
-  await check('「おわる」でタイトル画面へ戻る', async () => page.getAttribute('#stage', 'data-screen'), 'title');
+  await check('タイトル画面へ戻れる', async () => page.getAttribute('#stage', 'data-screen'), 'title');
 
   // --- 単元ぜんぶクリア：cmd-03も片付けて「めいれいでうごかす」を全クリアする。
   // 公開は cmd-01・cmd-03 の2本（cmd-02 は #615 で devOnly。直接入口で解けるので確認は残す）

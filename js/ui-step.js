@@ -140,7 +140,7 @@ function renderHeader() {
   chip.textContent = stepChipLabel(currentStep());
   // Tailwindの`flex`ユーティリティ(back.classListが持つ)はUA既定の[hidden]より強いため、
   // hidden属性ではなくinline style.displayで確実に隠す。
-  back.style.display = S.stepIndex === 0 || currentStep().kind === 'play' ? 'none' : '';
+  back.style.display = S.stepIndex === 0 || currentStep().kind === 'play' || currentStep().kind === 'summary' ? 'none' : '';
   // 中央パネルの「いまの ばしょ」（対象画面のみ。ヘッダはまだ残す。ヘッダを隠すのは data-op-compact）。
   const compact = isCompactStep(currentStep());
   menuStage.hidden = !compact;

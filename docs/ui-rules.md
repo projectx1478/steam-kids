@@ -83,7 +83,9 @@ UI規則（受け入れ条件。すべて判定可能な数値条件とする）
 | teko | `#gear-btn` | `#gear-btn` | `#menu-home` `#menu-close` | 同上 |
 | sortOrder | `#gear-btn` | `#gear-btn` | `#menu-home` `#menu-close` | 同上（unfold-cube・build-egg の play も同じ） |
 | tutorial | なし | `[data-action="menu"]` | `#menu-home` `#menu-close` | 同上＋いまの ばしょ |
-| summary | `#back-btn` `#gear-btn` | `#gear-btn` | `#menu-close` | とじる（離れるは出さない） |
+| summary | `#gear-btn` | `#gear-btn` | `#menu-close` | とじる（離れるは出さない） |
+
+まとめの出口は つぎへ（主）・マップへ（副）の2つ（単元の最後は マップへ のみ）。
 
 ⚙の名前は全画面「せってい」。離れるは確認あり＝play・teko・sortOrder（unfold-cube・build-egg の play を含む）、なし＝そのほか。ヘッダの 🏠（旧 `#home-btn`）は #574 段Bで除去済み（離れるは⚙メニューの `#menu-home`）。sort-order 以外の play の⚙は吹き出し欄の右端（顔の右、間16px、64×64。`createOpScreen` の `gear`。#574 段C）。シーソー（teko）・うかぶ面・予想・並べかえ（sort-order）・展開図キューブ（unfold-cube）・たまごの道（build-egg）の play はヘッダの⚙のまま（欄に⚙を出すのは `gear` を渡す play だけ。sortOrder の行は play の中でヘッダ（`#back-btn` `#gear-btn`）が残る型）。同じ画面に⚙が2つ出ない。
 

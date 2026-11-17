@@ -38,11 +38,9 @@ export default async function run({ page, check }) {
   // 経路1：トップ→つづきから→スロット→大項目→マップ→レッスン
   await page.goto('/index.html');
   await page.click('[data-action="title-continue"]');
-  await page.click('[data-slot="0"]');
-  await page.click('[data-track-id="robot"]');
-  await page.click(BTN);
+  // 使用中スロットが1つなら、スロット選択を飛ばして intro へ直行する（Issue #740）
   await page.waitForFunction(() => document.querySelector('#stage')?.dataset.step === 'intro');
-  await check('経路1: intro で URL が ?lesson=', async () => page.url().includes(`lesson=${ID}`));
+  await check('経路1: intro で URL が ?lesson=', async () => page.url().includes('lesson='));
   await page.goBack();
   await page.waitForSelector('#stage[data-screen="picker"]');
   await check('経路1: 戻るでマップ', screen, 'picker');
