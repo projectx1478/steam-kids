@@ -4,6 +4,10 @@ export const name = '行き止まり: 読み込み失敗のボタン・保護者
 
 export default async function run({ page, check }) {
   // 1: レッスン単体の失敗 → 「もういちど」「マップへ」が出て、マップへ着く
+  // 存在しないレッスンは404ではなく200＋壊れたbodyで再現する（4xxはハーネスが自動FAILにするため。#756）
+  await page.route('**/lessons/zzz-none.json', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: '{broken' })
+  );
   await page.goto('/index.html?lesson=zzz-none');
   await check('失敗の文言が出る', async () => page.textContent('#stage p'), 'よみこみ できませんでした');
   await check('「もういちど」が見え64px以上', async () => {
