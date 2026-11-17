@@ -10,7 +10,7 @@ export default async function run({ page, check }) {
   await check('STEAM KIDSの見出しが表示される', async () => page.textContent('#stage h1'), 'STEAM KIDS');
   const newBox = await page.locator('[data-action="title-new"]').boundingBox();
   await check('はじめからボタンが64px以上', () => newBox.width >= 64 && newBox.height >= 64);
-  await check('データが無ければつづきからはdisabled', () => page.isDisabled('[data-action="title-continue"]'));
+  await check('データが無ければつづきからは出ない（Issue #742）', async () => (await page.$$('[data-action="title-continue"]')).length, 0);
 
   // データのあるスロットがあればつづきからが押せて、スロット選択→単元マップへ進む（Issue #218）
   await page.evaluate(() => {
@@ -18,7 +18,7 @@ export default async function run({ page, check }) {
     localStorage.setItem('steamkids.slots', JSON.stringify({ active: 0, occupied: [true, false, false] }));
   });
   await page.goto('/index.html');
-  await check('データがあればつづきからが押せる', async () => !(await page.isDisabled('[data-action="title-continue"]')));
+  await check('データがあればつづきからが出る', async () => (await page.$$('[data-action="title-continue"]')).length, 1);
   await page.click('[data-action="title-continue"]');
   await check('つづきから後はスロット選択へ遷移する', async () => page.getAttribute('#stage', 'data-screen'), 'slots');
   await page.click('[data-action="slot-pick"][data-slot="0"]');

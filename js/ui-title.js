@@ -70,8 +70,8 @@ export function renderTitle(stage, { canContinue, onNew, onContinue, hint = fals
   actions.className = 'title-actions';
   wrap.appendChild(actions);
   addButton('title-new', 'はじめから', 'bg-orange-500 text-white', onNew);
-  const continueBtn = addButton('title-continue', 'つづきから', 'bg-sky-500 text-white', onContinue);
-  if (!canContinue) continueBtn.disabled = true;
+  // 初回（記録なし）は押せない見た目で置かず、出さない（Issue #742）。
+  if (canContinue) addButton('title-continue', 'つづきから', 'bg-sky-500 text-white', onContinue);
 
   stage.appendChild(wrap);
 }

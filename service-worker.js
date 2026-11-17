@@ -92,6 +92,7 @@ const APP_SHELL = [
   "./js/ui-retry.js",
   "./js/ui-screen.js",
   "./js/ui-bird.js",
+  "./js/ui-lock-hint.js",
   "./js/bird-phrases.js",
   "./js/ui-seedpick.js",
   "./js/ui-seesaw.js",

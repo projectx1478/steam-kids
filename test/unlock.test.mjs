@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { lessonOrder, isUnlocked, isPracticeUnlocked, firstPendingId, newHintLesson } from '../js/unlock.js';
+import { lessonOrder, isUnlocked, isPracticeUnlocked, firstPendingId, newHintLesson, hintLessonId } from '../js/unlock.js';
 
 const units = [
   { unitId: 'a', lessonIds: ['a1', 'a2'], practiceIds: ['ap'] },
@@ -87,4 +87,12 @@ test('validate-lessons: どの一覧にも載らないファイルはエラー',
   const r = validate({ lessonIds: [base.lessonId] }, [extra]);
   assert.equal(r.code, 1);
   assert.match(r.out, /掲載漏れ/);
+});
+
+test('hintLessonId: 錠の押下で光らせるレッスン（Issue #742）', () => {
+  const order = ['a', 'b', 'c', 'd'];
+  assert.equal(hintLessonId(order, new Set(['a']), ['b']), 'b');
+  assert.equal(hintLessonId(order, new Set(), ['c']), 'a');
+  assert.equal(hintLessonId(order, new Set(['a']), ['b', 'c', 'd']), 'b');
+  assert.equal(hintLessonId(order, new Set(['a', 'b', 'c', 'd']), ['b']), null);
 });

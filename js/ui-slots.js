@@ -81,6 +81,8 @@ export function renderSlotSelect(stage, { mode, units, onNew, onContinue, onBack
   };
 
   for (let i = 0; i < SLOT_COUNT; i++) {
+    // つづきから：空き枠は押せないカードで置かず、出さない（Issue #742）。
+    if (mode === 'continue' && !occupied[i]) continue;
     row.appendChild(
       slotCard(i, mode, units, occupied[i], (slot, isOccupied) => {
         if (mode === 'continue') onContinue(slot);

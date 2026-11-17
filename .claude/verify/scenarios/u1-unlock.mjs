@@ -74,16 +74,16 @@ export default async function run({ page, check }) {
   await setCleared(page, ORDER.slice(0, 1));
   await page.goto('/index.html?view=map');
   await check('cmd-01クリアでcmd-03が解放される', async () =>
-    page.$eval('[data-lesson-id="cmd-03-naosu"]', (b) => !b.disabled && !b.dataset.locked));
+    page.$eval('[data-lesson-id="cmd-03-naosu"]', (b) => !b.dataset.locked));
   await check('パルスがcmd-03へ移る', async () => pulseIds(page), ['cmd-03-naosu']);
   await check('donguri-01はまだロック', async () => (await lockedIds(page)).includes('donguri-01-hirou'));
 
   await setCleared(page, ORDER.slice(0, 2));
   await page.goto('/index.html?view=map');
   await check('cmd-03クリアで次の単元(donguri-01)が解放される', async () =>
-    page.$eval('[data-lesson-id="donguri-01-hirou"]', (b) => !b.disabled));
+    page.$eval('[data-lesson-id="donguri-01-hirou"]', (b) => !b.dataset.locked));
   await check('れんしゅうはcommands単元クリアで解放', async () =>
-    page.$eval('[data-lesson-id="cmd-06-practice"]', (b) => !b.disabled));
+    page.$eval('[data-lesson-id="cmd-06-practice"]', (b) => !b.dataset.locked));
   await check('パルスがdonguri-01へ移る', async () => pulseIds(page), ['donguri-01-hirou']);
 
   // --- reduced-motion：アニメ無し・枠のみ ---

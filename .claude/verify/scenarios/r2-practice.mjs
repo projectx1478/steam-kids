@@ -55,13 +55,13 @@ export default async function run({ page, check }) {
   await check('数字キー0〜9と「けす」がある', async () => (await page.$$('.seed-key[data-key]')).length, 11);
   await check('「おまかせ」がテンキー内にある', async () => (await page.$$('.seed-keypad [data-action="random-code"]')).length, 1);
   await check('3桁の入力欄がある', async () => (await page.$$('.seed-slot')).length, 3);
-  await check('未入力ではスタートが押せない', () => page.$eval('[data-action="start"]', (b) => b.disabled), true);
+  await check('未入力ではスタートが押せない', () => page.$eval('[data-action="start"]', (b) => b.getAttribute('aria-disabled') === 'true'), true);
 
   await pickCode(page, [0, 1]);
-  await check('2つではまだスタートが押せない', () => page.$eval('[data-action="start"]', (b) => b.disabled), true);
+  await check('2つではまだスタートが押せない', () => page.$eval('[data-action="start"]', (b) => b.getAttribute('aria-disabled') === 'true'), true);
   await pickCode(page, [2]);
   await check('3つ押すと数字キーで番号が入る', () => slotDigits(page), '012');
-  await check('3つ揃うとスタートが押せる', () => page.$eval('[data-action="start"]', (b) => b.disabled), false);
+  await check('3つ揃うとスタートが押せる', () => page.$eval('[data-action="start"]', (b) => b.getAttribute('aria-disabled') === 'true'), false);
   await check('入力欄をタップして選び直せる', async () => {
     await page.click('[data-slot="1"]');
     await page.click('[data-key="7"]');
@@ -69,13 +69,13 @@ export default async function run({ page, check }) {
   }, '072');
   await check('「けす」で選んだ欄が空になりスタートが押せなくなる', async () => {
     await page.click('[data-key="del"]');
-    return [await slotDigits(page), await page.$eval('[data-action="start"]', (b) => b.disabled)];
+    return [await slotDigits(page), await page.$eval('[data-action="start"]', (b) => b.getAttribute('aria-disabled') === 'true')];
   }, ['07', true]);
 
   await page.click('[data-action="random-code"]');
   await check('「おまかせ」で3桁すべて埋まる', async () => (await page.$$('.seed-slot[data-digit]')).length, 3);
   await check('「おまかせ」の番号は000〜999の3桁', async () => /^\d{3}$/.test(await slotDigits(page)), true);
-  await check('「おまかせ」のあとスタートが押せる', () => page.$eval('[data-action="start"]', (b) => b.disabled), false);
+  await check('「おまかせ」のあとスタートが押せる', () => page.$eval('[data-action="start"]', (b) => b.getAttribute('aria-disabled') === 'true'), false);
 
   await page.click('[data-slot="0"]');
   await pickCode(page, [4, 5, 6]);

@@ -48,6 +48,7 @@
 - 例外（命令ボタン）：pointerup で受け付けを確定するボタン（`attachTapOrDrag` の onTap → `onAdd`）は、受け付けた地点（`js/ui-play.js`・`js/ui-tutorial.js` の `onAdd`）で `tap` を直接鳴らす（#550-8A）。受け付け直後にパレットが全 disabled になり click が届かない場合（上限到達の最後の1押下）でも鳴らすため。委譲側は下の二重鳴りの抑止で鳴らない。この `onAdd` の `tap` を消さない。
 - 命令ボタンはキー経由（`js/ui-keys.js`、Issue #380）では click を伴わない（矢印は `onAdd` 直接で `tap` 1回）。Enter・Backspace は対応ボタンの `.click()` 委譲で、タップと同じ音が1回。
 - 二重鳴りの抑止：pointerdown（capture）から click までの間に別の音が鳴っていれば、委譲は鳴らさない（命令ボタンは pointerup で `stack` 等を鳴らすため）。
+- 錠・桁不足のスタートは `aria-disabled="true"`（`initClickSfx` は鳴らさない）。押すと反応だけ返す（`js/ui-lock-hint.js`。Issue #742）。
 - ガードで受け付けない押下（実行中・上限到達・シーソーの端など）：`skipClickSfx()` を呼んで無音にする。次の pointerdown で解除される。
 - ドラッグ：click を伴わないので委譲は鳴らない。ドラッグ経由の操作だけ `snap` を個別に鳴らす。
 

@@ -16,7 +16,7 @@ async function startNewAt(page, slot, name) {
 export default async function run({ page, check }) {
   // --- はじめから＋空き枠 → 名前（タグ入り）→ ストーリー3枚 → 先頭レッスン ---
   await page.goto('/index.html');
-  await check('データが無ければつづきからはdisabled', () => page.isDisabled('[data-action="title-continue"]'));
+  await check('データが無ければつづきからは出ない（Issue #742）', async () => (await page.$$('[data-action="title-continue"]')).length, 0);
   await startNewAt(page, 0, '  <b>x</b>  ');
   await check('名前入力後はストーリー1枚目', async () => page.getAttribute('[data-story-page]', 'data-story-page'), '1');
   await page.click('[data-action="story-next"]');
@@ -56,7 +56,7 @@ export default async function run({ page, check }) {
   await page.click('[data-action="title-continue"]');
   await check('スロットAの表示はクリア1', async () => page.textContent('[data-slot="0"] .slot-clears'), 'クリア 1');
   await check('スロットBは名前がプレイヤー2', async () => page.textContent('[data-slot="1"] .slot-name'), 'プレイヤー2');
-  await check('空き枠はdisabled', () => page.isDisabled('[data-slot="2"]'));
+  await check('空き枠は出ない（Issue #742）', async () => (await page.$$('[data-action="slot-pick"][data-occupied="false"]')).length, 0);
   await check('最終プレイ日がM/Dで出る', async () => /^\d{1,2}\/\d{1,2}$/.test(await page.textContent('[data-slot="0"] .slot-played')));
   await page.click('[data-slot="1"]');
   await page.click('[data-track-id="robot"]');
