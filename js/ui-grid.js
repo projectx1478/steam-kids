@@ -220,7 +220,7 @@ globalThis.__gridAnimLog = globalThis.__gridAnimLog || [];
 // board全再構築とは別にitemEls（座標キー）で個体管理する
 // labels: [{id, x, y}] 予想ステップの選択肢ボタン
 // view: プレイヤー駒・足あとの差分更新API（アニメーション中はこちらのみ使う。draw全再構築はしない）
-//   view.moveTo(pos): 通常移動（450ms、reduced-motion時は即時）
+//   view.moveTo(pos, speed=1): 通常移動（450ms×speed、reduced-motion時は即時）
 //   view.warpTo(pos): ワープの瞬間移動（入口で縮み出口で膨らむ。reduced-motion時は即時＋出口の輪0.5秒。Issue #64）
 //   view.bounce(dir, kind): 衝突の演出（kind='wall'|'cushion'|'water'|'ball'、250ms〜。'water'は岸側に水しぶきを約0.9秒出し困り顔、失敗ではない、reduced-motion時はしぶきを静止表示して約0.9秒で消す。'wall'は約1.2秒の目回し星を出し、reduced-motion時は静止表示。Issue #168）
 //   view.fallOver(): 壁衝突でロボットが横に倒れる（300ms ease-outで倒れ、倒れたまま保持。reduced-motion時は何もしない。Issue #214）
@@ -374,7 +374,7 @@ export function renderGrid(opts) {
 
   const view = {
     gimmickEls,
-    moveTo(nextPos) {
+    moveTo(nextPos, speed = 1) {
       const prevPos = pos;
       pos = { ...nextPos };
       setFacing(dirFromDelta(pos.x - prevPos.x, pos.y - prevPos.y));
@@ -382,9 +382,10 @@ export function renderGrid(opts) {
       const px = pixelFor(pos);
       // drawBoard直後の同一タスクで呼ばれても1歩目にtransitionが乗るよう、開始位置のスタイルを確定させる
       void token.offsetWidth;
-      token.style.transition = reduce ? 'none' : `transform ${MOVE_MS}ms ease`;
+      const ms = MOVE_MS * speed;
+      token.style.transition = reduce ? 'none' : `transform ${ms}ms ease`;
       token.style.transform = `translate(${px.x}px, ${px.y}px)`;
-      if (!reduce) window.__gridAnimLog.push({ type: 'move', ms: MOVE_MS });
+      if (!reduce) window.__gridAnimLog.push({ type: 'move', ms, at: performance.now() });
     },
     // warpTo(nextPos): ワープ（Issue #64）。入口で縮んで消え、出口で膨らむ瞬間移動（滑らない）。
     // reduced-motion時は即座に移り、出口の輪を0.5秒光らせる。足あとは呼び出し側が入口・出口にだけ置く。

@@ -34,7 +34,9 @@ import { setScene } from './bgm.js';
 import { sceneFor } from './config.js';
 import { confirmDialog } from './ui-dialog.js';
 
-const STEP_DELAY_MS = 600;
+export const STEP_DELAY_MS = 600;
+// 2回目以降の同じ手（Issue #743）。移動の長さも同じ比（0.5）で縮める。
+export const FAST_STEP_DELAY_MS = 300;
 const STEP_TRANSITION_MS = 220;
 const STEP_SLIDE_PX = 24;
 // ヘッダーの区分チップ文言（Issue #91）。
@@ -507,7 +509,9 @@ export function createStepper(commands, spec, view, { onTick, onPickup, onCondSk
     runStates,
     isDone: () => finished,
     isPaused: () => paused,
-    advance() {
+    index: () => i,
+    // speed：この手の長さの倍率（1＝等速。Issue #743 の2回目以降は 0.5。移動の長さに掛ける）。
+    advance(speed = 1) {
       if (finished || paused) return;
       notifySkips(i);
       const from = result.path[i];
@@ -529,7 +533,7 @@ export function createStepper(commands, spec, view, { onTick, onPickup, onCondSk
         view.warpTo(to);
       } else {
         view.footprint(from);
-        view.moveTo(to);
+        view.moveTo(to, speed);
       }
       const totalItems = (spec.items ?? []).length;
       let collected = result.pickups.slice(0, i).reduce((n, arr) => n + arr.length, 0);
@@ -542,7 +546,7 @@ export function createStepper(commands, spec, view, { onTick, onPickup, onCondSk
       });
       if (!bumped) {
         for (const g of GIMMICKS) {
-          const sfx = g.onStep?.({ pos: to, spec, view, run: (runStates[g.key] ??= {}), result, index: i });
+          const sfx = g.onStep?.({ pos: to, spec, view, run: (runStates[g.key] ??= {}), result, index: i, speed });
           if (sfx) playSfx(sfx);
         }
       }
@@ -570,27 +574,29 @@ export function createStepper(commands, spec, view, { onTick, onPickup, onCondSk
 // 発火させない（ステップ離脱後も裏で音が鳴り続ける事故を防ぐ。js/ui-step.jsのsetActiveAnimation経由）。
 // ui-play-segment.jsの「1コマ実行の途中でじっこう」でも、進行中のstepperをそのまま渡して残りを続行する
 // （Issue #111）。
-export function autoAdvance(stepper, { onDone }, { lockHeader = true } = {}) {
+// delayFor(i)（省略可。Issue #743）：i手目の後の間（ms）。省略時は STEP_DELAY_MS。
+export function autoAdvance(stepper, { onDone, delayFor }, { lockHeader = true } = {}) {
   if (lockHeader) setBackDisabled(true);
   let cancelled = false;
   let timer = null;
   const tick = () => {
     if (cancelled) return;
-    stepper.advance();
+    const delay = delayFor ? delayFor(stepper.index()) : STEP_DELAY_MS;
+    stepper.advance(delay / STEP_DELAY_MS);
     if (stepper.isDone() || stepper.isPaused()) {
       timer = setTimeout(() => {
         timer = null;
         if (cancelled) return;
         if (lockHeader) setBackDisabled(false);
         onDone(stepper.result);
-      }, STEP_DELAY_MS);
+      }, delay);
       return;
     }
     timer = setTimeout(() => {
       timer = null;
       if (cancelled) return;
       tick();
-    }, STEP_DELAY_MS);
+    }, delay);
   };
   tick();
   return {

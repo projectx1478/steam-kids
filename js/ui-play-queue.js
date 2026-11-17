@@ -82,6 +82,7 @@ export function setupQueue(ctx) {
     local.lockedCount = 0;
     local.runStates = {};
     local.condSkipped = new Set(); // 飛ばしの灰色を消す（#291）
+    local.lastRun = null; // 2回目以降の速い再生の記録も消す（#743）
     S.drafts[step.stepId] = local.commands;
     saveDraft();
     local.fixOpened = false;

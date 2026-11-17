@@ -93,6 +93,8 @@ export function renderPlay(root, step) {
     // 失敗後に強調する命令の添字（info.cmdIndex。-1＝なし）と、ためしなおす直後のじっこう無効（#545）。
     failMark: -1,
     runCooldown: false,
+    // 前回のじっこう { commands, failStep }（Issue #743）。2回目以降の速い再生に使う。resetToFresh で null に戻す。
+    lastRun: null,
     // 不正解でtrueにし、「ためしなおす」以外の操作ボタン・命令チップの取り消しを封じる
     // （思考フローが他ボタンで乱れないようにする。Issue #106）。「ためしなおす」押下でのみ解除。
     locked: false,

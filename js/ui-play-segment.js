@@ -4,9 +4,9 @@
 // 変わる共有変数は ctx.mut（remainingEl）。必ず ctx.mut.x で読み書きする。
 // 他ファイルの関数は ctx.fn（drawBoard・finishRun・queue/fail/tray の各関数）を呼ぶ時点で引く。
 import { logEvent } from './events.js';
-import { vibrate, planRun, stepsBefore, isPause } from './ui-commands.js';
+import { vibrate, planRun, stepsBefore, isPause, fastSteps } from './ui-commands.js';
 import { play as playSfx } from './sfx.js';
-import { createStepper, autoAdvance, setBackDisabled } from './ui-step.js';
+import { createStepper, autoAdvance, setBackDisabled, STEP_DELAY_MS, FAST_STEP_DELAY_MS } from './ui-step.js';
 import { clearResultBubble } from './ui-reaction.js';
 
 // setupSegment が作る beginSegment・endSegment を bindRunButtons へ渡す（ctx の形は増やさない）。
@@ -56,6 +56,16 @@ export function setupSegment(ctx) {
       },
     });
     return local.stepper;
+  }
+
+  // 通常のじっこうの間隔（Issue #743）。前回と先頭から同じ手は速く、前回失敗した手の2手前からは等速。
+  // 前回の記録 local.lastRun を読んでから、今回の列と失敗の手（bumped の最初の手）で置き換える。
+  function delayForRun(stepper) {
+    const prev = local.lastRun;
+    const owner = stepper.result.stepOwner;
+    const fast = prev ? fastSteps(prev.commands, prev.failStep, local.commands, owner) : null;
+    local.lastRun = { commands: JSON.parse(JSON.stringify(local.commands)), failStep: stepper.result.bumped.findIndex(Boolean) };
+    return fast ? (i) => (fast[i] ? FAST_STEP_DELAY_MS : STEP_DELAY_MS) : undefined;
   }
 
   // endSegment(stepper): 区間の終わり。「とめる」で止まったなら止まった状態へ、そうでなければ判定へ。
@@ -108,13 +118,13 @@ export function setupSegment(ctx) {
     autoAdvance(stepper, { onDone: () => endSegment(stepper) });
   }
 
-  SEGMENTS.set(ctx, { beginSegment, endSegment });
+  SEGMENTS.set(ctx, { beginSegment, endSegment, delayForRun });
   Object.assign(ctx.fn, { resumeFromPause });
 }
 
 export function bindRunButtons(ctx) {
   const { local, bird, runBtn, stepBtn } = ctx;
-  const { beginSegment, endSegment } = SEGMENTS.get(ctx);
+  const { beginSegment, endSegment, delayForRun } = SEGMENTS.get(ctx);
 
   runBtn.addEventListener('click', () => {
     if (ctx.fn.retryClick()) return;
@@ -139,7 +149,7 @@ export function bindRunButtons(ctx) {
     ctx.fn.updateControls();
     const stepper = beginSegment();
     playSfx('run');
-    autoAdvance(stepper, { onDone: () => endSegment(stepper) });
+    autoAdvance(stepper, { onDone: () => endSegment(stepper), delayFor: delayForRun(stepper) });
   });
 
   // stepBtn: 1コマずつ実行。タップごとにstepperを1手だけ進める。最初のタップでstepperを

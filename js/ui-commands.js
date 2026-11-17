@@ -47,6 +47,17 @@ export function stepsBefore(commands, spec, limit) {
   return stepOwner.filter((o) => origIndex[o] < limit).length;
 }
 
+// 2回目以降のじっこうで速くする手（Issue #743）。手ごとの真偽の配列を返し、真＝速くする手。
+// k＝前回と今回の先頭から一致するチップ数（JSON の等値）。手 i が真になるのは stepOwner[i] < k で、かつ
+// 前回失敗していない（prevFailStep < 0）か、失敗した手の2手前より前（i < prevFailStep - 2）のとき。
+// prevCommands が null（1回目）なら全部偽。
+export function fastSteps(prevCommands, prevFailStep, commands, stepOwner) {
+  if (!prevCommands) return stepOwner.map(() => false);
+  let k = 0;
+  while (k < prevCommands.length && k < commands.length && JSON.stringify(prevCommands[k]) === JSON.stringify(commands[k])) k += 1;
+  return stepOwner.map((owner, i) => owner < k && (prevFailStep < 0 || i < prevFailStep - 2));
+}
+
 // 次の実行区間の計画。lockedCount=0（最初から）なら先頭から。lockedCount>0なら止まった地点
 // （前のlockedCount個の終点）から後ろ。stopIndex=nullは最後まで、数値は次の「とめる」の手前で止まる。
 export function planRun(commands, spec, lockedCount = 0) {

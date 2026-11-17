@@ -41,7 +41,7 @@ clearSequence = showClearSequence({ statusBar, controls, lockEl, host, gapEl, vi
 
 | 変えてよい | 変えてはいけない |
 | --- | --- |
-| label、heading、primary のボタン文言、controls・lockEl・host・gapEl（要素の指定） | 間の長さ（1500ms、reduced-motion は 1000ms） |
+| label、heading、primary のボタン文言、controls・lockEl・host・gapEl（要素の指定） | 間の長さ（800ms、reduced-motion も 800ms。#743） |
 | | ボタン高さ64px、背面の inert（外枠1つ） |
 | | ダイアログの見た目、星の大きさ20px |
 | | 紙吹雪の量・長さ、ダイアログ時だけ出すこと |
@@ -61,5 +61,5 @@ clearSequence = showClearSequence({ statusBar, controls, lockEl, host, gapEl, vi
 
 ## 禁止パターン
 
-部品の外で自前で組まない（検査は `test/forbidden-patterns.test.mjs`、定義は `docs/components.md`）。ダイアログの自前生成、待ち時間（1500・1000）の直書き、星サイズ20pxの直書き、`showSuccess`・紙吹雪・クリア記録・クリアログの直呼び。
+部品の外で自前で組まない（検査は `test/forbidden-patterns.test.mjs`、定義は `docs/components.md`）。ダイアログの自前生成、待ち時間（1500・1000・800）の直書き、星サイズ20pxの直書き、`showSuccess`・紙吹雪・クリア記録・クリアログの直呼び。
 件数は基準ファイル `test/forbidden-baseline.json` で管理し、増減とも赤になる（更新手順は `docs/components.md`）。例外は行末に `// allow-component:<id> 理由`（理由は必須）。
