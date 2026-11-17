@@ -110,12 +110,12 @@ export default async function run({ page, check }) {
     await check(`${tag} intro(再開): そうさほうほうが画面内・64px以上`, () => inViewTall('[data-action="how-to"]', w, h));
     await check(`${tag} intro(再開): バー内のボタン間隔が16px以上`, barGapsOk);
 
-    // --- まとめ：つぎへ・おわる（最後に回す。クリア記録が残るため） ---
+    // --- まとめ：つぎへ・マップへ（最後に回す。クリア記録が残るため） ---
     await page.evaluate((id) => localStorage.removeItem(`steamkids.resume.${id}`), LESSON);
     await clearLesson(page, LESSON);
     await page.waitForFunction(() => document.querySelector('#stage')?.dataset.step === 'summary');
     await check(`${tag} まとめ: つぎへが画面内・64px以上`, () => inViewTall('[data-action="next-lesson"]', w, h));
-    await check(`${tag} まとめ: おわるが画面内・64px以上`, () => inViewTall('[data-action="finish"]', w, h));
+    await check(`${tag} まとめ: マップへが画面内・64px以上`, () => inViewTall('[data-action="back-to-picker"]', w, h));
     await check(`${tag} まとめ: バー内のボタン間隔が16px以上`, barGapsOk);
   }
 }

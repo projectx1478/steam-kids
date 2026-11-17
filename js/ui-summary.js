@@ -181,20 +181,19 @@ export function renderSummary(root) {
 
   }
 
-  // 「つぎへ」（主・右）と「おわる」（小・左）は下端バー（.sk-bottom-bar。Issue #551）に置く。「おわる」はタイトルへ戻る
-  // （#257の「タイトルへ」と同じ行き先）。「ほかのレッスンへ」は本文末に残す。
+  // 出口は「つぎへ」（主・右）と「マップへ」（副・左）の2つ。どちらも下端バー（.sk-bottom-bar。Issue #551・#740）に置く。
+  // 単元の最後（nextId 無し）では「マップへ」だけを主ボタンの見た目で置く。
   const nextId = S.unit?.lessonIds[S.unit.lessonIds.indexOf(lessonId) + 1];
   const bar = document.createElement('div');
   bar.className = 'sk-bottom-bar';
   bar.dataset.role = 'bottom-bar';
-  const endBtn = createPrimaryButton('おわる', () => (location.href = withDev('./index.html')), 'finish');
+  const toPicker = createPrimaryButton('マップへ', () => (location.href = mapUrl()), 'back-to-picker');
   if (nextId) {
-    endBtn.classList.add('sk-bar-sub');
-    bar.appendChild(endBtn);
+    toPicker.classList.add('sk-bar-sub');
+    bar.appendChild(toPicker);
     bar.appendChild(createPrimaryButton('つぎへ', () => (location.href = withDev(`./index.html?lesson=${nextId}`)), 'next-lesson'));
   } else {
-    bar.appendChild(endBtn);
+    bar.appendChild(toPicker);
   }
-  const toPicker = createPrimaryButton('ほかのレッスンへ', () => (location.href = mapUrl()), 'back-to-picker');
-  root.append(toPicker, bar);
+  root.append(bar);
 }

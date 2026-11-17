@@ -59,8 +59,10 @@ export default async function run({ page, check }) {
   await check('空き枠は出ない（Issue #742）', async () => (await page.$$('[data-action="slot-pick"][data-occupied="false"]')).length, 0);
   await check('最終プレイ日がM/Dで出る', async () => /^\d{1,2}\/\d{1,2}$/.test(await page.textContent('[data-slot="0"] .slot-played')));
   await page.click('[data-slot="1"]');
-  await page.click('[data-track-id="robot"]');
-  await check('つづきからは単元マップへ(レッスンへ直接飛ばない)', async () => screen(page), 'picker');
+  await page.waitForFunction(() => document.querySelector('#stage')?.dataset.step === 'intro');
+  await check('Bを選ぶとBの直前（先頭）のレッスンの intro が開く（#740）', async () => page.url().includes(`lesson=${FIRST}`));
+  await page.goBack();
+  await page.waitForSelector('#stage[data-screen="picker"]');
   await check('Bは先頭だけにパルス', async () => page.$$eval('.next-pulse', (els) => els.map((e) => e.dataset.lessonId)), [FIRST]);
   await page.goto('/index.html?view=map');
   await check('次回起動もBがアクティブ(Aのクリアが混ざらない)', async () => page.$$eval('.lesson-stamp', (els) => els.length), 0);

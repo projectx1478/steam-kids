@@ -41,10 +41,11 @@ export default async function run({ page, check }) {
 
   // --- タイトルからつづきからで同じスロットを選べる ---
   await page.click('[data-action="title-continue"]');
-  await check('つづきからでスロット選択へ遷移', async () => page.getAttribute('#stage', 'data-screen'), 'slots');
-  await page.click('[data-action="slot-pick"][data-slot="0"]');
-  await page.click('[data-track-id="robot"]');
-  await check('スロット選択後は選択画面へ遷移', async () => page.getAttribute('#stage', 'data-screen'), 'picker');
+  await page.waitForFunction(() => document.querySelector('#stage')?.dataset.step === 'intro');
+  await check('つづきから（スロット1つ）で intro へ直行（#740）', async () => page.getAttribute('#stage', 'data-step'), 'intro');
+  await page.goBack();
+  await page.waitForSelector('#stage[data-screen="picker"]');
+  await check('戻るで選択画面へ', async () => page.getAttribute('#stage', 'data-screen'), 'picker');
   await check('スロット0の名前「たろう」が保存されている', async () => page.evaluate(() => JSON.parse(localStorage.getItem('steamkids.profile')).label), 'たろう');
   await check('保存データ(cmd-01クリア)が消えていない', async () => (await page.$$('[data-lesson-id="cmd-01-susumu"]')).length > 0);
 

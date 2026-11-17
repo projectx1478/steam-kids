@@ -20,10 +20,12 @@ export default async function run({ page, check }) {
   await page.goto('/index.html');
   await check('データがあればつづきからが出る', async () => (await page.$$('[data-action="title-continue"]')).length, 1);
   await page.click('[data-action="title-continue"]');
-  await check('つづきから後はスロット選択へ遷移する', async () => page.getAttribute('#stage', 'data-screen'), 'slots');
-  await page.click('[data-action="slot-pick"][data-slot="0"]');
-  await page.click('[data-track-id="robot"]');
-  await check('スロット選択後は選択画面へ遷移する', async () => page.getAttribute('#stage', 'data-screen'), 'picker');
+  // 使用中スロットが1つなら、スロット選択を飛ばして直前（なければ先頭の未クリア）のレッスンの intro が開く（Issue #740）
+  await page.waitForFunction(() => document.querySelector('#stage')?.dataset.step === 'intro');
+  await check('つづきから後はスロット選択を飛ばして intro へ（#740）', async () => page.getAttribute('#stage', 'data-step'), 'intro');
+  await page.goBack();
+  await page.waitForSelector('#stage[data-screen="picker"]');
+  await check('戻るで選択画面（単元マップ）へ戻る', async () => page.getAttribute('#stage', 'data-screen'), 'picker');
   await check('選択画面のレッスンボタンが表示される', async () => (await page.$$('.lesson-pick-btn')).length, 11);
 
   // ?view=map / ?lesson=はタイトルを経由しない

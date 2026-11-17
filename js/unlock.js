@@ -19,6 +19,18 @@ export function firstPendingId(order, clearedIds) {
   return order.find((id) => !clearedIds.has(id)) ?? null;
 }
 
+// タイトル「つづきから」で開くレッスン（Issue #740）。ts が最大の event の lessonId が未クリアで order にあればそれ、
+// そうでなければ firstPendingId。全クリアなら null。
+export function continueLessonId(events, order, clearedIds) {
+  let last = null;
+  for (const e of events) {
+    if (last === null || e.ts > last.ts) last = e;
+  }
+  const id = last?.lessonId;
+  if (id != null && order.includes(id) && !clearedIds.has(id)) return id;
+  return firstPendingId(order, clearedIds);
+}
+
 // 「おわる」後のタイトルで手がかりを出すレッスン（Issue #282）。出さないときは null。
 export function newHintLesson(order, clearedIds, lastShownId) {
   if (clearedIds.size === 0) return null;
