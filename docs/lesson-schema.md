@@ -388,6 +388,25 @@ MustMatterは、ギミックモジュールの`strip(spec)`（ギミックを除
 - 単元内の全レッスンで `clear` イベントが記録されると、単元マップにスタンプ・旗が表示される
   （端末内判定・同期しない。`js/ui-picker.js`）
 
+## `play`の`role`と`note`（面の設計票。Issue #726）
+
+`kind:"play"`のstepに任意で付ける、開発者向けの設計票。子どもの画面には出さない（jsは読まない。`note`はDOMに現れない）。
+
+- `role`：`deau`｜`tsukau`｜`hineru`｜`mazeru`｜`hiraku`（であう→つかう→ひねる→まぜる→ひらく。この順位で並び、減らない。同じ役割の連続は可）
+- `note`：全角60字以内の非空文字列。書式は「気づく：…／素直：…」の2文（検査は字数と空でないことのみ）。例：`気づく：氷の上は端まで進む／素直：数えた手数で止めると外れる`
+- 揃い：いずれかのplayに`role`か`note`があれば、全playに両方を付ける
+- 最短手数の非減少（`難易度の順序`）は、前後とも`role`が`deau`・`tsukau`のgrid-runtimeの面の組だけに適用する。どちらかが`hineru`・`mazeru`・`hiraku`なら比べない。`role`が無いレッスンは全組を比べる。他の型（sortorder・seesaw・egg）の非減少検査は変えない
+- `stageGen`を持つレッスンには書かない（生成が上書きする）
+- K1〜K3・候補数は保存しない（`analyze-board`が計算する）。`note`はひらがな・漢字・否定語の検査の対象外
+
+体験票（#723）の面ごとの票との対応：
+
+| 票の列 | JSONの欄 |
+|---|---|
+| 役割 | `role` |
+| 気づくこと＋素直にやると何が起きるか | `note`（「気づく：…／素直：…」） |
+| K1〜K3 または候補数 | 保存しない（検査が計算） |
+
 ## 検証ルール（生成後に自動チェック）
 
 `npm run validate:lessons`（`tools/validate-lessons.mjs`）が `lessons/*.json` を全件チェックする。
@@ -458,6 +477,10 @@ MustMatterは、ギミックモジュールの`strip(spec)`（ギミックを除
 - `rollBalls` を持つ play は、たまを外しおとし穴を壁にした盤の最短が `maxCommands` より多いこと（転がす球の必須性）
 - `rollBalls` を持つ play は、start から届くどの状態からもゴールへ着けること（詰みの検査。5万状態で打ち切り、打ち切りは不合格）
 - **検証NGの場合は再生成する。手で通さない**
+- `role の揃い`：いずれかのplayに`role`か`note`があれば全playに両方が要る（#726）
+- `role の値`：`role`は`deau`・`tsukau`・`hineru`・`mazeru`・`hiraku`のみ。`note の字数`：`note`は空でない60字以内（#726）
+- `role の順序`：playの並びで`role`の順位が減らない（#726）
+- `難易度の順序`：最短手数の非減少。`role`付きは前後とも`deau`・`tsukau`の組だけ比べる（#726）
 - `lessons/index.json`: 参照する `lessonId` が実在すること、レッスン本体の `unitId` と一致すること、
   同一 `lessonId` を複数の `unit` から参照しないこと
 
