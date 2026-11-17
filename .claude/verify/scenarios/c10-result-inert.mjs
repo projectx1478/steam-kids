@@ -37,7 +37,7 @@ export default async function run({ page, check }) {
     });
   const clean = { dialogs: 0, stageRelative: false, inertCount: 0 };
 
-  // --- play: 間（1.5秒）の最中 ---
+  // --- play: 間（0.8秒）の最中 ---
   await enterPlay(page, 'cmd-01-susumu');
   const upBox = await (await page.$('[data-command="up"]')).boundingBox();
   await clearByStepping(page);

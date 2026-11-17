@@ -138,12 +138,13 @@ export const rollBalls = {
 
   // result.rolls[index] を読み、球を1マス動かしながら180度回す。fill があれば移動後に沈めて埋まった穴へ替える。
   // reduced-motion では回転・沈みを省き、位置と穴の絵を即時に替える。
-  onStep({ result, index }) {
+  onStep({ result, index, speed = 1 }) {
     const move = result?.rolls?.[index];
     if (!move || !move.to) return;
     const el = [...document.querySelectorAll('[data-roll-ball]')].find((e) => e.dataset.rollX === String(move.from.x) && e.dataset.rollY === String(move.from.y));
     if (!el) return;
     const reduce = reduced();
+    const moveMs = MOVE_MS * speed;
     const dx = move.to.x - move.from.x;
     const dy = move.to.y - move.from.y;
     const dir = dx > 0 ? 'right' : dx < 0 ? 'left' : dy > 0 ? 'down' : 'up';
@@ -156,14 +157,14 @@ export const rollBalls = {
     el.dataset.rollX = String(move.to.x);
     el.dataset.rollY = String(move.to.y);
     if (m) {
-      el.style.transition = reduce ? 'none' : `transform ${MOVE_MS}ms ease`;
+      el.style.transition = reduce ? 'none' : `transform ${moveMs}ms ease`;
       el.style.transform = `translate(${Number(m[1]) + ox}px, ${Number(m[2]) + oy}px)`;
     }
     const body = el.querySelector('[data-roll-body]');
     if (body && !reduce) {
       const rot = Number(body.dataset.rot || 0) + SPIN[dir];
       body.dataset.rot = String(rot);
-      body.style.transition = `transform ${MOVE_MS}ms linear`;
+      body.style.transition = `transform ${moveMs}ms linear`;
       body.style.transform = `rotate(${rot}deg)`;
     }
     if (move.fill === null || move.fill === undefined) return;
@@ -182,7 +183,7 @@ export const rollBalls = {
       if (!el.isConnected) return;
       el.animate([{ opacity: 1, scale: '1' }, { opacity: 0, scale: '0.3' }], { duration: FALL_MS, easing: 'ease-in', fill: 'forwards' });
       setTimeout(fillPit, FALL_MS);
-    }, MOVE_MS);
+    }, moveMs);
   },
 
   // 動かせなかった球（target のマスにある球）を小さく震わせる。reduced-motion では何もしない。

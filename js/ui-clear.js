@@ -14,8 +14,8 @@ import { create as createConfetti } from './vendor/confetti.js';
 
 const CONFETTI_COUNT = 40;
 const CONFETTI_TICKS = 110; // 約60fpsで約1.8秒
-const RESULT_GAP_MS = 1500;
-const RESULT_GAP_REDUCED_MS = 1000;
+const RESULT_GAP_MS = 800;
+const RESULT_GAP_REDUCED_MS = 800;
 const GAP_FRAME_CLASSES = ['min-h-[64px]', 'items-center', 'rounded-2xl', 'border-2', 'border-dashed', 'border-slate-300'];
 
 // recordClear({ isFinal, stageIndex }): クリアの記録。最終は clear→markLessonCleared→clearResume、

@@ -136,7 +136,7 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 `showCommands`（任意・boolean）を`true`にすると、盤面の上に命令チップ列を表示し実行中のチップを
 光らせる。`fixFrom`（任意・`commands`と同じ形状の配列）を指定すると、先にこの誤った命令列を
 実行して失敗させ、一呼吸おいてから正しい`commands`へ差し替えて再実行する（「なおす」のデモ。
-`fixFrom`はそのまま実行してもゴールに到達しない内容にする）。reduced-motion時も1手0.6秒の
+`fixFrom`はそのまま実行してもゴールに到達しない内容にする）。reduced-motion時も1手0.6秒（2回目以降の同じ手は0.3秒。#743）の
 コマ送りで動かし、静止画にはしない。未指定の教材型は表示しない（Issue #97・#104）。
 
 `type: "predict-slider"`のレッスンの intro は`demo`に`{ kind: "seesaw", seesaw, solution }`を持てる（`seesaw`・`solution`は play と同じ形。mover は単体で`robots`・`start`だけ、`right`は任意）。本番 play のどのステージとも同じ盤にしない。うかぶ面（buoyancy）と grid 教材には書けない。

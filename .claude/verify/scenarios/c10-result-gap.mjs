@@ -96,7 +96,7 @@ export default async function run({ page, check }) {
     1
   );
 
-  // --- reduced-motion: 間は1000ms（約0.5秒後はまだ「…」、約1.3秒後には結果行） ---
+  // --- reduced-motion: 間は800ms（約0.5秒後はまだ「…」、約1.3秒後には結果行） ---
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await enterPlay(page, 'cmd-01-susumu');
   for (const dir of ['up', 'up', 'left', 'left']) await page.click(`[data-command="${dir}"]`);

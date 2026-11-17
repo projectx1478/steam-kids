@@ -70,7 +70,7 @@
 | id | 部品 | 項目 | 定義 |
 | --- | --- | --- | --- |
 | dialog | クリア演出 | ダイアログの自前生成 | `js/ui-clear.js` 以外で、`createElement('dialog')`・`.showModal(`・`.show(`・`result-row`・`result-dialog` |
-| wait | クリア演出 | 待ち時間の直書き | `js/ui-clear.js` を import するファイルで、`setTimeout(…, 1500)`・`setTimeout(…, 1000)`、`const RESULT_GAP…` の再定義 |
+| wait | クリア演出 | 待ち時間の直書き | `js/ui-clear.js` を import するファイルで、`setTimeout(…, 1500)`・`setTimeout(…, 1000)`・`setTimeout(…, 800)`、`const RESULT_GAP…` の再定義 |
 | star | クリア演出 | 星サイズの直書き | `tailwind.src.css` の `.sk-clear-` を含まないルールの `width/height: 20px`、`js/` の `style.width/height = '20px'` |
 | showsuccess | クリア演出 | `showSuccess` の直呼び | `js/ui-clear.js` 以外での `showSuccess(` の呼び出し（定義行・import 行・コメント行は数えない） |
 | confetti | クリア演出 | 紙吹雪の直呼び | `view.confetti(`（`?.` つきも）・`screenConfetti(` の呼び出し（同上） |

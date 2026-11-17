@@ -39,7 +39,7 @@ const importsClear = (src) => /import\s[^;]*['"][^'"]*ui-clear(\.js)?['"]/.test(
 // 1) ダイアログの自前生成（.show( はファイル単位では要素を区別できないので全部対象。誤検知は allow-component:dialog で逃がす）
 const DIALOG_RES = [/createElement\(\s*['"]dialog['"]\s*\)/, /\.showModal\(/, /\.show\(/, /result-row/, /result-dialog/];
 // 2) 待ち時間の直書き（ui-clear.js を import するファイルのみ）
-const WAIT_RES = [/setTimeout\([^;]*,\s*(1500|1000)\s*\)/, /const\s+RESULT_GAP/];
+const WAIT_RES = [/setTimeout\([^;]*,\s*(1500|1000|800)\s*\)/, /const\s+RESULT_GAP/];
 // 3) 星サイズの直書き
 const STAR_JS_RE = /style\.(width|height)\s*=\s*['"]20px['"]/;
 const STAR_CSS_RE = /(?<![-\w])(width|height)\s*:\s*20px/;

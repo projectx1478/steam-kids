@@ -109,8 +109,8 @@ export function createZoom({ boardArea, boardWrap, direct = false }) {
       }
       if (enabled && view && typeof view.moveTo === 'function') {
         const orig = view.moveTo.bind(view);
-        view.moveTo = (pos) => {
-          orig(pos);
+        view.moveTo = (pos, speed) => {
+          orig(pos, speed);
           ctrl.follow(pos);
         };
       }
