@@ -9,7 +9,7 @@ import { play as playSfx } from './sfx.js';
 export function setRetryButton(btn, mode, { runLabel, emphasis = [] }) {
   if (mode === 'retry') {
     btn.dataset.action = 'retry';
-    btn.textContent = '↺\nためしなおす';
+    btn.textContent = '↺\nもういちど';
     btn.classList.remove('bg-emerald-500');
     btn.classList.add('bg-amber-500', ...emphasis);
   } else {

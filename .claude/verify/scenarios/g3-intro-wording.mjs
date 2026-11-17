@@ -86,7 +86,7 @@ export default async function run({ page, check }) {
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="retry"]', { timeout: 4000 });
   labels.retry = await text(page, '[data-action="retry"]');
-  await check('retry: 文言は「↺ ためしなおす」', async () => labels.retry, '↺ためしなおす');
+  await check('retry: 文言は「↺ もういちど」', async () => labels.retry, '↺もういちど');
 
   // --- ① replay（クリア後。clearStage は next を押すので使わない） ---
   await page.goto('/index.html?lesson=cmd-01-susumu');
@@ -96,7 +96,7 @@ export default async function run({ page, check }) {
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="replay"]', { timeout: 15000 });
   labels.replay = await text(page, '[data-action="replay"]');
-  await check('replay: 文言は「ためしなおす」', async () => labels.replay, 'ためしなおす');
+  await check('replay: 文言は「↺ もういちど」', async () => labels.replay, '↺ もういちど');
 
   // demo-replay は ② で読んだ文言（cmd-01-susumu の intro）を再取得
   await page.goto('/index.html?lesson=cmd-01-susumu');

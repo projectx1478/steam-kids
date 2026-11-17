@@ -11,8 +11,8 @@ export const EGG_TEXT = {
   fall: 'たまごが おちちゃった',
   wrongNest: 'べつの すに はいったよ',
   timeout: 'たまごが ぐるぐる まわったよ',
-  try: 'ためす',
-  undo: 'もどす',
+  try: '▶ ためす',
+  undo: '↶ ひとつ もどす',
 };
 
 const DX = [0, -1, 0, 1];

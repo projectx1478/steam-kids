@@ -209,7 +209,7 @@ export function showClearSequence({
   }
   showSuccess(null, { bird, view, restore, confetti: false, ...(label ? { label } : {}) });
   const primaryBtn = createPrimaryButton(primary.label, primary.action, primary.id);
-  const replayBtn = createPrimaryButton('ためしなおす', () => {
+  const replayBtn = createPrimaryButton('↺ もういちど', () => {
     // クリア曲から操作画面の曲へ戻す（Issue #541。replay は renderStep を通らない）。
     setScene(sceneFor('play'));
     return replay();

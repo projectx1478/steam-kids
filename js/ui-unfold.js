@@ -83,12 +83,12 @@ export function renderUnfold(root, step) {
   runBtn.type = 'button';
   runBtn.dataset.action = 'run';
   runBtn.className = 'so-try';
-  runBtn.textContent = 'ためす';
+  runBtn.textContent = '▶ ためす';
   const resetBtn = document.createElement('button');
   resetBtn.type = 'button';
   resetBtn.dataset.action = 'reset';
   resetBtn.className = 'so-reset';
-  resetBtn.textContent = 'やりなおす';
+  resetBtn.textContent = '↺ もどす';
 
   const msgEl = document.createElement('div');
   msgEl.className = 'uf-msg';
@@ -177,7 +177,7 @@ export function renderUnfold(root, step) {
     clearSequence?.dispose();
     clearSequence = null;
     actionsEl.innerHTML = '';
-    actionsEl.append(runBtn, resetBtn);
+    actionsEl.append(resetBtn, runBtn);
   }
 
   function finishRun() {
