@@ -284,7 +284,7 @@ export async function renderUnitMap(stage, units, onPick, onBack) {
 
   const heading = document.createElement('p');
   heading.className = 'text-2xl font-bold text-center py-4';
-  heading.textContent = 'れっすんをえらぼう';
+  heading.textContent = 'レッスンを えらぼう';
   stage.appendChild(heading);
 
   const { lessons: lessonStatus } = summarize(getEvents(), Date.now());
