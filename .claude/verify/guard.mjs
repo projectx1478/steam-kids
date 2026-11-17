@@ -8,6 +8,6 @@ export function guardCiOnly(config) {
   if (process.env.CI || process.env.E2E_LOCAL === '1') return;
   console.error('E2Eは手元で実行しない。GitHub Actionsで実行する（docs/testing-guidelines.md）。');
   if (typeof ciOnly === 'object' && ciOnly.hint) console.error(ciOnly.hint);
-  console.error('明示的に手元実行を指示された場合のみ E2E_LOCAL=1 を付ける');
+  console.error('E2E_LOCAL=1 を付けてよいのは、ユーザーの明示指示か、CI・夜間失敗の原因調査で該当シナリオ1本を動かすときのみ');
   process.exit(2);
 }
