@@ -52,3 +52,25 @@ Service Workerの配信経路は単体テスト`test/service-worker.test.mjs`（
 - シナリオ内で`browser.newContext()`を呼ぶときは`{ serviceWorkers: 'block' }`を必ず付ける。
   無いとSW登録→`controllerchange`→`location.reload()`が操作中に割り込み間欠失敗する（#128）
 - 無操作タイマー等の時間検証は`page.clock.install()`＋`fastForward`（Playwright 1.63）
+
+## あばれ役（`rough-grid`。Issue #729）
+
+AIを使わず、grid-runtime のレッスンを乱暴に操作して機械で判定するE2Eシナリオ（`.claude/verify/scenarios/rough-grid.mjs`）。判定は純関数`tools/playtest/rough-judge.mjs`（単体テスト`test/rough-judge.test.mjs`）。`e2e-run`・夜間で回る。出力は全件を`.verify/rough/<lessonId>.json`（`{rule, where, detail}[]`。成果物に入る）、合否は未知の件数のcheck。`where`＝`<lessonId>/<stepId>/<幅>x<高さ>/<操作>`。答え（`solution`）は出力に入れない。
+
+| 規則 | 見るもの |
+| --- | --- |
+| R1 はみ出し | `#app`内の見える文字要素の`scrollWidth > clientWidth + 1` |
+| R2 重なり | 見える`button, [data-action], [data-command]`どうしの交差面積1px²以上（祖先・子孫を除く） |
+| R3 小さすぎ | 同じ要素の短辺48px未満（64pxの基準は既存シナリオ） |
+| R4 結果が2つ同時 | 見える`[data-result]`＋`[data-hint]`が2個以上 |
+| R5 盤の寸法変化 | クリア前後の`.grid-board`の幅か高さが10%超変わる |
+| R6 飛び | 実行中0.1秒おきの`.grid-player`中心が1マス以上動く（`warps`のある面は見ない） |
+| R7a/R7b | リロード後に同じplayか「つづきから」がある／端末の戻るで同じoriginの画面に留まる |
+| R8 暗幕 | クリア後3秒、ダイアログが盤の30%以上を覆う |
+| R9 隠れ | 要素の中心が画面外、または`elementFromPoint`が自分・子孫でない |
+| R10 内部ID | 保護者画面の見える文字に`/^[stp]\d+$/`の語 |
+
+静的な点検（R1〜R3・R9）は intro・各play（2.5秒後）・summary を1280×800・360×640・1024×600で見る。乱暴な操作（開始直後の実行・連打・実行中のメニュー・クリア）は1280×800のみ。
+
+- **既知リスト**：`tools/playtest/rough-known.json`（`[{rule, where, issue}]`）。mainで出た件は、1件ずつバグIssueを起票して`issue`に番号を書く。rule・whereが一致する件は合否から除く（直したら行を消す）
+- **レッスンの足し方**：シナリオ冒頭の`LESSONS`配列にレッスンIDを足す（grid-runtimeのみ。凍結fixtureのレッスンは`page.unroute`が要る）
