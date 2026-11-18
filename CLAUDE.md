@@ -14,7 +14,7 @@ Claude Code固有の追加ルールのみを記載する（共通ルールはAGE
 GitHub操作ツールは都度ToolSearchせず初回にまとめて取得する。
 
 ## hooks
-`.claude/settings.json`のPreToolUse/PostToolUseフックが`.claude/hooks/check-file-size.sh`（処理本体は全ツール共通の`scripts/check-file-size.sh`）を呼び、ファイルサイズ・ドキュメント字数超過を警告する（ブロックはしない）。
+`.claude/settings.json`のPreToolUse/PostToolUseフックが`.claude/hooks/check-file-size.sh`（処理本体は全ツール共通の`scripts/check-file-size.sh`）を呼び、ファイルサイズ・ドキュメント字数超過を警告する（ブロックはしない）。PreToolUse(Read|Bash)の`.claude/hooks/guard-large-read.mjs`は、300行超のファイルの範囲指定なしの読み込みを拒否する（offset/limitを明示すれば通る）。
 
 ## 回答方針
 必要最小限の回答とし、コード全文・長い説明は要求時のみ行う。
