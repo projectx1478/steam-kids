@@ -1,4 +1,4 @@
-// guard-large-read.mjs: PreToolUse(Read|Bash)。300行を超えるファイルの丸ごと読み込みを拒否する（Issue #300）。
+// guard-large-read.mjs: PreToolUse(Read|Bash)。300行を超えるファイルの丸ごと読み込みを拒否する（steam-kids#300から配布。project-template#122）。
 // - Read: offset・limitのどちらも無い呼び出しを拒否（画像・PDF・ノートブック・バイナリは対象外）
 // - Bash: cat / Get-Content / gc / type の単純な丸ごと出力を拒否（パイプ・リダイレクト・-TotalCount等の範囲指定は許可）
 // 拒否はJSON出力（permissionDecision: "deny"。公式: https://code.claude.com/docs/en/hooks）。
@@ -60,7 +60,8 @@ function deny(reason) {
 
 const advice = (file) =>
   `${path.basename(file)} は${MAX_LINES}行を超えており、全文は読めません（${MAX_LINES}行超）。` +
-  `grep -n で位置を出し、Readは offset/limit、Bashは sed -n 'a,bp' や head/tail で必要な範囲だけ読んでください（AGENTS.md トークン方針）。`;
+  `grep -n で位置を出し、Readは offset/limit、Bashは sed -n 'a,bp' や head/tail で必要な範囲だけ読んでください（AGENTS.md トークン方針）。` +
+  `全体構造の把握が必要なら、Readに offset: 1 と limit: <行数> を明示すれば読めます。`;
 
 function checkBash(command, cwd) {
   let base = cwd || process.cwd();
