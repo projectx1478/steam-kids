@@ -238,7 +238,7 @@ export default async function run({ page, check }) {
     const urlSame = new URL(page.url()).searchParams.get('lesson') === lessonId;
     const sameStep = (await page.getAttribute('#stage', 'data-step-id')) === p0.stepId;
     const resume = (await page.$('[data-action="resume"]')) !== null;
-    if (!(urlSame && (sameStep || resume))) addOnce('R7a', `${p0.stepId}/1280x800/リロード`, `url=${urlSame} step=${sameStep} resume=${resume}`);
+    if (!(urlSame && (sameStep || resume))) addOnce('R7a', `${p0.stepId}/1280x800/リロード`, `url=${urlSame} step=${sameStep} now=${await page.getAttribute('#stage', 'data-step-id')}/${await page.getAttribute('#stage', 'data-step')} resume=${resume}`);
 
     await startLesson(lessonId);
     await toPlay();
@@ -270,12 +270,8 @@ export default async function run({ page, check }) {
   }
   for (const [rule, label] of Object.entries(RULE_NAMES)) {
     const mine = unknown.filter((f) => f.rule === rule);
-    // 失敗時は未知の件を全体のラベルへ並べる（ハーネスの失敗出力が件数で切れても見えるように）。
-    const list = mine.length ? `（${[...new Set(mine.map((f) => `${f.where}:${f.detail}`))].slice(0, 8).join(' / ')}）` : '';
-    await check(`${rule} ${label} 全体${list}`, async () => mine.length, 0);
-    for (const where of new Set(mine.map((f) => f.where))) {
-      const detail = mine.find((f) => f.where === where).detail;
-      await check(`${rule} ${label} ${where}（${detail}）`, async () => mine.filter((f) => f.where === where).length, 0);
-    }
+    // 失敗時は未知の件（where:detail）を規則のラベルへ並べる。ハーネスの失敗出力は5行で切れるため、規則ごとに1つのcheckにまとめる。
+    const list = mine.length ? `（${[...new Set(mine.map((f) => `${f.where}:${f.detail}`))].slice(0, 12).join(' / ')}）` : '';
+    await check(`${rule} ${label}${list}`, async () => mine.length, 0);
   }
 }
