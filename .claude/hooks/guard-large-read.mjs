@@ -4,9 +4,9 @@
 // 拒否はJSON出力（permissionDecision: "deny"。公式: https://code.claude.com/docs/en/hooks）。
 // 既存のcheck-file-size.sh（警告のみ・allow）とは並列で動き、denyが1つでもあれば拒否される。
 // どんな失敗でも読み込みを止めない（例外時は何も出さず終了＝判断なし）。
-import { readFileSync, existsSync, statSync, openSync, readSync, closeSync } from 'node:fs';
+import { readFileSync, existsSync, statSync, openSync, readSync, closeSync, realpathSync } from 'node:fs';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 
 const MAX_LINES = 300;
 const SKIP_EXT = /\.(png|jpe?g|gif|webp|bmp|ico|pdf|ipynb|svgz?|woff2?|ttf|zip|gz|mp[34]|wav)$/i;
@@ -90,7 +90,11 @@ function checkBash(command, cwd) {
   return null;
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+function isMain() {
+  try { return realpathSync(process.argv[1]) === fileURLToPath(import.meta.url); } catch { return false; }
+}
+
+if (isMain()) {
   try {
     const input = JSON.parse(readFileSync(0, 'utf-8'));
     const { tool_name: tool, tool_input: ti = {}, cwd } = input;
