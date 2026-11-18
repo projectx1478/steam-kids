@@ -31,6 +31,31 @@ import { validateUnfold } from './unfold.mjs';
 import { validateEgg } from './egg.mjs';
 import { checkRead } from './read.mjs';
 
+// 面の設計票（play の role・note。Issue #726）。順位は deau=0 … hiraku=4。
+const ROLE_RANK = { deau: 0, tsukau: 1, hineru: 2, mazeru: 3, hiraku: 4 };
+const ROLE_COMPARE = new Set(['deau', 'tsukau']);
+function checkRoles(playSteps, add) {
+  if (!playSteps.some((s) => 'role' in s || 'note' in s)) return;
+  let prevRank = -1;
+  for (const s of playSteps) {
+    if (!('role' in s) || !('note' in s)) {
+      add('role の揃い', `stepId="${s.stepId}" に role と note の両方が要る（どれかの面に付けたら全play面に付ける）`);
+    }
+    if ('role' in s) {
+      if (!Object.prototype.hasOwnProperty.call(ROLE_RANK, s.role)) {
+        add('role の値', `stepId="${s.stepId}" の role が不正（${Object.keys(ROLE_RANK).join('・')} のいずれか）`);
+      } else {
+        const rank = ROLE_RANK[s.role];
+        if (rank < prevRank) add('role の順序', `stepId="${s.stepId}" の role(${s.role}) が前の面より前の役割に戻っている`);
+        prevRank = Math.max(prevRank, rank);
+      }
+    }
+    if ('note' in s && (typeof s.note !== 'string' || s.note.trim() === '' || [...s.note].length > 60)) {
+      add('note の字数', `stepId="${s.stepId}" の note は空でない60字以内の文字列である必要がある`);
+    }
+  }
+}
+
 export function validateLesson(fileName, data, longTrialIds = []) {
   const errors = [];
   const add = (rule, detail) => errors.push(`${fileName}: ${rule}: ${detail}`);
@@ -108,6 +133,7 @@ export function validateLesson(fileName, data, longTrialIds = []) {
 
   // playは2〜4個（だんだん難易度を上げる複数ステージ構成。Issue #104）。長尺試作の一覧IDだけ2〜8個（Issue #319）。
   const playSteps = steps.filter((s) => s.kind === 'play');
+  checkRoles(playSteps, add);
   if (data.type === 'sort-order') {
     validateSortOrder(playSteps, add, isLong);
     return errors;
@@ -317,7 +343,11 @@ export function validateLesson(fileName, data, longTrialIds = []) {
   for (let i = 1; i < stageDistances.length; i += 1) {
     const prev = stageDistances[i - 1];
     const cur = stageDistances[i];
-    if (prev !== null && cur !== null && cur !== Infinity && prev !== Infinity && cur < prev) {
+    // 前後とも role が deau・tsukau の面の組だけ比べる（role の無い面は今まで通り全組。Issue #726）。
+    const prevRole = playSteps[i - 1].role;
+    const curRole = playSteps[i].role;
+    const roleExempt = (prevRole !== undefined || curRole !== undefined) && !(ROLE_COMPARE.has(prevRole) && ROLE_COMPARE.has(curRole));
+    if (!roleExempt && prev !== null && cur !== null && cur !== Infinity && prev !== Infinity && cur < prev) {
       add(
         '難易度の順序',
         `stepId="${playSteps[i].stepId}" の最短(${cur})がstepId="${playSteps[i - 1].stepId}"の最短(${prev})より短い` +
