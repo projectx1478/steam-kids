@@ -1,1 +1,6 @@
-[]
+[
+  { "rule": "R1", "where": "cmd-01-susumu/1280x800/s2", "issue": 771 },
+  { "rule": "R1", "where": "cmd-01-susumu/360x640/s2", "issue": 771 },
+  { "rule": "R1", "where": "cmd-01-susumu/1024x600/s2", "issue": 771 },
+  { "rule": "R2", "where": "cmd-01-susumu/1024x600/s1", "issue": 772 }
+]
