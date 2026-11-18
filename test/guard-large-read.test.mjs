@@ -2,9 +2,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, mkdirSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { countLinesUpTo } from '../.claude/hooks/guard-large-read.mjs';
 
 const dir = mkdtempSync(path.join(tmpdir(), 'guard-'));
 const big = path.join(dir, 'big.txt');
@@ -56,4 +57,33 @@ test('guard: 壊れた入力でも何も出さず正常終了する', () => {
   const r = spawnSync(process.execPath, ['.claude/hooks/guard-large-read.mjs'], { input: 'not json', encoding: 'utf-8' });
   assert.equal(r.status, 0);
   assert.equal(r.stdout.trim(), '');
+});
+
+test('guard: cd後の相対パスを cd 先基準で解決する', () => {
+  const d2 = mkdtempSync(path.join(tmpdir(), 'guard-cd-')); // d2/big.txt は存在しない（sub/big.txt だけ）
+  mkdirSync(path.join(d2, 'sub'));
+  writeFileSync(path.join(d2, 'sub', 'big.txt'), Array.from({ length: 301 }, (_, i) => `line ${i}`).join('\n') + '\n');
+  const runIn = (command) => {
+    const r = spawnSync(process.execPath, ['.claude/hooks/guard-large-read.mjs'], {
+      input: JSON.stringify({ hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command }, cwd: d2 }),
+      encoding: 'utf-8',
+    });
+    return r.stdout.trim() ? JSON.parse(r.stdout).hookSpecificOutput : null;
+  };
+  assert.ok(denied(runIn('cd sub && cat big.txt')));
+  assert.equal(runIn('cd sub && sed -n 1,40p big.txt'), null);
+  assert.equal(runIn('cat big.txt'), null);
+  assert.equal(runIn('cd sub | cat big.txt'), null);
+});
+
+test('countLinesUpTo: 上限超で打ち切り、短いファイルは全体を読む', () => {
+  const many = path.join(dir, 'many.txt');
+  writeFileSync(many, Array.from({ length: 10000 }, (_, i) => `line ${i}`).join('\n') + '\n');
+  const r = countLinesUpTo(many, 300);
+  assert.equal(r.lines, 301);
+  assert.ok(r.bytesRead < statSync(many).size);
+  const s = countLinesUpTo(small, 300);
+  assert.equal(s.lines, 2);
+  assert.equal(s.bytesRead, statSync(small).size);
+  assert.equal(countLinesUpTo(png, 300).binary, true);
 });
