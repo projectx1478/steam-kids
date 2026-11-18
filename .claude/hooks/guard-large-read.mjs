@@ -4,8 +4,9 @@
 // 拒否はJSON出力（permissionDecision: "deny"。公式: https://code.claude.com/docs/en/hooks）。
 // 既存のcheck-file-size.sh（警告のみ・allow）とは並列で動き、denyが1つでもあれば拒否される。
 // どんな失敗でも読み込みを止めない（例外時は何も出さず終了＝判断なし）。
-import { readFileSync, existsSync, statSync } from 'node:fs';
+import { readFileSync, existsSync, statSync, openSync, readSync, closeSync } from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const MAX_LINES = 300;
 const SKIP_EXT = /\.(png|jpe?g|gif|webp|bmp|ico|pdf|ipynb|svgz?|woff2?|ttf|zip|gz|mp[34]|wav)$/i;
@@ -18,28 +19,60 @@ function resolveFile(p, cwd) {
   return f;
 }
 
-// 300行を超えるテキストファイルなら行数を返す（それ以外はnull）。
+// 先頭から64KiBずつ読み、改行がlimitを超えた時点で打ち切る（巨大ファイルを丸ごとメモリへ載せない）。
+// 戻り値: lines＝limitを超えた時点の数か全体の数、bytesRead＝読んだバイト数、binary＝0バイトを見つけたか。
+export function countLinesUpTo(file, limit) {
+  const CHUNK = 65536;
+  const buf = Buffer.alloc(CHUNK);
+  const fd = openSync(file, 'r');
+  let lines = 0;
+  let bytesRead = 0;
+  try {
+    for (;;) {
+      const n = readSync(fd, buf, 0, CHUNK, null);
+      if (n === 0) break;
+      bytesRead += n;
+      for (let i = 0; i < n; i += 1) {
+        if (buf[i] === 0) return { lines, bytesRead, binary: true };
+        if (buf[i] === 10) {
+          lines += 1;
+          if (lines > limit) return { lines, bytesRead, binary: false };
+        }
+      }
+    }
+  } finally {
+    closeSync(fd);
+  }
+  return { lines, bytesRead, binary: false };
+}
+
+// 300行を超えるテキストファイルなら MAX_LINES + 1 を返す（それ以外はnull）。
 function bigLineCount(file) {
   if (SKIP_EXT.test(file) || !existsSync(file) || !statSync(file).isFile()) return null;
-  const buf = readFileSync(file);
-  if (buf.includes(0)) return null; // バイナリ
-  let n = 0;
-  for (const b of buf) if (b === 10) n += 1;
-  return n > MAX_LINES ? n : null;
+  const { lines, binary } = countLinesUpTo(file, MAX_LINES);
+  if (binary) return null;
+  return lines > MAX_LINES ? lines : null;
 }
 
 function deny(reason) {
   console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: reason } }));
 }
 
-const advice = (file, n) =>
-  `${path.basename(file)} は${n}行あり、全文は読めません（${MAX_LINES}行超）。` +
+const advice = (file) =>
+  `${path.basename(file)} は${MAX_LINES}行を超えており、全文は読めません（${MAX_LINES}行超）。` +
   `grep -n で位置を出し、Readは offset/limit、Bashは sed -n 'a,bp' や head/tail で必要な範囲だけ読んでください（AGENTS.md トークン方針）。`;
 
 function checkBash(command, cwd) {
+  let base = cwd || process.cwd();
   for (const raw of command.split(/&&|;|\n/)) {
     const seg = raw.trim();
-    if (!seg || /[|<>]/.test(seg)) continue; // パイプ・リダイレクト・ヒアドキュメントは対象外
+    if (!seg || /[|<>]/.test(seg)) continue; // パイプ・リダイレクト・ヒアドキュメントは対象外（cdでもbaseは変えない）
+    const cd = /^cd\s+(\S+)$/.exec(seg);
+    if (cd) {
+      const arg = cd[1].replace(/^["']|["']$/g, '');
+      if (!/[$*?~`]/.test(arg) && !arg.startsWith('-')) base = resolveFile(arg, base);
+      continue;
+    }
     const m = READ_CMD.exec(seg);
     if (!m) continue;
     const tokens = m[2].match(/"[^"]*"|'[^']*'|\S+/g) ?? [];
@@ -48,26 +81,28 @@ function checkBash(command, cwd) {
       if (t.startsWith('-')) continue;
       const name = t.replace(/^["']|["']$/g, '');
       if (/[$*?~`]/.test(name)) continue; // 変数・グロブは解決しない
-      const file = resolveFile(name, cwd);
+      const file = resolveFile(name, base);
       const n = bigLineCount(file);
-      if (n) return advice(file, n);
+      if (n) return advice(file);
     }
   }
   return null;
 }
 
-try {
-  const input = JSON.parse(readFileSync(0, 'utf-8'));
-  const { tool_name: tool, tool_input: ti = {}, cwd } = input;
-  let reason = null;
-  if (tool === 'Read' && ti.file_path && ti.offset === undefined && ti.limit === undefined && !ti.pages) {
-    const file = resolveFile(ti.file_path, cwd);
-    const n = bigLineCount(file);
-    if (n) reason = advice(file, n);
-  } else if (tool === 'Bash' && typeof ti.command === 'string') {
-    reason = checkBash(ti.command, cwd);
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  try {
+    const input = JSON.parse(readFileSync(0, 'utf-8'));
+    const { tool_name: tool, tool_input: ti = {}, cwd } = input;
+    let reason = null;
+    if (tool === 'Read' && ti.file_path && ti.offset === undefined && ti.limit === undefined && !ti.pages) {
+      const file = resolveFile(ti.file_path, cwd);
+      const n = bigLineCount(file);
+      if (n) reason = advice(file);
+    } else if (tool === 'Bash' && typeof ti.command === 'string') {
+      reason = checkBash(ti.command, cwd);
+    }
+    if (reason) deny(reason);
+  } catch {
+    // 判断しない（フックの不具合で作業を止めない）
   }
-  if (reason) deny(reason);
-} catch {
-  // 判断しない（フックの不具合で作業を止めない）
 }
