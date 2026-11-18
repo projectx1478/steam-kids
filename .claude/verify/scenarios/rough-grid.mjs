@@ -268,7 +268,9 @@ export default async function run({ page, check }) {
   }
   for (const [rule, label] of Object.entries(RULE_NAMES)) {
     const mine = unknown.filter((f) => f.rule === rule);
-    await check(`${rule} ${label} 全体`, async () => mine.length, 0);
+    // 失敗時は未知の件を全体のラベルへ並べる（ハーネスの失敗出力が件数で切れても見えるように）。
+    const list = mine.length ? `（${[...new Set(mine.map((f) => `${f.where}:${f.detail}`))].slice(0, 8).join(' / ')}）` : '';
+    await check(`${rule} ${label} 全体${list}`, async () => mine.length, 0);
     for (const where of new Set(mine.map((f) => f.where))) {
       const detail = mine.find((f) => f.where === where).detail;
       await check(`${rule} ${label} ${where}（${detail}）`, async () => mine.filter((f) => f.where === where).length, 0);
