@@ -58,7 +58,8 @@ function collect() {
     const top = off ? null : document.elementFromPoint(cx, cy);
     if (off || (top && top !== el && !el.contains(top))) hidden.push({ where: r.where });
   });
-  const results = document.querySelectorAll('[data-result], [data-hint]').length;
+  // 結果表示＝[data-result]と、トーストの[data-hint]。盤上の印（.grid-marker・盤内の未回収item）は失敗時に複数出るのが正常なので数えない。
+  const results = document.querySelectorAll('[data-result], [data-hint]:not(.grid-marker):not(.grid-board *)').length;
   return { overflow, rects, hidden, results };
 }
 
@@ -232,6 +233,7 @@ export default async function run({ page, check }) {
     for (const c of first2) await page.click(`[data-command="${c}"]`);
     await page.reload();
     await page.waitForSelector('#stage');
+    await page.waitForFunction(() => document.querySelector('#stage')?.dataset.stepId || document.querySelector('[data-action="resume"]'), null, { timeout: 5000 }).catch(() => {});
     await sleep(500);
     const urlSame = new URL(page.url()).searchParams.get('lesson') === lessonId;
     const sameStep = (await page.getAttribute('#stage', 'data-step-id')) === p0.stepId;
