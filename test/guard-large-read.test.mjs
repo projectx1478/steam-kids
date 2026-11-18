@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, mkdirSync, statSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, mkdirSync, statSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { countLinesUpTo } from '../.claude/hooks/guard-large-read.mjs';
@@ -86,4 +86,16 @@ test('countLinesUpTo: 上限超で打ち切り、短いファイルは全体を�
   assert.equal(s.lines, 2);
   assert.equal(s.bytesRead, statSync(small).size);
   assert.equal(countLinesUpTo(png, 300).binary, true);
+});
+
+test('guard: シンボリックリンク経由の起動でも拒否が効く', (t) => {
+  const d3 = mkdtempSync(path.join(tmpdir(), 'guard-sym-'));
+  const link = path.join(d3, 'hooks-link');
+  try { symlinkSync(path.resolve('.claude/hooks'), link, 'dir'); } catch { return t.skip('symlink不可'); }
+  const r = spawnSync(process.execPath, [path.join(link, 'guard-large-read.mjs')], {
+    input: JSON.stringify({ hook_event_name: 'PreToolUse', tool_name: 'Read', tool_input: { file_path: big }, cwd: dir }),
+    encoding: 'utf-8',
+  });
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(denied(JSON.parse(r.stdout).hookSpecificOutput));
 });
