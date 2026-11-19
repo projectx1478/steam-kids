@@ -15,16 +15,6 @@
     "issue": 771
   },
   {
-    "rule": "R2",
-    "where": "cmd-01-susumu/1024x600/s1",
-    "issue": 772
-  },
-  {
-    "rule": "R9",
-    "where": "cmd-01-susumu/1024x600/s1",
-    "issue": 772
-  },
-  {
     "rule": "R7a",
     "where": "cmd-01-susumu/p1/1280x800/リロード",
     "issue": 774

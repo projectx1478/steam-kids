@@ -486,6 +486,11 @@ dialog.result-row {
 .intro-body {
   display: contents;
 }
+/* 縦積みのとき、おてほんの下に下端バー（72px）ぶんの余白を足し、「おてほんを みる」がバーの背後に入らないようにする（Issue #772）。
+   横並び（max-height: 479px）では demo-widget が display: contents なので margin は効かず、844×390 は変わらない。 */
+.intro-body > .demo-widget {
+  margin-bottom: 72px;
+}
 @media (max-height: 479px) {
   .intro-body {
     display: grid;
