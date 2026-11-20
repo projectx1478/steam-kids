@@ -1,0 +1,11 @@
+{
+  "stepId": "p1", "kind": "play", "text": "たまごやきを つくろう",
+  "sortOrder": { "dish": "tamagoyaki",
+    "cards": [
+      { "id": "c", "icon": "🍽️", "text": "おさらに のせる", "act": "put" },
+      { "id": "a", "icon": "🥚", "text": "たまごを わる" },
+      { "id": "b", "icon": "🍳", "text": "フライパンで やく" }
+    ],
+    "before": [ { "a": "a", "b": "b", "fail": "raw", "why": "わった たまごが やけるよね" }, { "a": "b", "b": "c", "fail": "empty" } ]
+  }
+}

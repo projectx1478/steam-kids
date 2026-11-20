@@ -74,6 +74,8 @@ const FAIL_RULE = {
   'fail-text21': '文字数', 'fail-text-kanji': 'ルビ外の漢字', 'fail-text-negative': '否定語',
   'fail-before-empty': 'beforeの本数', 'fail-unknown-id': 'beforeのid', 'fail-selfloop': 'beforeの自己ループ',
   'fail-fail-unknown': 'failの値', 'lesson-dup-face': '面の重複', 'lesson-7faces': '盤面の必須',
+  'fail-act-unknown': 'actの値', 'fail-why-len15': 'whyの字数', 'fail-why-kanji': 'ルビ外の漢字',
+  'fail-why-negative': '否定語', 'fail-why-type': 'whyの形', 'fail-dish-unknown': 'dishの値',
   'lesson-count-decrease': '難易度の順序', 'lesson-all-total': '全順序の面', 'lesson-uncon-card2': '制約に出ないカード',
 };
 
@@ -86,13 +88,13 @@ function judge(name) {
   return errors;
 }
 
-test('validate: 21盤すべてを fixture にしている（合格2・不合格19）', () => {
-  assert.equal(names.length, 21);
-  assert.equal(names.filter((n) => n.startsWith('pass-')).length, 2);
-  assert.equal(Object.keys(FAIL_RULE).length, 19);
+test('validate: 28盤すべてを fixture にしている（合格3・不合格25）', () => {
+  assert.equal(names.length, 28);
+  assert.equal(names.filter((n) => n.startsWith('pass-')).length, 3);
+  assert.equal(Object.keys(FAIL_RULE).length, 25);
 });
 
-for (const n of ['pass-chain3', 'pass-branch4']) {
+for (const n of ['pass-chain3', 'pass-branch4', 'pass-why-act-dish']) {
   test(`validate 盤 ${n}: 合格`, () => assert.deepEqual(judge(n), []));
 }
 for (const [n, rule] of Object.entries(FAIL_RULE)) {
