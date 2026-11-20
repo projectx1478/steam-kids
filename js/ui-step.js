@@ -688,7 +688,7 @@ function renderStagePicker(root) {
 
 function renderIntro(root, step) {
   stagePicked = false;
-  // intro-body：高さ479px以下の画面だけ、左に問い文、右にデモの横並びになる（Issue #551。CSSは tailwind.src.css）。
+  // intro-body：高さ479px以下、または高さ640px以下の横向きの画面だけ、左に問い文、右にデモの横並びになる（Issue #551・#772。CSSは tailwind.src.css）。
   // それ以外の高さでは display: contents で、従来どおり問い文→デモの縦積み。
   const body = document.createElement('div');
   body.className = 'intro-body';
