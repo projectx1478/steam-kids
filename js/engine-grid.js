@@ -24,31 +24,31 @@ export function boardSpec(rawStep) {
 }
 
 // 各ギミックの初期状態をspecから組み立てる（GIMMICKS.keyごとに1つ）。
-function initGimmickStates(spec) {
+export function initGimmickStates(spec) {
   const states = {};
   for (const g of GIMMICKS) states[g.key] = g.initState(spec);
   return states;
 }
 
 // posへ進んだ直後の全ギミック状態を返す（不変更新。既存statesは書き換えない）。
-function enterAll(states, spec, pos) {
+export function enterAll(states, spec, pos) {
   const next = {};
   for (const g of GIMMICKS) next[g.key] = g.enter(states[g.key], pos, spec);
   return next;
 }
 
 // 任意フックdead?(state)：真ならその状態から二度とクリアできない（BFSはその遷移を捨てる。枝刈りのみで最短手数は変わらない）。
-function isDead(states) {
+export function isDead(states) {
   return GIMMICKS.some((g) => g.dead?.(states[g.key]));
 }
 
-function allCleared(states) {
+export function allCleared(states) {
   return GIMMICKS.every((g) => g.isCleared(states[g.key]));
 }
 
 // 全ギミックのstateKeyを連結する。BFS（shortestSteps/shortestChips）の重複排除キーに使う
 // （Issue #60のitemMaskAtを一般化。Issue #123）。
-function gimmicksKey(states) {
+export function gimmicksKey(states) {
   // 空文字のキー（周期ドアの無い盤のperiodic）は連結から省く（配列を作らず文字列を直接組む）。
   let out = '';
   for (const g of GIMMICKS) {
