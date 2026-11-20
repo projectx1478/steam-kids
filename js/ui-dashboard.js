@@ -164,7 +164,22 @@ function renderRecentSection(root, recentDays) {
   root.appendChild(row);
 }
 
-function renderStepRow(stepId, metrics) {
+// 保護者に見せるステップ名（内部ID p1・s1 などは出さない。Issue #775）。
+// stepId の kind と、play の通し番号から導く。教材が読めない・stepId が無いときは「ステップ」。
+const STEP_KIND_LABELS = { intro: 'はじめ', summary: 'まとめ', tutorial: 'れんしゅう', predict: 'よそう' };
+function stepDisplayName(stepId, steps) {
+  if (!Array.isArray(steps)) return 'ステップ';
+  let playNo = 0;
+  for (const step of steps) {
+    if (step.kind === 'play') playNo += 1;
+    if (step.stepId !== stepId) continue;
+    if (step.kind === 'play') return `もんだい ${playNo}`;
+    return STEP_KIND_LABELS[step.kind] ?? 'ステップ';
+  }
+  return 'ステップ';
+}
+
+function renderStepRow(stepId, metrics, steps) {
   const hasAlert = metrics.alerts.length > 0;
   const row = el(
     'div',
@@ -173,7 +188,7 @@ function renderStepRow(stepId, metrics) {
   row.dataset.stepId = stepId;
   row.dataset.alert = String(hasAlert);
 
-  row.appendChild(el('p', 'text-sm font-bold text-slate-700', stepId));
+  row.appendChild(el('p', 'text-sm font-bold text-slate-700', stepDisplayName(stepId, steps)));
 
   const predictText =
     metrics.predictTotal > 0 ? ` ・ 予想 ${metrics.predictCorrectCount}/${metrics.predictTotal}正解` : '';
@@ -200,8 +215,11 @@ async function renderLessonCard(lessonId, lesson) {
   card.dataset.status = lesson.status;
 
   let title = lessonId;
+  let lessonSteps = null;
   try {
-    title = (await loadLesson(lessonId)).title;
+    const loaded = await loadLesson(lessonId);
+    title = loaded.title;
+    lessonSteps = loaded.steps;
   } catch {
     // レッスンJSONが見つからない場合はlessonIdをそのまま表示する
   }
@@ -214,11 +232,11 @@ async function renderLessonCard(lessonId, lesson) {
   card.appendChild(header);
 
   if (lesson.abandonedStepId) {
-    card.appendChild(el('p', 'abandoned-at text-sm text-amber-700', `離脱地点: ${lesson.abandonedStepId}`));
+    card.appendChild(el('p', 'abandoned-at text-sm text-amber-700', `とまった場所: ${stepDisplayName(lesson.abandonedStepId, lessonSteps)}`));
   }
 
   const stepsWrap = el('div', 'flex flex-col gap-2');
-  Object.entries(lesson.steps).forEach(([stepId, metrics]) => stepsWrap.appendChild(renderStepRow(stepId, metrics)));
+  Object.entries(lesson.steps).forEach(([stepId, metrics]) => stepsWrap.appendChild(renderStepRow(stepId, metrics, lessonSteps)));
   card.appendChild(stepsWrap);
 
   return card;
