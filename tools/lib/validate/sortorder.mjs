@@ -1,34 +1,38 @@
 // sort-order（レシピの順番。play.sortOrder）の検証（Issue #292）。
 import { solutionsOf, isSolved } from '../../../js/engine-sortorder.js';
 import { plainSegmentsText, plainReading, parseSegments, rubyGrade, KANJI_RE } from '../../../js/text-render.js';
+import { DISH_KEYS } from '../../../js/sortorder-dishes.js';
 import { FORBIDDEN_WORDS, isObj } from './common.mjs';
 
 export const SORT_PLAY_COUNT = 8;
 const FAILS = ['burn', 'spill', 'raw', 'empty'];
+const ACTS = ['cut', 'mix', 'bake', 'put'];
+const WHY_MAX = 14;
 const CARD_EXTRA_FORBIDDEN = 'ない';
 const ID_RE = /^[A-Za-z0-9]+$/;
 const segmenter = new Intl.Segmenter('ja', { granularity: 'grapheme' });
 const graphemes = (s) => [...segmenter.segment(s)].length;
 
-// cards[].text：lesson.mjs の step.text と同じ検査（ルビ外の漢字・中括弧・配当表・20字・否定語）。
-function checkText(text, add, label) {
+// cards[].text／before[].why：lesson.mjs の step.text と同じ検査（ルビ外の漢字・中括弧・配当表・字数・否定語）。
+// name＝表示名（cards は 'text'）。maxLen＝展開後の字数上限（cards 20／why 14）。
+function checkText(text, add, label, { name = 'text', maxLen = 20, formRule = 'カードの文言', lenRule = '文字数' } = {}) {
   if (typeof text !== 'string' || text === '') {
-    add('カードの文言', `${label}text が空か文字列でない`);
+    add(formRule, `${label}${name} が空か文字列でない`);
     return;
   }
   const outside = plainSegmentsText(text);
-  if (KANJI_RE.test(outside)) add('ルビ外の漢字', `${label}text にルビ記法外の漢字がある`);
-  if (outside.includes('{') || outside.includes('}')) add('ルビ記法', `${label}text の中括弧が壊れている`);
+  if (KANJI_RE.test(outside)) add('ルビ外の漢字', `${label}${name} にルビ記法外の漢字がある`);
+  if (outside.includes('{') || outside.includes('}')) add('ルビ記法', `${label}${name} の中括弧が壊れている`);
   for (const seg of parseSegments(text)) {
     if (typeof seg === 'string') continue;
     if (rubyGrade(seg.kanji) === null) add('配当表外の漢字', `${label}{${seg.kanji}|${seg.kana}} に配当表に無い漢字がある`);
     if (KANJI_RE.test(seg.kana)) add('ルビ記法', `${label}{${seg.kanji}|${seg.kana}} のよみに漢字が混じっている`);
   }
   const reading = plainReading(text);
-  if ([...reading].length > 20) add('文字数', `${label}text が展開後20字超`);
+  if ([...reading].length > maxLen) add(lenRule, `${label}${name} が展開後${maxLen}字超`);
   // カードは手順の言い切りなので、lesson.mjs の否定語に加えて「ない」も不可（boards/README の fail-text-negative に合わせる）。
   for (const word of [...FORBIDDEN_WORDS, CARD_EXTRA_FORBIDDEN]) {
-    if (reading.includes(word)) add('否定語', `${label}text に否定語「${word}」がある`);
+    if (reading.includes(word)) add('否定語', `${label}${name} に否定語「${word}」がある`);
   }
 }
 
@@ -53,13 +57,16 @@ export function checkSortFace(play, add0, label) {
     else ids.add(c.id);
     if (typeof c.icon !== 'string' || c.icon === '' || graphemes(c.icon) !== 1) add('カードのicon', `${cl}icon が絵文字1字でない`);
     checkText(c.text, add, cl);
+    if ('act' in c && !ACTS.includes(c.act)) add('actの値', `${cl}act=${JSON.stringify(c.act)} が ${ACTS.join('／')} 以外`);
   }
+  if ('dish' in so && !DISH_KEYS.includes(so.dish)) add('dishの値', `${label}dish=${JSON.stringify(so.dish)} が DISH_KEYS 以外`);
   const before = Array.isArray(so.before) ? so.before : null;
   if (!before || before.length === 0) add('beforeの本数', `${label}before が空か配列でない（1本以上必要）`);
   for (const r of before || []) {
     if (!isObj(r)) { add('beforeの形', `${label}before に object でない要素がある`); continue; }
     if (!ids.has(r.a) || !ids.has(r.b)) add('beforeのid', `${label}before ${JSON.stringify(r.a)}→${JSON.stringify(r.b)} が cards に無い id を参照`);
     else if (r.a === r.b) add('beforeの自己ループ', `${label}before の a と b が同じ（${r.a}）`);
+    if ('why' in r) checkText(r.why, add, `${label}before ${JSON.stringify(r.a)}→${JSON.stringify(r.b)} の `, { name: 'why', maxLen: WHY_MAX, formRule: 'whyの形', lenRule: 'whyの字数' });
     if ('fail' in r && !FAILS.includes(r.fail)) add('failの値', `${label}before の fail=${JSON.stringify(r.fail)} が ${FAILS.join('／')} 以外`);
   }
   if (nErr > 0) return null; // 形が壊れていれば順列は数えない
