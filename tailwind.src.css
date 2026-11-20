@@ -481,12 +481,12 @@ dialog.result-row {
 #app[data-op-compact='true'] > #stage {
   padding: 0.25rem;
 }
-/* intro の本文（Issue #551）。高さ479px以下は横並び：左に問い文と命令列、右に盤面。「▶ おてほんを みる」は問い文の右。
+/* intro の本文（Issue #551）。高さ479px以下、または高さ640px以下の横向き（1024×600など。Issue #772）は横並び：左に問い文と命令列、右に盤面。「▶ おてほんを みる」は問い文の右。
    demo-widget は display: contents にして、中身をこの grid の項目として並べる（DOM は変えない）。 */
 .intro-body {
   display: contents;
 }
-@media (max-height: 479px) {
+@media (max-height: 479px), (max-height: 640px) and (orientation: landscape) {
   .intro-body {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto auto;
