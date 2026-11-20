@@ -87,7 +87,7 @@ export default async function run({ page, check, shot }) {
     async () => page.getAttribute('.lesson-card', 'data-status'),
     'in_progress'
   );
-  await check('離脱地点のテキストが表示される', async () => page.textContent('.abandoned-at'), '離脱地点: s1');
+  await check('離脱地点のテキストが表示される', async () => page.textContent('.abandoned-at'), 'とまった場所: はじめ');
 
   await check('直近7日の取り組みが表示される', async () => (await page.$$('.recent-day')).length, 7);
   await shot('lesson-with-alert');
