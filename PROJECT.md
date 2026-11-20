@@ -100,6 +100,7 @@ playステージは`maxPauses`（「とめる」ブロック数の上限。0以�
 | ビルド | `npx tailwindcss@3.4.19 -i tailwind.src.css -o style.css --minify` | 手元＋CI |
 | E2E/実機確認 | `npm run verify:e2e` | CI実行（実装中＝`e2e-run`・PR＝`e2e-pr`・全件＝`e2e-nightly`） |
 | レッスンJSON検証 | `npm run validate:lessons` | 手元＋CI |
+| 紙芝居（一目チェック用） | `npm run sheet -- <lessonId>` | 手元・任意（「E2EはCIのみ」の例外。一目チェックのときだけ。検証フェーズの必須ではない。出力 `.verify/sheet/<lessonId>/`） |
 
 夜間CI失敗ラベル：`e2e-nightly`。運用・スモークの注意は`docs/testing-guidelines.md`・`docs/testing-steam-kids.md`。
 
