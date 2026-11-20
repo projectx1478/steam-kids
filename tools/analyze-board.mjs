@@ -1,13 +1,16 @@
 // analyze-board.mjs: 盤面の最短手数・別解の本数・探索規模を測る（使い方は docs/tools.md）。
 //   node tools/analyze-board.mjs <レッスンID> <ステージ番号|stepId> [--timeout 秒] [--limit 本数]
 //   node tools/analyze-board.mjs --board <盤のJSONファイル>          [--timeout 秒] [--limit 本数]
+//   node tools/analyze-board.mjs --all   （全レッスンの全 play の一覧。TSV。Issue #720）
 // 最短手数・訪問状態数は js/engine-grid.js の shortestSteps/shortestChips を使う（探索は複製しない）。
 // 別解は「命令列を深さ優先で列挙し simulate+isRunCleared で数える」（壁衝突・塗りはみ出しの枝は打ち切り）。
 // 別解の列挙は limit 本・時間切れで打ち切る。最短の探索（BFS）は別プロセスで走らせ、timeout で強制終了する。
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { simulate, shortestSteps, shortestChips, boardSpec, isRunCleared } from '../js/engine-grid.js';
+import { K_TIMEOUT_MS, kangaedokoro, candidateCount, formatKangaeLines } from './lib/board-metrics.mjs';
 
 const DEFAULT_TIMEOUT_SEC = 60;
 const DEFAULT_LIMIT = 1000;
@@ -60,13 +63,14 @@ export function countAlternatives(play, { limit = DEFAULT_LIMIT, deadline = Infi
 }
 
 function parseArgs(argv) {
-  const opt = { timeout: DEFAULT_TIMEOUT_SEC, limit: DEFAULT_LIMIT, board: null, pos: [], worker: false };
+  const opt = { timeout: DEFAULT_TIMEOUT_SEC, limit: DEFAULT_LIMIT, board: null, pos: [], worker: false, all: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--timeout') opt.timeout = Number(argv[++i]);
     else if (a === '--limit') opt.limit = Number(argv[++i]);
     else if (a === '--board') opt.board = argv[++i];
     else if (a === '--worker') opt.worker = true;
+    else if (a === '--all') opt.all = true;
     else opt.pos.push(a);
   }
   return opt;
@@ -82,11 +86,47 @@ function runWorker(opt) {
   const t1 = Date.now();
   const a = countAlternatives(play, { limit: opt.limit, deadline });
   console.log(JSON.stringify({ phase: 'alts', ...a, ms: Date.now() - t1 }));
+  const remain = Number(process.env.ANALYZE_DEADLINE) + 1000 - Date.now();
+  const k = kangaedokoro(play, { timeoutMs: Math.max(0, Math.min(K_TIMEOUT_MS, remain)) });
+  console.log(JSON.stringify({ phase: 'kangae', ...k }));
+}
+
+const isGrid = (play) => Boolean(play.grid && play.start && play.goal);
+
+// 全レッスンの全 play の一覧（TSV）。子プロセスは使わず同じプロセスで回す。
+function runAll(root = process.cwd()) {
+  const t0 = Date.now();
+  const ynu = (r) => (r.value === null ? '不明' : r.value ? 'はい' : 'いいえ');
+  const rows = ['レッスン\t面\t種類\t最短\tK1\tK2\tK3\t候補数\t正解数'];
+  let grid = 0;
+  let other = 0;
+  let skipped = 0;
+  const files = readdirSync(`${root}/lessons`).filter((f) => f.endsWith('.json') && f !== 'index.json').sort();
+  for (const f of files) {
+    const lesson = JSON.parse(readFileSync(`${root}/lessons/${f}`, 'utf-8'));
+    for (const play of (lesson.steps ?? []).filter((s) => s.kind === 'play')) {
+      const id = f.replace(/\.json$/, '');
+      if (isGrid(play)) {
+        const k = kangaedokoro(play);
+        const { shortest } = analyzeShortest(play);
+        rows.push([id, play.stepId, 'grid', Number.isFinite(shortest) ? shortest : '到達不能', ynu(k.k1), ynu(k.k2), ynu(k.k3), '—', '—'].join('\t'));
+        grid += 1;
+        continue;
+      }
+      const c = candidateCount(play);
+      if (!c) { skipped += 1; continue; }
+      rows.push([id, play.stepId, c.kind, '—', '—', '—', '—', c.candidates, c.solutions].join('\t'));
+      other += 1;
+    }
+  }
+  rows.push(`合計: grid ${grid}面・非grid ${other}面・対象外 ${skipped}面（${((Date.now() - t0) / 1000).toFixed(1)}s）`);
+  console.log(rows.join('\n'));
 }
 
 function main() {
   const opt = parseArgs(process.argv.slice(2));
   if (opt.worker) return runWorker(opt);
+  if (opt.all) return runAll();
   let play;
   let label;
   if (opt.board) {
@@ -96,8 +136,18 @@ function main() {
     play = loadPlay(opt.pos[0], opt.pos[1]);
     label = `${opt.pos[0]} ${play.stepId}`;
   } else {
-    console.error('使い方: node tools/analyze-board.mjs <レッスンID> <ステージ番号|stepId>  または  --board <JSON>  [--timeout 秒] [--limit 本数]');
+    console.error('使い方: node tools/analyze-board.mjs <レッスンID> <ステージ番号|stepId>  または  --board <JSON>  または  --all  [--timeout 秒] [--limit 本数]');
     process.exit(2);
+  }
+  if (!isGrid(play)) {
+    const c = candidateCount(play);
+    const t = Date.now();
+    if (!c) { console.log(`盤: ${label}（対象外：egg・generator の面）`); return; }
+    console.log(`盤: ${label}（種類 ${c.kind}）`);
+    console.log(`候補数: ${c.candidates}`);
+    console.log(`正解数: ${c.solutions}`);
+    console.log(`所要時間: ${((Date.now() - t) / 1000).toFixed(2)}s`);
+    return;
   }
   const timeoutMs = opt.timeout * 1000;
   const start = Date.now();
@@ -122,6 +172,8 @@ function main() {
   } else if (out.shortest) {
     console.log(`別解: 打ち切り（${opt.timeout}秒のタイムアウト）`);
   }
+  if (out.kangae) for (const line of formatKangaeLines(out.kangae)) console.log(line);
+  else if (out.shortest) console.log(`考えどころ: 打ち切り（${opt.timeout}秒のタイムアウト）`);
   console.log(`所要時間: ${((Date.now() - start) / 1000).toFixed(2)}s${timedOut ? '（タイムアウトで強制終了）' : ''}`);
   if (r.status !== 0 && !timedOut) { console.error(r.stderr); process.exit(1); }
 }
