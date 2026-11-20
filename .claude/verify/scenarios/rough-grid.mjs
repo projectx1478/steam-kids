@@ -40,6 +40,9 @@ function collect() {
   for (const el of app.querySelectorAll('*')) {
     if (!visible(el) || !el.childNodes.length) continue;
     if (![...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) continue;
+    // 子要素がすべてabsoluteかつaria-hidden（✓バッジ等の装飾）なら、装飾の溢れで本体の溢れではないので除く（#771）
+    const kids = [...el.children];
+    if (kids.length && kids.every((c) => c.getAttribute('aria-hidden') === 'true' && getComputedStyle(c).position === 'absolute')) continue;
     overflow.push({ where: desc(el), scrollWidth: el.scrollWidth, clientWidth: el.clientWidth });
   }
   const targets = [...document.querySelectorAll('button, [data-action], [data-command]')].filter(visible);
