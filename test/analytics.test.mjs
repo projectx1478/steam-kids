@@ -2,7 +2,7 @@
 // P2: 学習ログの集計と詰まりアラート判定（純粋関数）
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { summarize } from '../js/analytics.js';
+import { summarize, lastClearTs } from '../js/analytics.js';
 
 const LESSON = 'test-lesson';
 const STEP = 's1';
@@ -62,4 +62,15 @@ test('analytics: レッスン状態と離脱地点', () => {
   assert.equal(summarize([ev('step_enter', 1), ev('abandon', 2)], 1000).lessons[LESSON].abandonedStepId, STEP, 'clearを伴わないabandonが離脱地点になる');
   const abandonedThenCleared = [ev('step_enter', 1), ev('abandon', 2), ev('step_enter', 3), ev('clear', 4)];
   assert.equal(summarize(abandonedThenCleared, 1000).lessons[LESSON].abandonedStepId, null, 'abandon後にclearすれば離脱地点はnull');
+});
+
+test('analytics: lastClearTs は該当レッスンの clear の ts の最大値（無ければ0）', () => {
+  assert.equal(lastClearTs([], 'L'), 0);
+  const events = [
+    { lessonId: 'L', type: 'clear', ts: 5 },
+    { lessonId: 'L', type: 'clear', ts: 9 },
+    { lessonId: 'M', type: 'clear', ts: 20 },
+    { lessonId: 'L', type: 'stage_clear', ts: 30 },
+  ];
+  assert.equal(lastClearTs(events, 'L'), 9);
 });

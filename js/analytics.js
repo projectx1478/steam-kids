@@ -140,6 +140,16 @@ export function isLessonGold(events, lessonId) {
   );
 }
 
+// lastClearTs(events, lessonId) -> number
+// そのレッスンの clear（最終クリア）の ts の最大値。無ければ0。再開点がクリアより新しいかの判定に使う（Issue #774）。
+export function lastClearTs(events, lessonId) {
+  let max = 0;
+  for (const e of events) {
+    if (e.lessonId === lessonId && e.type === 'clear' && e.ts > max) max = e.ts;
+  }
+  return max;
+}
+
 // lessonAchievements(events, lessonId, sinceTs, { shortest, playStepIds }) -> string[]
 // このレッスンを開始(sinceTs)してからのイベントだけを対象に、子ども向けの「できたこと」文言を
 // 作る（最大3件）。点数・割合・他人との比較は返さない（PROJECT.md非目標。Issue #91）。
