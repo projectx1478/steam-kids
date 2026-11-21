@@ -16,9 +16,9 @@
       "text": "たまごやきを つくろう",
       "sortOrder": {
         "cards": [
-          { "id": "sara", "icon": "🍽️", "text": "おさらに のせる" },
-          { "id": "wa", "icon": "🥚", "text": "たまごを わる" },
-          { "id": "yaku", "icon": "🍳", "text": "フライパンで やく" }
+          { "id": "sara", "icon": "🍽️", "text": "おさらに のせる", "act": "put" },
+          { "id": "wa", "icon": "🥚", "text": "たまごを わる", "act": "put" },
+          { "id": "yaku", "icon": "🍳", "text": "フライパンで やく", "act": "bake" }
         ],
         "before": [
           { "a": "wa", "b": "yaku", "fail": "raw" },
@@ -32,9 +32,9 @@
       "text": "ホットケーキを やこう",
       "sortOrder": {
         "cards": [
-          { "id": "bata", "icon": "🧈", "text": "バターを のせる" },
-          { "id": "hikku", "icon": "🥞", "text": "ひっくりかえす" },
-          { "id": "nagasu", "icon": "🥣", "text": "たねを ながす" }
+          { "id": "bata", "icon": "🧈", "text": "バターを のせる", "act": "put" },
+          { "id": "hikku", "icon": "🥞", "text": "ひっくりかえす", "act": "mix" },
+          { "id": "nagasu", "icon": "🥣", "text": "たねを ながす", "act": "mix" }
         ],
         "before": [
           { "a": "nagasu", "b": "hikku", "fail": "spill" },
@@ -48,10 +48,10 @@
       "text": "カレーを つくろう",
       "sortOrder": {
         "cards": [
-          { "id": "kakeru", "icon": "🍛", "text": "ごはんに かける" },
-          { "id": "nikomu", "icon": "🍲", "text": "にこむ" },
-          { "id": "kiru", "icon": "🥕", "text": "やさいを きる" },
-          { "id": "itame", "icon": "🍳", "text": "いためる" }
+          { "id": "kakeru", "icon": "🍛", "text": "ごはんに かける", "act": "put" },
+          { "id": "nikomu", "icon": "🍲", "text": "にこむ", "act": "bake" },
+          { "id": "kiru", "icon": "🥕", "text": "やさいを きる", "act": "cut" },
+          { "id": "itame", "icon": "🍳", "text": "いためる", "act": "bake" }
         ],
         "before": [
           { "a": "kiru", "b": "itame", "fail": "raw" },
@@ -66,10 +66,10 @@
       "text": "サンドイッチを つくろう",
       "sortOrder": {
         "cards": [
-          { "id": "kiru", "icon": "🥪", "text": "はんぶんに きる" },
-          { "id": "ham", "icon": "🥓", "text": "ハムを のせる" },
-          { "id": "nuru", "icon": "🧈", "text": "バターを ぬる" },
-          { "id": "pan", "icon": "🍞", "text": "パンを ならべる" }
+          { "id": "kiru", "icon": "🥪", "text": "はんぶんに きる", "act": "cut" },
+          { "id": "ham", "icon": "🥓", "text": "ハムを のせる", "act": "put" },
+          { "id": "nuru", "icon": "🧈", "text": "バターを ぬる", "act": "mix" },
+          { "id": "pan", "icon": "🍞", "text": "パンを ならべる", "act": "put" }
         ],
         "before": [
           { "a": "pan", "b": "nuru", "fail": "spill" },
@@ -85,10 +85,10 @@
       "text": "ごはんの まえに",
       "sortOrder": {
         "cards": [
-          { "id": "eat", "icon": "🍚", "text": "いただきます" },
-          { "id": "fuku", "icon": "🧽", "text": "テーブルを ふく" },
-          { "id": "wash", "icon": "🧼", "text": "てを あらう" },
-          { "id": "oku", "icon": "🥢", "text": "おはしを ならべる" }
+          { "id": "eat", "icon": "🍚", "text": "いただきます", "act": "put" },
+          { "id": "fuku", "icon": "🧽", "text": "テーブルを ふく", "act": "put" },
+          { "id": "wash", "icon": "🧼", "text": "てを あらう", "act": "put" },
+          { "id": "oku", "icon": "🥢", "text": "おはしを ならべる", "act": "put" }
         ],
         "before": [
           { "a": "fuku", "b": "oku" },
@@ -103,11 +103,11 @@
       "text": "ラーメンを つくろう",
       "sortOrder": {
         "cards": [
-          { "id": "drain", "icon": "🥣", "text": "ざるに あげる" },
-          { "id": "boil", "icon": "🫕", "text": "おゆを わかす" },
-          { "id": "negi", "icon": "🧅", "text": "ねぎを のせる" },
-          { "id": "men", "icon": "🍜", "text": "めんを ゆでる" },
-          { "id": "bowl", "icon": "🥡", "text": "どんぶりに いれる" }
+          { "id": "drain", "icon": "🥣", "text": "ざるに あげる", "act": "put" },
+          { "id": "boil", "icon": "🫕", "text": "おゆを わかす", "act": "bake" },
+          { "id": "negi", "icon": "🧅", "text": "ねぎを のせる", "act": "put" },
+          { "id": "men", "icon": "🍜", "text": "めんを ゆでる", "act": "bake" },
+          { "id": "bowl", "icon": "🥡", "text": "どんぶりに いれる", "act": "put" }
         ],
         "before": [
           { "a": "boil", "b": "men", "fail": "raw" },
@@ -123,11 +123,11 @@
       "text": "おべんとうを つめよう",
       "sortOrder": {
         "cards": [
-          { "id": "tsutsumu", "icon": "🎁", "text": "ふろしきで つつむ" },
-          { "id": "futa", "icon": "🍱", "text": "ふたを しめる" },
-          { "id": "cha", "icon": "🧃", "text": "おちゃを いれる" },
-          { "id": "okazu", "icon": "🥦", "text": "おかずを つめる" },
-          { "id": "gohan", "icon": "🍙", "text": "ごはんを つめる" }
+          { "id": "tsutsumu", "icon": "🎁", "text": "ふろしきで つつむ", "act": "put" },
+          { "id": "futa", "icon": "🍱", "text": "ふたを しめる", "act": "put" },
+          { "id": "cha", "icon": "🧃", "text": "おちゃを いれる", "act": "put" },
+          { "id": "okazu", "icon": "🥦", "text": "おかずを つめる", "act": "put" },
+          { "id": "gohan", "icon": "🍙", "text": "ごはんを つめる", "act": "put" }
         ],
         "before": [
           { "a": "gohan", "b": "futa", "fail": "empty" },
@@ -142,11 +142,11 @@
       "text": "ピザを やこう",
       "sortOrder": {
         "cards": [
-          { "id": "yaku", "icon": "🔥", "text": "オーブンで やく" },
-          { "id": "noseru", "icon": "🧀", "text": "チーズを のせる" },
-          { "id": "kiru", "icon": "🔪", "text": "チーズを きる" },
-          { "id": "nuru", "icon": "🍅", "text": "ソースを ぬる" },
-          { "id": "nobasu", "icon": "🫓", "text": "きじを のばす" }
+          { "id": "yaku", "icon": "🔥", "text": "オーブンで やく", "act": "bake" },
+          { "id": "noseru", "icon": "🧀", "text": "チーズを のせる", "act": "put" },
+          { "id": "kiru", "icon": "🔪", "text": "チーズを きる", "act": "cut" },
+          { "id": "nuru", "icon": "🍅", "text": "ソースを ぬる", "act": "mix" },
+          { "id": "nobasu", "icon": "🫓", "text": "きじを のばす", "act": "mix" }
         ],
         "before": [
           { "a": "nobasu", "b": "nuru", "fail": "spill" },
