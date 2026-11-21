@@ -21,8 +21,8 @@
           { "id": "yaku", "icon": "🍳", "text": "フライパンで やく", "act": "bake" }
         ],
         "before": [
-          { "a": "wa", "b": "yaku", "fail": "raw" },
-          { "a": "yaku", "b": "sara", "fail": "empty" }
+          { "a": "wa", "b": "yaku", "fail": "raw", "why": "わった たまごが やけるよ" },
+          { "a": "yaku", "b": "sara", "fail": "empty", "why": "おさらには やけた たまご" }
         ]
       }
     },
@@ -37,8 +37,8 @@
           { "id": "nagasu", "icon": "🥣", "text": "たねを ながす", "act": "mix" }
         ],
         "before": [
-          { "a": "nagasu", "b": "hikku", "fail": "spill" },
-          { "a": "hikku", "b": "bata", "fail": "spill" }
+          { "a": "nagasu", "b": "hikku", "fail": "spill", "why": "たねを ながすと かえせるよ" },
+          { "a": "hikku", "b": "bata", "fail": "spill", "why": "バターは やけた うえに" }
         ]
       }
     },
@@ -54,9 +54,9 @@
           { "id": "itame", "icon": "🍳", "text": "いためる", "act": "bake" }
         ],
         "before": [
-          { "a": "kiru", "b": "itame", "fail": "raw" },
-          { "a": "itame", "b": "nikomu", "fail": "burn" },
-          { "a": "nikomu", "b": "kakeru", "fail": "empty" }
+          { "a": "kiru", "b": "itame", "fail": "raw", "why": "きった やさいを いためるよ" },
+          { "a": "itame", "b": "nikomu", "fail": "burn", "why": "いためた やさいを にこむよ" },
+          { "a": "nikomu", "b": "kakeru", "fail": "empty", "why": "にこんだ カレーを かけるよ" }
         ]
       }
     },
@@ -72,10 +72,10 @@
           { "id": "pan", "icon": "🍞", "text": "パンを ならべる", "act": "put" }
         ],
         "before": [
-          { "a": "pan", "b": "nuru", "fail": "spill" },
-          { "a": "pan", "b": "ham", "fail": "spill" },
-          { "a": "nuru", "b": "kiru" },
-          { "a": "ham", "b": "kiru" }
+          { "a": "pan", "b": "nuru", "fail": "spill", "why": "パンに バターを ぬるよ" },
+          { "a": "pan", "b": "ham", "fail": "spill", "why": "パンに ハムを のせるよ" },
+          { "a": "nuru", "b": "kiru", "why": "ぬった パンを きるよ" },
+          { "a": "ham", "b": "kiru", "why": "のせた ハムも きるよ" }
         ]
       }
     },
@@ -91,9 +91,9 @@
           { "id": "oku", "icon": "🥢", "text": "おはしを ならべる", "act": "put" }
         ],
         "before": [
-          { "a": "fuku", "b": "oku" },
-          { "a": "oku", "b": "eat" },
-          { "a": "wash", "b": "eat" }
+          { "a": "fuku", "b": "oku", "why": "ふいた テーブルに おはし" },
+          { "a": "oku", "b": "eat", "why": "おはしを もって たべるよ" },
+          { "a": "wash", "b": "eat", "why": "きれいな てで たべるよ" }
         ]
       }
     },
@@ -110,10 +110,10 @@
           { "id": "bowl", "icon": "🥡", "text": "どんぶりに いれる", "act": "put" }
         ],
         "before": [
-          { "a": "boil", "b": "men", "fail": "raw" },
-          { "a": "men", "b": "drain", "fail": "empty" },
-          { "a": "drain", "b": "bowl", "fail": "spill" },
-          { "a": "bowl", "b": "negi" }
+          { "a": "boil", "b": "men", "fail": "raw", "why": "あつい おゆで ゆでるよ" },
+          { "a": "men", "b": "drain", "fail": "empty", "why": "ゆでた めんを ざるへ" },
+          { "a": "drain", "b": "bowl", "fail": "spill", "why": "ざるの めんを どんぶりへ" },
+          { "a": "bowl", "b": "negi", "why": "どんぶりの めんに ねぎだよ" }
         ]
       }
     },
@@ -130,9 +130,9 @@
           { "id": "gohan", "icon": "🍙", "text": "ごはんを つめる", "act": "put" }
         ],
         "before": [
-          { "a": "gohan", "b": "futa", "fail": "empty" },
-          { "a": "okazu", "b": "futa", "fail": "empty" },
-          { "a": "futa", "b": "tsutsumu", "fail": "spill" }
+          { "a": "gohan", "b": "futa", "fail": "empty", "why": "ごはんは ふたの なかだよ" },
+          { "a": "okazu", "b": "futa", "fail": "empty", "why": "おかずも ふたの なかだよ" },
+          { "a": "futa", "b": "tsutsumu", "fail": "spill", "why": "ふたを した はこを つつむ" }
         ]
       }
     },
@@ -149,10 +149,10 @@
           { "id": "nobasu", "icon": "🫓", "text": "きじを のばす", "act": "mix" }
         ],
         "before": [
-          { "a": "nobasu", "b": "nuru", "fail": "spill" },
-          { "a": "nuru", "b": "noseru" },
-          { "a": "kiru", "b": "noseru" },
-          { "a": "noseru", "b": "yaku", "fail": "raw" }
+          { "a": "nobasu", "b": "nuru", "fail": "spill", "why": "のばした きじに ぬるよ" },
+          { "a": "nuru", "b": "noseru", "why": "ぬった ソースに のせるよ" },
+          { "a": "kiru", "b": "noseru", "why": "きった チーズを のせるよ" },
+          { "a": "noseru", "b": "yaku", "fail": "raw", "why": "のせた ピザを やくよ" }
         ]
       }
     },

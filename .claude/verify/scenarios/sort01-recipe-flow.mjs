@@ -26,8 +26,11 @@ export default async function run({ page, check }) {
   await check('失敗: カードはスロットに残る', () => slotIds(page), ['sara', 'wa', 'yaku']);
   await check('失敗: クリアのダイアログは出ない', async () => (await page.$$('[data-result-dialog]')).length, 0);
 
+  await check('失敗: 理由行が吹き出しに出る', () => page.$eval('[data-so-why="true"]', (e) => e.textContent.trim()), 'おさらには やけた たまご');
+
   // やりなおす：全部トレイへ
   await page.click('[data-action="reset"]');
+  await check('やりなおす: 理由行が消える', async () => (await page.$$('[data-so-why]')).length, 0);
   await check('やりなおす: スロットが空・トレイに3枚', async () => ({ s: await slotIds(page), t: (await trayIds(page)).length }),
     { s: [null, null, null], t: 3 });
 

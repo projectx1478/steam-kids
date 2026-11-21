@@ -1,5 +1,5 @@
 // sort-order（レシピの順番）のplayステップ描画（Issue #292）。トレイのカードをタップしてスロットへ置き、
-// 「ためす」で並べた順に手カードが1手ずつ動き（実行アニメ。Issue #712）、違反の手で止まって結果アニメ（こげる・こぼれる・なまのまま・からっぽ）＋違反ペア2枚の点滅（文言なし）。
+// 「ためす」で並べた順に手カードが1手ずつ動き（実行アニメ。Issue #712）、違反の手で止まって結果アニメ（こげる・こぼれる・なまのまま・からっぽ）＋違反ペア2枚の点滅。why があれば理由を小鳥の吹き出しに1行出す。
 // 画面の骨格・クリア演出・戻る系の無効化はシーソー（ui-seesaw.js）と同じ部品を使う。
 import { S } from './state.js';
 import { readPlacement, writePlacement, clearPlacement } from './storage.js';
@@ -225,7 +225,10 @@ export function renderSortOrder(root, step) {
     if (i < 0 || local.slots.includes(id)) return skipClickSfx();
     setActiveHandHint(null);
     clearWrong();
-    if (local.phase === 'failed') local.phase = 'edit';
+    if (local.phase === 'failed') {
+      local.phase = 'edit';
+      clearResultBubble(bird);
+    }
     vibrate();
     playSfx('snap');
     local.slots[i] = id;
@@ -238,7 +241,10 @@ export function renderSortOrder(root, step) {
     const i = local.slots.indexOf(id);
     if (i < 0) return;
     clearWrong();
-    if (local.phase === 'failed') local.phase = 'edit';
+    if (local.phase === 'failed') {
+      local.phase = 'edit';
+      clearResultBubble(bird);
+    }
     vibrate();
     local.slots[i] = null; // 穴は詰めない
     savePlacement();
@@ -323,6 +329,7 @@ export function renderSortOrder(root, step) {
     draw();
     setMoodIn(boardArea, 'puzzled');
     playSfx('tryAgain');
+    if (bad.why) bird.showBubble(bad.why, { result: 'fail', soWhy: 'true' }); // 破った組の理由を1行（Issue #712）
   }
 
   function run() {
