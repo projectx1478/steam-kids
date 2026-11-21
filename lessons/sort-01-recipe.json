@@ -79,7 +79,8 @@
           { "a": "pan", "b": "ham", "fail": "spill", "why": "パンに ハムを のせるよ" },
           { "a": "nuru", "b": "kiru", "why": "ぬった パンを きるよ" },
           { "a": "ham", "b": "kiru", "why": "のせた ハムも きるよ" }
-        ]
+        ],
+        "dish": "sandwich"
       }
     },
     {
@@ -97,7 +98,8 @@
           { "a": "fuku", "b": "oku", "why": "ふいた テーブルに おはし" },
           { "a": "oku", "b": "eat", "why": "おはしを もって たべるよ" },
           { "a": "wash", "b": "eat", "why": "きれいな てで たべるよ" }
-        ]
+        ],
+        "dish": "shokutaku"
       }
     },
     {
@@ -117,7 +119,8 @@
           { "a": "men", "b": "drain", "fail": "empty", "why": "ゆでた めんを ざるへ" },
           { "a": "drain", "b": "bowl", "fail": "spill", "why": "ざるの めんを どんぶりへ" },
           { "a": "bowl", "b": "negi", "why": "どんぶりの めんに ねぎだよ" }
-        ]
+        ],
+        "dish": "ramen"
       }
     },
     {
@@ -136,7 +139,8 @@
           { "a": "gohan", "b": "futa", "fail": "empty", "why": "ごはんは ふたの なかだよ" },
           { "a": "okazu", "b": "futa", "fail": "empty", "why": "おかずも ふたの なかだよ" },
           { "a": "futa", "b": "tsutsumu", "fail": "spill", "why": "ふたを した はこを つつむ" }
-        ]
+        ],
+        "dish": "bento"
       }
     },
     {
@@ -156,7 +160,8 @@
           { "a": "nuru", "b": "noseru", "why": "ぬった ソースに のせるよ" },
           { "a": "kiru", "b": "noseru", "why": "きった チーズを のせるよ" },
           { "a": "noseru", "b": "yaku", "fail": "raw", "why": "のせた ピザを やくよ" }
-        ]
+        ],
+        "dish": "pizza"
       }
     },
     {
