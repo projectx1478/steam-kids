@@ -52,12 +52,12 @@ export function showResultGap({ gapEl }) {
   return dots;
 }
 
-// showResultDialog({ controls, host, observed, primaryBtn, replayBtn, heading }) → { rowEl, detach() }
+// showResultDialog({ controls, host, observed, primaryBtn, replayBtn, heading, figure }) → { rowEl, detach() }
 // 非モーダルの <dialog>（show()）を host（操作画面の外枠 lockEl の親）に置き、controls の境界ボックスに
 // 一致させる。外枠は inert なので、ダイアログは外枠の外に出す。位置は resize・orientationchange・
 // ResizeObserver（controls・host・observed）で測り直す。host が static なら表示中だけ relative にする。
 // 見出しはパネルに収まらなければ消す（スクロールさせない）。detach() でリスナー・relative を戻す。
-export function showResultDialog({ controls, host, observed, primaryBtn, replayBtn, heading: headingText }) {
+export function showResultDialog({ controls, host, observed, primaryBtn, replayBtn, heading: headingText, figure }) {
   primaryBtn.classList.remove('block', 'mx-auto', 'mt-4');
   primaryBtn.classList.add('w-full', 'h-16');
   replayBtn.classList.remove('block', 'mx-auto', 'mt-4', 'py-3');
@@ -75,8 +75,18 @@ export function showResultDialog({ controls, host, observed, primaryBtn, replayB
     heading.textContent = headingText;
     dialog.appendChild(heading);
   }
-  dialog.appendChild(primaryBtn);
-  dialog.appendChild(replayBtn);
+  if (figure) {
+    // 料理の絵など（省略可。sort-order だけが使う。Issue #712）。ボタン2つは1つの枠に入れ、横向きの低い画面で1行に並べる。
+    dialog.classList.add('result-dialog--figure');
+    dialog.appendChild(figure);
+    const btns = document.createElement('div');
+    btns.className = 'result-dialog-btns';
+    btns.append(primaryBtn, replayBtn);
+    dialog.appendChild(btns);
+  } else {
+    dialog.appendChild(primaryBtn);
+    dialog.appendChild(replayBtn);
+  }
   rowEl.appendChild(dialog);
   const addedRelative = getComputedStyle(host).position === 'static';
   if (addedRelative) host.classList.add('relative');
@@ -174,7 +184,7 @@ export function showClearToast(slotEl, { view, restore, label, confetti, bird } 
   });
 }
 
-// showClearSequence({ bird, controls, lockEl, host, gapEl, view, restore, label, primary, replay, heading,
+// showClearSequence({ bird, controls, lockEl, host, gapEl, view, restore, label, primary, replay, heading, figure,
 // setActiveAnimation }) → { dispose() }
 //   lockEl: 間の始まりから inert にする操作画面の外枠（1要素）。keepEl: 外枠の中で押せるままにする要素（⚙。省略可）。host: ダイアログを置く外枠の親（root）。
 //   primary: { label, action, id }（action＝つぎへ押下時の処理、id＝data-action）。
@@ -194,6 +204,7 @@ export function showClearSequence({
   primary,
   replay,
   heading,
+  figure,
   afterDialogSay,
   setActiveAnimation,
 }) {
@@ -218,7 +229,7 @@ export function showClearSequence({
   unlock = lockScreen(lockEl, keepEl);
   timer = setTimeout(() => {
     dots?.remove();
-    dialogHandle = showResultDialog({ controls, host, observed: lockEl, primaryBtn, replayBtn, heading });
+    dialogHandle = showResultDialog({ controls, host, observed: lockEl, primaryBtn, replayBtn, heading, figure });
     // 最短超過のときだけ、結果ダイアログが出てから小鳥が続けて言う（Issue #491。ほめの吹き出しは後勝ちで置き換わる）。
     if (afterDialogSay && bird) bird.showBubble(afterDialogSay, { result: 'clear', shorter: 'true' });
   }, prefersReducedMotion() ? RESULT_GAP_REDUCED_MS : RESULT_GAP_MS);

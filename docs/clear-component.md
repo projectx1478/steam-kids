@@ -24,6 +24,7 @@ clearSequence = showClearSequence({ statusBar, controls, lockEl, host, gapEl, vi
 | primary | つぎへ側。action＝押下時の処理、id＝`data-action` |
 | replay | 「ためしなおす」押下時の処理（`data-action="replay"`） |
 | heading | ダイアログの見出し（省略可。パネルに収まらなければ自動で消える） |
+| figure | ダイアログの見出しとボタンの間に置く要素（省略可）。指定時は `.result-dialog--figure` が付き、ボタン2つは `.result-dialog-btns` に入る（低い横向きでは1行）。sort-order の料理の絵（`<figure data-so-dish>`）だけが使う。未指定は現行のまま |
 | setActiveAnimation | 画面側の「進行中アニメ」登録関数。`{ cancel: dispose }` を渡す。ダイアログを出した後も登録したままにし、画面の作り直し（renderStep の `activeAnimation.cancel()`）でも `dispose` が呼ばれるようにする |
 
 - 返り値は `{ dispose() }`。ステージ切替・やり直し・画面を離れる時に必ず呼ぶ（タイマー・ダイアログ・紙吹雪・`inert`・空き枠・`relative`・リスナーを戻す。2回呼んでも安全）。
