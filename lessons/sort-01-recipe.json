@@ -23,7 +23,8 @@
         "before": [
           { "a": "wa", "b": "yaku", "fail": "raw", "why": "わった たまごが やけるよ" },
           { "a": "yaku", "b": "sara", "fail": "empty", "why": "おさらには やけた たまご" }
-        ]
+        ],
+        "dish": "tamagoyaki"
       }
     },
     {
@@ -39,7 +40,8 @@
         "before": [
           { "a": "nagasu", "b": "hikku", "fail": "spill", "why": "たねを ながすと かえせるよ" },
           { "a": "hikku", "b": "bata", "fail": "spill", "why": "バターは やけた うえに" }
-        ]
+        ],
+        "dish": "hotcake"
       }
     },
     {
@@ -57,7 +59,8 @@
           { "a": "kiru", "b": "itame", "fail": "raw", "why": "きった やさいを いためるよ" },
           { "a": "itame", "b": "nikomu", "fail": "burn", "why": "いためた やさいを にこむよ" },
           { "a": "nikomu", "b": "kakeru", "fail": "empty", "why": "にこんだ カレーを かけるよ" }
-        ]
+        ],
+        "dish": "curry"
       }
     },
     {

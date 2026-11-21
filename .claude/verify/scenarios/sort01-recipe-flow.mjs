@@ -44,6 +44,7 @@ export default async function run({ page, check }) {
   await check('再生中: カードを押しても並びが変わらない', () => slotIds(page), ['wa', 'yaku', 'sara']);
   await page.click('.so-board', { force: true }); // 盤面のタップで演出を飛ばして結果へ
   await page.waitForSelector('[data-result-dialog]', { timeout: 10000 });
+  await check('正解: 料理の絵（たまごやき）が1つ', async () => (await page.$$('[data-result-dialog] [data-so-dish="tamagoyaki"]')).length, 1);
   await check('正解: クリア演出に「つぎの ステージ」が出る', async () => (await page.$$('[data-action="next-stage"]')).length, 1);
   await page.click('[data-action="next-stage"]');
   await page.waitForFunction(() => document.querySelector('#stage')?.dataset.step === 'play' && document.querySelector('[data-so-tray] [data-card-id="bata"]'));

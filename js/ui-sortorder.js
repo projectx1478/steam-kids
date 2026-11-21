@@ -17,6 +17,7 @@ import { isLessonCleared } from './ui-picker.js';
 import { goToStep, setBackDisabled, setActiveHandHint, setActiveAnimation, STEP_DELAY_MS, FAST_STEP_DELAY_MS } from './ui-step.js';
 import { clearResultBubble } from './ui-reaction.js';
 import { showClearSequence, recordClear } from './ui-clear.js';
+import { dishSvg, DISH_NAMES } from './sortorder-dishes.js';
 import { bindStartCueDismiss, showStartCue } from './ui-retry.js';
 
 const SCENE_MS = 1800; // 最後の鍋の場面（結果アニメ）を見せる長さ。タップで飛ばせる
@@ -102,6 +103,21 @@ function animateScene(svg, kind) {
     add('pot', [{ transform: 'translateX(0)' }, { transform: 'translateX(-3px)' }, { transform: 'translateX(3px)' }, { transform: 'translateX(0)' }], 700, 200);
   }
   return all;
+}
+
+// 成功の料理の絵（figure）。dish が無い・絵が未実装なら null（図なしの現行のダイアログ。Issue #712）。
+function dishFigure(key) {
+  const svg = key ? dishSvg(key, { robot: shapeSvg('player') }) : null;
+  if (!svg) return null;
+  const fig = document.createElement('figure');
+  fig.className = 'so-dish';
+  fig.dataset.soDish = key;
+  fig.innerHTML = svg;
+  const cap = document.createElement('figcaption');
+  cap.textContent = DISH_NAMES[key];
+  fig.appendChild(cap);
+  setMoodIn(fig, 'happy');
+  return fig;
 }
 
 export function renderSortOrder(root, step) {
@@ -318,6 +334,7 @@ export function renderSortOrder(root, step) {
           ? { label: 'つぎへ', action: () => goToStep(S.stepIndex + 1), id: 'next' }
           : { label: 'つぎの ステージ', action: () => goToStep(S.stepIndex + 1), id: 'next-stage' },
         replay,
+        figure: dishFigure(spec.dish),
         ...(isFinalStage ? {} : { heading: 'つぎへ すすもう' }),
         setActiveAnimation,
       });
