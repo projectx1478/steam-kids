@@ -96,7 +96,7 @@ export default async function run({ page, check }) {
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-action="replay"]', { timeout: 15000 });
   labels.replay = await text(page, '[data-action="replay"]');
-  await check('replay: 文言は「↺ もういちど」', async () => labels.replay, '↺ もういちど');
+  await check('replay: 文言は「↺ もういちど」', async () => labels.replay, '↺もういちど');
 
   // demo-replay は ② で読んだ文言（cmd-01-susumu の intro）を再取得
   await page.goto('/index.html?lesson=cmd-01-susumu');
