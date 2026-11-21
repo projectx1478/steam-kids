@@ -1,7 +1,8 @@
 // ステップ切替（intro/predict/play/summary）、実行アニメーション、ヘッダーのもどる・
 // えらぶ がめんへ。
 import { S, currentStep } from './state.js';
-import { logEvent } from './events.js';
+import { logEvent, getEvents } from './events.js';
+import { lastClearTs } from './analytics.js';
 import { simulate } from './engine-grid.js';
 import { GIMMICKS } from './gimmicks/index.js';
 import { prefersReducedMotion } from './ui-grid.js';
@@ -275,6 +276,7 @@ function resolveStepIndex(index, forward) {
 function enterStep(index, { resumed = false } = {}) {
   logEvent('step_leave', {});
   S.stepIndex = index;
+  saveResumeOnEnter();
   logEvent('step_enter', resumed ? { resumed: true } : {});
   playSfx('whoosh');
   renderStep();
@@ -631,7 +633,18 @@ export function saveResumePoint() {
   writeResume(S.lesson.lessonId, next.stepId);
 }
 
-// 再開先のステップ位置。保存なし・レッスンに無いstepId（保存は破棄）・クリア済みは-1（Issue #242）。
+// play等に入った時点でも再開点を書く。有効な再開点が既にあれば上書きしない（Issue #774）。
+function saveResumeOnEnter() {
+  const steps = S.lesson.steps;
+  if (steps[0]?.kind !== 'intro') return;
+  if (stagePicked || isTrial()) return;
+  const step = steps[S.stepIndex];
+  if (!step || !['play', 'predict', 'seedPick'].includes(step.kind)) return;
+  if (findResumeIndex() !== -1) return;
+  writeResume(S.lesson.lessonId, step.stepId);
+}
+
+// 再開先のステップ位置。保存なし・レッスンに無いstepId（保存は破棄）・最後のクリア以前の保存は-1（Issue #242・#774）。
 function findResumeIndex() {
   const lessonId = S.lesson.lessonId;
   const saved = readResume(lessonId);
@@ -641,7 +654,7 @@ function findResumeIndex() {
     clearResume(lessonId);
     return -1;
   }
-  if (isLessonCleared(lessonId)) return -1;
+  if (saved.ts <= lastClearTs(getEvents(), lessonId)) return -1;
   return index;
 }
 
