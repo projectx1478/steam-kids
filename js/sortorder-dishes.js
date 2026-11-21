@@ -94,6 +94,66 @@ const DISHES = {
     `<circle cx="14" cy="-14" r="5" fill="#fde68a" ${S}/>` +
     `<ellipse cx="-14" cy="14" rx="10" ry="4" fill="#9f1239" ${S}/>` +
     steam(30, -30, 0.2) + steam(-30, -32, 0.6),
+  sandwich: () =>
+    plate() +
+    // 断面を見せた2切れ（奥と手前）。パン・ハム・レタス・トマト・卵・耳
+    [[-30, -2], [26, 4]]
+      .map(([x, y]) =>
+        `<g transform="translate(${x} ${y})">` +
+        `<rect x="-36" y="-30" width="72" height="14" rx="5" fill="#fcd34d" ${S}/>` +
+        `<rect x="-34" y="-17" width="68" height="6" rx="3" fill="#fb7185" ${S}/>` +
+        `<path d="M-38 -11q8 7 14 0t14 0 14 0 14 0 14 0v6h-70z" fill="#86efac" ${S}/>` +
+        `<circle cx="-14" cy="-1" r="6" fill="#ef4444" ${S}/><ellipse cx="12" cy="-1" rx="9" ry="6" fill="#fde68a" ${S}/><circle cx="12" cy="-1" r="3.5" fill="#f59e0b"/>` +
+        `<rect x="-36" y="4" width="72" height="14" rx="5" fill="#fcd34d" ${S}/>` +
+        `<path d="M-36 11h72" stroke="#b45309" stroke-width="3" opacity="0.6"/></g>`)
+      .join('') +
+    steam(-4, -38, 0.2),
+  shokutaku: () =>
+    `<rect x="-92" y="-2" width="184" height="26" rx="10" fill="#92400e" ${S}/><rect x="-92" y="-2" width="184" height="9" rx="6" fill="#b45309" ${S}/>` +
+    // ごはん茶碗（左）
+    `<path d="M-76 -10h56q-2 26-28 26t-28-26z" fill="#fff" ${S}/><path d="M-72 -10q20-24 48 0z" fill="#fff" ${S}/>` +
+    `<circle cx="-60" cy="-14" r="2" fill="#e2e8f0"/><circle cx="-46" cy="-18" r="2" fill="#e2e8f0"/><circle cx="-34" cy="-13" r="2" fill="#e2e8f0"/>` +
+    // みそしる椀（中央・湯気）
+    `<path d="M-16 -8h50q-2 26-25 26t-25-26z" fill="#ef4444" ${S}/><ellipse cx="9" cy="-8" rx="25" ry="6" fill="#d97706" ${S}/>` +
+    // 漬物の小皿（右）
+    `<ellipse cx="58" cy="6" rx="22" ry="9" fill="#fff" ${S}/><circle cx="52" cy="2" r="6" fill="#f472b6" ${S}/><circle cx="64" cy="3" r="5" fill="#fde68a" ${S}/>` +
+    // おはし
+    `<path d="M-84 20l50-6M-84 25l50-6" stroke="#f59e0b" stroke-width="4" stroke-linecap="round"/>` +
+    steam(-48, -24, 0.1) + steam(8, -22, 0.5),
+  ramen: () =>
+    // 深い器：帽子に重ならないよう少し高く掲げる
+    `<g transform="translate(0 -14)">` +
+    `<path d="M-74 -4h148q-2 44-74 44t-74-44z" fill="#ef4444" ${S}/><path d="M-62 14h124" stroke="#fff" stroke-width="4" stroke-dasharray="14 8" opacity="0.8"/>` +
+    `<ellipse cx="0" cy="-4" rx="74" ry="16" fill="#fde68a" ${S}/>` +
+    `<path d="M-60 -6q12-8 24 0t24 0 24 0 24 0" fill="none" stroke="#f59e0b" stroke-width="4" stroke-linecap="round"/>` +
+    `<path d="M-56 0q12-8 24 0t24 0 24 0 22 0" fill="none" stroke="#f59e0b" stroke-width="4" stroke-linecap="round"/>` +
+    `<circle cx="-34" cy="-6" r="10" fill="#fff" ${S}/><path d="M-40 -6q6-6 12 0" fill="none" stroke="#f472b6" stroke-width="3"/>` +
+    `<ellipse cx="6" cy="-8" rx="14" ry="8" fill="#fff" ${S}/><circle cx="6" cy="-8" r="5" fill="#f59e0b"/>` +
+    `<ellipse cx="38" cy="-4" rx="16" ry="8" fill="#b45309" ${S}/><rect x="52" y="-20" width="9" height="22" rx="2" fill="#1e293b" transform="rotate(12 56 -9)"/>` +
+    `<circle cx="-14" cy="2" r="2.5" fill="#16a34a"/><circle cx="20" cy="2" r="2.5" fill="#16a34a"/><circle cx="-6" cy="-14" r="2.5" fill="#16a34a"/>` +
+    `</g>` +
+    steam(-20, -50, 0.1) + steam(24, -50, 0.5),
+  bento: () =>
+    `<rect x="-84" y="-26" width="168" height="62" rx="12" fill="#f59e0b" ${S}/><rect x="-76" y="-18" width="152" height="46" rx="8" fill="#fef3c7" ${S}/>` +
+    `<path d="M0 -18v46" stroke="${INK}" stroke-width="3"/>` +
+    // 左：おにぎり（のり）・ブロッコリー
+    `<path d="M-46 -12l-22 30h44z" fill="#fff" ${S}/><path d="M-52 4h12v14h-12z" fill="#1e293b"/>` +
+    `<circle cx="-18" cy="6" r="8" fill="#22c55e" ${S}/><circle cx="-10" cy="10" r="6" fill="#22c55e" ${S}/><rect x="-16" y="12" width="4" height="8" fill="#16a34a"/>` +
+    // 右：たまごやき・ミニトマト・ウインナー
+    `<rect x="10" y="-12" width="30" height="18" rx="6" fill="#fbbf24" ${S}/><path d="M10 -3h30" stroke="#d97706" stroke-width="3"/>` +
+    `<circle cx="56" cy="-2" r="8" fill="#ef4444" ${S}/>` +
+    `<rect x="12" y="12" width="52" height="11" rx="5" fill="#f87171" ${S}/><path d="M24 14l4 7M38 14l4 7M52 14l4 7" stroke="#b91c1c" stroke-width="2"/>`,
+  pizza: () =>
+    `<ellipse cx="0" cy="14" rx="82" ry="22" fill="#b45309" ${S}/>` +
+    `<ellipse cx="0" cy="8" rx="82" ry="22" fill="#fbbf24" ${S}/><ellipse cx="0" cy="8" rx="68" ry="16" fill="#ef4444" opacity="0.9"/>` +
+    `<ellipse cx="0" cy="8" rx="62" ry="14" fill="#fde68a" opacity="0.9"/>` +
+    // 持ち上がる1切れ（右）と伸びるチーズ
+    `<path d="M10 8L66 -2q22 -26 10 -34L6 -22z" fill="#fde68a" ${S}/><path d="M10 8L66 -2" stroke="#b45309" stroke-width="5" stroke-linecap="round"/>` +
+    `<path d="M10 8q-2 12 2 18M24 4q-2 14 2 22" fill="none" stroke="#fde68a" stroke-width="4" stroke-linecap="round"/>` +
+    `<circle cx="-40" cy="8" r="8" fill="#9f1239" ${S}/><circle cx="-14" cy="14" r="7" fill="#9f1239" ${S}/><circle cx="-26" cy="0" r="6" fill="#9f1239" ${S}/>` +
+    `<path d="M-52 12q4-8 10-2" fill="none" stroke="#22c55e" stroke-width="5" stroke-linecap="round"/><path d="M-4 0q4-6 10-1" fill="none" stroke="#22c55e" stroke-width="5" stroke-linecap="round"/>` +
+    `<path d="M28 -16q4-8 12-4" fill="none" stroke="#9f1239" stroke-width="5" stroke-linecap="round"/>` +
+    steam(-30, -14, 0.2),
 };
 
 // dishSvg(key, { robot })：未実装のキーは null。robot は shapeSvg('player') の文字列（省略時はロボットなし）。
