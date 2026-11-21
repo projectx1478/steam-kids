@@ -50,8 +50,8 @@ export default async function run({ page, check }) {
     await check(`${tag} タイトル: はじめからが画面内・64px以上`, () => inViewTall('[data-action="title-new"]', w, h));
     await check(`${tag} タイトル: つづきからが画面内・64px以上`, () => inViewTall('[data-action="title-continue"]', w, h));
 
-    // --- スロット選択：もどる ---
-    await page.click('[data-action="title-continue"]');
+    // --- スロット選択：もどる（はじめから経由。スロット1つの つづきから は intro へ直行するため。#740） ---
+    await page.click('[data-action="title-new"]');
     await page.waitForSelector('#stage[data-screen="slots"]');
     await check(`${tag} スロット選択: もどるが画面内・64px以上`, () => inViewTall('[data-action="slot-back"]', w, h));
 
