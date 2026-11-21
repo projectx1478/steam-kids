@@ -1,5 +1,5 @@
 // sort-order（レシピの順番）のplayステップ描画（Issue #292）。トレイのカードをタップしてスロットへ置き、
-// 「ためす」で判定する。誤りは結果アニメ（こげる・こぼれる・なまのまま・からっぽ）＋違反ペア2枚の点滅（文言なし）。
+// 「ためす」で並べた順に手カードが1手ずつ動き（実行アニメ。Issue #712）、違反の手で止まって結果アニメ（こげる・こぼれる・なまのまま・からっぽ）＋違反ペア2枚の点滅（文言なし）。
 // 画面の骨格・クリア演出・戻る系の無効化はシーソー（ui-seesaw.js）と同じ部品を使う。
 import { S } from './state.js';
 import { readPlacement, writePlacement, clearPlacement } from './storage.js';
@@ -8,18 +8,18 @@ import { IS_DEV } from './dev-mode.js';
 import { firstViolation } from './engine-sortorder.js';
 import { logEvent } from './events.js';
 import { shapeSvg, setMoodIn, prefersReducedMotion, screenConfetti } from './ui-grid.js';
-import { vibrate } from './ui-commands.js';
+import { vibrate, fastSteps } from './ui-commands.js';
 import { play as playSfx, skipClickSfx } from './sfx.js';
 import { renderInto } from './text-render.js';
 import { createOpScreen } from './ui-screen.js';
 import { showHandHint } from './ui-hand.js';
 import { isLessonCleared } from './ui-picker.js';
-import { goToStep, setBackDisabled, setActiveHandHint, setActiveAnimation } from './ui-step.js';
+import { goToStep, setBackDisabled, setActiveHandHint, setActiveAnimation, STEP_DELAY_MS, FAST_STEP_DELAY_MS } from './ui-step.js';
 import { clearResultBubble } from './ui-reaction.js';
 import { showClearSequence, recordClear } from './ui-clear.js';
 import { bindStartCueDismiss, showStartCue } from './ui-retry.js';
 
-const RUN_MS = 2000; // 結果アニメ（3秒以内。タップで飛ばせる）
+const SCENE_MS = 1800; // 最後の鍋の場面（結果アニメ）を見せる長さ。タップで飛ばせる
 const RUN_REDUCED_MS = 300;
 const NEED_MS = 900; // 空きスロットが光る時間
 
@@ -57,6 +57,23 @@ function sceneSvg(kind) {
 // 料理人役のロボット（既存の shapeSvg('player') に帽子を重ねる。新キャラではない）。
 const robotHtml = () =>
   `<svg class="so-robot" viewBox="0 -8 64 72" aria-hidden="true">${shapeSvg('player')}<path d="M18 8c-6-2-4-12 4-11 3-6 17-6 20 0 8-1 10 9 4 11z" fill="#fff" stroke="#1e293b" stroke-width="2"/></svg>`;
+
+// 実行アニメの手カードの動き（Issue #712）。長さ＝その手の間隔。
+const ACT_FRAMES = {
+  cut: [0, -6, 6, -6, 6, -6, 6, 0].map((x) => ({ transform: `translateX(${x}px)` })),
+  mix: [[6, 0], [0, 6], [-6, 0], [0, -6], [6, 0]].map(([x, y]) => ({ transform: `translate(${x}px, ${y}px)` })),
+  bake: [
+    { transform: 'scale(1)', boxShadow: '0 0 0 0 #f97316' },
+    { transform: 'scale(1.15)', boxShadow: '0 0 0 4px #f97316' },
+    { transform: 'scale(1)', boxShadow: '0 0 0 0 #f97316' },
+  ],
+  put: [
+    { transform: 'translateY(-24px)', opacity: 0 },
+    { transform: 'translateY(0)', opacity: 1, offset: 0.6 },
+    { transform: 'translateY(-6px)', opacity: 1, offset: 0.8 },
+    { transform: 'translateY(0)', opacity: 1 },
+  ],
+};
 
 // 結果アニメの再生（Web Animations）。返り値の animations を finish() すると終端状態になる。
 function animateScene(svg, kind) {
@@ -97,7 +114,7 @@ export function renderSortOrder(root, step) {
   const stageIndex = playSteps.findIndex((s) => s.stepId === step.stepId);
   const isFinalStage = stageIndex === playSteps.length - 1;
 
-  const local = { slots: new Array(n).fill(null), phase: 'edit', wrong: [], timer: null, anims: [], fails: 0 };
+  const local = { slots: new Array(n).fill(null), phase: 'edit', wrong: [], timer: null, anims: [], fails: 0, prev: null, kind: 'ok', sceneShown: false };
 
   // 置き方の保存・復元（Issue #745）。試しのレッスンでは読まない・書かない。カード id が重複せず cards にあるものだけ採用する。
   const lessonId = S.lesson.lessonId;
@@ -270,6 +287,13 @@ export function renderSortOrder(root, step) {
     setBackDisabled(false);
     const order = local.slots;
     const bad = firstViolation(order, before);
+    local.prev = { slots: order.slice(), failIndex: bad ? order.indexOf(bad.a) : -1 };
+    if (local.phase === 'running' && !local.sceneShown) {
+      // 手の再生中に飛ばしたとき：最後の鍋の場面を終端状態で出す。
+      const { svg } = setBoard(local.kind, 'normal');
+      if (!prefersReducedMotion()) animateScene(svg, local.kind).forEach((a) => a.finish());
+    }
+    boardArea.querySelector('.so-act')?.remove();
     if (!bad) {
       local.phase = 'cleared';
       clearSaved();
@@ -326,13 +350,44 @@ export function renderSortOrder(root, step) {
     setBackDisabled(true);
     const bad = firstViolation(local.slots, before);
     const kind = bad ? bad.fail ?? 'none' : 'ok';
-    const { svg } = setBoard(kind, 'normal');
+    local.kind = kind;
+    local.sceneShown = false;
+    const count = bad ? local.slots.indexOf(bad.a) + 1 : n; // 違反は a の手まで再生して止まる
+    const indexes = local.slots.map((_, i) => i);
+    const fast = local.prev
+      ? fastSteps(local.prev.slots, local.prev.failIndex, local.slots, indexes)
+      : indexes.map(() => false);
+    const delayOf = (i) => (fast[i] ? FAST_STEP_DELAY_MS : STEP_DELAY_MS);
     const reduced = prefersReducedMotion();
-    local.anims = reduced ? [] : animateScene(svg, kind);
-    local.timer = setTimeout(finishRun, reduced ? RUN_REDUCED_MS : RUN_MS);
+    setBoard('idle', 'normal');
+    const act = document.createElement('div');
+    act.className = 'so-act';
+    boardArea.querySelector('.so-scene-wrap').appendChild(act);
+
+    function showScene() {
+      act.remove();
+      slotsEl.querySelectorAll('.so-now').forEach((e) => e.classList.remove('so-now'));
+      const { svg } = setBoard(kind, 'normal');
+      local.sceneShown = true;
+      local.anims = reduced ? [] : animateScene(svg, kind);
+      local.timer = setTimeout(finishRun, reduced ? RUN_REDUCED_MS : SCENE_MS);
+    }
+    function playStep(i) {
+      const card = byId.get(local.slots[i]);
+      act.dataset.act = card.act ?? 'put';
+      act.textContent = card.icon;
+      slotsEl.querySelectorAll('.so-now').forEach((e) => e.classList.remove('so-now'));
+      slotsEl.querySelector(`.so-slot[data-slot="${i}"]`)?.classList.add('so-now');
+      const ms = delayOf(i);
+      if (!reduced) local.anims = [act.animate(ACT_FRAMES[act.dataset.act], { duration: ms, easing: 'ease-in-out' })];
+      local.timer = setTimeout(() => (i + 1 < count ? playStep(i + 1) : showScene()), ms);
+    }
+    playStep(0);
     setActiveAnimation({
       cancel() {
         clearTimeout(local.timer);
+        local.anims.forEach((a) => a.cancel());
+        local.anims = [];
         setBackDisabled(false);
       },
     });
@@ -343,6 +398,7 @@ export function renderSortOrder(root, step) {
     vibrate();
     logEvent('retry', {});
     clearResultBubble(bird);
+    local.prev = null;
     local.slots = new Array(n).fill(null);
     clearSaved();
     clearWrong();
@@ -356,6 +412,7 @@ export function renderSortOrder(root, step) {
     showNormalActions();
     clearResultBubble(bird);
     local.fails = 0;
+    local.prev = null;
     local.slots = new Array(n).fill(null);
     clearSaved();
     clearWrong();

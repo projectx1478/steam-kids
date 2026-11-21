@@ -35,6 +35,11 @@ export default async function run({ page, check }) {
   for (const id of ['wa', 'yaku', 'sara']) await tap(page, id);
   await check('正解の並びを置く', () => slotIds(page), ['wa', 'yaku', 'sara']);
   await page.click('[data-action="run"]');
+  await page.waitForSelector('.so-act[data-act]');
+  await check('再生中: ためす・もどすが disabled', () => page.$eval('[data-action="run"]', (b) => b.disabled).then(async (r) => r && (await page.$eval('[data-action="reset"]', (b) => b.disabled))), true);
+  await page.click('[data-so-slots] [data-card-id="wa"]', { force: true });
+  await check('再生中: カードを押しても並びが変わらない', () => slotIds(page), ['wa', 'yaku', 'sara']);
+  await page.click('.so-board', { force: true }); // 盤面のタップで演出を飛ばして結果へ
   await page.waitForSelector('[data-result-dialog]', { timeout: 10000 });
   await check('正解: クリア演出に「つぎの ステージ」が出る', async () => (await page.$$('[data-action="next-stage"]')).length, 1);
   await page.click('[data-action="next-stage"]');
