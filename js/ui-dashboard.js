@@ -146,6 +146,29 @@ function renderProfileSection(root) {
   initSoundToggle(soundBtn);
 
   root.appendChild(toggleRow);
+
+  // もじを おおきく・うごきを へらす（Issue #379）。学習者ごと（profile・端末内のみ・同期しない）。
+  // 子ども画面では <html> の data 属性で効く（js/display-prefs.js）。この保護者画面自体は変えない。
+  const displayRow = el('div', 'flex gap-2 mt-2');
+  for (const [id, key, label] of [
+    ['large-text-toggle', 'largeText', 'もじを おおきく'],
+    ['reduce-motion-toggle', 'reduceMotion', 'うごきを へらす'],
+  ]) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = id;
+    btn.setAttribute('aria-pressed', String(loadProfile()?.[key] === true));
+    btn.textContent = label;
+    btn.className = 'min-h-[48px] px-3 rounded-lg bg-white border border-slate-300 text-sm flex-1';
+    btn.addEventListener('click', () => {
+      const profile = loadProfile() ?? newProfile();
+      profile[key] = profile[key] !== true;
+      saveProfile(profile);
+      btn.setAttribute('aria-pressed', String(profile[key]));
+    });
+    displayRow.appendChild(btn);
+  }
+  root.appendChild(displayRow);
 }
 
 function renderRecentSection(root, recentDays) {

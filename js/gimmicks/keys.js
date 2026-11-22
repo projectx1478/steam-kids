@@ -1,6 +1,7 @@
 // keys（かぎとドア）ギミック：かぎのマスへ入るとその色を持ち、同じ色のドアが開いて通れる。
 // 未所持の色のドアは壁と同じ通行不可（当たると失敗）。かぎは消費しない（Issue #62）。
 // 色は色覚に配慮して形でも区別する（red=まる、blue=さんかく。かぎ。ドアは色のみ。Issue #387）。
+import { prefersReducedMotion } from '../display-prefs.js';
 export const KEY_COLORS = ['red', 'blue'];
 // keyMode（Issue #391）。remote＝かぎのマスへ入った瞬間に同色のドアが開く（従来）。carry＝取っても開かず、
 // 持っている色のドアのマスへ入ったときに開く（省略時）。通行可否・最短手数は同じで、onStepの描画だけが違う。
@@ -63,7 +64,7 @@ function doorSvg(color, open) {
     </svg>`;
 }
 
-const prefersReduce = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+const prefersReduce = prefersReducedMotion;
 const slotOf = (color) => typeof document === 'undefined' ? null : document.querySelector(`.key-slot[data-color="${color}"]`);
 
 // carry盤の鍵トレイ（Issue #391）。持っていない色は点線の空き枠（鍵の色で薄く着色）、持った色は盤面と同じ鍵を縮小して入れる。

@@ -3,6 +3,7 @@
 // 転がせない手（先が盤外・壁・他の球）と、埋まっていないおとし穴へ入る手は壁と同じ失敗。
 // 状態：{ balls: [{x,y}|null], filled: [boolean] }（ballsは初期位置と同じ添字。穴に埋まった球はnull）。
 // 描画（render）・演出（onStep・onBump）は段2。見た目は review/design/287/mock/balls-360.svg に合わせる。
+import { prefersReducedMotion } from '../display-prefs.js';
 const list = (v) => (Array.isArray(v) ? v : []);
 const keyOf = (p) => `${p.x},${p.y}`;
 const isPoint = (p) => p && Number.isInteger(p.x) && Number.isInteger(p.y);
@@ -11,7 +12,7 @@ const MOVE_MS = 450; // ロボットの移動時間（js/ui-grid.js の MOVE_MS 
 const FALL_MS = 300; // 穴に沈む時間（js/ui-grid.js の FALL_MS と同じ）
 const BOUNCE_MS = 250; // 震える時間（js/ui-grid.js の BOUNCE_MS と同じ）
 const SPIN = { right: 180, down: 180, left: -180, up: -180 };
-const reduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+const reduced = prefersReducedMotion;
 const svgLayer = (inner, extra = '') =>
   `<svg viewBox="0 0 64 64" class="absolute pointer-events-none" style="left:0;top:0;width:100%;height:100%;${extra}" aria-hidden="true">${inner}</svg>`;
 // 球：影・回す本体（外周・本体・面・縫い目）・ハイライトの3層。回すのは本体だけ。

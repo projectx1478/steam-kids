@@ -58,6 +58,7 @@ const APP_SHELL = [
   "./js/sfx.js",
   "./js/slot-utils.js",
   "./js/state.js",
+  "./js/display-prefs.js",
   "./js/storage.js",
   "./js/sync.js",
   "./js/text-render.js",
