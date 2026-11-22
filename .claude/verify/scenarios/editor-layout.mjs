@@ -73,7 +73,7 @@ export default async function run({ page, check, shot }) {
     await check('先頭の ↑ は無効', () => row('ice-01-suberu').locator('button', { hasText: '↑' }).isDisabled(), true);
     await row('ice-02-kabe').locator('button', { hasText: '↑' }).click();
     await save();
-    await check('ice の順が入れ替わる', () => unitOf(readIndex(), 'ice').lessonIds, ['ice-02-kabe', 'ice-01-suberu']);
+    await check('ice の順が入れ替わる', () => unitOf(readIndex(), 'ice').lessonIds, ['ice-02-kabe', 'ice-01-suberu', 'cmd-08-yomu']);
 
     // 4. 単元間の移動
     await row('ice-01-suberu').locator('.lay-move').selectOption('keys');

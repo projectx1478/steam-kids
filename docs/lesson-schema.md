@@ -202,7 +202,7 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 - 面ごとの検査（`tools/lib/validate/unfold.mjs`の`validateUnfoldFace`）：`preset`が1〜5枚（0枚と6枚は不合格）、連結可能、preset を含む正解が1通り以上、必須性（preset を全部外した正解数＞正解数）、盤が立方体の展開図か（折り検査）
 - レッスン全体の検査（`validateUnfold`）：`longTrialIds`に載せる、play は8面、`preset`枚数は非増加（＝正解数は非減少）、同じ`preset`の面の重複なし。`intro.demo`は`checkUnfoldDemo`。grid-runtime の最短手数規則は適用外
 
-### `grid-runtime`の`play`の`read`（めいれいを よむ。Issue #723 の試作・devOnly）
+### `grid-runtime`の`play`の`read`（めいれいを よむ。Issue #723・#749）
 
 - `read: { programs: [[命令…],[…],[…]] }`。命令列は見るだけで編集できない。子どもは盤面をタップして旗を置き、「じっこう」で確かめる。ロボットの止まったマス＝旗ならクリア。
 - 旗の置き方は2つ：マスをタップ（止まるマスだけ）／ロボットから指でなぞる（通る道に輪が残り、最後のマスに旗）。命令のチップをタップすると「ここまで よんだ」の印が付く。「はた立て」を押すと旗と輪を戻す。

@@ -86,7 +86,7 @@ test('並べ替えが保存される', async () => {
     const idx = (await call(port, 'GET', '/api/index')).json;
     const r = await call(port, 'PUT', '/api/index', moveLesson(idx, 'ice-02-kabe', -1));
     assert.equal(r.status, 200, JSON.stringify(r.json));
-    assert.deepEqual(unitOf(readIndex(s), 'ice').lessonIds, ['ice-02-kabe', 'ice-01-suberu']);
+    assert.deepEqual(unitOf(readIndex(s), 'ice').lessonIds, ['ice-02-kabe', 'ice-01-suberu', 'cmd-08-yomu']);
   });
 });
 
