@@ -53,6 +53,27 @@ export function formatMetrics(result) {
   return lines;
 }
 
+// 考えどころ K1〜K3（POST /api/kangae の応答）を表示用の3行にする。null＝判定中。文言は tools/lib/board-metrics.mjs の
+// formatKangaeLines と同じ（editor-view.js は tools/lib を読めないので持つ。一致は test/editor-kangae.test.mjs で確かめる）。
+export function formatKangae(result) {
+  if (!result) return ['考えどころ: 判定中…'];
+  if (result.status === 'timeout') return ['考えどころ: 不明（時間切れ）'];
+  const { k1, k2, k3 } = result;
+  const ynu = (r) => (r.value === null ? `不明（${r.reason}）` : r.value ? 'はい' : 'いいえ');
+  const l1 = k1.value === true && k1.reason ? `はい（${k1.reason}）` : ynu(k1);
+  const l2 = (() => {
+    if (k2.value === null) return `不明（${k2.reason}）`;
+    const head = k2.value ? 'はい' : 'いいえ';
+    if (k2.totalOrders === null) return `${head}（${k2.reason}）`;
+    return `${head}（よい順 ${k2.goodOrders}/${k2.totalOrders}）`;
+  })();
+  return [
+    `考えどころ K1（素直な最短では解けない）: ${l1}`,
+    `考えどころ K2（回る順が絞られる）: ${l2}`,
+    `考えどころ K3（最短でも同じマスを通る）: ${ynu(k3)}`,
+  ];
+}
+
 // 表示用の例盤面（既存の盤面 JSON と同じ形。lessons/*.json の demo・step と同じ項目）。
 export const SAMPLE_SPEC = {
   grid: { cols: 5, rows: 5 },

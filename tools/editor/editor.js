@@ -1,6 +1,6 @@
 // 盤面エディタ（開発者用）の画面。盤面は js/ui-board.js の drawBoard 経由で描く。
 import { drawBoard } from '/js/ui-board.js';
-import { EMPTY_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clampCellPx, wheelCellPx, zoomPercent, formatMetrics, pendingSwitches, pendingGroupSwitches, pendingKeys, pendingBridges, pendingPaint, markTrail, selectionHint, switchModeOptions, switchGroupOptions, GEN_COUNT, GEN_GIMMICKS, GEN_BASE_FIXED_GIMMICKS, baseFromSpec, checkGenerateForm, buildGenerateBody, generateStatusText, unusedLandNote } from './editor-view.js';
+import { EMPTY_SPEC, CELL_PX_DEFAULT, EDITOR_MAX_SIZE, ANALYZE_DEBOUNCE_MS, clampCellPx, wheelCellPx, zoomPercent, formatMetrics, formatKangae, pendingSwitches, pendingGroupSwitches, pendingKeys, pendingBridges, pendingPaint, markTrail, selectionHint, switchModeOptions, switchGroupOptions, GEN_COUNT, GEN_GIMMICKS, GEN_BASE_FIXED_GIMMICKS, baseFromSpec, checkGenerateForm, buildGenerateBody, generateStatusText, unusedLandNote } from './editor-view.js';
 
 import { GIMMICKS } from '/js/gimmicks/index.js';
 import { markGatePassedToday } from '/js/gate-date.js';
@@ -315,22 +315,34 @@ function showMetrics(lines) {
 
 async function analyzeNow() {
   const gen = nextGeneration(state);
-  showMetrics(formatMetrics(null));
-  let lines;
-  try {
-    const res = await fetch('/api/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lesson && lesson.selected !== null ? { spec: state.spec, lessonId: lesson.lessonId, index: lesson.selected } : { spec: state.spec }) });
-    const body = await res.json();
-    lines = res.ok ? formatMetrics(body) : ['未判定', ...(body.messages || []).map((m) => `! ${m}`)];
-  } catch {
-    lines = ['未判定（判定サーバーに接続できません）'];
-  }
-  const wait = [
+  const post = (url, payload) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  const wait = () => [
     ...[...pendingSwitches(state.spec), ...pendingGroupSwitches(state.spec)].map((p) => `接続待ち: スイッチ (${p.x},${p.y}) に壁がつながっていない`),
     ...pendingKeys(state.spec).map((p) => `接続待ち: ${p.kind === 'keys' ? 'かぎ' : 'ドア'} (${p.x},${p.y}) に同じ色の${p.kind === 'keys' ? 'ドア' : 'かぎ'}が無い`),
     ...pendingBridges(state.spec).map((p) => `接続待ち: 橋 (${p.x},${p.y}) の上下左右に水が無い`),
     ...pendingPaint(state.spec).map((p) => `接続待ち: ぬりマスの目標に${p.kind === 'start' ? 'スタート' : 'ゴール'} (${p.x},${p.y}) が含まれていない`),
   ];
-  if (shouldApplyResult(state, gen)) showMetrics([...wait, ...lines]);
+  // 判定欄は [...接続待ち, ...analyzeの行, ...考えどころの行]。片方が先に返ったら、もう片方は「判定中…」にする。
+  let analyzeLines = formatMetrics(null);
+  let kangaeLines = formatKangae(null);
+  const show = () => { if (shouldApplyResult(state, gen)) showMetrics([...wait(), ...analyzeLines, ...kangaeLines]); };
+  show();
+  const analyzePayload = lesson && lesson.selected !== null ? { spec: state.spec, lessonId: lesson.lessonId, index: lesson.selected } : { spec: state.spec };
+  const analyze = post('/api/analyze', analyzePayload)
+    .then(async (res) => {
+      const body = await res.json();
+      analyzeLines = res.ok ? formatMetrics(body) : ['未判定', ...(body.messages || []).map((m) => `! ${m}`)];
+    })
+    .catch(() => { analyzeLines = ['未判定（判定サーバーに接続できません）']; })
+    .then(show);
+  const kangae = post('/api/kangae', { spec: state.spec })
+    .then(async (res) => {
+      const body = await res.json();
+      kangaeLines = res.ok ? formatKangae(body) : ['考えどころ: 未判定', ...(body.messages || []).map((m) => `! ${m}`)];
+    })
+    .catch(() => { kangaeLines = ['考えどころ: 未判定（判定サーバーに接続できません）']; })
+    .then(show);
+  await Promise.all([analyze, kangae]);
 }
 
 function scheduleAnalyze() {

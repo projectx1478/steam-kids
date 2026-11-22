@@ -108,6 +108,33 @@ export function runAnalyze(spec, { timeoutMs = ANALYZE_TIMEOUT_MS, workerFile = 
   });
 }
 
+// 考えどころ K1〜K3（#782）。/api/analyze とは別の worker・別の時間（既存の10秒判定を遅らせないため）。
+export const KANGAE_TIMEOUT_MS = 16_000; // kangaedokoro 自身の打ち切り（15秒）より少し長く取る
+const KANGAE_WORKER_FILE = path.join(EDITOR_DIR, 'kangae-worker.mjs');
+const kangaeError = (msg) => ({ value: null, reason: `判定中にエラー: ${msg}` });
+
+// spec を worker_threads で判定する。timeoutMs を超えたら打ち切り { status:'timeout' }、それ以外は { status:'ok', k1, k2, k3 }。
+export function runKangae(spec, { kangaeTimeoutMs = KANGAE_TIMEOUT_MS, kangaeWorkerFile = KANGAE_WORKER_FILE } = {}) {
+  return new Promise((resolve) => {
+    const worker = new Worker(kangaeWorkerFile, { workerData: { spec } });
+    let done = false;
+    const finish = (value) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      worker.terminate();
+      resolve(value);
+    };
+    const failed = (msg) => finish({ status: 'ok', k1: kangaeError(msg), k2: kangaeError(msg), k3: kangaeError(msg) });
+    const timer = setTimeout(() => finish({ status: 'timeout' }), kangaeTimeoutMs);
+    worker.once('message', (m) => {
+      if (m && m.ok) finish({ status: 'ok', ...m.result });
+      else failed(m && m.error);
+    });
+    worker.once('error', (e) => failed(e.message));
+  });
+}
+
 function sendJson(res, status, obj) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
   res.end(JSON.stringify(obj));
@@ -192,6 +219,17 @@ async function handleAnalyze(req, res, opts) {
     result.messages = [...(result.messages || []), ...g.messages];
   }
   sendJson(res, 200, result);
+}
+
+// POST /api/kangae。入力検査は /api/analyze と同じ（lessonId・index は使わない）。400／200。
+async function handleKangae(req, res, opts) {
+  const raw = await readBody(req);
+  if (raw === null) return sendJson(res, 400, { messages: ['body が大きすぎます'] });
+  let body;
+  try { body = JSON.parse(raw); } catch { return sendJson(res, 400, { messages: ['JSON として読めません'] }); }
+  const problems = checkAnalyzeInput(body);
+  if (problems.length > 0) return sendJson(res, 400, { messages: problems });
+  sendJson(res, 200, await runKangae(body.spec, opts));
 }
 
 // ---- たたき台の生成（#401 段1）。stageGen（docs/lesson-schema.md）から候補盤を出す ----
@@ -720,6 +758,10 @@ export function createEditorServer(opts = {}) {
     }
     if (req.method === 'POST' && pathname === '/api/analyze') {
       handleAnalyze(req, res, opts).catch(() => sendJson(res, 500, { messages: ['内部エラー'] }));
+      return;
+    }
+    if (req.method === 'POST' && pathname === '/api/kangae') {
+      handleKangae(req, res, opts).catch(() => sendJson(res, 500, { messages: ['内部エラー'] }));
       return;
     }
     if (req.method === 'POST' && pathname === '/api/generate') {
