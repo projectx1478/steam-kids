@@ -61,3 +61,6 @@ npm run verify:fast -- --with-generate
 
 ### 悠の決裁待ち
 - 盤面だけを変える PR の扱い。案：CI の validate と e2e が通れば、AI のレビューを省く。`.claude/` の変更になるため、ここでは決裁事項として書くだけで、`.claude/` は変えない。
+
+## color-audit（色の点検）
+`npm run audit:color`（`--json` で JSON）。文字と背景のコントラスト比（js・index.html・tailwind.src.css）と、色で意味を分ける組み合わせの色覚模擬（protan・deutan の ΔE）を出す。段1は報告のみ（終了コードは常に 0。CI・check:static には入れない）。

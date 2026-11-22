@@ -44,7 +44,7 @@ export default async function run({ page, check }) {
     await setCleared(page, order.slice(0, order.indexOf(targetId)));
     await page.goto('/index.html?view=map');
     await page.evaluate(() => (window.__sfxLog ? (window.__sfxLog.length = 0) : null));
-    await page.click(`[data-lesson-id="${lockId}"]`);
+    await page.click(`[data-lesson-id="${lockId}"]`, { force: true }); // 錠は aria-disabled のまま反応を返す設計（#742）。Playwright は aria-disabled を押せないと待つので force
     await check(`${lockId}: 光る先は ${targetId}（錠でなく枠クラスつき）`, () =>
       page.$eval(`[data-lesson-id="${targetId}"]`, (b) => !b.dataset.locked && b.classList.contains('ring-4')), true);
     await check(`${lockId}: 無音（__sfxLog が増えない）`, () => page.evaluate(() => (window.__sfxLog ?? []).length), 0);

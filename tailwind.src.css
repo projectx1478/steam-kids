@@ -2069,3 +2069,54 @@ button.egg-cell {
     animation: rd-fork 1s ease-in-out 3;
   }
 }
+
+/* アプリの「うごきを へらす」（保護者画面の設定。Issue #379）。<html data-sk-motion="reduce"> のとき、端末の
+   prefers-reduced-motion: reduce と同じ見た目にする。@media (prefers-reduced-motion…) を足したら、ここにも同じものを足す（#379）。 */
+html[data-sk-motion='reduce'] .hand-hint[data-mode='tap'],
+html[data-sk-motion='reduce'] .hand-hint[data-mode='drag'],
+html[data-sk-motion='reduce'] .spring-in,
+html[data-sk-motion='reduce'] .gate-shake,
+html[data-sk-motion='reduce'] .wobble-soft,
+html[data-sk-motion='reduce'] button.retry-pulse,
+html[data-sk-motion='reduce'] button.next-pulse,
+html[data-sk-motion='reduce'] .success-pop,
+html[data-sk-motion='reduce'] .star-reveal,
+html[data-sk-motion='reduce'] .stamp-pop,
+html[data-sk-motion='reduce'] .flag-wave,
+html[data-sk-motion='reduce'] .sleep-breath,
+html[data-sk-motion='reduce'] .float-slow,
+html[data-sk-motion='reduce'] .goal-sparkle,
+html[data-sk-motion='reduce'] .sk-start-cue,
+html[data-sk-motion='reduce'] .rd-stand[data-placed='false'] > svg,
+html[data-sk-motion='reduce'] .rd-trail:last-of-type,
+html[data-sk-motion='reduce'] .rd-chip-fork,
+html[data-sk-motion='reduce'] .motion-safe\:animate-pulse,
+html[data-sk-motion='reduce'] .ghost-slot {
+  animation: none;
+}
+html[data-sk-motion='reduce'] .command-chip.sk-cmd-fail {
+  outline: none;
+}
+html[data-sk-motion='reduce'] .command-chip.sk-cmd-fail:focus-visible {
+  outline: 4px solid #0369a1;
+  outline-offset: 2px;
+}
+html[data-sk-motion='reduce'] button.next-pulse {
+  box-shadow: 0 0 0 4px #fcd34d;
+}
+html[data-sk-motion='reduce'] .so-sparkle,
+html[data-sk-motion='reduce'] .so-steam {
+  animation: none;
+}
+html[data-sk-motion='reduce'] .so-slot.so-wrong > .so-card {
+  animation: none;
+  background: #fdba74;
+}
+html[data-sk-motion='reduce'] .uf-cell.uf-wrong {
+  animation: none;
+}
+
+/* アプリの「もじを おおきく」（Issue #379）。125% は c7-board-fit が端末の文字125%として検査済みの倍率。 */
+html[data-sk-text='large'] {
+  font-size: 125%;
+}

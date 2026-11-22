@@ -1,6 +1,7 @@
 // 小鳥（かんむりルリ）の顔アイコンと吹き出しの器（Issue #468 段1）。
 // 中身（文言・表示条件）は段2・3。ここは置き場と出し入れだけ。位置・寸法は tailwind.src.css の sk-bird-*。
 // 顔と吹き出しは盤面の上の固定の欄（laneEl。高さ64px。Issue #544 段1）に並べる。吹き出しは1行表示で、収まらない文は横にスライドして見せる。
+import { prefersReducedMotion } from './display-prefs.js';
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 export function createFaceSvg() {
@@ -73,7 +74,7 @@ export function createBird(laneEl, boardArea) {
   function nudge() {
     const dist = Math.min(overflow(), 40);
     if (dist <= 0 || typeof requestAnimationFrame !== 'function') return;
-    if (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (prefersReducedMotion()) return;
     const id = ++nudgeId;
     const start = performance.now();
     const DUR = 600;

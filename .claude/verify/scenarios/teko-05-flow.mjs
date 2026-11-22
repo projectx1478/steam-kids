@@ -129,37 +129,32 @@ export default async function run({ page, check }) {
   await page.waitForSelector('[data-action="next-stage"]', { timeout: 10000 });
   await click(page, 'next-stage');
 
-  // p6：n4・左4体pos2・解 [4,2]（▶3回・＋1回）
-  await page.waitForSelector('[data-action="robots-plus"]');
-  await layout(page, 'p6', check);
-  await page.setViewportSize({ width: 1024, height: 640 });
-  await click(page, 'pos-right', 3);
-  await click(page, 'robots-plus');
-  await check('p6：重さが2になる', () => moverRobots(page), 2);
-  await click(page, 'run');
-  await page.waitForSelector('[data-action="next-stage"]', { timeout: 10000 });
+  // p6〜p8：find 面（Issue #722）。つりあう組を find 個みつけるまで「つぎへ」は出ない。組は [位置, 重さ]。
+  const findStage = async (id, groups, finalAction) => {
+    await page.waitForSelector('[data-action="robots-plus"]');
+    await layout(page, id, check);
+    await page.setViewportSize({ width: 1024, height: 640 });
+    for (let i = 0; i < groups.length; i += 1) {
+      const [pos, robots] = groups[i];
+      await click(page, 'pos-right', pos - 1);
+      await click(page, 'robots-plus', robots - 1);
+      await click(page, 'run');
+      if (i === groups.length - 1) {
+        await page.waitForSelector(`[data-action="${finalAction}"]`, { timeout: 10000 });
+      } else {
+        await page.waitForFunction((n) => document.querySelectorAll('[data-found]').length === n, i + 1, { timeout: 10000 });
+        await check(`${id}：${i + 1}組みつけた時点では「つぎへ」が出ない`, async () => (await page.$$('[data-action="next-stage"]')).length, 0);
+        await page.waitForFunction(() => document.querySelectorAll('[data-mover] > svg').length === 1, null, { timeout: 10000 });
+        await page.waitForSelector('[data-action="run"]:not([disabled])');
+      }
+    }
+    await check(`${id}：みつけた組が${groups.length}枚並ぶ`, async () => (await page.$$('[data-found]')).length, groups.length);
+  };
+  await findStage('p6', [[3, 2], [2, 3]], 'next-stage');
   await click(page, 'next-stage');
-
-  // p7：n3・左3体pos3・解 [3,3]（▶2回・＋2回）
-  await page.waitForSelector('[data-action="robots-plus"]');
-  await layout(page, 'p7', check);
-  await page.setViewportSize({ width: 1024, height: 640 });
-  await click(page, 'pos-right', 2);
-  await click(page, 'robots-plus', 2);
-  await check('p7：重さが3になる', () => moverRobots(page), 3);
-  await click(page, 'run');
-  await page.waitForSelector('[data-action="next-stage"]', { timeout: 10000 });
+  await findStage('p7', [[6, 1], [3, 2], [2, 3]], 'next-stage');
   await click(page, 'next-stage');
-
-  // p8：n4・左4体pos3・解 [4,3]（▶3回・＋2回）
-  await page.waitForSelector('[data-action="robots-plus"]');
-  await layout(page, 'p8', check);
-  await page.setViewportSize({ width: 1024, height: 640 });
-  await click(page, 'pos-right', 3);
-  await click(page, 'robots-plus', 2);
-  await check('p8：重さが3になる', () => moverRobots(page), 3);
-  await click(page, 'run');
-  await page.waitForSelector('[data-action="next"]', { timeout: 10000 });
+  await findStage('p8', [[6, 2], [4, 3], [3, 4]], 'next');
   await check('teko-05：stage_clear7回・clear1回（最終面はclear）', () => counts(page), '7,1');
   await click(page, 'next');
   await page.waitForSelector('[data-action="back-to-picker"]');

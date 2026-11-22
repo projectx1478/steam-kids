@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build:css": "tailwindcss -i tailwind.src.css -o style.css --minify",
+    "audit:color": "node tools/color-audit.mjs",
     "check:static": "node tools/check-static.mjs",
     "sheet": "node tools/playtest/sheet.mjs",
     "test:unit": "node --test \"test/**/*.test.mjs\"",

@@ -2,6 +2,7 @@
 //   node tools/affected-scenarios.mjs --diff                 （git diff --name-only origin/main...HEAD）
 //   node tools/affected-scenarios.mjs --files <パス…>         （ファイル一覧。寸法変更の判定はファイル名だけ）
 //   node tools/affected-scenarios.mjs <語…>                  （data-* 属性・id・クラス・関数名）
+// js 等（isRuntimeFile）の変更では rough-grid を足す（Issue #768）。
 // .claude/verify/scenarios/*.mjs を grep して該当シナリオ名を出す。出力は `E2E:` 行。12本超は別行「手動実行」。
 import { execFileSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
@@ -12,8 +13,17 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SCENARIO_DIR = path.join(ROOT, '.claude', 'verify', 'scenarios');
 export const MAX_E2E = 12;
 export const DIMENSION_SCENARIOS = ['c7-board-fit', 'c10-result-gap', 'c14-no-overlap'];
+export const ROUGH_SCENARIO = 'rough-grid';
 const DIMENSION_RE = /\b(max-width|width|height|grid|gap)\b/;
 const TAILWIND_SRC = 'tailwind.src.css';
+
+// grid-runtime の画面に関わるファイルか（js・app.js・index.html・CSS。vendor・他の型・保護者画面は除く）。
+export function isRuntimeFile(p) {
+  const norm = String(p).replace(/\\/g, '/');
+  if (['app.js', 'index.html', 'tailwind.src.css', 'style.css'].includes(norm)) return true;
+  if (!/^js\/.+\.js$/.test(norm) || norm.startsWith('js/vendor/')) return false;
+  return !/(buoyancy|seesaw|egg|sortorder|unfold|predict|dashboard)/.test(path.posix.basename(norm));
+}
 
 export function loadScenarios(dir = SCENARIO_DIR) {
   return readdirSync(dir)
@@ -45,6 +55,7 @@ export function findAffected({ scenarios, files = [], words = [], dimensionChang
     for (const t of terms) if (s.text.includes(t)) { hit.add(s.name); break; }
   }
   if (dimensionChanged) for (const n of DIMENSION_SCENARIOS) if (scenarios.some((s) => s.name === n)) hit.add(n);
+  if (files.some(isRuntimeFile) && scenarios.some((s) => s.name === ROUGH_SCENARIO)) hit.add(ROUGH_SCENARIO);
   return [...hit].sort();
 }
 
