@@ -153,7 +153,7 @@ export default async function run({ page, check }) {
       const play = plays[i];
       const sol = cmdsOf(play);
       const hasWarps = Array.isArray(play.warps) && play.warps.length > 0;
-      let op = '開始直後の実行';
+      let opName = '開始直後の実行';
       let sampling = false;
       try {
         await page.waitForFunction((id) => document.querySelector('#stage')?.dataset.stepId === id, play.stepId);
@@ -163,7 +163,7 @@ export default async function run({ page, check }) {
         await page.click('[data-action="run"]');
         await watch(3000, `${play.stepId}/1280x800/開始直後の実行`);
 
-        op = 'ためしなおす';
+        opName = 'ためしなおす';
         // 2. ためしなおす → 静的な点検 → 全部入れて連打。
         await page.waitForSelector('[data-action="retry"]', { timeout: 10000 });
         await page.click('[data-action="retry"]');
@@ -173,7 +173,7 @@ export default async function run({ page, check }) {
         await sleep(2500);
         await sweep3(play.stepId);
 
-        op = '連打';
+        opName = '連打';
         for (const c of sol) await page.click(`[data-command="${c}"]`);
         const before = await page.evaluate(() => {
           const r = document.querySelector('.grid-board')?.getBoundingClientRect();
@@ -234,12 +234,12 @@ export default async function run({ page, check }) {
           await sleep(250);
         }
 
-        op = '次へ';
+        opName = '次へ';
         // 3. 次へ。
         await page.click('[data-action="next-stage"], [data-action="next"]');
       } catch (e) {
         sampling = false;
-        addOnce('R0', `${play.stepId}/1280x800/${op}`, `${op}で止まった（${e.name}）`);
+        addOnce('R0', `${play.stepId}/1280x800/${opName}`, `${opName}で止まった（${e.name}）`);
         break;
       }
     }
