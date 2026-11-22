@@ -5,7 +5,7 @@ import { S } from './state.js';
 import { readPlacement, writePlacement, clearPlacement } from './storage.js';
 import { isTrial } from './trial-lesson.js';
 import { IS_DEV } from './dev-mode.js';
-import { isCubeNet, firstOverlap, disconnectedCells, solutionsOf, CUBE_CELLS } from './engine-unfold.js';
+import { isCubeNet, firstOverlap, disconnectedCells, solutionsOf, foldTree, CUBE_CELLS } from './engine-unfold.js';
 import { logEvent } from './events.js';
 import { shapeSvg, setMoodIn, prefersReducedMotion, screenConfetti } from './ui-grid.js';
 import { vibrate } from './ui-commands.js';
@@ -17,8 +17,9 @@ import { clearResultBubble } from './ui-reaction.js';
 import { showClearSequence, recordClear } from './ui-clear.js';
 import { bindStartCueDismiss, showStartCue } from './ui-retry.js';
 
-const BLINK_MS = 2000; // 失敗の点滅（3秒以内。タップで飛ばせる）
-const OK_MS = 1200; // 成功の点の目を見せる時間
+const FOLD_MS = 1200; // 折り上げの動き（全面同時。Issue #713）
+const BLINK_MS = 1000; // 折り上げのあと、失敗の点滅・強調を見せる時間（タップで飛ばせる）
+const OK_MS = 1200; // 折り上げのあと、成功の点の目を見せる時間
 const REDUCED_MS = 300;
 
 const key = (c) => c.x + ',' + c.y;
@@ -36,6 +37,92 @@ function pipsHtml(n) {
     .join('');
 }
 
+// --- 折り上げの場面（Issue #713）。foldTree の木をそのまま DOM の入れ子にし、子の面を親の辺で回す。 ---
+// dir（親から見た向き）ごとの置き位置・回転の軸・最終の変形。
+const FOLD_SPEC = {
+  E: { pos: (s) => ({ left: s, top: 0 }), origin: '0 50%', rot: 'rotateY', deg: -90 },
+  W: { pos: (s) => ({ left: -s, top: 0 }), origin: '100% 50%', rot: 'rotateY', deg: 90 },
+  N: { pos: (s) => ({ left: 0, top: -s }), origin: '50% 100%', rot: 'rotateX', deg: -90 },
+  S: { pos: (s) => ({ left: 0, top: s }), origin: '50% 0', rot: 'rotateX', deg: 90 },
+};
+// 穴（まだ埋まっていない面）：根の子として箱の面の位置に置く。
+const HOLE_SPEC = {
+  1: { origin: '50% 50%', tf: (s) => `translateZ(${s}px)` },
+  2: { origin: '50% 0', tf: () => 'rotateX(90deg)' },
+  3: { origin: '50% 100%', tf: () => 'rotateX(-90deg)' },
+  4: { origin: '100% 50%', tf: () => 'rotateY(90deg)' },
+  5: { origin: '0 50%', tf: () => 'rotateY(-90deg)' },
+};
+
+// 場面を wrap に作る。wrap は DOM に入って寸法が出ている前提。戻り値 { size, anims }。
+function buildFoldScene(wrap, cells, presetKeys, reduced) {
+  const { nodes, over, holes } = foldTree(cells);
+  const overKeys = new Set(over.map(key));
+  const xs = nodes.map((n) => n.x);
+  const ys = nodes.map((n) => n.y);
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  const bw = Math.max(...xs) - minX + 1;
+  const bh = Math.max(...ys) - minY + 1;
+  const W = wrap.clientWidth;
+  const H = wrap.clientHeight;
+  const s = Math.max(12, Math.min(32, Math.floor(Math.min((W - 8) / bw, (H - 8) / bh))));
+  wrap.dataset.foldSize = String(s);
+  const scene = document.createElement('div');
+  scene.className = 'uf-fold';
+  const anims = [];
+  const els = new Map();
+  nodes.forEach((n) => {
+    const el = document.createElement('div');
+    el.className = 'uf-fold-face' + (presetKeys.has(key(n)) ? ' uf-fold-face--pre' : '') + (overKeys.has(key(n)) ? ' uf-fold-face--over' : '');
+    el.dataset.x = String(n.x);
+    el.dataset.y = String(n.y);
+    el.dataset.face = String(n.face);
+    el.style.width = `${s}px`;
+    el.style.height = `${s}px`;
+    els.set(key(n), el);
+    if (!n.parent) {
+      el.style.left = `${(W - bw * s) / 2 + (n.x - minX) * s}px`;
+      el.style.top = `${(H - bh * s) / 2 + (n.y - minY) * s}px`;
+      scene.appendChild(el);
+      return;
+    }
+    const sp = FOLD_SPEC[n.dir];
+    const { left, top } = sp.pos(s);
+    el.style.left = `${left}px`;
+    el.style.top = `${top}px`;
+    el.style.transformOrigin = sp.origin;
+    const end = `${sp.rot}(${sp.deg}deg)`;
+    els.get(key(n.parent)).appendChild(el);
+    if (reduced || typeof el.animate !== 'function') {
+      el.style.transform = end;
+    } else {
+      el.style.transform = `${sp.rot}(0deg)`;
+      anims.push(el.animate([{ transform: `${sp.rot}(0deg)` }, { transform: end }], { duration: FOLD_MS, easing: 'ease-in-out', fill: 'forwards' }));
+    }
+  });
+  const rootEl = els.get(key(nodes[0]));
+  holes.forEach((f) => {
+    if (f === 0) return; // 根は必ず面0を持つ
+    const h = document.createElement('div');
+    h.className = 'uf-fold-hole';
+    h.dataset.face = String(f);
+    h.style.width = `${s}px`;
+    h.style.height = `${s}px`;
+    h.style.transformOrigin = HOLE_SPEC[f].origin;
+    h.style.transform = HOLE_SPEC[f].tf(s);
+    if (reduced || typeof h.animate !== 'function') {
+      h.style.opacity = '1';
+    } else {
+      h.style.opacity = '0';
+      anims.push(h.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, delay: FOLD_MS, fill: 'forwards' }));
+    }
+    rootEl.appendChild(h);
+  });
+  wrap.appendChild(scene);
+  return { size: s, anims };
+}
+
 const robotHtml = (withBox) =>
   `<svg class="so-robot" viewBox="0 -8 64 72" aria-hidden="true">${shapeSvg('player')}${withBox ? BOX_G : ''}</svg>`;
 
@@ -47,7 +134,7 @@ export function renderUnfold(root, step) {
   const stageIndex = playSteps.findIndex((s) => s.stepId === step.stepId);
   const isFinalStage = stageIndex === playSteps.length - 1;
 
-  const local = { painted: new Map(), phase: 'edit', wrong: new Set(), timer: null, pips: false };
+  const local = { painted: new Map(), phase: 'edit', wrong: new Set(), timer: null, pips: false, foldWrap: null, anims: [] };
 
   // 置き方の保存・復元（Issue #745）。試しのレッスンでは読まない・書かない。盤の範囲内で preset と重ならないマスだけ採用する。
   const lessonId = S.lesson.lessonId;
@@ -109,6 +196,26 @@ export function renderUnfold(root, step) {
     msgEl.textContent = text;
   }
 
+  // 折り上げの場面を消して結果帯の文言を戻す。
+  function removeFold() {
+    local.anims.forEach((a) => a.cancel());
+    local.anims = [];
+    local.foldWrap?.remove();
+    local.foldWrap = null;
+    msgEl.hidden = false;
+  }
+
+  function showFold(cells, reduced) {
+    removeFold();
+    const wrap = document.createElement('div');
+    wrap.className = 'uf-fold-wrap';
+    wrap.dataset.unfoldFold = 'true';
+    boardArea.insertBefore(wrap, msgEl);
+    msgEl.hidden = true;
+    local.foldWrap = wrap;
+    local.anims = buildFoldScene(wrap, cells, presetKeys, reduced).anims;
+  }
+
   function countMsg() {
     if (local.painted.size === 0) return 'どこを ぬる？';
     const total = allCells().length;
@@ -150,7 +257,11 @@ export function renderUnfold(root, step) {
     if (locked() || presetKeys.has(k)) return skipClickSfx();
     setActiveHandHint(null);
     local.wrong = new Set();
-    if (local.phase === 'failed') local.phase = 'edit';
+    if (local.phase === 'failed') {
+      local.phase = 'edit';
+      clearResultBubble(bird);
+    }
+    removeFold();
     vibrate();
     playSfx('snap');
     if (local.painted.has(k)) local.painted.delete(k);
@@ -183,6 +294,7 @@ export function renderUnfold(root, step) {
   function finishRun() {
     clearTimeout(local.timer);
     local.timer = null;
+    local.anims.forEach((a) => a.finish()); // 途中で飛ばしたときは折り上がった形にする
     setActiveAnimation(null);
     setBackDisabled(false);
     if (local.pips) {
@@ -213,6 +325,9 @@ export function renderUnfold(root, step) {
     draw(); // 点滅を止め、枠だけ残す
     setMoodIn(boardArea, 'puzzled');
     playSfx('tryAgain');
+    // 理由を事実の1行で（Issue #713。sort-order の #712 と同じ出し方）。
+    const why = disconnectedCells(allCells()).length > 0 ? 'はなれた ますが あるよ' : 'ここが かさなるよ';
+    bird.showBubble(why, { result: 'fail', ufWhy: 'true' });
   }
 
   function run() {
@@ -227,6 +342,7 @@ export function renderUnfold(root, step) {
     local.phase = 'running';
     setActiveHandHint(null);
     clearResultBubble(bird);
+    removeFold();
     vibrate();
     logEvent('run', {});
     playSfx('run');
@@ -243,11 +359,13 @@ export function renderUnfold(root, step) {
     setMsg('');
     draw();
     const reduced = prefersReducedMotion();
-    local.timer = setTimeout(finishRun, reduced ? REDUCED_MS : local.pips ? OK_MS : BLINK_MS);
+    showFold(cells, reduced);
+    local.timer = setTimeout(finishRun, reduced ? REDUCED_MS : FOLD_MS + (local.pips ? OK_MS : BLINK_MS));
     setActiveAnimation({
       cancel() {
         clearTimeout(local.timer);
         setBackDisabled(false);
+        removeFold();
       },
     });
   }
@@ -267,6 +385,7 @@ export function renderUnfold(root, step) {
     local.wrong = new Set();
     local.pips = false;
     local.phase = 'edit';
+    removeFold();
     drawBoard(false);
     setMsg(countMsg());
     draw();
