@@ -1,5 +1,6 @@
-import { S, initState, applySlot, ensureActiveSlot } from './js/state.js';
-import { loadSlots, createSlot, getActiveSlot, readLastHint, writeLastHint } from './js/storage.js';
+import { S, initState, applySlot, ensureActiveSlot, enableDisplayPrefs } from './js/state.js';
+import { applyDisplayPrefs } from './js/display-prefs.js';
+import { loadSlots, loadProfile, createSlot, getActiveSlot, readLastHint, writeLastHint } from './js/storage.js';
 import { getEvents } from './js/events.js';
 import { summarize } from './js/analytics.js';
 import { lessonOrder, newHintLesson, continueLessonId } from './js/unlock.js';
@@ -280,6 +281,10 @@ function startTrial() {
   }
   initSteps();
 }
+
+// 表示設定（Issue #379）。タイトル画面はスロット選択前なので前回のアクティブスロットの設定で表示し、以後は applySlot が反映する。
+enableDisplayPrefs();
+applyDisplayPrefs(loadProfile());
 
 const params = new URLSearchParams(location.search);
 const lessonId = params.get('lesson');

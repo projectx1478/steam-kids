@@ -2,6 +2,7 @@
 // 同じ対象を複数のスイッチが持つと全部踏むまで開かない（AND）。1回で固定（戻らない）。消える代わりに壁が沈み込んで床に埋まる（Issue #168）。踏む前の切替壁は壁と同じ通行不可（当たると失敗）。Issue #63。
 // mode:"close"（Issue #149）は逆に、踏むと対象に壁が出る（初期は床。出た壁は通行不可）。mode は混在してよい（Issue #530。どれか1つが壁なら壁）。
 import { mark } from './keys.js';
+import { prefersReducedMotion } from '../display-prefs.js';
 
 const keyOf = (p) => `${p.x},${p.y}`;
 const list = (v) => (Array.isArray(v) ? v : []);
@@ -93,7 +94,7 @@ function wallSvg(on, colors = [], outline = false) {
 
 const SINK_MS = 500;
 const TOP_DROP = 7;
-const prefersReduced = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+const prefersReduced = prefersReducedMotion;
 
 // 壁の動き：全体の縮小・暗さに加え、上面が下がり影が消える（Issue #387）。toSunk=trueで沈む、falseで立ち上がる。
 function animateWall(svg, toSunk, easing) {
