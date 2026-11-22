@@ -10,7 +10,7 @@
           "title": "めいれいでうごかす",
           "lessonIds": ["cmd-01-susumu", "cmd-03-naosu"],
           "practiceIds": ["cmd-06-practice"],
-          "devOnlyIds": ["cmd-02-mijikaku", "cmd-04-kurikaeshi", "cmd-05-kurikaeshi-donguri", "cmd-07-moshi", "cmd-01-susumu-long", "cmd-08-yomu"]
+          "devOnlyIds": ["cmd-02-mijikaku", "cmd-04-kurikaeshi", "cmd-05-kurikaeshi-donguri", "cmd-07-moshi", "cmd-01-susumu-long"]
         },
         {
           "unitId": "donguri",
@@ -23,7 +23,7 @@
           "unitId": "ice",
           "title": "こおりですべる",
           "gimmicks": ["ice"],
-          "lessonIds": ["ice-01-suberu", "ice-02-kabe"]
+          "lessonIds": ["ice-01-suberu", "ice-02-kabe", "cmd-08-yomu"]
         },
         {
           "unitId": "keys",
