@@ -76,6 +76,7 @@ AIを使わず、grid-runtime のレッスンを乱暴に操作して機械で�
 - **既知リスト**：`tools/playtest/rough-known.json`（`[{rule, where, issue}]`）。mainで出た件は、1件ずつバグIssueを起票して`issue`に番号を書く。rule・whereが一致する件は合否から除く（直したら行を消す）
 - **見るレッスンの差し替え**：`ROUGH_LESSONS=<id,id>`で`LESSONS`を替えられる（較正用。既定は`LESSONS`の値。凍結fixtureは自動で外す）
 - **レッスンの足し方**：シナリオ冒頭の`LESSONS`配列にレッスンIDを足す（grid-runtimeのみ。凍結fixtureのレッスンは`page.unroute`が要る）
+- **PRでの自動選択**：`isRuntimeFile`（`tools/affected-scenarios.mjs`）が真のファイル＝`js/`（vendor・他の型・保護者画面を除く）・`app.js`・`index.html`・`tailwind.src.css`・`style.css` を変えたPRは、`node tools/affected-scenarios.mjs --diff` の `E2E:` 行に `rough-grid` が載り、`e2e-pr` が回す（Issue #768）。レッスンJSONだけの変更では載らない（見るのは `LESSONS` の cmd-01 のため）
 
 ## 紙芝居と一目チェック（`sheet.mjs`。Issue #766）
 
