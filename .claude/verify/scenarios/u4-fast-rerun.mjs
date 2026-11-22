@@ -53,17 +53,32 @@ export default async function run({ page, check }) {
   await clickRetryKeep(page);
   await page.click('[data-command="down"]');
   const before2 = (await logMs()).length;
+  // 「…」→結果ボタンの間はページ内の時刻（performance.now）で測る。Playwright の往復の遅れ（遅い環境で1秒以上）を含めないため。
+  await page.evaluate(() => {
+    const m = (window.__gapMarks = {});
+    const mo = new MutationObserver(() => {
+      if (m.dots == null && document.querySelector('[data-result-gap]')) m.dots = performance.now();
+      if (m.dots != null && m.btn == null && document.querySelector('[data-action="next"], [data-action="next-stage"]')) {
+        m.btn = performance.now();
+        mo.disconnect();
+      }
+    });
+    mo.observe(document.body, { childList: true, subtree: true });
+  });
   const t2 = Date.now();
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-result-gap]', { timeout: 15000 });
   const run2Ms = Date.now() - t2;
-  const tGap = Date.now();
   const ms2 = (await logMs()).slice(before2);
   await check('2回目の先頭15手は225ms・16手目は450ms', () => ms2.length === 16 && ms2.slice(0, 15).every((m) => m === 225) && ms2[15] === 450, true);
-  await check('2回目はじっこう押下から「…」まで6秒以内', () => run2Ms <= 6000, true);
+  // 絶対秒数は環境の速さで揺れるので、同じ環境の1回目（等速15手）との比で見る。理想は約0.4倍（速い15手＋等速1手）。
+  await check('2回目はじっこう押下から「…」までが1回目の0.75倍以内', () => run2Ms <= run1Ms * 0.75, true);
 
   // クリア後の間：「…」から結果ボタンまで 0.8秒（測定の揺れを見て 0.65〜1.0秒）
   await page.waitForSelector('[data-action="next"], [data-action="next-stage"]', { timeout: 5000 });
-  const gap = Date.now() - tGap;
+  const gap = await page.evaluate(() => {
+    const m = window.__gapMarks;
+    return m && m.btn != null && m.dots != null ? m.btn - m.dots : -1;
+  });
   await check('クリア後の間は約0.8秒', () => gap >= 650 && gap <= 1000, true);
 }
