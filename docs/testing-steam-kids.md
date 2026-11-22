@@ -69,10 +69,12 @@ AIを使わず、grid-runtime のレッスンを乱暴に操作して機械で�
 | R8 暗幕 | クリア後3秒、ダイアログが盤の30%以上を覆う |
 | R9 隠れ | 要素の中心が画面外、または`elementFromPoint`が自分・子孫でない |
 | R10 内部ID | 保護者画面の見える文字に`/^[stp]\d+$/`の語 |
+| R0 操作できず | 区切り（入場・各playの操作・summary・リロード・戻る・保護者画面）で例外が出たら記録して次へ進む（過去のコミットで画面の作りが違っても最後まで回す較正用。Issue #767）。今のmainでは0件が合格 |
 
 静的な点検（R1〜R3・R9）は intro・各play（2.5秒後）・summary を1280×800・360×640・1024×600で見る。乱暴な操作（開始直後の実行・連打・実行中のメニュー・クリア）は1280×800のみ。
 
 - **既知リスト**：`tools/playtest/rough-known.json`（`[{rule, where, issue}]`）。mainで出た件は、1件ずつバグIssueを起票して`issue`に番号を書く。rule・whereが一致する件は合否から除く（直したら行を消す）
+- **見るレッスンの差し替え**：`ROUGH_LESSONS=<id,id>`で`LESSONS`を替えられる（較正用。既定は`LESSONS`の値。凍結fixtureは自動で外す）
 - **レッスンの足し方**：シナリオ冒頭の`LESSONS`配列にレッスンIDを足す（grid-runtimeのみ。凍結fixtureのレッスンは`page.unroute`が要る）
 
 ## 紙芝居と一目チェック（`sheet.mjs`。Issue #766）
