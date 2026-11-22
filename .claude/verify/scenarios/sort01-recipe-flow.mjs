@@ -49,4 +49,26 @@ export default async function run({ page, check }) {
   await page.click('[data-action="next-stage"]');
   await page.waitForFunction(() => document.querySelector('#stage')?.dataset.step === 'play' && document.querySelector('[data-so-tray] [data-card-id="bata"]'));
   await check('つぎへ: p2 の盤になる(bata,hikku,nagasu)', () => trayIds(page), ['bata', 'hikku', 'nagasu']);
+
+  // 4端末で結果ダイアログ・料理の絵・つぎへが [data-result-row] に収まる(Issue #787)
+  for (const [w, h] of [[360, 640], [844, 390], [768, 1024], [1280, 800]]) {
+    await page.setViewportSize({ width: w, height: h });
+    await enterPlay(page, 'sort-01-recipe');
+    for (const id of ['wa', 'yaku', 'sara']) await tap(page, id);
+    await page.click('[data-action="run"]');
+    await page.waitForSelector('.so-act[data-act]');
+    await page.click('.so-board', { force: true });
+    await page.waitForSelector('[data-result-dialog] [data-so-dish] svg', { timeout: 10000 });
+    await check(`${w}x${h}: ダイアログ・料理の絵・つぎへが結果行に収まる`, () => page.evaluate(() => {
+      const row = document.querySelector('[data-result-row]').getBoundingClientRect();
+      const inside = (sel) => {
+        const r = document.querySelector(sel).getBoundingClientRect();
+        return r.left >= row.left - 1 && r.right <= row.right + 1 && r.top >= row.top - 1 && r.bottom <= row.bottom + 1;
+      };
+      return ['[data-result-dialog]', '[data-so-dish] svg', '[data-action="next-stage"]'].map(inside);
+    }), [true, true, true]);
+    if (h === 390) {
+      await check('844x390: 料理の絵の描画高さが120px以上', () => page.$eval('[data-so-dish] svg', (e) => e.getBoundingClientRect().height >= 120), true);
+    }
+  }
 }

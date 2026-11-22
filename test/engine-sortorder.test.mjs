@@ -104,3 +104,14 @@ for (const [n, rule] of Object.entries(FAIL_RULE)) {
     assert.ok(errors.some((e) => e.startsWith(rule)), `${rule} が出る: ${errors.join(' | ')}`);
   });
 }
+
+// 料理の絵（Issue #712 段5）：8キーすべてで描ける・sort-01 の全面に dish が入っている
+test('dishSvg: DISH_KEYS の8キーすべてで非 null', async () => {
+  const { DISH_KEYS, dishSvg } = await import('../js/sortorder-dishes.js');
+  assert.equal(DISH_KEYS.length, 8);
+  for (const k of DISH_KEYS) {
+    const svg = dishSvg(k, { robot: '<g/>' });
+    assert.ok(svg && svg.startsWith('<svg') && svg.endsWith('</svg>'), k);
+  }
+  assert.equal(dishSvg('sushi'), null);
+});
