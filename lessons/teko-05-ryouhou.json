@@ -60,32 +60,38 @@
     {
       "stepId": "p6",
       "kind": "play",
+      "text": "つりあうのを ぜんぶ みつけよう",
       "seesaw": {
-        "notches": 4,
-        "left": [{ "robots": 4, "pos": 2 }],
-        "mover": { "robots": 1, "maxRobots": 3, "start": 1 }
+        "notches": 3,
+        "left": [{ "robots": 2, "pos": 3 }],
+        "mover": { "robots": 1, "maxRobots": 3, "start": 1 },
+        "find": 2
       },
-      "solution": [4, 2]
+      "solution": [[3, 2], [2, 3]]
     },
     {
       "stepId": "p7",
       "kind": "play",
+      "text": "つりあうのを ぜんぶ みつけよう",
       "seesaw": {
-        "notches": 3,
-        "left": [{ "robots": 3, "pos": 3 }],
-        "mover": { "robots": 1, "maxRobots": 3, "start": 1 }
+        "notches": 6,
+        "left": [{ "robots": 2, "pos": 3 }],
+        "mover": { "robots": 1, "maxRobots": 3, "start": 1 },
+        "find": 3
       },
-      "solution": [3, 3]
+      "solution": [[6, 1], [3, 2], [2, 3]]
     },
     {
       "stepId": "p8",
       "kind": "play",
+      "text": "つりあうのを ぜんぶ みつけよう",
       "seesaw": {
-        "notches": 4,
-        "left": [{ "robots": 4, "pos": 3 }],
-        "mover": { "robots": 1, "maxRobots": 3, "start": 1 }
+        "notches": 6,
+        "left": [{ "robots": 3, "pos": 4 }],
+        "mover": { "robots": 1, "maxRobots": 4, "start": 1 },
+        "find": 3
       },
-      "solution": [4, 3]
+      "solution": [[6, 2], [4, 3], [3, 4]]
     },
     { "stepId": "s2", "kind": "summary", "text": "おもさと とおさで つりあうよ" }
   ]
