@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
-import { isCubeNet, firstOverlap, disconnectedCells, solutionsOf, countSolutions, gridNets, CUBE_CELLS } from '../js/engine-unfold.js';
+import { foldTree, isCubeNet, firstOverlap, disconnectedCells, solutionsOf, countSolutions, gridNets, CUBE_CELLS } from '../js/engine-unfold.js';
 import { validateUnfoldFace, validateUnfold, checkUnfoldDemo } from '../tools/lib/validate/unfold.mjs';
 import { validateLesson } from '../tools/validate-lessons.mjs';
 
@@ -149,4 +149,65 @@ test('validateLesson: type unfold-cube の分岐が呼ばれる（8面でない�
   assert.deepEqual(validateLesson('unfold-test.json', data, ['unfold-test']), []);
   const bad = { ...data, steps: steps.filter((s) => s.stepId !== 'p3') };
   assert.ok(validateLesson('unfold-test.json', bad, ['unfold-test']).length > 0);
+});
+
+// --- foldTree（Issue #713 段A） ---
+const P1 = [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 1 }, { x: 3, y: 1 }, { x: 4, y: 1 }];
+const xy = (cs) => cs.map((c) => `${c.x},${c.y}`);
+
+test('foldTree: p1＋(1,1) は重なり (0,0)(4,1)・穴 [5]', () => {
+  const r = foldTree([...P1, { x: 1, y: 1 }]);
+  assert.deepEqual(r.over, [{ x: 0, y: 0 }, { x: 4, y: 1 }]);
+  assert.deepEqual(r.holes, [5]);
+});
+
+test('foldTree: p1＋(2,0) は展開図（重なり・穴なし）で face と dir が決まった列', () => {
+  const r = foldTree([...P1, { x: 2, y: 0 }]);
+  assert.deepEqual(r.over, []);
+  assert.deepEqual(r.holes, []);
+  assert.deepEqual(r.nodes.map((n) => n.face), [0, 4, 1, 3, 5, 2]);
+  assert.deepEqual(r.nodes.map((n) => n.dir), [null, 'E', 'E', 'S', 'E', 'E']);
+  assert.equal(r.nodes[0].parent, null);
+  assert.deepEqual(r.nodes[1].parent, { x: 0, y: 0 });
+});
+
+test('foldTree: p1＋(0,2) は離れたマスを除く（nodes は (2,1)(3,1)(4,1)・穴 [2,3,5]）', () => {
+  const r = foldTree([...P1, { x: 0, y: 2 }]);
+  assert.deepEqual(xy(r.nodes), ['2,1', '3,1', '4,1']);
+  assert.deepEqual(r.holes, [2, 3, 5]);
+});
+
+test('foldTree: 2×2 を含む形は重なり (0,1)(1,1)・穴 [5]', () => {
+  const r = foldTree([{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }, { x: 2, y: 1 }, { x: 3, y: 1 }]);
+  assert.deepEqual(r.over, [{ x: 0, y: 1 }, { x: 1, y: 1 }]);
+  assert.deepEqual(r.holes, [5]);
+});
+
+test('foldTree: 空・非配列は穴が全6面', () => {
+  for (const v of [[], null, undefined, 'x']) assert.deepEqual(foldTree(v), { nodes: [], over: [], holes: [0, 1, 2, 3, 4, 5] });
+});
+
+test('foldTree: 5×3 の6マス集合 5005 通り全件で isCubeNet・firstOverlap と整合', () => {
+  const all = [];
+  for (let y = 0; y < 3; y += 1) for (let x = 0; x < 5; x += 1) all.push({ x, y });
+  let n = 0;
+  const pick = [];
+  const rec = (i) => {
+    if (pick.length === 6) {
+      n += 1;
+      const c = pick.map((j) => all[j]);
+      const r = foldTree(c);
+      assert.equal(isCubeNet(c), r.over.length === 0 && r.holes.length === 0, fmt(c));
+      if (disconnectedCells(c).length === 0 && !isCubeNet(c)) {
+        assert.ok(r.over.length >= 2, fmt(c));
+        const ov = new Set(r.over.map(key));
+        for (const m of firstOverlap(c)) assert.ok(ov.has(key(m)), fmt(c));
+      }
+      return;
+    }
+    if (i >= all.length) return;
+    pick.push(i); rec(i + 1); pick.pop(); rec(i + 1);
+  };
+  rec(0);
+  assert.equal(n, 5005);
 });

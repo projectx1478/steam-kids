@@ -52,12 +52,62 @@ export default async function run({ page, check }) {
     d: (await page.$$('[data-result-dialog]')).length,
   }), { kept: true, d: 0 });
 
-  // 消して(トグル)、正しい1マス(2,0)を塗る
+  // 折り上げの場面（Issue #713）：6面・重なり2面(0,0)(4,1)・穴1・理由の1行
+  await check('失敗の折り上げ: 面6・重なり2面(0,0)(4,1)・穴1', async () => ({
+    faces: (await page.$$('[data-unfold-fold] .uf-fold-face')).length,
+    over: await page.$$eval('[data-unfold-fold] .uf-fold-face--over', (els) => els.map((e) => `${e.dataset.x},${e.dataset.y}`).sort()),
+    holes: (await page.$$('[data-unfold-fold] .uf-fold-hole')).length,
+  }), { faces: 6, over: ['0,0', '4,1'], holes: 1 });
+  await check('失敗: 理由の1行「ここが かさなるよ」', async () => (await page.textContent('[data-uf-why="true"]')).trim(), 'ここが かさなるよ');
+
+  // 3サイズで、場面が結果帯の内側に収まり、縦スクロールが出ない
+  const fits = () => page.evaluate(() => {
+    const w = document.querySelector('[data-unfold-fold]');
+    const b = document.querySelector('.so-board');
+    const app = document.querySelector('#app');
+    if (!w || !b) return { inside: false, size: 0, noScroll: false };
+    const r = w.getBoundingClientRect();
+    const q = b.getBoundingClientRect();
+    return {
+      inside: r.left >= q.left - 0.5 && r.right <= q.right + 0.5 && r.top >= q.top - 0.5 && r.bottom <= q.bottom + 0.5,
+      size: Number(w.dataset.foldSize),
+      noScroll: app.scrollHeight <= app.clientHeight,
+    };
+  });
+  const sizeOk = async (label) => {
+    const f = await fits();
+    await check(`${label}: 場面が結果帯の内側・面の大きさ12以上・縦スクロールなし`, async () => f.inside && f.size >= 12 && f.noScroll, true);
+  };
+  await sizeOk('360x640');
+
+  // 消して(トグル)：場面と理由が消え、結果帯の文言が戻る
   await page.click(cell(1, 1));
   await check('塗ったマスをタップで消える', () => has(page, 1, 1, 'uf-paint'), false);
+  await check('消すと場面・理由が消え、結果帯が見える', async () => ({
+    fold: (await page.$$('[data-unfold-fold]')).length,
+    why: (await page.$$('[data-uf-why]')).length,
+    msg: await page.isVisible('[data-unfold-msg]'),
+  }), { fold: 0, why: 0, msg: true });
+
+  for (const [w, h] of [[844, 390], [1024, 600]]) {
+    await page.setViewportSize({ width: w, height: h });
+    await page.click(cell(1, 1));
+    await page.click('[data-action="run"]');
+    await page.waitForSelector('.uf-cell.uf-wrong-still', { timeout: 8000 });
+    await sizeOk(`${w}x${h}`);
+    await page.click(cell(1, 1));
+  }
+  await page.setViewportSize({ width: 360, height: 640 });
+
+  // 正しい1マス(2,0)を塗る
   await page.click(cell(2, 0));
   await page.click('[data-action="run"]');
   await page.waitForSelector('[data-result-dialog]', { timeout: 10000 });
+  await check('成功の折り上げ: 面6・重なり0・穴0', async () => ({
+    faces: (await page.$$('[data-unfold-fold] .uf-fold-face')).length,
+    over: (await page.$$('[data-unfold-fold] .uf-fold-face--over')).length,
+    holes: (await page.$$('[data-unfold-fold] .uf-fold-hole')).length,
+  }), { faces: 6, over: 0, holes: 0 });
   await check('正解: 6マスに点の目が出る', async () => (await page.$$('.uf-cell.uf-ok')).length, 6);
   await check('正解: クリア演出に「つぎの ステージ」が出る', async () => (await page.$$('[data-action="next-stage"]')).length, 1);
   await page.click('[data-action="next-stage"]');

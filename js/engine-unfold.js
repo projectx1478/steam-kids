@@ -95,6 +95,35 @@ export function disconnectedCells(cells) {
   return [...cells].filter((c) => comp.get(key(c)) !== big).sort(byYX);
 }
 
+// 折り上げの木（Issue #713）。main（離れたマスを除いた集合）を、先頭マスを根（面0）に幅優先で上・右・下・左の順にたどる。
+// 木の辺は未訪問のマスだけ（訪問済みへの辺は切る）。面id＝roll の b（0底・1ふた・2北・3南・4東・5西）。
+// nodes＝訪問順 [{x,y,parent,dir,face}]、over＝同じ面を2マス以上が持つマス（y,x 順）、holes＝どのマスも持たない面（昇順）。
+export function foldTree(cells) {
+  const empty = { nodes: [], over: [], holes: [0, 1, 2, 3, 4, 5] };
+  if (!Array.isArray(cells) || cells.length === 0) return empty;
+  const far = new Set(disconnectedCells(cells).map(key));
+  const main = cells.filter((c) => !far.has(key(c)));
+  const set = new Map(main.map((c) => [key(c), c]));
+  const start = headCell(main);
+  const ori = new Map([[key(start), { b: 0, t: 1, n: 2, s: 3, e: 4, w: 5 }]]);
+  const nodes = [{ x: start.x, y: start.y, parent: null, dir: null, face: 0 }];
+  for (let qi = 0; qi < nodes.length; qi += 1) {
+    const c = nodes[qi];
+    for (const [d, dx, dy] of FOLD_DIRS) {
+      const nk = key({ x: c.x + dx, y: c.y + dy });
+      if (!set.has(nk) || ori.has(nk)) continue;
+      const o = roll(ori.get(key(c)), d);
+      ori.set(nk, o);
+      nodes.push({ x: c.x + dx, y: c.y + dy, parent: { x: c.x, y: c.y }, dir: d, face: o.b });
+    }
+  }
+  const count = new Map();
+  nodes.forEach((n) => count.set(n.face, (count.get(n.face) || 0) + 1));
+  const over = nodes.filter((n) => count.get(n.face) > 1).map((n) => ({ x: n.x, y: n.y })).sort(byYX);
+  const holes = [0, 1, 2, 3, 4, 5].filter((f) => !count.has(f));
+  return { nodes, over, holes };
+}
+
 const netsCache = new Map();
 
 // 格子内の展開図（6マス集合）を全部。各集合は y,x 順。
