@@ -7,15 +7,16 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import {
   overflowItems, overlapPairs, smallTargets, doubleResult, boardResized,
-  jumps, internalIds, filterKnown, formatFinding,
+  jumps, internalIds, filterKnown, formatFinding, lessonsFromEnv,
 } from '../../../tools/playtest/rough-judge.mjs';
 
 export const name = 'あばれ役: grid-runtime を乱暴に操作して機械で判定（R1〜R10。Issue #729）';
 
-const LESSONS = ['cmd-01-susumu'];
+// 見るレッスン。較正（Issue #767）では環境変数 ROUGH_LESSONS=<id,id> で差し替える。
+const LESSONS = lessonsFromEnv(process.env.ROUGH_LESSONS, ['cmd-01-susumu']);
 const SIZES = [[1280, 800], [360, 640], [1024, 600]];
 const RULE_NAMES = {
-  R1: 'はみ出し', R2: '重なり', R3: '小さすぎ', R4: '結果が2つ同時', R5: '盤の寸法変化',
+  R0: '操作できず', R1: 'はみ出し', R2: '重なり', R3: '小さすぎ', R4: '結果が2つ同時', R5: '盤の寸法変化',
   R6: 'ワープのような飛び', R7a: 'リロード後の復帰', R7b: '戻るで外へ出る', R8: '暗幕が盤を覆う',
   R9: '隠れた操作', R10: '内部ID',
 };
@@ -119,6 +120,11 @@ export default async function run({ page, check }) {
   };
   const cmdsOf = (play) => (Array.isArray(play.solution) ? play.solution : play.solution?.commands ?? []).filter((c) => typeof c === 'string');
   const clickSel = (sel) => page.evaluate((s) => document.querySelector(s)?.click(), sel);
+  // R0：区切りで例外が出たら記録して次へ進む（過去のコミットで画面の作りが違っても最後まで回すため。Issue #767）。
+  // detail は例外の名前だけ（メッセージ・セレクタは入れない。答えの手が出るため）。成功したら true。
+  const guard = async (where, label, fn) => {
+    try { await fn(); return true; } catch (e) { addOnce('R0', where, `${label}で止まった（${e.name}）`); return false; }
+  };
   const watch = async (ms, where) => {
     for (let t = 0; t < ms; t += 100) {
       judgeSnap(await page.evaluate(collect), where, false);
@@ -126,7 +132,7 @@ export default async function run({ page, check }) {
     }
   };
 
-  await page.unroute('**/lessons/cmd-01-susumu.json');
+  for (const id of LESSONS) await page.unroute(`**/lessons/${id}.json`);
   await page.emulateMedia({ reducedMotion: 'no-preference' });
 
   for (const lessonId of LESSONS) {
@@ -136,133 +142,153 @@ export default async function run({ page, check }) {
 
     // --- 通し：intro・各play・summary ---
     ctx = lessonId;
-    await startLesson(lessonId);
-    await sleep(500);
-    for (const s of lesson.steps.filter((x) => x.kind === 'intro')) await sweep3(`${s.stepId}`);
-    await toPlay();
+    const ready = await guard('入場', '入場', async () => {
+      await startLesson(lessonId);
+      await sleep(500);
+      for (const s of lesson.steps.filter((x) => x.kind === 'intro')) await sweep3(`${s.stepId}`);
+      await toPlay();
+    });
 
-    for (let i = 0; i < plays.length; i += 1) {
+    if (ready) for (let i = 0; i < plays.length; i += 1) {
       const play = plays[i];
       const sol = cmdsOf(play);
       const hasWarps = Array.isArray(play.warps) && play.warps.length > 0;
-      await page.waitForFunction((id) => document.querySelector('#stage')?.dataset.stepId === id, play.stepId);
+      let opName = '開始直後の実行';
+      let sampling = false;
+      try {
+        await page.waitForFunction((id) => document.querySelector('#stage')?.dataset.stepId === id, play.stepId);
 
-      // 1. 開始0.5秒以内に1手だけ入れて実行。以後3秒、R1・R2・R4。
-      await page.click(`[data-command="${sol[0]}"]`);
-      await page.click('[data-action="run"]');
-      await watch(3000, `${play.stepId}/1280x800/開始直後の実行`);
+        // 1. 開始0.5秒以内に1手だけ入れて実行。以後3秒、R1・R2・R4。
+        await page.click(`[data-command="${sol[0]}"]`);
+        await page.click('[data-action="run"]');
+        await watch(3000, `${play.stepId}/1280x800/開始直後の実行`);
 
-      // 2. ためしなおす → 静的な点検 → 全部入れて連打。
-      await page.waitForSelector('[data-action="retry"]', { timeout: 10000 });
-      await page.click('[data-action="retry"]');
-      await page.waitForFunction(() => !document.querySelector('[data-transition="retry"]'), null, { timeout: 4000 });
-      const clear = page.locator('[data-action="clear-all"]');
-      if ((await clear.count()) > 0 && (await clear.isEnabled())) await clear.click();
-      await sleep(2500);
-      await sweep3(play.stepId);
+        opName = 'ためしなおす';
+        // 2. ためしなおす → 静的な点検 → 全部入れて連打。
+        await page.waitForSelector('[data-action="retry"]', { timeout: 10000 });
+        await page.click('[data-action="retry"]');
+        await page.waitForFunction(() => !document.querySelector('[data-transition="retry"]'), null, { timeout: 4000 });
+        const clear = page.locator('[data-action="clear-all"]');
+        if ((await clear.count()) > 0 && (await clear.isEnabled())) await clear.click();
+        await sleep(2500);
+        await sweep3(play.stepId);
 
-      for (const c of sol) await page.click(`[data-command="${c}"]`);
-      const before = await page.evaluate(() => {
-        const r = document.querySelector('.grid-board')?.getBoundingClientRect();
-        return r ? { w: r.width, h: r.height } : null;
-      });
-      const cell = await page.evaluate(() => document.querySelector('.grid-cell')?.getBoundingClientRect().width ?? 64);
-      const samples = [];
-      let sampling = true;
-      const sampler = (async () => {
-        const t0 = Date.now();
-        while (sampling) {
-          const p = await page.evaluate(() => {
-            const r = document.querySelector('.grid-player')?.getBoundingClientRect();
-            return r ? { x: r.x + r.width / 2, y: r.y + r.height / 2 } : null;
-          });
-          if (p) samples.push({ t: Date.now() - t0, ...p });
-          await sleep(100);
-        }
-      })();
-      for (let n = 0; n < 5; n += 1) {
-        await clickSel('[data-action="run"]');
-        if (n === 2) {
-          await clickSel('[data-action="menu"]');
-          await sleep(100);
-          await clickSel('#menu-close');
-        }
-        await sleep(200);
-      }
-      await page.waitForSelector('[data-action="next-stage"], [data-action="next"]', { timeout: 15000 });
-      sampling = false;
-      await sampler;
-      await sleep(300);
-      const after = await page.evaluate(() => {
-        const r = document.querySelector('.grid-board')?.getBoundingClientRect();
-        return r ? { w: r.width, h: r.height } : null;
-      });
-      const op = `${play.stepId}/1280x800/連打`;
-      if (before && after && boardResized(before, after)) addOnce('R5', op, `${Math.round(before.w)}x${Math.round(before.h)}→${Math.round(after.w)}x${Math.round(after.h)}`);
-      if (!hasWarps) for (const j of jumps(samples, cell)) addOnce('R6', op, `${j}点目で${Math.round(cell)}px以上`);
-
-      // R8：クリア後3秒、ダイアログが盤の30%以上を覆わないか。
-      for (let t = 0; t < 3000; t += 250) {
-        const cover = await page.evaluate(() => {
-          const b = document.querySelector('.grid-board')?.getBoundingClientRect();
-          if (!b) return 0;
-          let max = 0;
-          for (const d of document.querySelectorAll('[role="dialog"], dialog[open]')) {
-            const r = d.getBoundingClientRect();
-            const cs = getComputedStyle(d);
-            if (!r.width || cs.visibility === 'hidden' || cs.display === 'none') continue;
-            const w = Math.min(b.right, r.right) - Math.max(b.left, r.left);
-            const h = Math.min(b.bottom, r.bottom) - Math.max(b.top, r.top);
-            if (w > 0 && h > 0) max = Math.max(max, (w * h) / (b.width * b.height));
-          }
-          return max;
+        opName = '連打';
+        for (const c of sol) await page.click(`[data-command="${c}"]`);
+        const before = await page.evaluate(() => {
+          const r = document.querySelector('.grid-board')?.getBoundingClientRect();
+          return r ? { w: r.width, h: r.height } : null;
         });
-        if (cover >= 0.3) { addOnce('R8', `${play.stepId}/1280x800/クリア後`, `盤の${Math.round(cover * 100)}%`); break; }
-        await sleep(250);
-      }
+        const cell = await page.evaluate(() => document.querySelector('.grid-cell')?.getBoundingClientRect().width ?? 64);
+        const samples = [];
+        sampling = true;
+        const sampler = (async () => {
+          const t0 = Date.now();
+          while (sampling) {
+            const p = await page.evaluate(() => {
+              const r = document.querySelector('.grid-player')?.getBoundingClientRect();
+              return r ? { x: r.x + r.width / 2, y: r.y + r.height / 2 } : null;
+            });
+            if (p) samples.push({ t: Date.now() - t0, ...p });
+            await sleep(100);
+          }
+        })();
+        for (let n = 0; n < 5; n += 1) {
+          await clickSel('[data-action="run"]');
+          if (n === 2) {
+            await clickSel('[data-action="menu"]');
+            await sleep(100);
+            await clickSel('#menu-close');
+          }
+          await sleep(200);
+        }
+        await page.waitForSelector('[data-action="next-stage"], [data-action="next"]', { timeout: 15000 });
+        sampling = false;
+        await sampler;
+        await sleep(300);
+        const after = await page.evaluate(() => {
+          const r = document.querySelector('.grid-board')?.getBoundingClientRect();
+          return r ? { w: r.width, h: r.height } : null;
+        });
+        const op = `${play.stepId}/1280x800/連打`;
+        if (before && after && boardResized(before, after)) addOnce('R5', op, `${Math.round(before.w)}x${Math.round(before.h)}→${Math.round(after.w)}x${Math.round(after.h)}`);
+        if (!hasWarps) for (const j of jumps(samples, cell)) addOnce('R6', op, `${j}点目で${Math.round(cell)}px以上`);
 
-      // 3. 次へ。
-      await page.click('[data-action="next-stage"], [data-action="next"]');
+        // R8：クリア後3秒、ダイアログが盤の30%以上を覆わないか。
+        for (let t = 0; t < 3000; t += 250) {
+          const cover = await page.evaluate(() => {
+            const b = document.querySelector('.grid-board')?.getBoundingClientRect();
+            if (!b) return 0;
+            let max = 0;
+            for (const d of document.querySelectorAll('[role="dialog"], dialog[open]')) {
+              const r = d.getBoundingClientRect();
+              const cs = getComputedStyle(d);
+              if (!r.width || cs.visibility === 'hidden' || cs.display === 'none') continue;
+              const w = Math.min(b.right, r.right) - Math.max(b.left, r.left);
+              const h = Math.min(b.bottom, r.bottom) - Math.max(b.top, r.top);
+              if (w > 0 && h > 0) max = Math.max(max, (w * h) / (b.width * b.height));
+            }
+            return max;
+          });
+          if (cover >= 0.3) { addOnce('R8', `${play.stepId}/1280x800/クリア後`, `盤の${Math.round(cover * 100)}%`); break; }
+          await sleep(250);
+        }
+
+        opName = '次へ';
+        // 3. 次へ。
+        await page.click('[data-action="next-stage"], [data-action="next"]');
+      } catch (e) {
+        sampling = false;
+        addOnce('R0', `${play.stepId}/1280x800/${opName}`, `${opName}で止まった（${e.name}）`);
+        break;
+      }
     }
-    await page.waitForFunction(() => document.querySelector('#stage')?.dataset.step === 'summary', null, { timeout: 8000 }).catch(() => {});
-    await sleep(500);
-    for (const s of lesson.steps.filter((x) => x.kind === 'summary')) await sweep3(`${s.stepId}`);
+    await guard('summary', 'summary', async () => {
+      await page.waitForFunction(() => document.querySelector('#stage')?.dataset.step === 'summary', null, { timeout: 8000 }).catch(() => {});
+      await sleep(500);
+      for (const s of lesson.steps.filter((x) => x.kind === 'summary')) await sweep3(`${s.stepId}`);
+    });
 
     // --- 戻る・リロード（最初のplayのみ。別のページ読み込み） ---
     const p0 = plays[0];
     const first2 = cmdsOf(p0).slice(0, 2);
-    await startLesson(lessonId);
-    await toPlay();
-    for (const c of first2) await page.click(`[data-command="${c}"]`);
-    await page.reload();
-    await page.waitForSelector('#stage');
-    await page.waitForFunction(() => document.querySelector('#stage')?.dataset.stepId || document.querySelector('[data-action="resume"]'), null, { timeout: 5000 }).catch(() => {});
-    await sleep(500);
-    const urlSame = new URL(page.url()).searchParams.get('lesson') === lessonId;
-    const sameStep = (await page.getAttribute('#stage', 'data-step-id')) === p0.stepId;
-    const resume = (await page.$('[data-action="resume"]')) !== null;
-    if (!(urlSame && (sameStep || resume))) addOnce('R7a', `${p0.stepId}/1280x800/リロード`, `url=${urlSame} step=${sameStep} now=${await page.getAttribute('#stage', 'data-step-id')}/${await page.getAttribute('#stage', 'data-step')} resume=${resume}`);
-
-    await startLesson(lessonId);
-    await toPlay();
-    for (const c of first2) await page.click(`[data-command="${c}"]`);
-    const origin = new URL(page.url()).origin;
-    await page.goBack();
-    await sleep(500);
-    const here = page.url();
-    const alive = (await page.$('#stage')) !== null || (await page.$('[data-screen="picker"]')) !== null;
-    if (!(here.startsWith(origin) && alive && !here.startsWith('about:'))) addOnce('R7b', `${p0.stepId}/1280x800/戻る`, `url=${new URL(here, origin).origin} alive=${alive}`);
+    await guard(`${p0.stepId}/1280x800/リロード`, 'リロード', async () => {
+      await startLesson(lessonId);
+      await toPlay();
+      for (const c of first2) await page.click(`[data-command="${c}"]`);
+      await page.reload();
+      await page.waitForSelector('#stage');
+      await page.waitForFunction(() => document.querySelector('#stage')?.dataset.stepId || document.querySelector('[data-action="resume"]'), null, { timeout: 5000 }).catch(() => {});
+      await sleep(500);
+      const urlSame = new URL(page.url()).searchParams.get('lesson') === lessonId;
+      const sameStep = (await page.getAttribute('#stage', 'data-step-id')) === p0.stepId;
+      const resume = (await page.$('[data-action="resume"]')) !== null;
+      if (!(urlSame && (sameStep || resume))) addOnce('R7a', `${p0.stepId}/1280x800/リロード`, `url=${urlSame} step=${sameStep} now=${await page.getAttribute('#stage', 'data-step-id')}/${await page.getAttribute('#stage', 'data-step')} resume=${resume}`);
+    });
+    await guard(`${p0.stepId}/1280x800/戻る`, '戻る', async () => {
+      await startLesson(lessonId);
+      await toPlay();
+      for (const c of first2) await page.click(`[data-command="${c}"]`);
+      const origin = new URL(page.url()).origin;
+      await page.goBack();
+      await sleep(500);
+      const here = page.url();
+      const alive = (await page.$('#stage')) !== null || (await page.$('[data-screen="picker"]')) !== null;
+      if (!(here.startsWith(origin) && alive && !here.startsWith('about:'))) addOnce('R7b', `${p0.stepId}/1280x800/戻る`, `url=${new URL(here, origin).origin} alive=${alive}`);
+    });
   }
 
   // --- 保護者画面：R10 ---
   ctx = 'dashboard';
   const PASSCODE = 'testtest';
-  await page.goto('/dashboard.html');
-  await page.fill('#gate-setup-passcode', PASSCODE);
-  await page.fill('#gate-setup-confirm', PASSCODE);
-  await page.click('#gate-setup-submit');
-  await sleep(1000);
-  for (const id of internalIds(await page.evaluate(() => document.body.innerText))) addOnce('R10', '1280x800/保護者画面', `語:${id}`);
+  await guard('1280x800/保護者画面', '保護者画面', async () => {
+    await page.goto('/dashboard.html');
+    await page.fill('#gate-setup-passcode', PASSCODE);
+    await page.fill('#gate-setup-confirm', PASSCODE);
+    await page.click('#gate-setup-submit');
+    await sleep(1000);
+    for (const id of internalIds(await page.evaluate(() => document.body.innerText))) addOnce('R10', '1280x800/保護者画面', `語:${id}`);
+  });
 
   // --- 結果 ---
   const unknown = filterKnown(all, known);

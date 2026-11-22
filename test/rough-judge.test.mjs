@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   overflowItems, overlapPairs, smallTargets, doubleResult, boardResized,
-  jumps, internalIds, filterKnown, formatFinding,
+  jumps, internalIds, filterKnown, formatFinding, lessonsFromEnv,
 } from '../tools/playtest/rough-judge.mjs';
 
 test('R1 overflowItems: clientWidth+1 を超えたものだけ', () => {
@@ -55,4 +55,17 @@ test('formatFinding: cmd-01 の solution の並びと id=" を含まない', asy
   }
   assert.ok(!out.includes('id="'));
   assert.deepEqual(Object.keys(JSON.parse(out)), ['rule', 'where', 'detail']);
+});
+
+test('lessonsFromEnv: 未指定は fallback', () => {
+  assert.deepEqual(lessonsFromEnv(undefined, ['cmd-01-susumu']), ['cmd-01-susumu']);
+});
+
+test('lessonsFromEnv: "," で分け trim し空語を除く', () => {
+  assert.deepEqual(lessonsFromEnv(' donguri-01-hirou, ,donguri-02-mawarimichi ', ['x']), ['donguri-01-hirou', 'donguri-02-mawarimichi']);
+});
+
+test('lessonsFromEnv: 空文字・区切りだけは fallback', () => {
+  assert.deepEqual(lessonsFromEnv('', ['x']), ['x']);
+  assert.deepEqual(lessonsFromEnv(' , ', ['x']), ['x']);
 });

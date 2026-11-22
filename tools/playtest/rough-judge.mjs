@@ -62,3 +62,11 @@ export function filterKnown(findings, known) {
 export function formatFinding({ rule, where, detail }) {
   return { rule, where, detail: detail ?? '' };
 }
+
+// 見るレッスンの差し替え（環境変数 ROUGH_LESSONS。較正用。Issue #767）。value を "," で分け、各語を trim、空語を除く。
+// 結果が空か value が undefined なら fallback。
+export function lessonsFromEnv(value, fallback) {
+  if (value === undefined || value === null) return fallback;
+  const ids = String(value).split(',').map((w) => w.trim()).filter(Boolean);
+  return ids.length > 0 ? ids : fallback;
+}
