@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { findAffected, formatOutput, hasDimensionDiff, MAX_E2E, DIMENSION_SCENARIOS } from '../tools/affected-scenarios.mjs';
+import { findAffected, formatOutput, hasDimensionDiff, MAX_E2E, DIMENSION_SCENARIOS, isRuntimeFile, ROUGH_SCENARIO } from '../tools/affected-scenarios.mjs';
+import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 
 const scenarios = [
   { name: 'aa', text: "page.click('[data-foo]')" },
@@ -46,4 +48,31 @@ test('12本超は別行に分ける', () => {
 
 test('12本以下は E2E 行のみ', () => {
   assert.equal(formatOutput(['a', 'b']), 'E2E: a b');
+});
+
+test('isRuntimeFile が真', () => {
+  for (const p of ['js/ui-retry.js', 'js/engine-grid.js', 'js/gimmicks/ice.js', 'app.js', 'index.html', 'tailwind.src.css', 'style.css', 'js\\ui-retry.js']) assert.equal(isRuntimeFile(p), true, p);
+});
+
+test('isRuntimeFile が偽', () => {
+  for (const p of ['js/ui-seesaw.js', 'js/engine-buoyancy.js', 'js/ui-predict.js', 'js/ui-dashboard.js', 'js/sortorder-dishes.js', 'js/vendor/confetti.js', 'dashboard.html', 'lessons/cmd-01-susumu.json', 'docs/a.md', 'tools/x.mjs']) assert.equal(isRuntimeFile(p), false, p);
+});
+
+test('rough-grid は js 等の変更でだけ足される', () => {
+  const rg = [{ name: 'rough-grid', text: '' }];
+  assert.deepEqual(findAffected({ scenarios: rg, files: ['js/ui-retry.js'] }), ['rough-grid']);
+  assert.deepEqual(findAffected({ scenarios: rg, files: ['lessons/cmd-02-x.json'] }), []);
+  assert.deepEqual(findAffected({ scenarios: rg, files: ['docs/a.md'] }), []);
+  assert.deepEqual(findAffected({ scenarios, files: ['js/ui-retry.js'] }), []);
+});
+
+test('CLI の --files で rough-grid が載る／載らない', () => {
+  const run = (f) => execFileSync('node', ['tools/affected-scenarios.mjs', '--files', f], { encoding: 'utf-8' }).split('\n')[0];
+  assert.match(run('js/ui-retry.js'), / rough-grid/);
+  assert.doesNotMatch(run('docs/a.md'), /rough-grid/);
+});
+
+test('ROUGH_SCENARIO のシナリオファイルが存在する', () => {
+  assert.equal(ROUGH_SCENARIO, 'rough-grid');
+  assert.equal(existsSync(`.claude/verify/scenarios/${ROUGH_SCENARIO}.mjs`), true);
 });

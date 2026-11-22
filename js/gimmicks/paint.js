@@ -3,6 +3,7 @@
 // 何度通っても塗りは変わらない（上書き・2色目は扱わない）。全回収（itemsのどんぐり）は「全部のマスを通る」
 // ことが目的だが、こちらは「通ってよいマス・いけないマス」を区別して形を作る。
 // 状態は不変更新（BFSが同じstateを複数の分岐へ使い回すため）。
+import { prefersReducedMotion } from '../display-prefs.js';
 
 const keyOf = (p) => `${p.x},${p.y}`;
 const list = (v) => (Array.isArray(v) ? v : []);
@@ -128,7 +129,7 @@ export const paint = {
       const token = board.querySelector('.grid-player');
       board.insertBefore(el, token);
       painted.set(k, el);
-      const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const reduce = prefersReducedMotion();
       if (animate && !reduce) el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: FADE_MS, easing: 'ease-out' });
     };
     if (list(target).length > 0 && playerPos) paintAt(playerPos);

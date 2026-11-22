@@ -1,4 +1,9 @@
+import { applyDisplayPrefs } from './display-prefs.js';
 import { loadProfile, loadSlots, saveSlots, createSlot, setActiveSlot } from './storage.js';
+
+// 子ども画面（app.js）だけ true。保護者画面は文字・動きを変えない（Issue #379）。
+let displayPrefsOn = false;
+export function enableDisplayPrefs() { displayPrefsOn = true; }
 
 export const S = {
   lesson: null,
@@ -34,6 +39,7 @@ export function applySlot(slot, { persist = true } = {}) {
   S.learnerId = profile?.learnerId ?? null;
   S.readingLevel = profile?.readingLevel ?? 0;
   S.furigana = profile?.furigana ?? true;
+  if (displayPrefsOn) applyDisplayPrefs(profile);
 }
 
 // 使用中スロットが1つも無い起動（直リンク・ダッシュボード・旧データ無しの初回）では、従来の自動生成と

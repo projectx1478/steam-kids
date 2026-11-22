@@ -1,5 +1,6 @@
 // SVGグリッド描画。すべて自作SVG（<img>・background-imageは使わない）。
 import { GIMMICKS } from './gimmicks/index.js';
+import { prefersReducedMotion } from './display-prefs.js';
 
 const DEFAULT_CELL = 64;
 const MIN_CELL = 8;
@@ -187,9 +188,8 @@ export function setMoodIn(rootEl, mood) {
   });
 }
 
-export function prefersReducedMotion() {
-  return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
+// 判定は js/display-prefs.js（端末の設定 OR アプリの「うごきを へらす」。Issue #379）。既存の import 元を変えないため再公開する。
+export { prefersReducedMotion };
 
 // computeCellSize({cols, rows, width, height}) -> 8〜64の整数。
 // 盤面エリアの実寸から1マスの大きさを決める（画面回転・端末差に追従。Issue #93）。
