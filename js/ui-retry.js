@@ -88,7 +88,7 @@ export function createRetryChoice({ canResume, onResume, onRestart }) {
   resumeBtn.dataset.action = 'retry-resume';
   resumeBtn.textContent = '✋ とちゅうから';
   resumeBtn.className =
-    'btn-tactile px-1 bg-amber-500 text-white text-base font-bold whitespace-nowrap break-keep disabled:opacity-40 disabled:bg-slate-300';
+    'btn-tactile px-1 bg-amber-500 text-slate-900 text-base font-bold whitespace-nowrap break-keep disabled:opacity-40 disabled:bg-slate-300';
   resumeBtn.disabled = !canResume;
   resumeBtn.addEventListener('click', () => {
     if (!resumeBtn.disabled) onResume();

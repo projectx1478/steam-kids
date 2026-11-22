@@ -69,9 +69,9 @@ export function renderTitle(stage, { canContinue, onNew, onContinue, hint = fals
   actions = document.createElement('div');
   actions.className = 'title-actions';
   wrap.appendChild(actions);
-  addButton('title-new', 'はじめから', 'bg-orange-500 text-white', onNew);
+  addButton('title-new', 'はじめから', 'bg-orange-500 text-slate-900', onNew);
   // 初回（記録なし）は押せない見た目で置かず、出さない（Issue #742）。
-  if (canContinue) addButton('title-continue', 'つづきから', 'bg-sky-500 text-white', onContinue);
+  if (canContinue) addButton('title-continue', 'つづきから', 'bg-sky-500 text-slate-900', onContinue);
 
   stage.appendChild(wrap);
 }

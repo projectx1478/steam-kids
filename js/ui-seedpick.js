@@ -98,7 +98,7 @@ export function renderSeedPick(root, step) {
 
   addDigitKey(0);
 
-  const randomBtn = keyButton('おまかせ', 'bg-amber-500 border-amber-600 text-white text-sm font-bold');
+  const randomBtn = keyButton('おまかせ', 'bg-amber-500 border-amber-600 text-slate-900 text-sm font-bold');
   randomBtn.dataset.action = 'random-code';
   randomBtn.addEventListener('click', () => {
     [...randomNumberCode()].forEach((d, i) => {

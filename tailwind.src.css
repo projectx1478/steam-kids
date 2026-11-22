@@ -1078,7 +1078,7 @@ dialog.result-row {
   border: 3px solid #92400e;
   border-radius: 6px;
   font-weight: 800;
-  color: #78350f;
+  color: #451a03;
 }
 .sk-screen--buoyancy .bu-dot {
   display: inline-block;
@@ -1138,7 +1138,7 @@ dialog.result-row {
   height: 24px;
   border-radius: 50%;
   background: #16a34a;
-  color: #fff;
+  color: #0f172a;
   font-size: 13px;
   font-weight: 800;
   line-height: 24px;
@@ -1569,7 +1569,7 @@ dialog.result-row {
   border: 2px solid #1e293b;
   border-radius: 1rem;
   background: #0ea5e9;
-  color: #fff;
+  color: #0f172a;
   font-size: 22px;
   font-weight: 800;
   box-shadow: 0 4px 0 #1e293b;
@@ -1778,7 +1778,7 @@ dialog.result-row {
 }
 .uf-dot.uf-dot-on {
   background: #0ea5e9;
-  color: #fff;
+  color: #0f172a;
   box-shadow: 0 3px 0 #1e293b;
 }
 @media (orientation: landscape) and (max-height: 500px) {
@@ -1934,7 +1934,7 @@ button.egg-cell {
   border: 2px solid #1e293b;
   border-radius: 1rem;
   background: #22c55e;
-  color: #fff;
+  color: #0f172a;
   font-size: 22px;
   font-weight: 800;
   box-shadow: 0 4px 0 #1e293b;

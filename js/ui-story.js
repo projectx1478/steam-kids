@@ -57,7 +57,7 @@ export function renderStory(stage, name, onDone) {
     const next = document.createElement('button');
     next.type = 'button';
     next.dataset.action = 'story-next';
-    next.className = 'btn-tactile bg-orange-500 text-white text-xl px-8 py-3';
+    next.className = 'btn-tactile bg-orange-500 text-slate-900 text-xl px-8 py-3';
     next.textContent = 'つぎへ';
     next.addEventListener('click', () => {
       vibrate();

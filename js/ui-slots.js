@@ -57,7 +57,7 @@ export function renderSlotSelect(stage, { mode, units, onNew, onContinue, onBack
     card.appendChild(
       el('p', 'text-lg font-bold text-center', `${displayName(profile?.label, slot)}さんの データを けして、はじめから に しますか？`)
     );
-    const erase = el('button', 'btn-tactile bg-rose-500 text-white text-lg px-6 py-3', 'けす');
+    const erase = el('button', 'btn-tactile bg-rose-500 text-slate-900 text-lg px-6 py-3', 'けす');
     erase.type = 'button';
     erase.dataset.action = 'slot-erase';
     erase.addEventListener('click', async () => {
@@ -121,7 +121,7 @@ export function renderNameEntry(stage, onSubmit) {
   input.autocomplete = 'off';
   wrap.appendChild(input);
 
-  const submit = el('button', 'btn-tactile bg-orange-500 text-white text-xl px-8 py-3', 'けってい');
+  const submit = el('button', 'btn-tactile bg-orange-500 text-slate-900 text-xl px-8 py-3', 'けってい');
   submit.type = 'button';
   submit.dataset.action = 'name-submit';
   submit.addEventListener('click', () => {

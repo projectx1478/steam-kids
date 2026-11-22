@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
-  parseColor, contrastRatio, isLargeText, threshold, simulateCvd, deltaE,
+  parseColor, contrastRatio, isLargeText, threshold, simulateCvd, deltaE, strictFailures,
 } from '../tools/color-audit.mjs';
 
 const TOOL = fileURLToPath(new URL('../tools/color-audit.mjs', import.meta.url));
@@ -59,11 +59,13 @@ test('CLI --json：3表の件数と代表行', () => {
   assert.ok(textPairs.length >= 30, `textPairs=${textPairs.length}`);
   assert.ok(Array.isArray(cssPairs));
   assert.equal(meaningPairs.length, 13);
-  const dot = textPairs.find((p) => p.file === 'js/ui-step.js' && p.bg === '#0ea5e9' && p.fg === '#ffffff');
-  assert.ok(dot, 'ui-step の bg-sky-500 text-white');
-  assert.equal(dot.ratio, 2.77);
-  assert.equal(dot.pass, false);
+  const dot = textPairs.find((p) => p.file === 'js/ui-step.js' && p.bg === '#0ea5e9' && p.fg === '#0f172a');
+  assert.ok(dot, 'ui-step の bg-sky-500 text-slate-900（#807 で白から変更）');
+  assert.equal(dot.ratio, 6.44);
+  assert.equal(dot.pass, true);
   assert.equal(dot.scope, '子ども');
+  const guardian = textPairs.filter((p) => p.scope === '保護者' && p.pass === false);
+  assert.equal(guardian.length, 3, '保護者画面は対象外のまま（#807）');
   const picker = textPairs.find((p) => p.file === 'js/ui-picker.js' && p.bg === '#cbd5e1' && p.fg === '#475569');
   assert.ok(picker, 'ui-picker の bg-slate-300 text-slate-600');
   assert.equal(picker.ratio, 5.1);
@@ -79,4 +81,21 @@ test('CLI 既定：Markdown を出して終了コード0', () => {
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /textPairs/);
   assert.match(r.stdout, /meaningPairs/);
+});
+
+test('strictFailures：子ども・共通の pass:false だけを数える', () => {
+  const ok = { file: 'a.js', line: 1, fg: '#000000', bg: '#ffffff', ratio: 21, need: 4.5, pass: true, scope: '子ども' };
+  const kid = { ...ok, ratio: 2, pass: false };
+  assert.equal(strictFailures({ textPairs: [ok], cssPairs: [] }).length, 0);
+  assert.equal(strictFailures({ textPairs: [ok, kid], cssPairs: [] }).length, 1);
+  assert.equal(strictFailures({ textPairs: [], cssPairs: [{ ...kid, scope: '共通' }] }).length, 1);
+  assert.equal(strictFailures({ textPairs: [{ ...kid, scope: '保護者' }, { ...kid, pass: null }], cssPairs: [] }).length, 0);
+});
+
+test('CLI --strict：現状の子ども画面は終了コード0（--json と併用しても --strict 優先）', () => {
+  for (const args of [['--strict'], ['--strict', '--json']]) {
+    const r = spawnSync(process.execPath, [TOOL, ...args], { encoding: 'utf-8', maxBuffer: 32 * 1024 * 1024 });
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.stdout, '');
+  }
 });

@@ -1,5 +1,6 @@
-// 色の点検ツール（Issue #383 段1）。報告のみ（終了コードは常に 0）。
-// 使い方：node tools/color-audit.mjs [--json]
+// 色の点検ツール（Issue #383）。既定・--json は報告のみ（終了コード 0）。
+// 使い方：node tools/color-audit.mjs [--json | --strict]
+// --strict（#807）：計算済みで pass:false の子ども・共通 scope の行が1件でもあれば標準エラーに出して終了コード1（--json より優先）。
 // 3表：textPairs（js・index.html のクラス文字列）／cssPairs（tailwind.src.css）／meaningPairs（色で意味を分ける組み合わせ）。
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -237,11 +238,22 @@ export function toMarkdown({ textPairs, cssPairs, meaningPairs }) {
   return out.join('\n') + '\n';
 }
 
+// --strict の対象：計算済み（pass:false）で、保護者 scope を除く行（cssPairs は共通）。要目視・未計算・meaningPairs は数えない
+export function strictFailures({ textPairs, cssPairs }) {
+  return [...textPairs, ...cssPairs].filter((r) => r.pass === false && r.scope !== '保護者');
+}
+
 export function runAudit(root = ROOT) {
   return { textPairs: auditTextPairs(root), cssPairs: auditCssPairs(root), meaningPairs: auditMeaningPairs() };
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const result = runAudit();
+  if (process.argv.includes('--strict')) {
+    const bad = strictFailures(result);
+    for (const r of bad) console.error(`${r.file}:${r.line} ${r.fg} ${r.bg} ${r.ratio} need ${r.need}`);
+    if (bad.length) console.error(`color-audit --strict: FAIL ${bad.length} 件`);
+    process.exit(bad.length ? 1 : 0);
+  }
   process.stdout.write(process.argv.includes('--json') ? JSON.stringify(result, null, 2) + '\n' : toMarkdown(result));
 }

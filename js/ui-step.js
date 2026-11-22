@@ -367,17 +367,17 @@ function buildStepDots() {
     const clickableSize = wrapMode ? 'min-w-[64px] min-h-[64px] px-0' : 'min-w-[64px] min-h-[64px] px-2';
     const sizeClass = clickable ? clickableSize : nodeSizeClass;
     const stateClass = isCurrent
-      ? 'bg-sky-500 text-white ring-2 ring-sky-300 ring-offset-1'
+      ? 'bg-sky-500 text-slate-900 ring-2 ring-sky-300 ring-offset-1'
       : isDone
-        ? 'bg-emerald-400 text-white'
-        : 'bg-slate-200 text-slate-500';
+        ? 'bg-emerald-400 text-slate-900'
+        : 'bg-slate-200 text-slate-700';
     node.className = `step-dot relative inline-flex items-center justify-center rounded-full font-bold shrink-0 ${sizeClass} ${stateClass}`;
     if (isCurrent) node.dataset.current = 'true';
     // 番号は常に表示し、完了は右上の緑バッジ✓で示す（Issue #554）。
     node.textContent = stepGlyph(step, stageIdx);
     if (isDone) {
       const badge = document.createElement('span');
-      badge.className = 'step-dot-badge absolute -top-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 text-white text-xs leading-5 text-center ring-2 ring-white';
+      badge.className = 'step-dot-badge absolute -top-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 text-slate-900 text-xs leading-5 text-center ring-2 ring-white';
       badge.textContent = '✓';
       badge.setAttribute('aria-hidden', 'true');
       node.appendChild(badge);
@@ -458,7 +458,7 @@ function renderStep() {
 export function createPrimaryButton(label, onClick, action) {
   const btn = document.createElement('button');
   btn.type = 'button';
-  btn.className = 'primary-btn btn-tactile block mx-auto px-6 py-3 mt-4 bg-sky-500 text-white text-lg';
+  btn.className = 'primary-btn btn-tactile block mx-auto px-6 py-3 mt-4 bg-sky-500 text-slate-900 text-lg';
   if (action) btn.dataset.action = action;
   btn.textContent = label;
   btn.addEventListener('click', () => {
