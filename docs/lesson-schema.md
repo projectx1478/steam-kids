@@ -287,7 +287,7 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 
 ## `lessons/index.json`の解放と開発者画面（Issue #216）
 
-単元マップは`units`の`lessonIds`を通しの順に並べ、前のレッスンをクリアすると次が開く（先頭は最初から開く。`practiceIds`は同単元の`lessonIds`を全クリアで開く）。
+単元マップは各単元の`lessonIds`の先頭が最初から開き、2本目以降は同じ単元の前のレッスンをクリアすると開く（Issue #812。`practiceIds`は同単元の`lessonIds`を全クリアで開く）。パルスと「つづきから」は全単元を通した順で次の1本を指す。
 `devOnlyIds`に載せたレッスンは通常の単元マップに出さず、開発者画面（`index.html?view=map&dev=1`。保護者ゲート解錠後のダッシュボードにリンク）だけに出す。
 開発者画面は全レッスンが開き、学習記録（events・tutorialDone・同期）を残さない。`lessons/*.json`は`lessonIds`・`practiceIds`・`devOnlyIds`のどれかに載せる（`validate-lessons`が検証）。
 単元の`gimmicks`（省略可。`items`・`ice`・`keys`の配列）は、その単元のレッスンを1本でもクリアすると練習の`generator`の`gimmickMix`で混ぜてよくなるギミックの種類。`practiceIds`・`devOnlyIds`はクリア判定に数えない。

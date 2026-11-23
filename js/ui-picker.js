@@ -4,7 +4,7 @@ import { loadLesson } from './lesson-loader.js';
 import { getEvents } from './events.js';
 import { summarize } from './analytics.js';
 import { shapeSvg } from './ui-grid.js';
-import { lessonOrder, isUnlocked, isPracticeUnlocked, firstPendingId, hintLessonId } from './unlock.js';
+import { lessonOrder, isUnitLessonOpen, isPracticeUnlocked, firstPendingId, hintLessonId } from './unlock.js';
 import { showLockHint } from './ui-lock-hint.js';
 import { IS_DEV } from './dev-mode.js';
 
@@ -246,7 +246,7 @@ async function createUnitIsland(unit, lessonStatus, ctx, onPick) {
 
   const list = document.createElement('div');
   list.className = 'flex flex-wrap justify-center gap-3';
-  const { order, clearedIds, pendingId } = ctx;
+  const { clearedIds, pendingId } = ctx;
   for (const [i, lessonId] of unit.lessonIds.entries()) {
     list.appendChild(
       await createLessonStop(
@@ -254,8 +254,8 @@ async function createUnitIsland(unit, lessonStatus, ctx, onPick) {
         {
           unit,
           number: i + 1,
-          locked: !IS_DEV && !isUnlocked(order, clearedIds, lessonId),
-          onLockedPick: (btn) => ctx.onLocked(btn, [order[order.indexOf(lessonId) - 1]]),
+          locked: !IS_DEV && !isUnitLessonOpen(unit, clearedIds, lessonId),
+          onLockedPick: (btn) => ctx.onLocked(btn, unit.lessonIds.slice(0, i)),
           pending: !IS_DEV && lessonId === pendingId,
           cleared: isCleared(lessonStatus, lessonId),
         },
@@ -296,7 +296,7 @@ export async function renderUnitMap(stage, units, onPick, onBack) {
   const ctx = { order, clearedIds, pendingId: firstPendingId(order, clearedIds) };
   // 錠の押下：押した錠がゆれ、先に遊ぶレッスンが光り、ことりが言う（Issue #742。音は鳴らさない）。
   ctx.onLocked = (lockBtn, requiredIds) => {
-    const id = hintLessonId(order, clearedIds, requiredIds);
+    const id = hintLessonId(order, clearedIds, requiredIds, (lid) => units.some((u) => isUnitLessonOpen(u, clearedIds, lid)));
     const target = id ? stage.querySelector(`[data-lesson-id="${id}"]`) : null;
     showLockHint(lockBtn, target);
   };

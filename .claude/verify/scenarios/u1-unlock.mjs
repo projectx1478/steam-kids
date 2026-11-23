@@ -15,19 +15,25 @@ const ORDER = [
   'switch-02-futatsu',
 ];
 
-// 未解放の数は lessons/index.json から数える（先頭1本だけ有効。レッスン追加のたびに固定値が古くなるのを防ぐ。#704）
-function lockedTotal() {
+// 未解放の数は lessons/index.json から数える（各単元の先頭1本だけ有効。単元内の段階解放。#812。レッスン追加のたびに固定値が古くなるのを防ぐ。#704）
+function unitsFromIndex() {
   const index = JSON.parse(readFileSync(new URL('../../../lessons/index.json', import.meta.url), 'utf8'));
-  let n = 0;
+  const units = [];
   const walk = (o) => {
     if (Array.isArray(o)) o.forEach(walk);
     else if (o && typeof o === 'object') {
-      if (o.unitId) n += o.lessonIds.length + (o.practiceIds ?? []).length;
+      if (o.unitId) units.push(o);
       else Object.values(o).forEach(walk);
     }
   };
   walk(index);
-  return n - 1;
+  return units;
+}
+
+function lockedTotal() {
+  const units = unitsFromIndex();
+  const heads = units.filter((u) => u.lessonIds.length > 0).length;
+  return units.reduce((n, u) => n + u.lessonIds.length + (u.practiceIds ?? []).length, 0) - heads;
 }
 
 function setCleared(page, ids) {
@@ -59,16 +65,22 @@ const pulseIds = (page) => page.$$eval('.next-pulse', (els) => els.map((e) => e.
 export default async function run({ page, check }) {
   // --- 初期：先頭だけ有効 ---
   await page.goto('/index.html?view=map');
-  await check('初期は先頭以外(index.jsonの全公開レッスン・れんしゅう)がdisabled＋data-locked', async () => (await lockedIds(page)).length, lockedTotal());
+  await check('初期は各単元の先頭以外(公開レッスンの2本目以降・れんしゅう)がdisabled＋data-locked', async () => (await lockedIds(page)).length, lockedTotal());
+  await check('初期は公開している全単元の1本目が有効・2本目が錠(#812)', async () => {
+    const locked = new Set(await lockedIds(page));
+    return unitsFromIndex().filter((u) => u.lessonIds.length > 0)
+      .every((u) => !locked.has(u.lessonIds[0]) && (u.lessonIds.length < 2 || locked.has(u.lessonIds[1])));
+  }, true);
   await check('先頭(cmd-01)は有効', async () => page.$eval('[data-lesson-id="cmd-01-susumu"]', (b) => !b.disabled));
   await check('パルスは先頭の1件だけ', async () => pulseIds(page), ['cmd-01-susumu']);
   await check('ボタンに単元内番号が付く(cmd-03は2。cmd-02は#615で非公開)', async () =>
     page.textContent('[data-lesson-id="cmd-03-naosu"] .lesson-num'), '2');
-  await check('単元色: 解放済みcommandsはemerald、未解放iceはslate', async () =>
+  await check('単元色: commands・iceの先頭は単元色、ice-02はslate(#812)', async () =>
     page.evaluate(() => [
       document.querySelector('[data-lesson-id="cmd-01-susumu"]').classList.contains('bg-emerald-400'),
-      document.querySelector('[data-lesson-id="ice-01-suberu"]').className.includes('bg-slate-300'),
-    ]), [true, true]);
+      document.querySelector('[data-lesson-id="ice-01-suberu"]').classList.contains('bg-sky-400'),
+      document.querySelector('[data-lesson-id="ice-02-kabe"]').className.includes('bg-slate-300'),
+    ]), [true, true, true]);
 
   // --- クリア注入で次が解放され、パルスが移る（単元をまたぐ） ---
   await setCleared(page, ORDER.slice(0, 1));
@@ -76,15 +88,26 @@ export default async function run({ page, check }) {
   await check('cmd-01クリアでcmd-03が解放される', async () =>
     page.$eval('[data-lesson-id="cmd-03-naosu"]', (b) => !b.dataset.locked));
   await check('パルスがcmd-03へ移る', async () => pulseIds(page), ['cmd-03-naosu']);
-  await check('donguri-01はまだロック', async () => (await lockedIds(page)).includes('donguri-01-hirou'));
+  await check('donguri-02はまだロック', async () => (await lockedIds(page)).includes('donguri-02-mawarimichi'));
 
   await setCleared(page, ORDER.slice(0, 2));
   await page.goto('/index.html?view=map');
-  await check('cmd-03クリアで次の単元(donguri-01)が解放される', async () =>
-    page.$eval('[data-lesson-id="donguri-01-hirou"]', (b) => !b.dataset.locked));
+  await check('cmd-03クリア後もdonguri-02はロック(単元をまたいで開かない。#812)', async () =>
+    (await lockedIds(page)).includes('donguri-02-mawarimichi'));
   await check('れんしゅうはcommands単元クリアで解放', async () =>
     page.$eval('[data-lesson-id="cmd-06-practice"]', (b) => !b.dataset.locked));
   await check('パルスがdonguri-01へ移る', async () => pulseIds(page), ['donguri-01-hirou']);
+
+  // --- 入口に依らず同じ：from= でも先頭は開き2本目は錠(#812) ---
+  await page.evaluate(() => localStorage.removeItem('steamkids.events'));
+  await page.goto('/index.html?view=map&from=teko-01-tsuriai');
+  await check('from=teko-01: teko-01は開き、teko-02は錠', async () =>
+    [await page.$eval('[data-lesson-id="teko-01-tsuriai"]', (b) => !b.dataset.locked), await page.$eval('[data-lesson-id="teko-02-tsuriai2"]', (b) => b.dataset.locked === 'true')], [true, true]);
+  await page.goto('/index.html?view=map&from=teko-07-ukabu');
+  await check('from=teko-07: teko-07は開く', async () =>
+    page.$eval('[data-lesson-id="teko-07-ukabu"]', (b) => !b.dataset.locked));
+  await setCleared(page, ORDER.slice(0, 2));
+  await page.goto('/index.html?view=map');
 
   // --- reduced-motion：アニメ無し・枠のみ ---
   await page.emulateMedia({ reducedMotion: 'reduce' });

@@ -38,10 +38,20 @@ export function newHintLesson(order, clearedIds, lastShownId) {
   return next === null || next === lastShownId ? null : next;
 }
 
+// 単元内の段階解放（Issue #812）。各単元の lessonIds 先頭は最初から開き、2本目以降は単元内の前の1本のクリアで開く。
+// れんしゅう（practiceIds）・devOnlyIds は対象外（false）。単元をまたぐ依存は無い。
+export function isUnitLessonOpen(unit, clearedIds, id) {
+  const ids = Array.isArray(unit?.lessonIds) ? unit.lessonIds : [];
+  const i = ids.indexOf(id);
+  if (i < 0) return false;
+  return i === 0 || clearedIds.has(ids[i - 1]);
+}
+
 // 錠を押したときに光らせるレッスン（Issue #742）。requiredIds の最初の未クリアを返し、それが錠なら
 // その前の最前線（firstPendingId）を返す。requiredIds が全クリアなら null。
-export function hintLessonId(order, clearedIds, requiredIds) {
+// isOpen（Issue #812）：id が開いているかの判定。省略時は全単元を通した順（isUnlocked）。
+export function hintLessonId(order, clearedIds, requiredIds, isOpen = (id) => isUnlocked(order, clearedIds, id)) {
   const target = requiredIds.find((id) => !clearedIds.has(id));
   if (target === undefined) return null;
-  return isUnlocked(order, clearedIds, target) ? target : firstPendingId(order, clearedIds);
+  return isOpen(target) ? target : firstPendingId(order, clearedIds);
 }
