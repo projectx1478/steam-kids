@@ -1,6 +1,6 @@
 // 色の点検ツール（Issue #383）。既定・--json は報告のみ（終了コード 0）。
 // 使い方：node tools/color-audit.mjs [--json | --strict]
-// --strict（#807）：計算済みで pass:false の子ども・共通 scope の行が1件でもあれば標準エラーに出して終了コード1（--json より優先）。
+// --strict（#807・#810）：計算済みで pass:false の行（子ども・保護者・共通）が1件でもあれば標準エラーに出して終了コード1（--json より優先）。
 // 3表：textPairs（js・index.html のクラス文字列）／cssPairs（tailwind.src.css）／meaningPairs（色で意味を分ける組み合わせ）。
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -238,9 +238,9 @@ export function toMarkdown({ textPairs, cssPairs, meaningPairs }) {
   return out.join('\n') + '\n';
 }
 
-// --strict の対象：計算済み（pass:false）で、保護者 scope を除く行（cssPairs は共通）。要目視・未計算・meaningPairs は数えない
+// --strict の対象：計算済み（pass:false）の全 scope の行。要目視・未計算・meaningPairs は数えない
 export function strictFailures({ textPairs, cssPairs }) {
-  return [...textPairs, ...cssPairs].filter((r) => r.pass === false && r.scope !== '保護者');
+  return [...textPairs, ...cssPairs].filter((r) => r.pass === false);
 }
 
 export function runAudit(root = ROOT) {

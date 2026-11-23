@@ -67,7 +67,7 @@ function renderSlotTabs(root) {
     tab.setAttribute('aria-pressed', String(i === active));
     tab.disabled = !occupied[i];
     tab.className = `min-h-[48px] flex-1 px-3 rounded-lg text-sm border ${
-      i === active ? 'bg-sky-600 text-white border-sky-600' : 'bg-white text-slate-700 border-slate-300'
+      i === active ? 'bg-sky-700 text-white border-sky-700' : 'bg-white text-slate-700 border-slate-300'
     } ${occupied[i] ? '' : 'opacity-50'}`;
     tab.textContent = occupied[i] ? displayName(readSlotSummary(i).profile?.label, i) : 'あき';
     tab.addEventListener('click', () => {

@@ -5,7 +5,7 @@
 //    lessons/*.json はネットワーク優先のランタイムキャッシュなので対象外（docs/caching.md）
 // 3. HTML/JS/CSS が外部URLからスクリプト・スタイル・フォント・モジュールを読み込んでいない（CDN禁止）
 // 4. 音声拡張子（ogg/mp3/wav/m4a等）のファイルがリポジトリ内に無い（BGM音源は公開リポジトリに置かない。#378）
-// 5. color-contrast：子ども・共通 scope の文字と背景のコントラストが基準未満の行が無い（tools/color-audit.mjs --strict。#807）
+// 5. color-contrast：全 scope の文字と背景のコントラストが基準未満の行が無い（tools/color-audit.mjs --strict。#807）
 import { spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import path from 'node:path';
