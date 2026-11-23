@@ -42,7 +42,7 @@ export async function openParentalGate({ cancellable = false } = {}) {
     const card = el('div', 'bg-white border border-slate-200 rounded-lg shadow-sm p-6 w-full max-w-sm');
     const status = el('p', 'text-sm text-center text-red-500 min-h-[1.25rem] mt-2');
     status.id = 'parental-gate-status';
-    const submit = el('button', 'min-h-[48px] w-full bg-sky-600 text-white text-sm font-bold rounded-lg');
+    const submit = el('button', 'min-h-[48px] w-full bg-sky-700 text-white text-sm font-bold rounded-lg');
     submit.id = 'parental-gate-submit';
     submit.type = 'button';
     submit.dataset.mode = needSetup ? 'setup' : 'login';

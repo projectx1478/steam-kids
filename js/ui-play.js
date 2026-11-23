@@ -187,13 +187,13 @@ export function renderPlay(root, step) {
   stepBtn.dataset.action = 'step';
   stepBtn.textContent = '👣\n１コマ';
   stepBtn.className =
-    'btn-tactile px-1 bg-sky-500 text-white text-sm font-bold whitespace-pre-line leading-tight break-keep disabled:opacity-40';
+    'btn-tactile px-1 bg-sky-500 text-slate-900 text-sm font-bold whitespace-pre-line leading-tight break-keep disabled:opacity-40';
 
   const runBtn = document.createElement('button');
   runBtn.type = 'button';
   runBtn.dataset.action = 'run';
   runBtn.textContent = '▶\nじっこう';
-  runBtn.className = 'btn-tactile px-1 bg-emerald-500 text-white text-sm font-bold whitespace-pre-line leading-tight break-keep disabled:opacity-40';
+  runBtn.className = 'btn-tactile px-1 bg-emerald-500 text-slate-900 text-sm font-bold whitespace-pre-line leading-tight break-keep disabled:opacity-40';
 
   // 編集・キュー・取り消し札・箱のバー（ui-play-queue.js。Issue #663 段2）。最初の描画（renderQuestion）より前に呼ぶ。
   Object.assign(ctx, { paletteEl, queueEl, runBtn, clearBtn, removeLastBtn, stepBtn, undoBtn, undoBar });

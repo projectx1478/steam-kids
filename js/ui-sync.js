@@ -60,7 +60,7 @@ function createBtn(label, action, onClick, className) {
   btn.type = 'button';
   btn.dataset.action = action;
   btn.textContent = label;
-  btn.className = className || 'min-w-[48px] min-h-[48px] px-4 rounded-lg bg-sky-500 text-white text-sm';
+  btn.className = className || 'min-w-[48px] min-h-[48px] px-4 rounded-lg bg-sky-700 text-white text-sm';
   btn.addEventListener('click', onClick);
   return btn;
 }

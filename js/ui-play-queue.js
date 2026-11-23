@@ -221,7 +221,7 @@ export function setupQueue(ctx) {
   timesBtn.type = 'button';
   timesBtn.dataset.action = 'box-times';
   timesBtn.className =
-    'min-w-[64px] min-h-[64px] px-3 rounded-lg bg-amber-400 text-white text-sm font-bold whitespace-nowrap break-keep transition-transform duration-100 active:scale-95 disabled:opacity-40';
+    'min-w-[64px] min-h-[64px] px-3 rounded-lg bg-amber-400 text-slate-900 text-sm font-bold whitespace-nowrap break-keep transition-transform duration-100 active:scale-95 disabled:opacity-40';
   timesBtn.addEventListener('click', () => {
     if (local.running || local.stepping || local.locked || local.boxOpen < 0) {
       skipClickSfx();
@@ -239,7 +239,7 @@ export function setupQueue(ctx) {
   closeBtn.dataset.action = 'box-close';
   closeBtn.textContent = 'とじる';
   closeBtn.className =
-    'btn-tactile px-4 bg-emerald-500 text-white text-lg font-bold whitespace-nowrap break-keep disabled:opacity-40';
+    'btn-tactile px-4 bg-emerald-500 text-slate-900 text-lg font-bold whitespace-nowrap break-keep disabled:opacity-40';
   closeBtn.addEventListener('click', () => {
     if (local.running || local.stepping || local.locked) {
       skipClickSfx();
@@ -291,7 +291,7 @@ export function bindEditButtons(ctx) {
     openBtn.type = 'button';
     openBtn.dataset.action = 'box-open';
     openBtn.className =
-      'command-btn btn-tactile flex flex-col items-center justify-center gap-1 px-3 py-2 bg-amber-500 text-white disabled:opacity-40';
+      'command-btn btn-tactile flex flex-col items-center justify-center gap-1 px-3 py-2 bg-amber-500 text-slate-900 disabled:opacity-40';
     openBtn.innerHTML = '<span class="text-xl leading-none" aria-hidden="true">🔁</span><span class="text-sm whitespace-nowrap">はこ</span>';
     openBtn.addEventListener('click', () => {
       if (local.running || local.stepping || local.locked || local.boxOpen >= 0) {
@@ -316,7 +316,7 @@ export function bindEditButtons(ctx) {
     condBtn.type = 'button';
     condBtn.dataset.action = 'cond-open';
     condBtn.className =
-      'col-span-full command-btn btn-tactile flex flex-row items-center justify-center gap-2 px-3 py-2 bg-amber-500 border-2 border-slate-800 text-white disabled:opacity-40';
+      'col-span-full command-btn btn-tactile flex flex-row items-center justify-center gap-2 px-3 py-2 bg-amber-500 border-2 border-slate-800 text-slate-900 disabled:opacity-40';
     condBtn.innerHTML = '<span class="text-sm whitespace-nowrap">もし</span>';
     condBtn.prepend(robotFacingSvg('right'));
     condBtn.addEventListener('click', () => {

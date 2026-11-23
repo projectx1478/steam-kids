@@ -42,7 +42,7 @@ export function confirmDialog({
   keep.type = 'button';
   if (keepId) keep.id = keepId;
   if (keepAction) keep.dataset.action = keepAction;
-  keep.className = 'btn-tactile bg-sky-500 text-white font-bold text-xl';
+  keep.className = 'btn-tactile bg-sky-500 text-slate-900 font-bold text-xl';
   keep.style.cssText = 'width:240px;max-width:100%;min-height:72px;height:72px';
   keep.textContent = keepLabel;
   keep.addEventListener('click', () => {

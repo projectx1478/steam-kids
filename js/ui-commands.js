@@ -263,7 +263,7 @@ export function renderCommandPalette(container, { onAdd, dropTarget, onDragOver,
     btn.type = 'button';
     btn.dataset.command = dir;
     btn.className =
-      'command-btn btn-tactile flex flex-col items-center justify-center gap-1 px-3 py-2 bg-sky-500 text-white touch-none disabled:opacity-40';
+      'command-btn btn-tactile flex flex-col items-center justify-center gap-1 px-3 py-2 bg-sky-500 text-slate-900 touch-none disabled:opacity-40';
     btn.innerHTML = `${arrowSvg(dir)}<span class="text-sm whitespace-nowrap">${COMMAND_LABELS[dir]}</span>`;
     attachTapOrDrag(btn, {
       onTap: () => tapDir(dir),
@@ -286,7 +286,7 @@ export function renderCommandPalette(container, { onAdd, dropTarget, onDragOver,
     pauseBtn.dataset.pauseLeft = String(maxPauses);
     pauseBtn.setAttribute('aria-label', `とめる のこり ${maxPauses}かい`);
     pauseBtn.className =
-      'command-btn btn-tactile flex flex-col items-center justify-center gap-1 px-3 py-2 bg-amber-500 text-white disabled:opacity-40';
+      'command-btn btn-tactile flex flex-col items-center justify-center gap-1 px-3 py-2 bg-amber-500 text-slate-900 disabled:opacity-40';
     pauseBtn.innerHTML = '<span class="text-2xl leading-none" aria-hidden="true">✋</span><span class="text-sm whitespace-nowrap" aria-hidden="true">とめる</span>';
     const badge = document.createElement('span');
     badge.className = 'pause-badge';

@@ -153,7 +153,7 @@ export function renderSeesaw(root, step) {
   runBtn.type = 'button';
   runBtn.dataset.action = 'run';
   runBtn.textContent = '▶ ためす';
-  runBtn.className = 'btn-tactile px-4 bg-emerald-500 text-white text-lg font-bold whitespace-nowrap break-keep disabled:opacity-40';
+  runBtn.className = 'btn-tactile px-4 bg-emerald-500 text-slate-900 text-lg font-bold whitespace-nowrap break-keep disabled:opacity-40';
 
   function setRunMode(mode) {
     setRetryButton(runBtn, mode, { runLabel: '▶ ためす', emphasis: ['ring-4', 'ring-amber-300', 'ring-offset-2'] });

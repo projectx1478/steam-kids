@@ -63,4 +63,4 @@ npm run verify:fast -- --with-generate
 - 盤面だけを変える PR の扱い。案：CI の validate と e2e が通れば、AI のレビューを省く。`.claude/` の変更になるため、ここでは決裁事項として書くだけで、`.claude/` は変えない。
 
 ## color-audit（色の点検）
-`npm run audit:color`（`--json` で JSON）。文字と背景のコントラスト比（js・index.html・tailwind.src.css）と、色で意味を分ける組み合わせの色覚模擬（protan・deutan の ΔE）を出す。段1は報告のみ（終了コードは常に 0。CI・check:static には入れない）。
+`npm run audit:color`（`--json` で JSON）。文字と背景のコントラスト比（js・index.html・tailwind.src.css）と、色で意味を分ける組み合わせの色覚模擬（protan・deutan の ΔE）を出す。既定・`--json` は報告のみ（終了コード 0）。段2（#807）の `--strict` は、全 scope（子ども・保護者・共通。#810 で保護者画面も対象）で計算済み `pass:false` の行が1件でもあれば `file:line fg bg ratio need` を標準エラーに出して終了コード1（要目視・未計算・meaningPairs は数えない）。`check:static` の `color-contrast` が呼ぶ。

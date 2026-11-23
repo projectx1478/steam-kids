@@ -116,12 +116,12 @@ export function renderTutorial(root, step) {
     const isClose = entry.tap === 'close';
     el.className = `guide-step relative inline-flex items-center justify-center h-10 rounded-lg pointer-events-none ${
       isRun || isClose
-        ? 'px-3 bg-emerald-500 text-white text-sm font-bold'
+        ? 'px-3 bg-emerald-500 text-slate-900 text-sm font-bold'
         : isRemove
-          ? 'w-10 bg-rose-500 text-white text-lg font-bold'
+          ? 'w-10 bg-rose-500 text-slate-900 text-lg font-bold'
           : isBox || isTimes
-            ? 'px-2 bg-amber-500 text-white text-sm font-bold'
-            : 'w-10 bg-sky-500 text-white'
+            ? 'px-2 bg-amber-500 text-slate-900 text-sm font-bold'
+            : 'w-10 bg-sky-500 text-slate-900'
     }`;
     if (isRun) el.textContent = 'じっこう';
     else if (isRemove) el.textContent = '×';
@@ -134,7 +134,7 @@ export function renderTutorial(root, step) {
     }
     const check = document.createElement('span');
     check.className =
-      'guide-check hidden absolute -top-1 -right-1 w-4 h-4 rounded-full bg-white text-emerald-600 text-xs flex items-center justify-center';
+      'guide-check hidden absolute -top-1 -right-1 w-4 h-4 rounded-full bg-white text-emerald-700 text-xs flex items-center justify-center';
     check.textContent = '✓';
     check.setAttribute('aria-hidden', 'true');
     el.appendChild(check);
@@ -186,7 +186,7 @@ export function renderTutorial(root, step) {
   runBtn.type = 'button';
   runBtn.dataset.action = 'run';
   runBtn.textContent = '▶ じっこう';
-  runBtn.className = 'btn-tactile px-4 bg-emerald-500 text-white text-lg font-bold whitespace-nowrap disabled:opacity-40 shrink-0';
+  runBtn.className = 'btn-tactile px-4 bg-emerald-500 text-slate-900 text-lg font-bold whitespace-nowrap disabled:opacity-40 shrink-0';
   queueRow.appendChild(runBtn);
 
   let boxBtn = null;
@@ -195,12 +195,12 @@ export function renderTutorial(root, step) {
   timesBtn.dataset.action = 'box-times';
   timesBtn.textContent = 'かいすう ×2';
   timesBtn.className =
-    'min-w-[64px] min-h-[64px] px-3 rounded-lg bg-amber-400 text-white text-sm font-bold whitespace-nowrap break-keep shrink-0 disabled:opacity-40';
+    'min-w-[64px] min-h-[64px] px-3 rounded-lg bg-amber-400 text-slate-900 text-sm font-bold whitespace-nowrap break-keep shrink-0 disabled:opacity-40';
   const closeBtn = document.createElement('button');
   closeBtn.type = 'button';
   closeBtn.dataset.action = 'box-close';
   closeBtn.textContent = 'とじる';
-  closeBtn.className = 'btn-tactile px-4 bg-emerald-500 text-white text-lg font-bold whitespace-nowrap break-keep shrink-0 disabled:opacity-40';
+  closeBtn.className = 'btn-tactile px-4 bg-emerald-500 text-slate-900 text-lg font-bold whitespace-nowrap break-keep shrink-0 disabled:opacity-40';
 
   function drawBoard() {
     local.fit = fitTutorialCell();
@@ -307,7 +307,7 @@ export function renderTutorial(root, step) {
         if (!chip.querySelector('.tutorial-remove-badge')) {
           const badge = document.createElement('span');
           badge.className =
-            "tutorial-remove-badge absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-4 text-center";
+            "tutorial-remove-badge absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-500 text-slate-900 text-[10px] font-bold leading-4 text-center";
           badge.textContent = '×';
           badge.setAttribute('aria-hidden', 'true');
           chip.appendChild(badge);
@@ -406,7 +406,7 @@ export function renderTutorial(root, step) {
     boxBtn.type = 'button';
     boxBtn.dataset.action = 'box-open';
     boxBtn.className =
-      'command-btn btn-tactile flex flex-col items-center justify-center gap-1 px-3 py-2 bg-amber-500 text-white disabled:opacity-40';
+      'command-btn btn-tactile flex flex-col items-center justify-center gap-1 px-3 py-2 bg-amber-500 text-slate-900 disabled:opacity-40';
     boxBtn.innerHTML = '<span class="text-xl leading-none" aria-hidden="true">🔁</span><span class="text-sm whitespace-nowrap">はこ</span>';
     boxBtn.addEventListener('click', () => {
       if (local.running || guideTarget() !== 'box') {

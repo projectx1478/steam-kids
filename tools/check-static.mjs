@@ -5,6 +5,8 @@
 //    lessons/*.json はネットワーク優先のランタイムキャッシュなので対象外（docs/caching.md）
 // 3. HTML/JS/CSS が外部URLからスクリプト・スタイル・フォント・モジュールを読み込んでいない（CDN禁止）
 // 4. 音声拡張子（ogg/mp3/wav/m4a等）のファイルがリポジトリ内に無い（BGM音源は公開リポジトリに置かない。#378）
+// 5. color-contrast：全 scope の文字と背景のコントラストが基準未満の行が無い（tools/color-audit.mjs --strict。#807）
+import { spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import path from 'node:path';
 
@@ -76,6 +78,10 @@ const AUDIO_EXT = ['.ogg', '.mp3', '.wav', '.m4a', '.flac', '.aac'];
 const AUDIO_SKIP = ['node_modules', '.git', '_site', '.worktrees', '.verify', '.jscpd-report'];
 const audioFiles = walk('.', AUDIO_EXT, AUDIO_SKIP);
 for (const f of audioFiles) fail(`音声ファイルをリポジトリに置いてはいけない（#378）: ${f}`);
+
+// 5. color-contrast（#807）
+const ca = spawnSync(process.execPath, [path.join(ROOT, 'tools/color-audit.mjs'), '--strict'], { encoding: 'utf-8' });
+if (ca.status !== 0) for (const line of (ca.stderr || 'color-audit --strict が異常終了').trim().split('\n')) fail(`color-contrast: ${line}`);
 
 if (failures.length) {
   for (const m of failures) console.log(`FAIL ${m}`);

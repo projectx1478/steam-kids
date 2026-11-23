@@ -96,7 +96,7 @@ export function renderRead(root, step) {
   runBtn.type = 'button';
   runBtn.dataset.action = 'run';
   runBtn.textContent = RUN_LABEL;
-  runBtn.className = 'btn-tactile px-1 bg-emerald-500 text-white text-sm font-bold whitespace-pre-line leading-tight break-keep disabled:opacity-40';
+  runBtn.className = 'btn-tactile px-1 bg-emerald-500 text-slate-900 text-sm font-bold whitespace-pre-line leading-tight break-keep disabled:opacity-40';
   actionsEl.append(standBtn, runBtn);
 
   function drawQueue(activeIndex = -1) {
