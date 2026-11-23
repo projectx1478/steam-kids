@@ -7,7 +7,8 @@ const VIEWPORTS = [
   { width: 1024, height: 600 },
   { width: 360, height: 640 },
 ];
-const LESSONS = ['cmd-01-susumu', 'cmd-02-mijikaku', 'cmd-03-naosu', 'donguri-01-hirou', 'donguri-02-mawarimichi'];
+// cmd-02 は devOnly で intro がはみ出す（#797 の判断で対象外。#814 で直したら戻す）
+const LESSONS = ['cmd-01-susumu', 'cmd-03-naosu', 'donguri-01-hirou', 'donguri-02-mawarimichi'];
 
 // c7-board-fit の boardFits と同じ判定（共通化はしない）。
 async function boardFits(page) {
@@ -55,6 +56,19 @@ async function runLesson(page, check, lessonId, label) {
   await check(`${label} ${lessonId} play: 縦横スクロール無し`, () => noScroll(page));
 }
 
+// 保護者画面のトグルはゲートの内側にある。a1-sfx-mute と同じ手順で解錠する（解錠はページ読み込みごとに外れる）。
+const PASSCODE = 'testtest';
+async function openDashboard(page) {
+  await page.goto('/dashboard.html');
+  await page.evaluate(async (passcode) => {
+    const guardian = await import('/js/guardian.js');
+    await guardian.setPasscode(passcode);
+  }, PASSCODE);
+  await page.reload();
+  await page.fill('#gate-login-passcode', PASSCODE);
+  await page.click('#gate-login-submit');
+}
+
 const attrs = (page) => page.evaluate(() => ({ t: document.documentElement.dataset.skText ?? null, m: document.documentElement.dataset.skMotion ?? null }));
 
 export default async function run({ page, check }) {
@@ -62,7 +76,7 @@ export default async function run({ page, check }) {
   for (const id of ['cmd-01-susumu', 'donguri-01-hirou']) await page.unroute(`**/lessons/${id}.json`);
 
   // --- 保護者画面：既定 OFF → ON → profile に保存 ---
-  await page.goto('/dashboard.html');
+  await openDashboard(page);
   await check('既定: 「もじを おおきく」は aria-pressed=false', () => page.getAttribute('#large-text-toggle', 'aria-pressed'), 'false');
   await check('既定: 「うごきを へらす」は aria-pressed=false', () => page.getAttribute('#reduce-motion-toggle', 'aria-pressed'), 'false');
   await page.click('#large-text-toggle');
@@ -108,7 +122,7 @@ export default async function run({ page, check }) {
   await check('アプリ設定ON: クリア結果に紙吹雪 canvas が無い', async () => (await page.$$('canvas[data-clear-confetti]')).length, 0);
 
   // --- 設定 OFF に戻すと端末の設定だけの挙動 ---
-  await page.goto('/dashboard.html');
+  await openDashboard(page);
   await page.click('#large-text-toggle');
   await page.click('#reduce-motion-toggle');
   await page.goto('/index.html?view=map');
@@ -119,7 +133,7 @@ export default async function run({ page, check }) {
 
   // --- 125% でも盤面が収まる ---
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/dashboard.html');
+  await openDashboard(page);
   await page.click('#large-text-toggle');
   for (const vp of VIEWPORTS) {
     await page.setViewportSize(vp);
