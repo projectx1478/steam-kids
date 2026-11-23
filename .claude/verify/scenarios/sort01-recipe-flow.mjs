@@ -67,6 +67,9 @@ export default async function run({ page, check }) {
       };
       return ['[data-result-dialog]', '[data-so-dish] svg', '[data-action="next-stage"]'].map(inside);
     }), [true, true, true]);
+    if (h !== 390) {
+      await check(`${w}x${h}: 料理の絵の描画高さが200px以上（0pxに戻らない。#797）`, () => page.$eval('[data-so-dish] svg', (e) => e.getBoundingClientRect().height >= 200), true);
+    }
     if (h === 390) {
       await check('844x390: 料理の絵の描画高さが120px以上', () => page.$eval('[data-so-dish] svg', (e) => e.getBoundingClientRect().height >= 120), true);
     }

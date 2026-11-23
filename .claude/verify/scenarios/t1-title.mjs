@@ -26,7 +26,7 @@ export default async function run({ page, check }) {
   await page.goBack();
   await page.waitForSelector('#stage[data-screen="picker"]');
   await check('戻るで選択画面（単元マップ）へ戻る', async () => page.getAttribute('#stage', 'data-screen'), 'picker');
-  await check('選択画面のレッスンボタンが表示される', async () => (await page.$$('.lesson-pick-btn')).length, 11);
+  await check('選択画面のレッスンボタンが表示される', async () => (await page.$$('.lesson-pick-btn')).length, 12);
 
   // ?view=map / ?lesson=はタイトルを経由しない
   await page.goto('/index.html?view=map');
