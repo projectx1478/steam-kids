@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { lessonOrder, isUnlocked, isPracticeUnlocked, firstPendingId, newHintLesson, hintLessonId, continueLessonId } from '../js/unlock.js';
+import { lessonOrder, isUnlocked, isUnitLessonOpen, isPracticeUnlocked, firstPendingId, newHintLesson, hintLessonId, continueLessonId } from '../js/unlock.js';
 
 const units = [
   { unitId: 'a', lessonIds: ['a1', 'a2'], practiceIds: ['ap'] },
@@ -95,6 +95,25 @@ test('hintLessonId: 錠の押下で光らせるレッスン（Issue #742）', ()
   assert.equal(hintLessonId(order, new Set(), ['c']), 'a');
   assert.equal(hintLessonId(order, new Set(['a']), ['b', 'c', 'd']), 'b');
   assert.equal(hintLessonId(order, new Set(['a', 'b', 'c', 'd']), ['b']), null);
+});
+
+test('isUnitLessonOpen: 単元内の段階解放。先頭は常に開き、単元をまたがない（Issue #812）', () => {
+  const u = { lessonIds: ['a1', 'a2', 'a3'], practiceIds: ['ap'] };
+  assert.equal(isUnitLessonOpen(u, new Set(), 'a1'), true);
+  assert.equal(isUnitLessonOpen(u, new Set(), 'a2'), false);
+  assert.equal(isUnitLessonOpen(u, new Set(['a1']), 'a2'), true);
+  assert.equal(isUnitLessonOpen(u, new Set(['a1']), 'a3'), false);
+  assert.equal(isUnitLessonOpen(u, new Set(), 'ap'), false);
+  assert.equal(isUnitLessonOpen(u, new Set(), 'zz'), false);
+  assert.equal(isUnitLessonOpen({ lessonIds: [] }, new Set(), 'a1'), false);
+  assert.equal(isUnitLessonOpen({}, new Set(), 'a1'), false);
+  assert.equal(isUnitLessonOpen({ lessonIds: ['b1', 'b2'] }, new Set(), 'b1'), true);
+});
+
+test('hintLessonId: 第4引数 isOpen で単元内の解放を使う（Issue #812）', () => {
+  const order = ['a1', 'a2', 'b1', 'b2'];
+  assert.equal(hintLessonId(order, new Set(), ['b1'], (id) => ['a1', 'b1'].includes(id)), 'b1');
+  assert.equal(hintLessonId(order, new Set(), ['b1']), 'a1');
 });
 
 test('continueLessonId: 直前のレッスンが未クリアならそれ（Issue #740）', () => {

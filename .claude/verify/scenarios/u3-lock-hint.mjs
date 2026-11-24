@@ -29,19 +29,23 @@ const setCleared = (page, ids) =>
     ids
   );
 
-// [押す錠, 光る先]。光る先の直前までクリア済みにする。
+// [押す錠, 光る先, クリア済み]。クリア済みを省くと、光る先の直前（全体の順）までクリア済みにする。
+// 解放は単元内の順（#812）。単元の先頭は最初から開くので、先頭が光る先なら何もクリアしなくてよい。
 const CASES = [
   ['cmd-03-naosu', 'cmd-01-susumu'],
   ['ice-02-kabe', 'ice-01-suberu'],
   ['teko-02-tsuriai2', 'teko-01-tsuriai'],
+  ['ice-02-kabe', 'ice-01-suberu', []],
+  ['cmd-08-yomu', 'ice-01-suberu', []],
+  ['teko-03-tsuriai3', 'teko-02-tsuriai2', ['teko-01-tsuriai']],
 ];
 
 export default async function run({ page, check }) {
   await page.setViewportSize({ width: 360, height: 640 });
   const order = orderFromIndex();
-  for (const [lockId, targetId] of CASES) {
+  for (const [lockId, targetId, cleared] of CASES) {
     await page.goto('/index.html?view=map');
-    await setCleared(page, order.slice(0, order.indexOf(targetId)));
+    await setCleared(page, cleared ?? order.slice(0, order.indexOf(targetId)));
     await page.goto('/index.html?view=map');
     await page.evaluate(() => (window.__sfxLog ? (window.__sfxLog.length = 0) : null));
     await page.click(`[data-lesson-id="${lockId}"]`, { force: true }); // 錠は aria-disabled のまま反応を返す設計（#742）。Playwright は aria-disabled を押せないと待つので force
