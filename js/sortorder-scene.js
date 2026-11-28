@@ -1,7 +1,8 @@
-// sort-order（レシピの順番）の台所の場面（Issue #823）。画風は A（フラット＋台所。線 #1e293b・太線・平らな塗り）。
+// sort-order（レシピの順番）の台所の場面（Issue #823）。画風は C（ぷっくり立体。グラデーションと光・細い線 #334155。Issue #824）。
 // 1枚の SVG（viewBox 240×160）に壁・棚・調理台・コンロ・鍋・ロボット・吹き出しを描き、手順ごとに具材を足し、結果は失敗の種類ごとに動かす。
 // DOM の生成は ui-sortorder.js 側。ここは文字列（sceneSvg）・具材を足す関数・結果の動き（animateScene。Web Animations の配列を返す）だけ。
-const INK = '#1e293b';
+const INK = '#1e293b'; // ロボットの線（絵そのものは変えない）
+const LINE = '#334155'; // 場面の線
 const POT_BODY = 'M110 72h80v30q0 10-10 10h-60q-10 0-10-10z';
 const NS = 'http://www.w3.org/2000/svg';
 const FILL_BOX = 'transform-box:fill-box;transform-origin:center';
@@ -13,48 +14,59 @@ const steam = [134, 150, 166]
   .map((x) => `<path data-p="steam" d="M${x} 58c-7-7 7-12 0-22" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" style="${FILL_BOX};opacity:0"/>`)
   .join('');
 const smoke = [[138, 48, 11], [156, 40, 14], [172, 50, 10]]
-  .map(([x, y, r]) => `<circle data-p="smoke" cx="${x}" cy="${y}" r="${r}" fill="#475569" style="${FILL_BOX};opacity:0"/>`)
+  .map(([x, y, r]) => `<circle data-p="smoke" cx="${x}" cy="${y}" r="${r}" fill="url(#so-smoke)" style="${FILL_BOX};opacity:0"/>`)
   .join('');
 const star = (x, y, r) =>
-  `<path data-p="spark" d="M${x} ${y - r}Q${x} ${y} ${x + r} ${y}Q${x} ${y} ${x} ${y + r}Q${x} ${y} ${x - r} ${y}Q${x} ${y} ${x} ${y - r}Z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1.5" style="${FILL_BOX};opacity:0"/>`;
+  `<path data-p="spark" d="M${x} ${y - r}Q${x} ${y} ${x + r} ${y}Q${x} ${y} ${x} ${y + r}Q${x} ${y} ${x - r} ${y}Q${x} ${y} ${x} ${y - r}Z" fill="#fde047" stroke="#f59e0b" stroke-width="1.5" style="${FILL_BOX};opacity:0"/>`;
 
 // playerSvg＝shapeSvg('player') の文字列（呼び出し側が渡す。DOM に触れない）。
 export function sceneSvg(playerSvg) {
   const flame =
-    `<g data-p="flame" style="transform-box:fill-box;transform-origin:center bottom;opacity:0"><path d="M122 116c2-8 6-6 6-12 4 5 6 8 4 12zM144 116c2-9 6-7 6-14 5 6 7 9 4 14zM168 116c2-8 6-6 6-12 4 5 6 8 4 12z" fill="#f97316" stroke="#c2410c" stroke-width="1.5"/></g>`;
+    `<g data-p="flame" style="transform-box:fill-box;transform-origin:center bottom;opacity:0"><ellipse cx="150" cy="112" rx="40" ry="10" fill="url(#so-glow)"/><path d="M122 116c2-8 6-6 6-12 4 5 6 8 4 12zM144 116c2-9 6-7 6-14 5 6 7 9 4 14zM168 116c2-8 6-6 6-12 4 5 6 8 4 12z" fill="url(#so-fl)"/></g>`;
   const pot =
     `<g data-p="pot" style="transform-box:view-box;transform-origin:190px 112px">` +
-    `<rect x="98" y="78" width="14" height="9" rx="3" fill="${INK}"/><rect x="188" y="78" width="14" height="9" rx="3" fill="${INK}"/>` +
-    `<path d="${POT_BODY}" fill="#94a3b8" stroke="${INK}" stroke-width="3"/>` +
-    `<rect x="117" y="78" width="6" height="24" rx="3" fill="#e2e8f0" opacity="0.85"/>` +
+    `<rect x="98" y="77" width="14" height="10" rx="5" fill="${LINE}"/><rect x="188" y="77" width="14" height="10" rx="5" fill="${LINE}"/>` +
+    `<path d="${POT_BODY}" fill="url(#so-pot)" stroke="${LINE}" stroke-width="1.5"/>` +
+    `<path d="M118 80q-2 14 2 26" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity="0.9"/>` +
     `<path data-p="char" d="${POT_BODY}" fill="#1c1917" style="opacity:0"/>` +
-    `<ellipse cx="150" cy="72" rx="42" ry="8" fill="#cbd5e1" stroke="${INK}" stroke-width="3"/>` +
-    `<ellipse cx="150" cy="73" rx="35" ry="5" fill="#475569"/>` +
-    `<ellipse data-p="soup" cx="150" cy="73" rx="35" ry="5" fill="#fbbf24" style="${FILL_BOX};opacity:0"/>` +
+    `<ellipse cx="150" cy="72" rx="42" ry="8" fill="url(#so-rim)" stroke="${LINE}" stroke-width="1.5"/>` +
+    `<ellipse cx="150" cy="73" rx="35" ry="5" fill="#334155"/>` +
+    `<ellipse data-p="soup" cx="150" cy="73" rx="35" ry="5" fill="url(#so-soup)" style="${FILL_BOX};opacity:0"/>` +
     `<g data-p="ins"></g>` +
-    `<g data-p="lid" style="${FILL_BOX};opacity:0"><path d="M110 70a40 18 0 0 1 80 0z" fill="#cbd5e1" stroke="${INK}" stroke-width="3"/><circle cx="150" cy="48" r="4" fill="${INK}"/></g>` +
+    `<g data-p="lid" style="${FILL_BOX};opacity:0"><path d="M110 70a40 18 0 0 1 80 0z" fill="url(#so-rim)" stroke="${LINE}" stroke-width="1.5"/><circle cx="150" cy="48" r="4" fill="${LINE}"/></g>` +
     `</g>`;
   const robot =
     `<g class="so-robot" data-p="robot" style="transform-box:fill-box;transform-origin:center bottom">` +
     `<svg x="14" y="68" width="76" height="86" viewBox="0 -8 64 72" overflow="visible">${playerSvg}` +
     `<path d="M18 8c-6-2-4-12 4-11 3-6 17-6 20 0 8-1 10 9 4 11z" fill="#fff" stroke="${INK}" stroke-width="2"/></svg></g>`;
   const bubble =
-    `<g data-p="bubble" style="${FILL_BOX};opacity:0"><path d="M62 54a8 8 0 0 1 8-8h28a8 8 0 0 1 8 8v14a8 8 0 0 1-8 8H84l-8 7 1-7h-7a8 8 0 0 1-8-8z" fill="#fff" stroke="${INK}" stroke-width="2.5"/>` +
+    `<g data-p="bubble" style="${FILL_BOX};opacity:0"><path d="M62 54a8 8 0 0 1 8-8h28a8 8 0 0 1 8 8v14a8 8 0 0 1-8 8H84l-8 7 1-7h-7a8 8 0 0 1-8-8z" fill="#fff" stroke="${LINE}" stroke-width="1.5"/>` +
     `<text x="84" y="68" text-anchor="middle" font-size="20" font-weight="800" fill="${INK}"></text></g>` +
-    `<path data-p="sweat" d="M92 92q-5 7 0 9 5-2 0-9z" fill="#7dd3fc" stroke="${INK}" stroke-width="1.5" style="${FILL_BOX};opacity:0"/>`;
+    `<path data-p="sweat" d="M92 92q-5 7 0 9 5-2 0-9z" fill="#7dd3fc" stroke="${LINE}" stroke-width="1.5" style="${FILL_BOX};opacity:0"/>`;
   const spill =
     `<path data-p="stream" d="M211 82q10 12 12 38" fill="none" stroke="#fbbf24" stroke-width="7" stroke-linecap="round" style="stroke-dasharray:70;stroke-dashoffset:70;opacity:0"/>` +
     `<circle data-p="drops" cx="216" cy="92" r="3" fill="#fbbf24" style="${FILL_BOX};opacity:0"/><circle data-p="drops" cx="226" cy="98" r="2.5" fill="#fbbf24" style="${FILL_BOX};opacity:0"/>` +
-    `<ellipse data-p="puddle" cx="222" cy="127" rx="18" ry="4" fill="#fbbf24" stroke="${INK}" stroke-width="2" style="transform-box:fill-box;transform-origin:left center;opacity:0"/>`;
+    `<ellipse data-p="puddle" cx="222" cy="127" rx="18" ry="4" fill="#fbbf24" stroke="#b45309" stroke-width="1.5" style="transform-box:fill-box;transform-origin:left center;opacity:0"/>`;
   return (
     `<svg class="so-scene" viewBox="0 0 240 160" preserveAspectRatio="xMidYMid meet" aria-hidden="true" data-scene="idle">` +
-    `<defs><pattern id="so-tile" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="#e0f2fe"/><path d="M20 0H0V20" fill="none" stroke="#bae6fd" stroke-width="2"/></pattern></defs>` +
-    `<rect data-p="wall" width="240" height="160" fill="url(#so-tile)"/>` +
-    `<g data-p="shelf"><rect x="10" y="38" width="66" height="6" rx="2" fill="#b45309" stroke="${INK}" stroke-width="2"/>` +
-    `<rect x="16" y="22" width="14" height="16" rx="3" fill="#fde68a" stroke="${INK}" stroke-width="2"/><rect x="34" y="18" width="16" height="20" rx="3" fill="#fecaca" stroke="${INK}" stroke-width="2"/><rect x="54" y="24" width="14" height="14" rx="3" fill="#bbf7d0" stroke="${INK}" stroke-width="2"/></g>` +
-    `<g data-p="counter"><rect x="0" y="120" width="240" height="40" fill="#d97706" stroke="${INK}" stroke-width="3"/><rect x="0" y="120" width="240" height="8" fill="#fbbf24" stroke="${INK}" stroke-width="3"/></g>` +
-    `<g data-p="stove"><rect x="102" y="114" width="96" height="10" rx="3" fill="#334155" stroke="${INK}" stroke-width="2.5"/>` +
-    `<circle cx="122" cy="142" r="6" fill="#e2e8f0" stroke="${INK}" stroke-width="2.5"/><circle cx="178" cy="142" r="6" fill="#e2e8f0" stroke="${INK}" stroke-width="2.5"/></g>` +
+    `<defs>` +
+    `<linearGradient id="so-wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff7ed"/><stop offset="1" stop-color="#fed7aa"/></linearGradient>` +
+    `<linearGradient id="so-ctr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fdba74"/><stop offset="1" stop-color="#c2410c"/></linearGradient>` +
+    `<linearGradient id="so-pot" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#64748b"/><stop offset=".18" stop-color="#f8fafc"/><stop offset=".45" stop-color="#cbd5e1"/><stop offset="1" stop-color="#334155"/></linearGradient>` +
+    `<linearGradient id="so-rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f1f5f9"/><stop offset="1" stop-color="#94a3b8"/></linearGradient>` +
+    `<radialGradient id="so-soup" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#fef3c7"/><stop offset=".5" stop-color="#fbbf24"/><stop offset="1" stop-color="#d97706"/></radialGradient>` +
+    `<radialGradient id="so-fl" cx=".5" cy=".8" r=".7"><stop offset="0" stop-color="#fef08a"/><stop offset=".5" stop-color="#fb923c"/><stop offset="1" stop-color="#ef4444"/></radialGradient>` +
+    `<radialGradient id="so-glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fb923c" stop-opacity=".55"/><stop offset="1" stop-color="#fb923c" stop-opacity="0"/></radialGradient>` +
+    `<radialGradient id="so-smoke" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#94a3b8"/><stop offset="1" stop-color="#334155"/></radialGradient>` +
+    `<filter id="so-blur"><feGaussianBlur stdDeviation="3"/></filter></defs>` +
+    `<rect data-p="wall" width="240" height="160" fill="url(#so-wall)"/>` +
+    `<circle cx="40" cy="30" r="18" fill="#fff" opacity=".5"/><circle cx="210" cy="22" r="12" fill="#fff" opacity=".45"/><circle cx="72" cy="60" r="8" fill="#fff" opacity=".4"/>` +
+    `<g data-p="shelf"><rect x="10" y="38" width="66" height="6" rx="2" fill="#b45309" stroke="${LINE}" stroke-width="1.5"/>` +
+    `<rect x="16" y="22" width="14" height="16" rx="3" fill="#fde68a" stroke="${LINE}" stroke-width="1.5"/><rect x="34" y="18" width="16" height="20" rx="3" fill="#fecaca" stroke="${LINE}" stroke-width="1.5"/><rect x="54" y="24" width="14" height="14" rx="3" fill="#bbf7d0" stroke="${LINE}" stroke-width="1.5"/></g>` +
+    `<g data-p="counter"><rect x="0" y="120" width="240" height="40" fill="url(#so-ctr)"/><rect x="0" y="120" width="240" height="4" fill="#fff" opacity=".45"/></g>` +
+    `<ellipse cx="150" cy="122" rx="56" ry="6" fill="#7c2d12" opacity=".45" filter="url(#so-blur)"/><ellipse cx="52" cy="150" rx="26" ry="5" fill="#7c2d12" opacity=".35" filter="url(#so-blur)"/>` +
+    `<g data-p="stove"><rect x="102" y="114" width="96" height="10" rx="5" fill="#1f2937"/><rect x="104" y="115" width="92" height="3" rx="1.5" fill="#4b5563"/>` +
+    `<circle cx="122" cy="142" r="6" fill="#e2e8f0" stroke="${LINE}" stroke-width="1.5"/><circle cx="178" cy="142" r="6" fill="#e2e8f0" stroke="${LINE}" stroke-width="1.5"/></g>` +
     `${flame}${pot}${steam}${smoke}${star(112, 48, 9)}${star(194, 44, 11)}${star(206, 82, 7)}${spill}${robot}${bubble}` +
     `</svg>`
   );
