@@ -202,6 +202,22 @@ playステップの指示文になる。未指定時の既定文言は`items`の
 - 面ごとの検査（`tools/lib/validate/unfold.mjs`の`validateUnfoldFace`）：`preset`が1〜5枚（0枚と6枚は不合格）、連結可能、preset を含む正解が1通り以上、必須性（preset を全部外した正解数＞正解数）、盤が立方体の展開図か（折り検査）
 - レッスン全体の検査（`validateUnfold`）：`longTrialIds`に載せる、play は8面、`preset`枚数は非増加（＝正解数は非減少）、同じ`preset`の面の重複なし。`intro.demo`は`checkUnfoldDemo`。grid-runtime の最短手数規則は適用外
 
+### `unfold-cube`の`unfoldColor`（色ぬり。Issue #811・画面は #813）
+
+1レッスンは`unfold`か`unfoldColor`のどちらか一方（混在は`unfoldとunfoldColorの混在`で不合格）。`type`は`unfold-cube`のまま。
+```json
+{ "stepId": "p1", "kind": "play", "text": "むかいあう かべを おなじ いろに",
+  "unfoldColor": { "cols": 5, "rows": 3,
+    "net": [{ "x": 2, "y": 0 }, { "x": 1, "y": 1 }, { "x": 2, "y": 1 }, { "x": 3, "y": 1 }, { "x": 2, "y": 2 }],
+    "given": [{ "x": 2, "y": 0, "c": "a" }, { "x": 1, "y": 1, "c": "b" }] } }
+```
+- `net`：5マス（ふたのない箱）か6マス（立方体）の展開図。`given`：始めから色のついた面（`c`は`a`・`b`・`c`）。空き＝`net`から`given`と「そこ」を除いたマス（子どもが塗る）
+- 5マスの面：`foldTree`の穴（ふた）の向かいの面＝「そこ」（`baseCell`）は組に入らず塗らない。残り4面＝かべの2組だけそろえる。向かい合う組＝折り上げの face {0,1}・{2,3}・{4,5}（`oppositePairs`）
+- `intro`の`demo`は`{ "kind": "unfold", "net": [{x,y,c}×6] }`（各マスに色。向かい合う面が同色・3色全部使用・どの面の`net`とも別）
+- 純関数（`js/engine-unfold.js`）：`isOpenBoxNet`・`baseCell`・`oppositePairs`・`firstColorMismatch`・`colorSolutionCount`・`netShapeKey`・`COLOR_IDS`
+- 面ごとの検査（`validateUnfoldColorFace`）：`unfoldColorの形`・`格子の大きさ`（5×3）・`netが格子外`・`netの重複`・`netの枚数`（5か6）・`netが展開図でない`・`givenの形`（0個・色・重複・net外）・`givenがそこ`・`givenが向かい合う`・`givenの色の重複`・`空きの枚数`（2以上）・`ひと色で解ける`（1色で空きを全部塗ると解けたら不合格）。given は各組1つまで・色は全部別
+- レッスン全体の検査（`validateUnfoldColor`）：`longTrialIds`に載せる、play は8面、`面の枚数の並び`（1・2面目は5マス、3〜8面目は6マス）、`難易度の順序`（空きは非減少）、`型の重複`（同じ`netShapeKey`は2面まで）、`面の重複`（`net`と`given`が同じ面なし）、`デモの形`・`デモが本番と同じ盤`（`checkUnfoldColorDemo`）
+
 ### `grid-runtime`の`play`の`read`（めいれいを よむ。Issue #723・#749）
 
 - `read: { programs: [[命令…],[…],[…]] }`。命令列は見るだけで編集できない。子どもは盤面をタップして旗を置き、「じっこう」で確かめる。ロボットの止まったマス＝旗ならクリア。

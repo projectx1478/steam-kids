@@ -2,13 +2,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
-import { foldTree, isCubeNet, firstOverlap, disconnectedCells, solutionsOf, countSolutions, gridNets, CUBE_CELLS } from '../js/engine-unfold.js';
+import { foldTree, isCubeNet, firstOverlap, disconnectedCells, solutionsOf, countSolutions, gridNets, CUBE_CELLS, COLOR_IDS, isOpenBoxNet, baseCell, oppositePairs, firstColorMismatch, colorSolutionCount, netShapeKey } from '../js/engine-unfold.js';
 import { validateUnfoldFace, validateUnfold, checkUnfoldDemo } from '../tools/lib/validate/unfold.mjs';
 import { validateLesson } from '../tools/validate-lessons.mjs';
 
 const DIR = 'test/fixtures/unfold';
 const load = (n) => JSON.parse(readFileSync(`${DIR}/${n}.json`, 'utf-8'));
-const names = readdirSync(DIR).filter((f) => f.endsWith('.json')).map((f) => f.replace('.json', ''));
+const names = readdirSync(DIR).filter((f) => f.endsWith('.json') && !f.startsWith('color-')).map((f) => f.replace('.json', ''));
 const key = (c) => c.x + ',' + c.y;
 const fmt = (cells) => cells.map((c) => `(${c.x},${c.y})`).join('');
 const collect = () => { const errs = []; return [errs, (rule, detail) => errs.push(`${rule}: ${detail}`)]; };
@@ -210,4 +210,105 @@ test('foldTree: 5×3 の6マス集合 5005 通り全件で isCubeNet・firstOver
   };
   rec(0);
   assert.equal(n, 5005);
+});
+
+// --- 色ぬり（Issue #811 段B1） ---
+const cs = (...p) => p.map(([x, y]) => ({ x, y }));
+const X5 = cs([2, 0], [1, 1], [2, 1], [3, 1], [2, 2]);
+const T5 = cs([1, 0], [2, 0], [3, 0], [2, 1], [2, 2]);
+const CROSS6 = cs([1, 0], [0, 1], [1, 1], [2, 1], [3, 1], [1, 2]);
+const grid5x3 = () => { const a = []; for (let y = 0; y < 3; y += 1) for (let x = 0; x < 5; x += 1) a.push({ x, y }); return a; };
+const subsets = (all, k) => {
+  const out = [];
+  const pick = [];
+  const rec = (i) => {
+    if (pick.length === k) { out.push(pick.map((j) => all[j])); return; }
+    if (i >= all.length) return;
+    pick.push(i); rec(i + 1); pick.pop(); rec(i + 1);
+  };
+  rec(0);
+  return out;
+};
+
+test('COLOR_IDS は a・b・c', () => assert.deepEqual(COLOR_IDS, ['a', 'b', 'c']));
+
+test('isOpenBoxNet: X・T は真、I・P・U・V・6マス・不正入力は偽', () => {
+  assert.equal(isOpenBoxNet(X5), true);
+  assert.equal(isOpenBoxNet(T5), true);
+  assert.equal(isOpenBoxNet(cs([0, 0], [1, 0], [2, 0], [3, 0], [4, 0])), false);
+  assert.equal(isOpenBoxNet(cs([0, 0], [1, 0], [0, 1], [1, 1], [0, 2])), false);
+  assert.equal(isOpenBoxNet(cs([0, 0], [2, 0], [0, 1], [1, 1], [2, 1])), false);
+  assert.equal(isOpenBoxNet(cs([0, 0], [0, 1], [0, 2], [1, 2], [2, 2])), false);
+  assert.equal(isOpenBoxNet(CROSS6), false);
+  assert.equal(isOpenBoxNet(cs([2, 0], [1, 1], [2, 1], [3, 1], [3, 1])), false);
+  assert.equal(isOpenBoxNet(cs([2, 0], [1, 1], [2, 1], [3, 1], [4, 2])), false);
+  for (const v of [null, undefined, 'x', [], [1, 2, 3, 4, 5]]) assert.equal(isOpenBoxNet(v), false);
+});
+
+test('5×3 の5マス全件：ふたのない箱の展開図は111通り・8型、立方体の展開図は64通り・11型', () => {
+  const boxes = subsets(grid5x3(), 5).filter(isOpenBoxNet);
+  assert.equal(boxes.length, 111);
+  assert.equal(new Set(boxes.map(netShapeKey)).size, 8);
+  const cubes = gridNets(5, 3);
+  assert.equal(cubes.length, 64);
+  assert.equal(new Set(cubes.map(netShapeKey)).size, 11);
+});
+
+test('baseCell: X・T は (2,1)、立方体の展開図・展開図でない形は null', () => {
+  assert.deepEqual(baseCell(X5), { x: 2, y: 1 });
+  assert.deepEqual(baseCell(T5), { x: 2, y: 1 });
+  assert.equal(baseCell(CROSS6), null);
+  assert.equal(baseCell(cs([0, 0], [1, 0], [2, 0], [3, 0], [4, 0])), null);
+});
+
+test('oppositePairs: X・十字6マス・展開図でない形', () => {
+  assert.deepEqual(oppositePairs(X5), [cs([2, 0], [2, 2]), cs([1, 1], [3, 1])]);
+  assert.deepEqual(oppositePairs(CROSS6), [cs([1, 0], [1, 2]), cs([1, 1], [3, 1]), cs([0, 1], [2, 1])]);
+  const p1 = [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 1 }, { x: 3, y: 1 }, { x: 4, y: 1 }, { x: 1, y: 1 }];
+  assert.deepEqual(oppositePairs(p1), []);
+  assert.deepEqual(oppositePairs(null), []);
+});
+
+test('oppositePairs: 64通り（3組）と111通り（2組）の全件で、各組の面が {0,1}・{2,3}・{4,5}', () => {
+  const all = [...gridNets(5, 3), ...subsets(grid5x3(), 5).filter(isOpenBoxNet)];
+  assert.equal(all.length, 175);
+  for (const net of all) {
+    const pairs = oppositePairs(net);
+    assert.equal(pairs.length, net.length === 6 ? 3 : 2, fmt(net));
+    const face = new Map(foldTree(net).nodes.map((n) => [key(n), n.face]));
+    const seen = new Set();
+    for (const [a, b] of pairs) {
+      const f = [face.get(key(a)), face.get(key(b))].sort();
+      assert.equal(f[1], f[0] + 1, fmt(net));
+      assert.equal(f[0] % 2, 0, fmt(net));
+      seen.add(f[0]);
+    }
+    assert.equal(seen.size, pairs.length);
+  }
+});
+
+test('firstColorMismatch: X の例・十字6マスの例', () => {
+  const c = { '2,0': 'a', '1,1': 'b', '2,2': 'a', '3,1': 'a' };
+  assert.deepEqual(firstColorMismatch(X5, c), cs([1, 1], [3, 1]));
+  assert.equal(firstColorMismatch(X5, { ...c, '3,1': 'b' }), null);
+  assert.deepEqual(firstColorMismatch(X5, { '1,1': 'b', '3,1': 'b' }), cs([2, 0], [2, 2]));
+  const six = { '1,0': 'a', '1,1': 'b', '2,1': 'c', '1,2': 'b', '3,1': 'a', '0,1': 'c' };
+  assert.deepEqual(firstColorMismatch(CROSS6, six), cs([1, 0], [1, 2]));
+  assert.equal(firstColorMismatch(CROSS6, { '1,0': 'a', '1,2': 'a', '1,1': 'b', '3,1': 'b', '0,1': 'c', '2,1': 'c' }), null);
+});
+
+test('colorSolutionCount: X は1、p7 の net は3', () => {
+  assert.equal(colorSolutionCount(X5, { '2,0': 'a', '1,1': 'b' }), 1);
+  const p7 = cs([0, 0], [1, 0], [2, 0], [2, 1], [3, 1], [4, 1]);
+  assert.equal(colorSolutionCount(p7, { '0,0': 'a', '1,0': 'b' }), 3);
+});
+
+test('netShapeKey: X の型と、平行移動・90°回転・左右反転で不変', () => {
+  assert.equal(netShapeKey(X5), '1,0|0,1|1,1|2,1|1,2');
+  assert.equal(netShapeKey(X5.map((c) => ({ x: c.x + 2, y: c.y }))), netShapeKey(X5));
+  const t = cs([0, 0], [0, 1], [1, 1], [2, 1], [0, 2]);
+  assert.equal(netShapeKey(t), '0,0|0,1|1,1|2,1|0,2');
+  assert.equal(netShapeKey(T5), netShapeKey(t));
+  assert.equal(netShapeKey(T5.map((c) => ({ x: -c.x, y: c.y }))), netShapeKey(T5));
+  assert.equal(netShapeKey(T5.map((c) => ({ x: -c.y, y: c.x }))), netShapeKey(T5));
 });
