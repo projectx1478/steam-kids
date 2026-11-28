@@ -202,7 +202,7 @@ function stepDisplayName(stepId, steps) {
   return 'ステップ';
 }
 
-function renderStepRow(stepId, metrics, steps) {
+function renderStepRow(stepId, metrics, steps, { showRuns = false } = {}) {
   const hasAlert = metrics.alerts.length > 0;
   const row = el(
     'div',
@@ -223,6 +223,12 @@ function renderStepRow(stepId, metrics, steps) {
     )
   );
 
+  if (showRuns && typeof metrics.runsToClear === 'number') {
+    const runs = el('p', 'runs-to-clear text-xs text-slate-600', `クリアまでの実行 ${metrics.runsToClear}回`);
+    runs.dataset.runs = String(metrics.runsToClear);
+    row.appendChild(runs);
+  }
+
   if (hasAlert) {
     row.appendChild(
       el('p', 'alert-reasons text-xs font-bold text-rose-700', metrics.alerts.map((a) => ALERT_LABELS[a]).join(' ・ '))
@@ -232,7 +238,7 @@ function renderStepRow(stepId, metrics, steps) {
   return row;
 }
 
-async function renderLessonCard(lessonId, lesson) {
+async function renderLessonCard(lessonId, lesson, { practiceIds = [] } = {}) {
   const card = el('article', 'lesson-card bg-white rounded-2xl shadow p-4 flex flex-col gap-2');
   card.dataset.lessonId = lessonId;
   card.dataset.status = lesson.status;
@@ -259,13 +265,13 @@ async function renderLessonCard(lessonId, lesson) {
   }
 
   const stepsWrap = el('div', 'flex flex-col gap-2');
-  Object.entries(lesson.steps).forEach(([stepId, metrics]) => stepsWrap.appendChild(renderStepRow(stepId, metrics, lessonSteps)));
+  Object.entries(lesson.steps).forEach(([stepId, metrics]) => stepsWrap.appendChild(renderStepRow(stepId, metrics, lessonSteps, { showRuns: !practiceIds.includes(lessonId) })));
   card.appendChild(stepsWrap);
 
   return card;
 }
 
-async function renderLessonsSection(root, lessons) {
+async function renderLessonsSection(root, lessons, { practiceIds = [] } = {}) {
   root.innerHTML = '';
   const entries = Object.entries(lessons);
   if (entries.length === 0) {
@@ -273,19 +279,23 @@ async function renderLessonsSection(root, lessons) {
     return;
   }
   for (const [lessonId, lesson] of entries) {
-    root.appendChild(await renderLessonCard(lessonId, lesson));
+    root.appendChild(await renderLessonCard(lessonId, lesson, { practiceIds }));
   }
 }
 
-// 長尺試作の一覧（lessons/index.json の longTrialIds）。読めなければ空（従来どおりの表示）。
-async function loadLongTrialIds() {
+// lessons/index.json の longTrialIds（長尺試作）と practiceIds（れんしゅう）。読めなければ両方空（従来どおりの表示）。
+async function loadIndexIds() {
+  const empty = { longTrialIds: [], practiceIds: [] };
   try {
     const res = await fetch('./lessons/index.json');
-    if (!res.ok) return [];
-    const ids = (await res.json()).longTrialIds;
-    return Array.isArray(ids) ? ids : [];
+    if (!res.ok) return empty;
+    const index = await res.json();
+    const practiceIds = (Array.isArray(index.tracks) ? index.tracks : [])
+      .flatMap((t) => (Array.isArray(t.units) ? t.units : []))
+      .flatMap((u) => (Array.isArray(u.practiceIds) ? u.practiceIds : []));
+    return { longTrialIds: Array.isArray(index.longTrialIds) ? index.longTrialIds : [], practiceIds };
   } catch {
-    return [];
+    return empty;
   }
 }
 
@@ -296,14 +306,15 @@ async function renderDashboard() {
   }
 
   const events = loadEvents();
-  const result = summarize(events, Date.now(), { longTrialIds: await loadLongTrialIds() });
+  const { longTrialIds, practiceIds } = await loadIndexIds();
+  const result = summarize(events, Date.now(), { longTrialIds });
 
   renderWorkerVersionBanner(document.getElementById('worker-version-banner'), loadSyncState().workerVersionMismatch);
   renderSlotTabs(document.getElementById('slot-tabs'));
   renderProfileSection(document.getElementById('profile-section'));
   renderSyncSection(document.getElementById('sync-section'), { onChange: renderDashboard });
   renderRecentSection(document.getElementById('recent-section'), result.recentDays);
-  await renderLessonsSection(document.getElementById('lessons-section'), result.lessons);
+  await renderLessonsSection(document.getElementById('lessons-section'), result.lessons, { practiceIds });
   document.getElementById('version-footer').textContent = APP_VERSION;
 }
 
