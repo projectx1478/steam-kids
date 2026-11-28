@@ -27,7 +27,7 @@ import { checkSeesawDemo } from './demo-seesaw.mjs';
 import { validateBuoyancy } from './buoyancy.mjs';
 import { checkStageGen } from './stagegen.mjs';
 import { validateSortOrder } from './sortorder.mjs';
-import { validateUnfold } from './unfold.mjs';
+import { validateUnfold, validateUnfoldColor } from './unfold.mjs';
 import { validateEgg } from './egg.mjs';
 import { checkRead } from './read.mjs';
 
@@ -139,7 +139,15 @@ export function validateLesson(fileName, data, longTrialIds = []) {
     return errors;
   }
   if (data.type === 'unfold-cube') {
-    validateUnfold(playSteps, steps.find((s) => s.kind === 'intro'), add, isLong);
+    const colorCount = playSteps.filter((s) => 'unfoldColor' in s).length;
+    const introStep = steps.find((s) => s.kind === 'intro');
+    if (colorCount === 0) {
+      validateUnfold(playSteps, introStep, add, isLong);
+    } else if (colorCount === playSteps.length && !playSteps.some((s) => 'unfold' in s)) {
+      validateUnfoldColor(playSteps, introStep, add, isLong);
+    } else {
+      add('unfoldとunfoldColorの混在', 'play に unfold と unfoldColor が混在している（1レッスンはどちらか一方）');
+    }
     return errors;
   }
   if (data.type === 'build-egg') {
