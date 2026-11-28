@@ -104,6 +104,35 @@ export default async function run({ page, check, shot }) {
   const eventsAfterLabel = await page.evaluate(() => JSON.parse(localStorage.getItem('steamkids.events')));
   await check('呼び名の保存でイベント件数が変わらない', async () => eventsAfterLabel.length, alertEvents().length);
 
+  // 4b: クリアまでの実行回数（Issue #725）。p1=1回、p2=3回、p3=未クリア。印・分数は出さない
+  await seed(page, [
+    ev('step_enter', 0, 'p1'), ev('run', 10, 'p1'), ev('stage_clear', 11, 'p1'),
+    ev('step_enter', 15, 'p2'), ev('run', 20, 'p2'), ev('retry', 21, 'p2'), ev('run', 22, 'p2'),
+    ev('retry', 23, 'p2'), ev('run', 24, 'p2'), ev('stage_clear', 25, 'p2'),
+    ev('step_enter', 28, 'p3'), ev('run', 30, 'p3'),
+  ]);
+  await page.reload();
+  await unlock(page);
+  await check('p1のクリアまでの実行はdata-runs=1', async () => page.getAttribute('.step-row[data-step-id="p1"] .runs-to-clear', 'data-runs'), '1');
+  await check('p2のクリアまでの実行はdata-runs=3', async () => page.getAttribute('.step-row[data-step-id="p2"] .runs-to-clear', 'data-runs'), '3');
+  await check('p2の文言', async () => page.textContent('.step-row[data-step-id="p2"] .runs-to-clear'), 'クリアまでの実行 3回');
+  await check('p3(未クリア)はクリアまでの実行を出さない', async () => (await page.$$('.step-row[data-step-id="p3"] .runs-to-clear')).length, 0);
+  await check('印・分数の要素が無い', async () => (await page.$$('.lesson-card .first-run-mark, .lesson-card .first-run-summary')).length, 0);
+  const lessonsWords = (await page.innerText('#lessons-section')).split(/\s+/);
+  await check('本文に内部ID(s1/p1等)が出ない', async () => lessonsWords.filter((w) => /^[stp]\d+$/.test(w)).length, 0);
+
+  // れんしゅう(practiceIds)では出さない
+  const PRACTICE = 'cmd-06-practice';
+  const pev = (type, ts) => ({ eventId: `e${ts}-${type}-pr`, learnerId: 'l1', lessonId: PRACTICE, stepId: 'p1', type, ts, payload: {} });
+  await seed(page, [pev('step_enter', 0), pev('run', 10), pev('clear', 11)]);
+  await page.reload();
+  await unlock(page);
+  await check(
+    'れんしゅうはクリアまでの実行を出さない',
+    async () => (await page.$$(`.lesson-card[data-lesson-id="${PRACTICE}"] .runs-to-clear`)).length,
+    0
+  );
+
   // 5: 横向き・縦向きどちらでも横スクロールが発生しない
   await check(
     '横スクロールが発生しない',

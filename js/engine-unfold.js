@@ -168,3 +168,85 @@ export function countSolutions(cols, rows, preset) {
   const need = (preset || []).map(key);
   return allNets(cols, rows).filter((n) => { const s = new Set(n.map(key)); return need.every((k) => s.has(k)); }).length;
 }
+
+// --- 色ぬり（unfold-02。Issue #811）。向かい合う面＝折り上げの face {0,1}・{2,3}・{4,5}（根がどこでも成り立つ）。 ---
+export const COLOR_IDS = ['a', 'b', 'c'];
+const OPEN_BOX_CELLS = 5;
+const OPPOSITE_FACE = [1, 0, 3, 2, 5, 4];
+
+const isXY = (c) => c !== null && typeof c === 'object' && Number.isInteger(c.x) && Number.isInteger(c.y);
+
+// ふたのない箱の展開図か（5マス・重複なし・連結・折って5面が全部異なり、どのマスも持たない面がちょうど1つ＝ふた）。
+export function isOpenBoxNet(cells) {
+  if (!Array.isArray(cells) || cells.length !== OPEN_BOX_CELLS || !cells.every(isXY)) return false;
+  if (new Set(cells.map(key)).size !== OPEN_BOX_CELLS) return false;
+  if (disconnectedCells(cells).length > 0) return false;
+  const { over, holes } = foldTree(cells);
+  return over.length === 0 && holes.length === 1;
+}
+
+// ふたの向かいの面（そこ）のマス {x,y}。ふたのない箱の展開図でなければ null。
+export function baseCell(cells) {
+  if (!isOpenBoxNet(cells)) return null;
+  const { nodes, holes } = foldTree(cells);
+  const n = nodes.find((m) => m.face === OPPOSITE_FACE[holes[0]]);
+  return n ? { x: n.x, y: n.y } : null;
+}
+
+// 向かい合う組。立方体かふたのない箱の展開図のときだけ。face {0,1}・{2,3}・{4,5} の順、両面がそろう組のみ。組の中は y,x 順。
+export function oppositePairs(cells) {
+  if (!(isCubeNet(cells) || isOpenBoxNet(cells))) return [];
+  const byFace = new Map(foldTree(cells).nodes.map((n) => [n.face, { x: n.x, y: n.y }]));
+  const res = [];
+  for (const f of [0, 2, 4]) {
+    if (byFace.has(f) && byFace.has(f + 1)) res.push([byFace.get(f), byFace.get(f + 1)].sort(byYX));
+  }
+  return res;
+}
+
+// 色がそろわない最初の組（oppositePairs の順）。colors＝{ "x,y": 色 }。全部そろえば null。
+export function firstColorMismatch(cells, colors) {
+  const col = colors || {};
+  for (const pair of oppositePairs(cells)) {
+    const c0 = col[key(pair[0])];
+    if (c0 === undefined || c0 === null || c0 !== col[key(pair[1])]) return pair;
+  }
+  return null;
+}
+
+// 正解の数。空き（cells − given − そこ）を3色で塗る 3^k 通りのうち、全部の組がそろうもの。given＝{ "x,y": 色 }。
+export function colorSolutionCount(cells, given) {
+  const base = baseCell(cells);
+  const g = given || {};
+  const blanks = cells.filter((c) => g[key(c)] === undefined && !(base && key(base) === key(c)));
+  const colors = { ...g };
+  let count = 0;
+  const rec = (i) => {
+    if (i === blanks.length) {
+      if (firstColorMismatch(cells, colors) === null) count += 1;
+      return;
+    }
+    for (const c of COLOR_IDS) {
+      colors[key(blanks[i])] = c;
+      rec(i + 1);
+    }
+    delete colors[key(blanks[i])];
+  };
+  rec(0);
+  return count;
+}
+
+// 展開図の型（回転・反転の8通りを平行移動で寄せた文字列のうち最小）。
+const SHAPE_TRANSFORMS = [
+  (x, y) => [x, y], (x, y) => [-y, x], (x, y) => [-x, -y], (x, y) => [y, -x],
+  (x, y) => [-x, y], (x, y) => [y, x], (x, y) => [x, -y], (x, y) => [-y, -x],
+];
+export function netShapeKey(cells) {
+  const keys = SHAPE_TRANSFORMS.map((f) => {
+    const pts = cells.map((c) => { const [x, y] = f(c.x, c.y); return { x, y }; });
+    const mx = Math.min(...pts.map((p) => p.x));
+    const my = Math.min(...pts.map((p) => p.y));
+    return pts.map((p) => ({ x: p.x - mx, y: p.y - my })).sort(byYX).map(key).join('|');
+  });
+  return keys.sort()[0];
+}
