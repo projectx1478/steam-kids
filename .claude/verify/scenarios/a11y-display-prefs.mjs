@@ -7,8 +7,7 @@ const VIEWPORTS = [
   { width: 1024, height: 600 },
   { width: 360, height: 640 },
 ];
-// cmd-02 は devOnly で intro がはみ出す（#797 の判断で対象外。#814 で直したら戻す）
-const LESSONS = ['cmd-01-susumu', 'cmd-03-naosu', 'donguri-01-hirou', 'donguri-02-mawarimichi'];
+const LESSONS = ['cmd-01-susumu', 'cmd-02-mijikaku', 'cmd-03-naosu', 'donguri-01-hirou', 'donguri-02-mawarimichi'];
 
 // c7-board-fit の boardFits と同じ判定（共通化はしない）。
 async function boardFits(page) {
