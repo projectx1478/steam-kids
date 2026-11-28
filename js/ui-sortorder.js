@@ -18,46 +18,12 @@ import { goToStep, setBackDisabled, setActiveHandHint, setActiveAnimation, STEP_
 import { clearResultBubble } from './ui-reaction.js';
 import { showClearSequence, recordClear } from './ui-clear.js';
 import { dishSvg, DISH_NAMES } from './sortorder-dishes.js';
+import { sceneSvg, addIngredient, lightFlame, animateScene } from './sortorder-scene.js';
 import { bindStartCueDismiss, showStartCue } from './ui-retry.js';
 
-const SCENE_MS = 1800; // 最後の鍋の場面（結果アニメ）を見せる長さ。タップで飛ばせる
+const SCENE_MS = 2200; // 最後の鍋の場面（結果アニメ）を見せる長さ。タップで飛ばせる
 const RUN_REDUCED_MS = 300;
 const NEED_MS = 900; // 空きスロットが光る時間
-
-// --- 結果アニメ用の SVG パーツ（viewBox 120×104。鍋は x20..100・y40..82）---
-const FLAME = '<path data-p="flame" d="M34 90c6-10 8-4 12-14 4 8 8 6 10 14M60 90c6-12 8-6 12-16 4 10 8 8 12 16" stroke="#f97316" stroke-width="5" fill="none" stroke-linecap="round" opacity="0"/>';
-const STEAM = '<g data-p="steam" opacity="0"><path d="M42 30c-6-6 6-10 0-18M60 30c-6-6 6-10 0-18M78 30c-6-6 6-10 0-18" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round"/></g>';
-const SMOKE = '<g data-p="smoke" opacity="0"><path d="M40 30c-8-8 8-12 0-22M60 28c-8-8 8-12 0-24M80 30c-8-8 8-12 0-22" stroke="#475569" stroke-width="5" fill="none" stroke-linecap="round"/></g>';
-const POT_BODY = (fill) => `<rect data-p="body" x="20" y="40" width="80" height="42" rx="10" fill="${fill}" stroke="#1e293b" stroke-width="3"/><rect x="12" y="46" width="12" height="8" rx="3" fill="#1e293b"/><rect x="96" y="46" width="12" height="8" rx="3" fill="#1e293b"/>`;
-const FOOD = (fill) => `<ellipse data-p="food" cx="60" cy="52" rx="28" ry="6" fill="${fill}"/>`;
-
-function sceneSvg(kind) {
-  let inner;
-  if (kind === 'burn') {
-    inner = SMOKE + `<g data-p="pot">${POT_BODY('#94a3b8')}${FOOD('#0c0a09')}<circle cx="46" cy="50" r="3" fill="#57534e"/><circle cx="72" cy="53" r="2.5" fill="#57534e"/></g>` + FLAME;
-  } else if (kind === 'spill') {
-    inner =
-      '<ellipse data-p="puddle" cx="86" cy="96" rx="22" ry="5" fill="#fbbf24" opacity="0"/>' +
-      '<circle data-p="drop" cx="84" cy="60" r="4" fill="#fbbf24" opacity="0"/><circle data-p="drop" cx="92" cy="60" r="3" fill="#fbbf24" opacity="0"/>' +
-      `<g data-p="pot" style="transform-box:fill-box;transform-origin:center">${POT_BODY('#94a3b8')}${FOOD('#fbbf24')}</g>`;
-  } else if (kind === 'raw') {
-    inner = `<g data-p="pot">${POT_BODY('#94a3b8')}${FOOD('#fecdd3')}<ellipse data-p="food2" cx="60" cy="49" rx="12" ry="5" fill="#fff1f2" stroke="#fda4af" stroke-width="2"/></g>` + FLAME;
-  } else if (kind === 'empty') {
-    inner =
-      `<g data-p="pot">${POT_BODY('#94a3b8')}<ellipse cx="60" cy="52" rx="28" ry="6" fill="#64748b"/></g>` +
-      '<g data-p="lid" style="transform-box:fill-box;transform-origin:center"><path d="M24 40a36 18 0 0 1 72 0z" fill="#cbd5e1" stroke="#1e293b" stroke-width="3"/><circle cx="60" cy="24" r="4" fill="#1e293b"/></g>' +
-      FLAME;
-  } else if (kind === 'ok') {
-    inner = STEAM + `<g data-p="pot">${POT_BODY('#94a3b8')}${FOOD('#fbbf24')}</g>` + FLAME;
-  } else {
-    inner = `<g data-p="pot">${POT_BODY('#94a3b8')}</g>`;
-  }
-  return `<svg class="so-scene" viewBox="0 0 120 104" aria-hidden="true" data-scene="${kind}">${inner}</svg>`;
-}
-
-// 料理人役のロボット（既存の shapeSvg('player') に帽子を重ねる。新キャラではない）。
-const robotHtml = () =>
-  `<svg class="so-robot" viewBox="0 -8 64 72" aria-hidden="true">${shapeSvg('player')}<path d="M18 8c-6-2-4-12 4-11 3-6 17-6 20 0 8-1 10 9 4 11z" fill="#fff" stroke="#1e293b" stroke-width="2"/></svg>`;
 
 // 実行アニメの手カードの動き（Issue #712）。長さ＝その手の間隔。
 const ACT_FRAMES = {
@@ -75,35 +41,6 @@ const ACT_FRAMES = {
     { transform: 'translateY(0)', opacity: 1 },
   ],
 };
-
-// 結果アニメの再生（Web Animations）。返り値の animations を finish() すると終端状態になる。
-function animateScene(svg, kind) {
-  const q = (p) => svg.querySelectorAll(`[data-p="${p}"]`);
-  const go = (el, frames, ms, delay = 0, extra = {}) => el.animate(frames, { duration: ms, delay, fill: 'forwards', easing: 'ease-in-out', ...extra });
-  const all = [];
-  const add = (p, frames, ms, delay, extra) => q(p).forEach((el) => all.push(go(el, frames, ms, delay, extra)));
-  if (kind === 'ok') {
-    add('flame', [{ opacity: 0 }, { opacity: 1 }], 300);
-    add('steam', [{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 0.95, transform: 'translateY(0)' }], 1200, 300);
-  } else if (kind === 'burn') {
-    add('flame', [{ opacity: 0 }, { opacity: 1 }], 300);
-    add('body', [{ fill: '#94a3b8' }, { fill: '#292524' }], 1000, 300);
-    add('smoke', [{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'translateY(0)' }], 1200, 500);
-  } else if (kind === 'spill') {
-    add('pot', [{ transform: 'rotate(0deg)' }, { transform: 'rotate(40deg) translateX(4px)' }], 700, 200);
-    add('drop', [{ opacity: 1, transform: 'translateY(0)' }, { opacity: 1, transform: 'translateY(34px)' }], 700, 600);
-    add('puddle', [{ opacity: 0, transform: 'scaleX(0.2)' }, { opacity: 1, transform: 'scaleX(1)' }], 700, 1100);
-  } else if (kind === 'raw') {
-    add('flame', [{ opacity: 0 }, { opacity: 1 }], 300);
-    add('food2', [{ transform: 'translateY(0)' }, { transform: 'translateY(-4px)' }, { transform: 'translateY(0)' }], 900, 400, { iterations: 2 });
-  } else if (kind === 'empty') {
-    add('flame', [{ opacity: 0 }, { opacity: 1 }], 300);
-    add('lid', [{ transform: 'translateY(0) rotate(0deg)' }, { transform: 'translateY(-16px) rotate(-14deg)' }], 800, 500);
-  } else {
-    add('pot', [{ transform: 'translateX(0)' }, { transform: 'translateX(-3px)' }, { transform: 'translateX(3px)' }, { transform: 'translateX(0)' }], 700, 200);
-  }
-  return all;
-}
 
 // 成功の料理の絵（figure）。dish が無い・絵が未実装なら null（図なしの現行のダイアログ。Issue #712）。
 function dishFigure(key) {
@@ -267,17 +204,13 @@ export function renderSortOrder(root, step) {
     draw();
   }
 
-  function setBoard(kind, mood = 'normal') {
-    boardArea.querySelectorAll(':scope > .so-robot-frame, :scope > .so-scene-wrap').forEach((e) => e.remove());
-    const rf = document.createElement('div');
-    rf.className = 'so-robot-frame';
-    rf.innerHTML = robotHtml();
-    const sw = document.createElement('div');
-    sw.className = 'so-scene-wrap';
-    sw.innerHTML = sceneSvg(kind);
-    boardArea.append(rf, sw);
-    setMoodIn(rf, mood);
-    return { rf, sw, svg: sw.querySelector('svg') };
+  // 台所の場面（svg.so-scene 1枚。ロボットも中に描く）を作り直す。手順の再生中に足した具材もここで消える。
+  function setBoard(mood = 'normal') {
+    boardArea.querySelectorAll(':scope > .so-scene, :scope > .so-act').forEach((e) => e.remove());
+    boardArea.insertAdjacentHTML('afterbegin', sceneSvg(shapeSvg('player')));
+    const svg = boardArea.querySelector(':scope > svg.so-scene');
+    setMoodIn(svg, mood);
+    return svg;
   }
 
   const view = {
@@ -311,9 +244,15 @@ export function renderSortOrder(root, step) {
     const bad = firstViolation(order, before);
     local.prev = { slots: order.slice(), failIndex: bad ? order.indexOf(bad.a) : -1 };
     if (local.phase === 'running' && !local.sceneShown) {
-      // 手の再生中に飛ばしたとき：最後の鍋の場面を終端状態で出す。
-      const { svg } = setBoard(local.kind, 'normal');
-      if (!prefersReducedMotion()) animateScene(svg, local.kind).forEach((a) => a.finish());
+      // 手の再生中に飛ばしたとき：まだ入っていない具材（違反の手まで）を足し、最後の鍋の場面を終端状態で出す。
+      const svg = boardArea.querySelector(':scope > svg.so-scene');
+      for (let i = svg.querySelectorAll('.so-in').length; i < local.count; i += 1) {
+        const card = byId.get(order[i]);
+        if (card.act === 'bake') lightFlame(svg);
+        addIngredient(svg, i, card.icon, n);
+      }
+      setMoodIn(svg, local.kind === 'ok' ? 'happy' : 'puzzled');
+      animateScene(svg, local.kind).forEach((a) => a.finish());
     }
     boardArea.querySelector('.so-act')?.remove();
     if (!bad) {
@@ -377,34 +316,63 @@ export function renderSortOrder(root, step) {
     local.kind = kind;
     local.sceneShown = false;
     const count = bad ? local.slots.indexOf(bad.a) + 1 : n; // 違反は a の手まで再生して止まる
+    local.count = count;
     const indexes = local.slots.map((_, i) => i);
     const fast = local.prev
       ? fastSteps(local.prev.slots, local.prev.failIndex, local.slots, indexes)
       : indexes.map(() => false);
     const delayOf = (i) => (fast[i] ? FAST_STEP_DELAY_MS : STEP_DELAY_MS);
     const reduced = prefersReducedMotion();
-    setBoard('idle', 'normal');
+    const svg = setBoard('normal');
     const act = document.createElement('div');
     act.className = 'so-act';
-    boardArea.querySelector('.so-scene-wrap').appendChild(act);
+    boardArea.appendChild(act);
+    // 手カードの箱を鍋の真上（場面の座標 150,40）に重ねる。場面は meet で縮むので実寸から割り出す。
+    function placeAct() {
+      const r = svg.getBoundingClientRect();
+      const b = boardArea.getBoundingClientRect();
+      const sc = Math.min(r.width / 240, r.height / 160);
+      const size = Math.max(28, Math.round(40 * sc));
+      const cx = r.left - b.left + (r.width - 240 * sc) / 2 + 150 * sc;
+      const cy = r.top - b.top + (r.height - 160 * sc) / 2 + 36 * sc;
+      Object.assign(act.style, { width: `${size}px`, height: `${size}px`, left: `${Math.round(cx - size / 2)}px`, top: `${Math.round(cy - size / 2)}px`, fontSize: `${Math.round(size * 0.55)}px` });
+      return sc;
+    }
 
     function showScene() {
       act.remove();
       slotsEl.querySelectorAll('.so-now').forEach((e) => e.classList.remove('so-now'));
-      const { svg } = setBoard(kind, 'normal');
       local.sceneShown = true;
-      local.anims = reduced ? [] : animateScene(svg, kind);
+      setMoodIn(svg, kind === 'ok' ? 'happy' : 'puzzled');
+      local.anims = animateScene(svg, kind);
+      if (reduced) local.anims.forEach((a) => a.finish()); // 動きを減らす設定は終端の静止画だけ
       local.timer = setTimeout(finishRun, reduced ? RUN_REDUCED_MS : SCENE_MS);
     }
     function playStep(i) {
       const card = byId.get(local.slots[i]);
       act.dataset.act = card.act ?? 'put';
       act.textContent = card.icon;
+      const sc = placeAct();
+      if (card.act === 'bake') lightFlame(svg);
       slotsEl.querySelectorAll('.so-now').forEach((e) => e.classList.remove('so-now'));
       slotsEl.querySelector(`.so-slot[data-slot="${i}"]`)?.classList.add('so-now');
       const ms = delayOf(i);
-      if (!reduced) local.anims = [act.animate(ACT_FRAMES[act.dataset.act], { duration: ms, easing: 'ease-in-out' })];
-      local.timer = setTimeout(() => (i + 1 < count ? playStep(i + 1) : showScene()), ms);
+      if (!reduced) {
+        // 手の動きに重ねて、手の終わり（最後の4分の1）で鍋へ落ちる（個別の translate は transform と別に合成される）。
+        local.anims = [
+          act.animate(ACT_FRAMES[act.dataset.act], { duration: ms, easing: 'ease-in-out' }),
+          act.animate(
+            [{ translate: '0 0', opacity: 1 }, { translate: '0 0', opacity: 1, offset: 0.75 }, { translate: `0 ${Math.round(30 * sc)}px`, opacity: 0 }],
+            { duration: ms, easing: 'ease-in' }
+          ),
+        ];
+      }
+      local.timer = setTimeout(() => {
+        const t = addIngredient(svg, i, card.icon, n);
+        if (!reduced) t.animate([{ transform: 'scale(0)' }, { transform: 'scale(1.25)', offset: 0.6 }, { transform: 'scale(1)' }], { duration: 250, easing: 'ease-out' });
+        if (i + 1 < count) playStep(i + 1);
+        else showScene();
+      }, ms);
     }
     playStep(0);
     setActiveAnimation({
@@ -427,7 +395,7 @@ export function renderSortOrder(root, step) {
     clearSaved();
     clearWrong();
     local.phase = 'edit';
-    setBoard('idle');
+    setBoard();
     draw();
   }
 
@@ -441,7 +409,7 @@ export function renderSortOrder(root, step) {
     clearSaved();
     clearWrong();
     local.phase = 'edit';
-    setBoard('idle');
+    setBoard();
     draw();
   }
 
@@ -453,7 +421,7 @@ export function renderSortOrder(root, step) {
   });
 
   showNormalActions();
-  setBoard('idle');
+  setBoard();
   draw();
   showStartCue(boardArea);
   screen.announceQuestion();
