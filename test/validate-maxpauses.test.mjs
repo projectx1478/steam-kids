@@ -39,6 +39,8 @@ const board = {
 
 function validate(extra) {
   const lesson = JSON.parse(JSON.stringify(base));
+  // key-01 に足した p3（なおす面。Issue #377）は、この検査の対象外なので外す（p1・p2 が長い盤になるため順序検査に引っかかる）。
+  lesson.steps = lesson.steps.filter((s) => s.stepId !== 'p3');
   // 難易度の順序（非減少）を満たすため p1・p2 を同じ盤にする。
   for (const id of ['p1', 'p2']) {
     const p = lesson.steps.find((s) => s.stepId === id);

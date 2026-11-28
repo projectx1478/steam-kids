@@ -64,6 +64,22 @@
       "solution": ["left", "left", "up", "down", "right", "right", "right", "right"],
       "maxCommands": 10
     },
+    {
+      "stepId": "p3",
+      "kind": "play",
+      "text": "めいれいを なおして ゴールへ",
+      "grid": { "cols": 5, "rows": 3 },
+      "start": { "x": 0, "y": 2 },
+      "goal": { "x": 4, "y": 2 },
+      "walls": [{ "x": 2, "y": 0 }, { "x": 2, "y": 1 }],
+      "keys": [{ "x": 1, "y": 0, "color": "red" }],
+      "doors": [{ "x": 2, "y": 2, "color": "red" }],
+      "keyMode": "remote",
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": { "removeIndex": 1 },
+      "maxCommands": 10,
+      "initialCommands": ["right", "right", "up", "up", "down", "down", "right", "right", "right"]
+    },
     { "stepId": "s2", "kind": "summary", "text": "かぎを とると ドアが あくよ" }
   ]
 }
