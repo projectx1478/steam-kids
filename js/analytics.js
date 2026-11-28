@@ -35,6 +35,10 @@ function computeStepMetrics(stepEvents) {
 
   const retryCount = sorted.filter((e) => e.type === 'retry').length;
 
+  // 最初の stage_clear／clear までの run 件数（2回目以降のクリアは数えない。Issue #725）
+  const firstClear = sorted.find((e) => e.type === 'stage_clear' || e.type === 'clear');
+  const runsToClear = firstClear ? sorted.filter((e) => e.type === 'run' && e.ts <= firstClear.ts).length : null;
+
   const predicts = sorted.filter((e) => e.type === 'predict');
   const predictCorrectCount = predicts.filter((e) => e.payload?.correct === true).length;
   const lastTwoPredicts = predicts.slice(-2);
@@ -53,6 +57,7 @@ function computeStepMetrics(stepEvents) {
 
   return {
     retryCount,
+    runsToClear,
     dwellSamples,
     dwellMedianMs,
     latestDwellMs,
