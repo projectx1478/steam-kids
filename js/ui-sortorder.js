@@ -244,8 +244,15 @@ export function renderSortOrder(root, step) {
     const bad = firstViolation(order, before);
     local.prev = { slots: order.slice(), failIndex: bad ? order.indexOf(bad.a) : -1 };
     if (local.phase === 'running' && !local.sceneShown) {
-      // 手の再生中に飛ばしたとき：最後の鍋の場面を終端状態で出す。
-      animateScene(boardArea.querySelector(':scope > svg.so-scene'), local.kind).forEach((a) => a.finish());
+      // 手の再生中に飛ばしたとき：まだ入っていない具材（違反の手まで）を足し、最後の鍋の場面を終端状態で出す。
+      const svg = boardArea.querySelector(':scope > svg.so-scene');
+      for (let i = svg.querySelectorAll('.so-in').length; i < local.count; i += 1) {
+        const card = byId.get(order[i]);
+        if (card.act === 'bake') lightFlame(svg);
+        addIngredient(svg, i, card.icon, n);
+      }
+      setMoodIn(svg, local.kind === 'ok' ? 'happy' : 'puzzled');
+      animateScene(svg, local.kind).forEach((a) => a.finish());
     }
     boardArea.querySelector('.so-act')?.remove();
     if (!bad) {
@@ -309,6 +316,7 @@ export function renderSortOrder(root, step) {
     local.kind = kind;
     local.sceneShown = false;
     const count = bad ? local.slots.indexOf(bad.a) + 1 : n; // 違反は a の手まで再生して止まる
+    local.count = count;
     const indexes = local.slots.map((_, i) => i);
     const fast = local.prev
       ? fastSteps(local.prev.slots, local.prev.failIndex, local.slots, indexes)
