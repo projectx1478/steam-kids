@@ -1,52 +1,694 @@
 {
   "lessonId": "switch-08-toggle",
   "unitId": "switches",
-  "title": "おすたびに かわる スイッチ",
+  "title": "みっつの スイッチ",
   "type": "grid-runtime",
-  "estimatedMinutes": 5,
+  "estimatedMinutes": 8,
   "steps": [
     {
       "stepId": "s1",
       "kind": "intro",
-      "text": "ふむたびに かべが かわるよ",
+      "text": "スイッチを ふむと どうなる？",
       "demo": {
-        "grid": { "cols": 5, "rows": 3 },
-        "start": { "x": 2, "y": 1 },
-        "goal": { "x": 0, "y": 1 },
-        "walls": [{ "x": 0, "y": 0 }, { "x": 1, "y": 0 }, { "x": 2, "y": 0 }, { "x": 3, "y": 0 }, { "x": 4, "y": 0 }, { "x": 0, "y": 2 }, { "x": 1, "y": 2 }, { "x": 2, "y": 2 }, { "x": 3, "y": 2 }, { "x": 4, "y": 2 }],
-        "items": [{ "x": 4, "y": 1 }],
-        "switches": [{ "x": 3, "y": 1, "mode": "toggle", "targets": [{ "x": 1, "y": 1 }] }],
-        "commands": ["right", "right", "left", "left", "right", "left", "left", "left"]
+        "grid": {
+          "cols": 4,
+          "rows": 2
+        },
+        "start": {
+          "x": 0,
+          "y": 0
+        },
+        "goal": {
+          "x": 3,
+          "y": 1
+        },
+        "walls": [
+          {
+            "x": 0,
+            "y": 1
+          },
+          {
+            "x": 1,
+            "y": 1
+          },
+          {
+            "x": 3,
+            "y": 0
+          }
+        ],
+        "switches": [
+          {
+            "x": 1,
+            "y": 0,
+            "targets": [
+              {
+                "x": 2,
+                "y": 1
+              }
+            ]
+          }
+        ],
+        "commands": [
+          "right",
+          "right",
+          "down",
+          "right"
+        ]
       }
     },
     {
       "stepId": "p1",
       "kind": "play",
-      "text": "もういちど ふむと どうなる？",
-      "grid": { "cols": 5, "rows": 3 },
-      "start": { "x": 2, "y": 1 },
-      "goal": { "x": 4, "y": 1 },
-      "walls": [{ "x": 0, "y": 0 }, { "x": 1, "y": 0 }, { "x": 2, "y": 0 }, { "x": 3, "y": 0 }, { "x": 4, "y": 0 }, { "x": 0, "y": 2 }, { "x": 1, "y": 2 }, { "x": 2, "y": 2 }, { "x": 3, "y": 2 }, { "x": 4, "y": 2 }],
-      "items": [{ "x": 0, "y": 1 }],
-      "switches": [{ "x": 1, "y": 1, "mode": "toggle", "targets": [{ "x": 3, "y": 1 }] }],
-      "allowedCommands": ["up", "down", "left", "right"],
-      "solution": ["left", "left", "right", "right", "left", "right", "right", "right"],
-      "maxCommands": 10
+      "text": "かべは どうなる？",
+      "grid": {
+        "cols": 5,
+        "rows": 3
+      },
+      "start": {
+        "x": 0,
+        "y": 1
+      },
+      "goal": {
+        "x": 4,
+        "y": 1
+      },
+      "walls": [
+        {
+          "x": 2,
+          "y": 0
+        },
+        {
+          "x": 3,
+          "y": 0
+        },
+        {
+          "x": 4,
+          "y": 0
+        },
+        {
+          "x": 2,
+          "y": 2
+        },
+        {
+          "x": 3,
+          "y": 2
+        },
+        {
+          "x": 4,
+          "y": 2
+        }
+      ],
+      "switches": [
+        {
+          "x": 1,
+          "y": 0,
+          "targets": [
+            {
+              "x": 3,
+              "y": 1
+            }
+          ]
+        }
+      ],
+      "allowedCommands": [
+        "up",
+        "down",
+        "left",
+        "right"
+      ],
+      "solution": [
+        "right",
+        "up",
+        "down",
+        "right",
+        "right",
+        "right"
+      ],
+      "maxCommands": 8,
+      "role": "deau",
+      "note": "気づく：ふむと かべが きえる／素直：ふまずに すすむと かべで とまる"
     },
     {
       "stepId": "p2",
       "kind": "play",
-      "text": "いくつの かべが かわるかな？",
-      "grid": { "cols": 6, "rows": 3 },
-      "start": { "x": 3, "y": 1 },
-      "goal": { "x": 5, "y": 1 },
-      "walls": [{ "x": 0, "y": 0 }, { "x": 1, "y": 0 }, { "x": 2, "y": 0 }, { "x": 4, "y": 0 }, { "x": 5, "y": 0 }, { "x": 0, "y": 2 }, { "x": 1, "y": 2 }, { "x": 2, "y": 2 }, { "x": 3, "y": 2 }, { "x": 4, "y": 2 }, { "x": 5, "y": 2 }],
-      "items": [{ "x": 0, "y": 1 }],
-      "switches": [{ "x": 3, "y": 0, "mode": "toggle", "targets": [{ "x": 4, "y": 1, "initial": "open" }, { "x": 1, "y": 1 }] }],
-      "allowedCommands": ["up", "down", "left", "right"],
-      "solution": ["up", "down", "left", "left", "left", "right", "right", "right", "up", "down", "right", "right"],
-      "maxCommands": 14
+      "text": "ふむと どうなる？",
+      "grid": {
+        "cols": 5,
+        "rows": 3
+      },
+      "start": {
+        "x": 0,
+        "y": 1
+      },
+      "goal": {
+        "x": 4,
+        "y": 1
+      },
+      "walls": [
+        {
+          "x": 0,
+          "y": 2
+        },
+        {
+          "x": 1,
+          "y": 2
+        },
+        {
+          "x": 2,
+          "y": 2
+        },
+        {
+          "x": 3,
+          "y": 2
+        },
+        {
+          "x": 4,
+          "y": 2
+        }
+      ],
+      "switches": [
+        {
+          "x": 2,
+          "y": 1,
+          "mode": "close",
+          "targets": [
+            {
+              "x": 3,
+              "y": 1
+            }
+          ]
+        }
+      ],
+      "allowedCommands": [
+        "up",
+        "down",
+        "left",
+        "right"
+      ],
+      "solution": [
+        "right",
+        "up",
+        "right",
+        "right",
+        "right",
+        "down"
+      ],
+      "maxCommands": 8,
+      "role": "deau",
+      "note": "気づく：ふむと かべが でる／素直：まっすぐ すすむと スイッチを ふんで かべが でる"
     },
-    { "stepId": "s2", "kind": "summary", "text": "スイッチを ふむたびに かべが かわるよ" }
+    {
+      "stepId": "p3",
+      "kind": "play",
+      "text": "かべは いつ あく？",
+      "grid": {
+        "cols": 5,
+        "rows": 3
+      },
+      "start": {
+        "x": 0,
+        "y": 1
+      },
+      "goal": {
+        "x": 4,
+        "y": 1
+      },
+      "walls": [
+        {
+          "x": 2,
+          "y": 0
+        },
+        {
+          "x": 2,
+          "y": 2
+        }
+      ],
+      "switches": [
+        {
+          "x": 1,
+          "y": 0,
+          "targets": [
+            {
+              "x": 2,
+              "y": 1
+            }
+          ]
+        },
+        {
+          "x": 1,
+          "y": 2,
+          "targets": [
+            {
+              "x": 2,
+              "y": 1
+            }
+          ]
+        }
+      ],
+      "allowedCommands": [
+        "up",
+        "down",
+        "left",
+        "right"
+      ],
+      "solution": [
+        "right",
+        "up",
+        "down",
+        "down",
+        "up",
+        "right",
+        "right",
+        "right"
+      ],
+      "maxCommands": 10,
+      "role": "tsukau",
+      "note": "気づく：ふたつ ふむと かべが あく／素直：ひとつ ふんだだけで かべへ むかう"
+    },
+    {
+      "stepId": "p4",
+      "kind": "play",
+      "text": "もういちど ふむと どうなる？",
+      "grid": {
+        "cols": 5,
+        "rows": 3
+      },
+      "start": {
+        "x": 2,
+        "y": 1
+      },
+      "goal": {
+        "x": 4,
+        "y": 1
+      },
+      "walls": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 1,
+          "y": 0
+        },
+        {
+          "x": 2,
+          "y": 0
+        },
+        {
+          "x": 3,
+          "y": 0
+        },
+        {
+          "x": 4,
+          "y": 0
+        },
+        {
+          "x": 0,
+          "y": 2
+        },
+        {
+          "x": 1,
+          "y": 2
+        },
+        {
+          "x": 2,
+          "y": 2
+        },
+        {
+          "x": 3,
+          "y": 2
+        },
+        {
+          "x": 4,
+          "y": 2
+        }
+      ],
+      "items": [
+        {
+          "x": 0,
+          "y": 1
+        }
+      ],
+      "switches": [
+        {
+          "x": 1,
+          "y": 1,
+          "mode": "toggle",
+          "targets": [
+            {
+              "x": 3,
+              "y": 1
+            }
+          ]
+        }
+      ],
+      "allowedCommands": [
+        "up",
+        "down",
+        "left",
+        "right"
+      ],
+      "solution": [
+        "left",
+        "left",
+        "right",
+        "right",
+        "left",
+        "right",
+        "right",
+        "right"
+      ],
+      "maxCommands": 10,
+      "role": "tsukau",
+      "note": "気づく：ふむたびに かべが かわる／素直：ひとつ ふんだら あいたままと おもう"
+    },
+    {
+      "stepId": "p5",
+      "kind": "play",
+      "text": "どこを とおる？",
+      "grid": {
+        "cols": 5,
+        "rows": 4
+      },
+      "start": {
+        "x": 0,
+        "y": 3
+      },
+      "goal": {
+        "x": 4,
+        "y": 3
+      },
+      "walls": [
+        {
+          "x": 0,
+          "y": 2
+        },
+        {
+          "x": 2,
+          "y": 2
+        }
+      ],
+      "switches": [
+        {
+          "x": 2,
+          "y": 3,
+          "mode": "close",
+          "targets": [
+            {
+              "x": 3,
+              "y": 3
+            }
+          ]
+        }
+      ],
+      "allowedCommands": [
+        "up",
+        "down",
+        "left",
+        "right"
+      ],
+      "solution": [
+        "right",
+        "up",
+        "up",
+        "right",
+        "right",
+        "down",
+        "down",
+        "right"
+      ],
+      "maxCommands": 10,
+      "role": "hineru",
+      "note": "気づく：ふまずに ゴールへ いける／素直：スイッチを ふんで かべを だしてしまう"
+    },
+    {
+      "stepId": "p6",
+      "kind": "play",
+      "text": "いくつの かべが かわるかな？",
+      "grid": {
+        "cols": 6,
+        "rows": 3
+      },
+      "start": {
+        "x": 3,
+        "y": 1
+      },
+      "goal": {
+        "x": 5,
+        "y": 1
+      },
+      "walls": [
+        {
+          "x": 0,
+          "y": 0
+        },
+        {
+          "x": 1,
+          "y": 0
+        },
+        {
+          "x": 2,
+          "y": 0
+        },
+        {
+          "x": 4,
+          "y": 0
+        },
+        {
+          "x": 5,
+          "y": 0
+        },
+        {
+          "x": 0,
+          "y": 2
+        },
+        {
+          "x": 1,
+          "y": 2
+        },
+        {
+          "x": 2,
+          "y": 2
+        },
+        {
+          "x": 3,
+          "y": 2
+        },
+        {
+          "x": 4,
+          "y": 2
+        },
+        {
+          "x": 5,
+          "y": 2
+        }
+      ],
+      "items": [
+        {
+          "x": 0,
+          "y": 1
+        }
+      ],
+      "switches": [
+        {
+          "x": 3,
+          "y": 0,
+          "mode": "toggle",
+          "targets": [
+            {
+              "x": 4,
+              "y": 1,
+              "initial": "open"
+            },
+            {
+              "x": 1,
+              "y": 1
+            }
+          ]
+        }
+      ],
+      "allowedCommands": [
+        "up",
+        "down",
+        "left",
+        "right"
+      ],
+      "solution": [
+        "up",
+        "down",
+        "left",
+        "left",
+        "left",
+        "right",
+        "right",
+        "right",
+        "up",
+        "down",
+        "right",
+        "right"
+      ],
+      "maxCommands": 14,
+      "role": "hineru",
+      "note": "気づく：ひとつで ふたつの かべが かわる／素直：ひとつの かべだけ みて すすむ"
+    },
+    {
+      "stepId": "p7",
+      "kind": "play",
+      "text": "どこで とまる？",
+      "grid": {
+        "cols": 5,
+        "rows": 4
+      },
+      "start": {
+        "x": 0,
+        "y": 3
+      },
+      "goal": {
+        "x": 4,
+        "y": 3
+      },
+      "walls": [
+        {
+          "x": 1,
+          "y": 1
+        },
+        {
+          "x": 1,
+          "y": 2
+        },
+        {
+          "x": 1,
+          "y": 3
+        },
+        {
+          "x": 3,
+          "y": 2
+        },
+        {
+          "x": 3,
+          "y": 3
+        }
+      ],
+      "ice": [
+        {
+          "x": 0,
+          "y": 1
+        },
+        {
+          "x": 0,
+          "y": 2
+        }
+      ],
+      "switches": [
+        {
+          "x": 0,
+          "y": 2,
+          "targets": [
+            {
+              "x": 4,
+              "y": 2
+            }
+          ]
+        }
+      ],
+      "allowedCommands": [
+        "up",
+        "down",
+        "left",
+        "right"
+      ],
+      "solution": [
+        "up",
+        "right",
+        "right",
+        "right",
+        "right",
+        "down",
+        "down",
+        "down"
+      ],
+      "maxCommands": 10,
+      "role": "mazeru",
+      "note": "気づく：すべると スイッチを ふむ／素直：かぞえた マスで とまると はずれる"
+    },
+    {
+      "stepId": "p8",
+      "kind": "play",
+      "text": "どの スイッチを ふむ？",
+      "grid": {
+        "cols": 6,
+        "rows": 5
+      },
+      "start": {
+        "x": 1,
+        "y": 2
+      },
+      "goal": {
+        "x": 5,
+        "y": 2
+      },
+      "walls": [
+        {
+          "x": 3,
+          "y": 0
+        },
+        {
+          "x": 3,
+          "y": 2
+        },
+        {
+          "x": 3,
+          "y": 4
+        }
+      ],
+      "switches": [
+        {
+          "x": 0,
+          "y": 0,
+          "targets": [
+            {
+              "x": 3,
+              "y": 1
+            }
+          ]
+        },
+        {
+          "x": 0,
+          "y": 4,
+          "targets": [
+            {
+              "x": 3,
+              "y": 3
+            }
+          ]
+        }
+      ],
+      "allowedCommands": [
+        "up",
+        "down",
+        "left",
+        "right"
+      ],
+      "solution": [
+        "left",
+        "up",
+        "up",
+        "right",
+        "right",
+        "down",
+        "right",
+        "right",
+        "right",
+        "down"
+      ],
+      "maxCommands": 12,
+      "role": "hiraku",
+      "note": "気づく：どちらの スイッチでも ゴールへ いける／素直：ひとつの みちだけ さがして とまる"
+    },
+    {
+      "stepId": "s2",
+      "kind": "summary",
+      "text": "スイッチには いろいろ あるね"
+    }
   ]
 }
