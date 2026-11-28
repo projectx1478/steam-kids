@@ -51,6 +51,8 @@ export function renderGoalDemo(container, demo, opts = {}) {
     queueEl = document.createElement('ul');
     queueEl.className = 'command-queue flex flex-nowrap items-center gap-1 justify-center overflow-x-auto max-w-full py-1';
     wrap.appendChild(queueEl);
+    // 縦積みの画面で「▶ おてほんを みる」を置く場所（#821。CSS は tailwind.src.css）。5列以上の盤は横に入らないので命令列の横。
+    wrap.dataset.replaySide = demo.grid.cols >= 5 ? 'queue' : 'board';
   }
 
   const boardOuter = document.createElement('div');

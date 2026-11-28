@@ -8,6 +8,8 @@ const VIEWPORTS = [
   { width: 360, height: 640 },
 ];
 const LESSONS = ['cmd-01-susumu', 'cmd-02-mijikaku', 'cmd-03-naosu', 'donguri-01-hirou', 'donguri-02-mawarimichi'];
+// 命令列のある intro（#821）。チップが出た後（「よーい…」1000ms の後）も収まるかを見る。play までは進まない。
+const QUEUE_INTROS = ['cmd-01-susumu', 'cmd-01-susumu-long', 'cmd-02-mijikaku', 'cmd-03-naosu', 'cmd-04-kurikaeshi', 'cmd-05-kurikaeshi-donguri', 'cmd-07-moshi', 'cmd-08-yomu'];
 
 // c7-board-fit の boardFits と同じ判定（共通化はしない）。
 async function boardFits(page) {
@@ -53,6 +55,16 @@ async function runLesson(page, check, lessonId, label) {
   }
   await check(`${label} ${lessonId} play(命令3つ): 盤面が収まる`, () => boardFits(page), 'ok');
   await check(`${label} ${lessonId} play: 縦横スクロール無し`, () => noScroll(page));
+}
+
+async function checkQueueIntro(page, check, lessonId, label) {
+  await page.goto(`/index.html?lesson=${lessonId}`);
+  await resetTutorialFlags(page);
+  await page.goto(`/index.html?lesson=${lessonId}`);
+  await page.waitForSelector('[data-action="start"]');
+  await check(`${label} ${lessonId} intro(チップ前): 縦横スクロール無し`, () => noScroll(page));
+  await page.waitForSelector('.demo-widget .command-queue .command-chip', { timeout: 5000 });
+  await check(`${label} ${lessonId} intro(チップ後): 縦横スクロール無し`, () => noScroll(page));
 }
 
 // 保護者画面のトグルはゲートの内側にある。a1-sfx-mute と同じ手順で解錠する（解錠はページ読み込みごとに外れる）。
@@ -137,5 +149,6 @@ export default async function run({ page, check }) {
   for (const vp of VIEWPORTS) {
     await page.setViewportSize(vp);
     for (const id of LESSONS) await runLesson(page, check, id, `${vp.width}x${vp.height}@大`);
+    for (const id of QUEUE_INTROS) await checkQueueIntro(page, check, id, `${vp.width}x${vp.height}@大`);
   }
 }

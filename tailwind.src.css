@@ -514,6 +514,48 @@ dialog.result-row {
     grid-area: board;
   }
 }
+/* 命令列のある intro のおてほん（#821）。命令列の高さをチップ1行分（64px＋上下の余白）先に取り、チップが出ても下がずれないようにする。 */
+.demo-widget > .command-queue {
+  min-height: calc(64px + 0.5rem);
+}
+/* 縦積みの画面（上の横並びにならない画面）では「▶ おてほんを みる」を盤面の横に置き、縦を 64px＋間隔のぶん詰める。
+   盤面の横に入らなければ折り返して下に回る。5列以上の盤（data-replay-side='queue'）は命令列の横に置く。 */
+@media (min-height: 480px) and (orientation: portrait), (min-height: 641px) {
+  .demo-widget[data-replay-side] {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    column-gap: 0.75rem;
+  }
+  .demo-widget[data-replay-side] > .command-queue {
+    flex-basis: 100%;
+  }
+  .demo-widget[data-replay-side] > [data-action='demo-replay'] {
+    max-width: 6rem;
+  }
+  .demo-widget[data-replay-side='queue'] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'queue replay' 'board board';
+    justify-items: center;
+    align-items: center;
+    column-gap: 0.75rem;
+    row-gap: 0.5rem;
+    width: 100%;
+  }
+  .demo-widget[data-replay-side='queue'] > .command-queue {
+    grid-area: queue;
+    justify-self: stretch;
+    justify-content: flex-end;
+  }
+  .demo-widget[data-replay-side='queue'] > [data-action='demo-replay'] {
+    grid-area: replay;
+    justify-self: start;
+  }
+  .demo-widget[data-replay-side='queue'] > .relative {
+    grid-area: board;
+  }
+}
 /* 下端バー（Issue #551）：intro・まとめの主ボタンを、スクロールしなくても画面内に置く。#stage の直下の最後の子にし、
    sticky で下端に張り付く。#stage の余白（p-2＝8px／sm:p-4＝16px）は負マージンで相殺して端まで広げる。
    内容が短い画面は margin-top:auto で下へ寄る。高さは72px、ボタンは64px以上・間隔16px以上。play 画面には出さない（#485）。 */
