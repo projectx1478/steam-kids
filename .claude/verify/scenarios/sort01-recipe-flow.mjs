@@ -21,8 +21,25 @@ export default async function run({ page, check }) {
   // 逆順（トレイの並び sara,wa,yaku のまま）で失敗
   for (const id of ['sara', 'wa', 'yaku']) await tap(page, id);
   await check('3枚置くとスロットに並ぶ', () => slotIds(page), ['sara', 'wa', 'yaku']);
+  await check('台所の場面: .so-board 直下に svg.so-scene が1つ・.so-robot-frame なし', () => page.evaluate(() => ({
+    scene: document.querySelectorAll('.so-board > svg.so-scene').length,
+    frame: document.querySelectorAll('.so-robot-frame').length,
+  })), { scene: 1, frame: 0 });
+  await check('台所の場面: 鍋・コンロ・調理台・ロボット・吹き出しが svg の中にある', () => page.evaluate(() => {
+    const svg = document.querySelector('svg.so-scene');
+    return ['[data-p="pot"]', '[data-p="stove"]', '[data-p="counter"]', '.so-robot', '[data-p="bubble"]'].map((q) => !!svg.querySelector(q));
+  }), [true, true, true, true, true]);
   await page.click('[data-action="run"]');
+  await page.waitForSelector('.so-act[data-act]');
+  const first = await page.waitForFunction(() => { const n = document.querySelectorAll('.so-scene .so-in').length; return n >= 1 ? n : false; }, null, { timeout: 5000 });
+  await check('再生中: 1手目が終わった時点で具材(.so-in)が1つ', () => first.jsonValue(), 1);
   await page.waitForSelector('.so-slot.so-wrong', { timeout: 8000 });
+  await check('失敗: 3手目(a)まで再生して具材が3つ', () => page.$$eval('.so-scene .so-in', (e) => e.length), 3);
+  await check('失敗: svg.so-scene の data-scene が fail の種類(empty)・吹き出しは「？」', () => page.evaluate(() => ({
+    k: document.querySelector('svg.so-scene').dataset.scene,
+    b: document.querySelector('[data-p="bubble"] text').textContent.trim(),
+  })), { k: 'empty', b: '？' });
+  await check('失敗: 場面の動きに無限繰り返しが無い', () => page.$eval('.so-board', (b) => b.getAnimations({ subtree: true }).filter((a) => a.effect.getComputedTiming().iterations === Infinity && !a.effect.target.closest?.('.so-card')).length), 0);
   await check('失敗: カードはスロットに残る', () => slotIds(page), ['sara', 'wa', 'yaku']);
   await check('失敗: クリアのダイアログは出ない', async () => (await page.$$('[data-result-dialog]')).length, 0);
 
@@ -59,6 +76,11 @@ export default async function run({ page, check }) {
     await page.waitForSelector('.so-act[data-act]');
     await page.click('.so-board', { force: true });
     await page.waitForSelector('[data-result-dialog] [data-so-dish] svg', { timeout: 10000 });
+    await check(`${w}x${h}: svg.so-scene が .so-board の内側に収まる`, () => page.evaluate(() => {
+      const bd = document.querySelector('.so-board').getBoundingClientRect();
+      const sc = document.querySelector('svg.so-scene').getBoundingClientRect();
+      return sc.width > 0 && sc.left >= bd.left - 1 && sc.right <= bd.right + 1 && sc.top >= bd.top - 1 && sc.bottom <= bd.bottom + 1;
+    }), true);
     await check(`${w}x${h}: ダイアログ・料理の絵・つぎへが結果行に収まる`, () => page.evaluate(() => {
       const row = document.querySelector('[data-result-row]').getBoundingClientRect();
       const inside = (sel) => {
