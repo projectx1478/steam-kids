@@ -68,6 +68,20 @@
       "solution": ["right", "right", "down", "down", "right", "left", "down", "left", "left"],
       "maxCommands": 10
     },
+    {
+      "stepId": "p3",
+      "kind": "play",
+      "text": "めいれいを なおして ゴールへ",
+      "grid": { "cols": 5, "rows": 3 },
+      "start": { "x": 0, "y": 2 },
+      "goal": { "x": 4, "y": 1 },
+      "walls": [{ "x": 0, "y": 0 }, { "x": 2, "y": 0 }, { "x": 3, "y": 0 }, { "x": 4, "y": 0 }, { "x": 1, "y": 2 }, { "x": 3, "y": 2 }, { "x": 4, "y": 2 }],
+      "switches": [{ "x": 1, "y": 0, "targets": [{ "x": 2, "y": 1 }] }, { "x": 2, "y": 2, "targets": [{ "x": 3, "y": 1 }] }],
+      "allowedCommands": ["up", "down", "left", "right"],
+      "solution": { "removeIndex": 5 },
+      "maxCommands": 11,
+      "initialCommands": ["up", "right", "up", "down", "right", "right", "down", "up", "right", "right"]
+    },
     { "stepId": "s2", "kind": "summary", "text": "スイッチを ぜんぶ ふもう" }
   ]
 }
