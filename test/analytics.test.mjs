@@ -64,6 +64,23 @@ test('analytics: レッスン状態と離脱地点', () => {
   assert.equal(summarize(abandonedThenCleared, 1000).lessons[LESSON].abandonedStepId, null, 'abandon後にclearすれば離脱地点はnull');
 });
 
+test('analytics: runsToClear は最初のクリアまでの run 件数', () => {
+  const L = 'cmd-01-susumu';
+  const e = (stepId, type, ts) => ({ eventId: `e${ts}-${type}`, learnerId: 'l1', lessonId: L, stepId, type, ts, payload: {} });
+  const st = (events) => summarize(events, 1000).lessons[L].steps;
+  const base = [
+    e('p1', 'run', 10), e('p1', 'stage_clear', 11),
+    e('p2', 'run', 20), e('p2', 'retry', 21), e('p2', 'run', 22), e('p2', 'retry', 23), e('p2', 'run', 24), e('p2', 'stage_clear', 25),
+  ];
+  const s = st(base);
+  assert.equal(s.p1.runsToClear, 1);
+  assert.equal(s.p2.runsToClear, 3);
+  assert.equal(st([...base, e('p3', 'run', 30)]).p3.runsToClear, null, '未クリアはnull');
+  assert.equal(st([...base, e('p1', 'run', 12), e('p1', 'stage_clear', 13)]).p1.runsToClear, 1, '2回目のクリアは数えない');
+  assert.equal(st([e('p3', 'run', 30), e('p3', 'run', 31), e('p3', 'clear', 32)]).p3.runsToClear, 2, '最終面はclearでも数える');
+  assert.equal(st([e('s1', 'step_enter', 1)]).s1.runsToClear, null, 'play以外はnull');
+});
+
 test('analytics: lastClearTs は該当レッスンの clear の ts の最大値（無ければ0）', () => {
   assert.equal(lastClearTs([], 'L'), 0);
   const events = [
